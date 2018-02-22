@@ -1,8 +1,21 @@
 [package]
-name = "nrf52-hal"
-version = "0.1.0"
 authors = ["James Munns <james.munns@gmail.com>"]
+categories = ["embedded", "hardware-support", "no-std"]
+description = "HAL for the nRF52 family of microcontrollers"
+keywords = ["arm", "cortex-m", "nrf52", "hal"]
+license = "MIT OR Apache-2.0"
+name = "nrf52-hal"
+repository = "https://github.com/jamesmunns/nrf52-hal"
+version = "0.0.1"
 
 [dependencies]
 nrf52 = "0.1.0"
 
+
+[profile.dev]
+incremental = false
+codegen-units = 1
+
+[profile.release]
+debug = true
+lto = true
