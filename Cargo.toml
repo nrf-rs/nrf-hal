@@ -10,6 +10,15 @@ version = "0.0.1"
 
 [dependencies]
 nrf52 = "0.1.0"
+cortex-m = "0.4.3"
+
+[dependencies.cast]
+default-features = false
+version = "0.2.2"
+
+[dependencies.embedded-hal]
+features = ["unproven"]
+version = "0.1.0"
 
 [profile.dev]
 incremental = false
