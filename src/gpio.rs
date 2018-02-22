@@ -42,7 +42,9 @@ pub mod p0 {
         PhantomData,
     };
 
+    use nrf52;
     use nrf52::p0::PIN_CNF;
+    use hal::digital::OutputPin;
 
 
     pub struct P0_0<MODE> {
@@ -67,7 +69,39 @@ pub mod p0 {
 
         // TODO - type safety on PIN_CNF? just take whole `&[PIN_CNF; 32]`?
         pub fn into_push_pull_output(cnf: &mut PIN_CNF) -> P0_0<Output<PushPull>> {
-            unimplemented!()
+            cnf.write(|w| {
+                w.dir().output()
+                 .input().disconnect()
+                 .pull().disabled()
+                 .drive().s0s1()
+                 .sense().disabled()
+            });
+
+            P0_0 {
+                _mode: PhantomData
+            }
+        }
+    }
+
+    // TODO - impl for multiple pins
+    impl<MODE> OutputPin for P0_0<Output<MODE>> {
+        fn is_high(&self) -> bool {
+            !self.is_low()
+        }
+
+        fn is_low(&self) -> bool {
+            // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
+            unsafe { (*nrf52::P0::ptr()).out.read().pin0().is_low() }
+        }
+
+        fn set_high(&mut self) {
+            // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+            unsafe { (*nrf52::P0::ptr()).outset.write(|w| w.pin0().set()); }
+        }
+
+        fn set_low(&mut self) {
+            // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+            unsafe { (*nrf52::P0::ptr()).outclr.write(|w| w.pin0().clear()); }
         }
     }
 }

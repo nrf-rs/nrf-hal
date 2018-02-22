@@ -20,6 +20,14 @@ version = "0.2.2"
 features = ["unproven"]
 version = "0.1.0"
 
+[dev-dependencies.nrf52]
+features = ["rt"]
+version = "0.1.0"
+
+[features]
+doc = []
+rt = ["nrf52/rt"]
+
 [profile.dev]
 incremental = false
 codegen-units = 1

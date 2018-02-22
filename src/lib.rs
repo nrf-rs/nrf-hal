@@ -7,4 +7,4 @@ pub extern crate nrf52;
 
 // mod delay;
 // mod spi;
-mod gpio;
+pub mod gpio;
