@@ -11,7 +11,6 @@ version = "0.0.1"
 [dependencies]
 nrf52 = "0.1.0"
 
-
 [profile.dev]
 incremental = false
 codegen-units = 1
