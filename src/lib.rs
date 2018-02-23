@@ -5,6 +5,8 @@ extern crate cortex_m;
 extern crate embedded_hal as hal;
 pub extern crate nrf52;
 
-// mod delay;
+pub mod delay;
 // mod spi;
 pub mod gpio;
+pub mod clocks;
+pub mod time;

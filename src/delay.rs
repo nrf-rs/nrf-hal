@@ -5,7 +5,7 @@ use cortex_m::peripheral::SYST;
 use cortex_m::peripheral::syst::SystClkSource;
 
 use hal::blocking::delay::{DelayMs, DelayUs};
-use rcc::Clocks;
+use clocks::Clocks;
 
 /// System timer (SysTick) as a delay provider
 pub struct Delay {
@@ -47,7 +47,7 @@ impl DelayMs<u8> for Delay {
 
 impl DelayUs<u32> for Delay {
     fn delay_us(&mut self, us: u32) {
-        let rvr = us * (self.clocks.sysclk().0 / 1_000_000);
+        let rvr = us * (self.clocks.hfclk().0 / 1_000_000);
 
         assert!(rvr < (1 << 24));
 
