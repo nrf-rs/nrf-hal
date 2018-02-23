@@ -47,14 +47,29 @@ pub mod p0 {
     use hal::digital::OutputPin;
 
 
-    pub struct P0_0<MODE> {
+    impl P0_11_CFG {
+        pub fn magic() -> Self {
+            Self {
+                _0: ()
+            }
+        }
+        pub(crate) fn cfg(&mut self) -> &nrf52::p0::PIN_CNF {
+            unsafe { &(*nrf52::P0::ptr()).pin_cnf[11] }
+        }
+    }
+
+    pub struct P0_11_CFG {
+        _0: (),
+    }
+
+    pub struct P0_11<MODE> {
         _mode: PhantomData<MODE>
     }
 
-    impl<MODE> P0_0<MODE> {
+    impl<MODE> P0_11<MODE> {
         // TODO - type safety on PIN_CNF? just take whole `&[PIN_CNF; 32]`?
-        pub fn into_floating_input(cnf: &mut PIN_CNF) -> P0_0<Input<Floating>> {
-            cnf.write(|w| {
+        pub fn into_floating_input(cnf: &mut P0_11_CFG) -> P0_11<Input<Floating>> {
+            cnf.cfg().write(|w| {
                 w.dir().input()
                  .input().connect()
                  .pull().disabled()
@@ -62,14 +77,14 @@ pub mod p0 {
                  .sense().disabled()
             });
 
-            P0_0 {
+            P0_11 {
                 _mode: PhantomData
             }
         }
 
         // TODO - type safety on PIN_CNF? just take whole `&[PIN_CNF; 32]`?
-        pub fn into_push_pull_output(cnf: &mut PIN_CNF) -> P0_0<Output<PushPull>> {
-            cnf.write(|w| {
+        pub fn into_push_pull_output(cnf: &mut P0_11_CFG) -> P0_11<Output<PushPull>> {
+            cnf.cfg().write(|w| {
                 w.dir().output()
                  .input().disconnect()
                  .pull().disabled()
@@ -77,31 +92,31 @@ pub mod p0 {
                  .sense().disabled()
             });
 
-            P0_0 {
+            P0_11 {
                 _mode: PhantomData
             }
         }
     }
 
     // TODO - impl for multiple pins
-    impl<MODE> OutputPin for P0_0<Output<MODE>> {
+    impl<MODE> OutputPin for P0_11<Output<MODE>> {
         fn is_high(&self) -> bool {
             !self.is_low()
         }
 
         fn is_low(&self) -> bool {
             // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
-            unsafe { (*nrf52::P0::ptr()).out.read().pin0().is_low() }
+            unsafe { (*nrf52::P0::ptr()).out.read().pin11().is_low() }
         }
 
         fn set_high(&mut self) {
             // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
-            unsafe { (*nrf52::P0::ptr()).outset.write(|w| w.pin0().set()); }
+            unsafe { (*nrf52::P0::ptr()).outset.write(|w| w.pin11().set()); }
         }
 
         fn set_low(&mut self) {
             // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
-            unsafe { (*nrf52::P0::ptr()).outclr.write(|w| w.pin0().clear()); }
+            unsafe { (*nrf52::P0::ptr()).outclr.write(|w| w.pin11().clear()); }
         }
     }
 }
