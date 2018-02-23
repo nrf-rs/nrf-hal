@@ -69,30 +69,29 @@ macro_rules! gpio {
             use nrf52;
             use nrf52::$PX;
             use nrf52::$px::PIN_CNF;
-            use hal::digital::OutputPin;
+            use hal::digital::{OutputPin, InputPin};
 
+            /// GPIO parts
+            pub struct Parts {
+                $(
+                    /// Pin
+                    pub $pxi: $PXi<$MODE>,
+                )+
+            }
 
-                /// GPIO parts
-                pub struct Parts {
-                    $(
-                        /// Pin
-                        pub $pxi: $PXi<$MODE>,
-                    )+
-                }
+            impl GpioExt for $PX {
+                type Parts = Parts;
 
-                impl GpioExt for $PX {
-                    type Parts = Parts;
-
-                    fn split(self) -> Parts {
-                        Parts {
-                            $(
-                                $pxi: $PXi {
-                                    _mode: PhantomData,
-                                },
-                            )+
-                        }
+                fn split(self) -> Parts {
+                    Parts {
+                        $(
+                            $pxi: $PXi {
+                                _mode: PhantomData,
+                            },
+                        )+
                     }
                 }
+            }
 
             $(
                 pub struct $PXi<MODE> {
@@ -101,7 +100,7 @@ macro_rules! gpio {
 
 
                 impl<MODE> $PXi<MODE> {
-                    // TODO - type safety on PIN_CNF? just take whole `&[PIN_CNF; 32]`?
+                    /// Convert the pin to be a floating input
                     pub fn into_floating_input(self) -> $PXi<Input<Floating>> {
                         unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
                             w.dir().input()
@@ -116,7 +115,7 @@ macro_rules! gpio {
                         }
                     }
 
-                    // TODO - type safety on PIN_CNF? just take whole `&[PIN_CNF; 32]`?
+                    /// Convert the pin to be a push-pull output
                     pub fn into_push_pull_output(self) -> $PXi<Output<PushPull>> {
                         unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
                             w.dir().output()
@@ -132,23 +131,37 @@ macro_rules! gpio {
                     }
                 }
 
-                impl<MODE> OutputPin for $PXi<Output<MODE>> {
+                impl<MODE> InputPin for $PXi<Input<MODE>> {
                     fn is_high(&self) -> bool {
                         !self.is_low()
                     }
 
+                    fn is_low(&self) -> bool {
+                        unsafe { ((*$PX::ptr()).in_.read().bits() & (1 << $i)) == 0 }
+                    }
+                }
+
+                impl<MODE> OutputPin for $PXi<Output<MODE>> {
+                    /// Is the output pin set as high?
+                    fn is_high(&self) -> bool {
+                        !self.is_low()
+                    }
+
+                    /// Is the output pin set as low?
                     fn is_low(&self) -> bool {
                         // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
                         // TODO - I wish I could do something like `.pins$i()`...
                         unsafe { ((*$PX::ptr()).out.read().bits() & (1 << $i)) == 0 }
                     }
 
+                    /// Set the output as high
                     fn set_high(&mut self) {
                         // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
                         // TODO - I wish I could do something like `.pins$i()`...
                         unsafe { (*$PX::ptr()).outset.write(|w| w.bits(1u32 << $i)); }
                     }
 
+                    /// Set the output as low
                     fn set_low(&mut self) {
                         // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
                         // TODO - I wish I could do something like `.pins$i()`...
