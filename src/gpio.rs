@@ -47,7 +47,7 @@ pub struct PushPull;
 
 macro_rules! gpio {
     (
-        $PX:ident, $px:ident, $py:ident, [
+        $PX:ident, $px:ident, $Pg:ident [
             $($PXi:ident: ($pxi:ident, $i:expr, $MODE:ty),)+
         ]
     ) => {
@@ -71,6 +71,93 @@ macro_rules! gpio {
             use nrf52::$px::PIN_CNF;
             use hal::digital::{OutputPin, InputPin};
 
+            // ===============================================================
+            // Implement Generic Pins for this port, which allows you to use
+            // other peripherals without having to be completely rust-generic
+            // across all of the possible pins
+            // ===============================================================
+            /// Generic $PX pin
+            pub struct $Pg<MODE> {
+                pub pin: u8,
+                _mode: PhantomData<MODE>,
+            }
+
+            impl<MODE> $Pg<MODE> {
+                /// Convert the pin to be a floating input
+                pub fn into_floating_input(self) -> $Pg<Input<Floating>> {
+                    unsafe { &(*$PX::ptr()).pin_cnf[self.pin as usize] }.write(|w| {
+                        w.dir().input()
+                         .input().connect()
+                         .pull().disabled()
+                         .drive().s0s1()
+                         .sense().disabled()
+                    });
+
+                    $Pg {
+                        _mode: PhantomData,
+                        pin: self.pin
+                    }
+                }
+
+                /// Convert the pin to be a push-pull output with normal drive
+                pub fn into_push_pull_output(self) -> $Pg<Output<PushPull>> {
+                    unsafe { &(*$PX::ptr()).pin_cnf[self.pin as usize] }.write(|w| {
+                        w.dir().output()
+                         .input().connect() // AJM - hack for SPI
+                         .pull().disabled()
+                         .drive().s0s1()
+                         .sense().disabled()
+                    });
+
+                    $Pg {
+                        _mode: PhantomData,
+                        pin: self.pin
+                    }
+                }
+            }
+
+            impl<MODE> InputPin for $Pg<Input<MODE>> {
+                fn is_high(&self) -> bool {
+                    !self.is_low()
+                }
+
+                fn is_low(&self) -> bool {
+                    unsafe { ((*$PX::ptr()).in_.read().bits() & (1 << self.pin)) == 0 }
+                }
+            }
+
+            impl<MODE> OutputPin for $Pg<Output<MODE>> {
+                /// Is the output pin set as high?
+                fn is_high(&self) -> bool {
+                    !self.is_low()
+                }
+
+                /// Is the output pin set as low?
+                fn is_low(&self) -> bool {
+                    // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
+                    // TODO - I wish I could do something like `.pins$i()`...
+                    unsafe { ((*$PX::ptr()).out.read().bits() & (1 << self.pin)) == 0 }
+                }
+
+                /// Set the output as high
+                fn set_high(&mut self) {
+                    // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+                    // TODO - I wish I could do something like `.pins$i()`...
+                    unsafe { (*$PX::ptr()).outset.write(|w| w.bits(1u32 << self.pin)); }
+                }
+
+                /// Set the output as low
+                fn set_low(&mut self) {
+                    // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+                    // TODO - I wish I could do something like `.pins$i()`...
+                    unsafe { (*$PX::ptr()).outclr.write(|w| w.bits(1u32 << self.pin)); }
+                }
+            }
+
+            // ===============================================================
+            // This chunk allows you to obtain an nrf52-hal gpio from the
+            // upstream nrf52 gpio definitions by defining a trait
+            // ===============================================================
             /// GPIO parts
             pub struct Parts {
                 $(
@@ -93,6 +180,10 @@ macro_rules! gpio {
                 }
             }
 
+            // ===============================================================
+            // Implement each of the typed pins usable through the nrf52-hal
+            // defined interface
+            // ===============================================================
             $(
                 pub struct $PXi<MODE> {
                     _mode: PhantomData<MODE>,
@@ -115,7 +206,7 @@ macro_rules! gpio {
                         }
                     }
 
-                    /// Convert the pin to be a push-pull output
+                    /// Convert the pin to bepin a push-pull output with normal drive
                     pub fn into_push_pull_output(self) -> $PXi<Output<PushPull>> {
                         unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
                             w.dir().output()
@@ -127,6 +218,14 @@ macro_rules! gpio {
 
                         $PXi {
                             _mode: PhantomData,
+                        }
+                    }
+
+                    /// Degrade to a generic pin struct, which can be used with peripherals
+                    pub fn degrade(self) -> $Pg<MODE> {
+                        $Pg {
+                            _mode: PhantomData,
+                            pin: $i
                         }
                     }
                 }
@@ -169,48 +268,17 @@ macro_rules! gpio {
                     }
                 }
             )+
-
-// TODO(AJM) - type erasure impl
-
-//                 impl<MODE> $PXi<Output<MODE>> {
-//                     /// Erases the pin number from the type
-//                     ///
-//                     /// This is useful when you want to collect the pins into an array where you
-//                     /// need all the elements to have the same type
-//                     pub fn downgrade(self) -> $PXx<Output<MODE>> {
-//                         $PXx {
-//                             i: $i,
-//                             _mode: self._mode,
-//                         }
-//                     }
-//                 }
-
-//                 impl<MODE> OutputPin for $PXi<Output<MODE>> {
-//                     fn is_high(&self) -> bool {
-//                         !self.is_low()
-//                     }
-
-//                     fn is_low(&self) -> bool {
-//                         // NOTE(unsafe) atomic read with no side effects
-//                         unsafe { (*$GPIOX::ptr()).odr.read().bits() & (1 << $i) == 0 }
-//                     }
-
-//                     fn set_high(&mut self) {
-//                         // NOTE(unsafe) atomic write to a stateless register
-//                         unsafe { (*$GPIOX::ptr()).bsrr.write(|w| w.bits(1 << $i)) }
-//                     }
-
-//                     fn set_low(&mut self) {
-//                         // NOTE(unsafe) atomic write to a stateless register
-//                         unsafe { (*$GPIOX::ptr()).bsrr.write(|w| w.bits(1 << (16 + $i))) }
-//                     }
-//                 }
-//             )+
         }
     }
 }
 
-gpio!(P0, p0, p0, [
+// ===========================================================================
+// Definition of all the items used by the macros above.
+//
+// For now, it is a little repetitive, especially as the nrf52 only has one
+// 32-bit GPIO port (P0)
+// ===========================================================================
+gpio!(P0, p0, P0_Pin [
     P0_0:  (p0_0,  0,  Input<Floating>),
     P0_1:  (p0_1,  1,  Input<Floating>),
     P0_2:  (p0_2,  2,  Input<Floating>),

@@ -47,17 +47,26 @@ impl DelayMs<u8> for Delay {
 
 impl DelayUs<u32> for Delay {
     fn delay_us(&mut self, us: u32) {
-        let rvr = us * (self.clocks.hfclk().0 / 1_000_000);
+        let mut rvr = us * (self.clocks.hfclk().0 / 1_000_000);
 
-        assert!(rvr < (1 << 24));
+        while rvr != 0 {
+            let rvr_inner = if rvr < (1 << 24) {
+                rvr
+            } else {
+                1 << 24
+            };
 
-        self.syst.set_reload(rvr);
-        self.syst.clear_current();
-        self.syst.enable_counter();
+            self.syst.set_reload(rvr);
+            self.syst.clear_current();
+            self.syst.enable_counter();
 
-        while !self.syst.has_wrapped() {}
+            // Update the tracking variable while we are waiting...
+            rvr -= rvr_inner;
 
-        self.syst.disable_counter();
+            while !self.syst.has_wrapped() {}
+
+            self.syst.disable_counter();
+        }
     }
 }
 
