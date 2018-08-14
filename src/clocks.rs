@@ -6,8 +6,8 @@ pub trait ClocksExt {
 }
 
 pub struct ClocksCfg {
-    hfclk: HFCLK,
-    lfclk: LFCLK,
+    pub hfclk: HFCLK,
+    pub lfclk: LFCLK,
 }
 
 pub struct HFCLK {
@@ -53,5 +53,9 @@ impl ClocksCfg {
 impl Clocks {
     pub fn hfclk(&self) -> Hertz {
         self.hfclk
+    }
+
+    pub fn lfclk(&self) -> Hertz {
+        self.lfclk
     }
 }

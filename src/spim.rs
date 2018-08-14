@@ -1,6 +1,5 @@
-use gpio;
 use hal::spi::{Mode, Phase, Polarity, FullDuplex};
-use nrf52::{SPIM0, SPIM1, SPIM2};
+use nrf52::SPIM1;
 use time::Hertz;
 use nb;
 
@@ -67,6 +66,7 @@ impl FullDuplex<u8> for Spi1 {
     }
 }
 
+#[allow(dead_code)]
 pub struct Spi1 { // TODO generic across Spi[0...2]
     miso_pin: P0_Pin<Input<Floating>>,
     mosi_pin: P0_Pin<Output<PushPull>>,
@@ -88,7 +88,7 @@ impl Spi1 {
         // TODO - obtain something that prevents shared overlapping peripherals?
         // See Product Spec Section 29.1 "Shared Resources"
 
-        let mut spi1 = unsafe {
+        let spi1 = unsafe {
             &(*SPIM1::ptr())
         };
 
