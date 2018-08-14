@@ -69,7 +69,7 @@ macro_rules! gpio {
             use nrf52;
             use nrf52::$PX;
             use nrf52::$px::PIN_CNF;
-            use hal::digital::{OutputPin, InputPin};
+            use hal::digital::{OutputPin, StatefulOutputPin, InputPin};
 
             // ===============================================================
             // Implement Generic Pins for this port, which allows you to use
@@ -127,18 +127,6 @@ macro_rules! gpio {
             }
 
             impl<MODE> OutputPin for $Pg<Output<MODE>> {
-                /// Is the output pin set as high?
-                fn is_high(&self) -> bool {
-                    !self.is_low()
-                }
-
-                /// Is the output pin set as low?
-                fn is_low(&self) -> bool {
-                    // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
-                    // TODO - I wish I could do something like `.pins$i()`...
-                    unsafe { ((*$PX::ptr()).out.read().bits() & (1 << self.pin)) == 0 }
-                }
-
                 /// Set the output as high
                 fn set_high(&mut self) {
                     // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
@@ -151,6 +139,20 @@ macro_rules! gpio {
                     // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
                     // TODO - I wish I could do something like `.pins$i()`...
                     unsafe { (*$PX::ptr()).outclr.write(|w| w.bits(1u32 << self.pin)); }
+                }
+            }
+
+            impl<MODE> StatefulOutputPin for $Pg<Output<MODE>> {
+                /// Is the output pin set as high?
+                fn is_set_high(&self) -> bool {
+                    !self.is_set_low()
+                }
+
+                /// Is the output pin set as low?
+                fn is_set_low(&self) -> bool {
+                    // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
+                    // TODO - I wish I could do something like `.pins$i()`...
+                    unsafe { ((*$PX::ptr()).out.read().bits() & (1 << self.pin)) == 0 }
                 }
             }
 
@@ -241,18 +243,6 @@ macro_rules! gpio {
                 }
 
                 impl<MODE> OutputPin for $PXi<Output<MODE>> {
-                    /// Is the output pin set as high?
-                    fn is_high(&self) -> bool {
-                        !self.is_low()
-                    }
-
-                    /// Is the output pin set as low?
-                    fn is_low(&self) -> bool {
-                        // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
-                        // TODO - I wish I could do something like `.pins$i()`...
-                        unsafe { ((*$PX::ptr()).out.read().bits() & (1 << $i)) == 0 }
-                    }
-
                     /// Set the output as high
                     fn set_high(&mut self) {
                         // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
@@ -265,6 +255,20 @@ macro_rules! gpio {
                         // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
                         // TODO - I wish I could do something like `.pins$i()`...
                         unsafe { (*$PX::ptr()).outclr.write(|w| w.bits(1u32 << $i)); }
+                    }
+                }
+
+                impl<MODE> StatefulOutputPin for $PXi<Output<MODE>> {
+                    /// Is the output pin set as high?
+                    fn is_set_high(&self) -> bool {
+                        !self.is_set_low()
+                    }
+
+                    /// Is the output pin set as low?
+                    fn is_set_low(&self) -> bool {
+                        // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
+                        // TODO - I wish I could do something like `.pins$i()`...
+                        unsafe { ((*$PX::ptr()).out.read().bits() & (1 << $i)) == 0 }
                     }
                 }
             )+
