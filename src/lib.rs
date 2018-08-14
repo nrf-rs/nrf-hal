@@ -11,3 +11,7 @@ pub mod spim;
 pub mod gpio;
 pub mod clocks;
 pub mod time;
+
+pub mod prelude {
+    pub use hal::prelude::*;
+}
