@@ -28,7 +28,6 @@ version = "0.2.1"
 [features]
 doc = []
 rt = ["nrf52/rt"]
-unproven = ["embedded-hal/unproven"]
 default = ["rt"]
 
 [profile.dev]
