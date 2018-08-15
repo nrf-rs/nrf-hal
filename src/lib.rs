@@ -16,4 +16,9 @@ pub mod timer;
 
 pub mod prelude {
     pub use hal::prelude::*;
+
+    pub use clocks::ClocksExt;
+    pub use gpio::GpioExt;
+    pub use time::U32Ext;
+    pub use timer::TimerExt;
 }
