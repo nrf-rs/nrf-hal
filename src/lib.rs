@@ -19,6 +19,7 @@ pub mod prelude {
 
     pub use clocks::ClocksExt;
     pub use gpio::GpioExt;
+    pub use spim::SpimExt;
     pub use time::U32Ext;
     pub use timer::TimerExt;
 }
