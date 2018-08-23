@@ -7,6 +7,7 @@ extern crate nb;
 extern crate void;
 pub extern crate nrf52;
 
+
 pub mod delay;
 pub mod spim;
 pub mod gpio;
@@ -23,3 +24,9 @@ pub mod prelude {
     pub use time::U32Ext;
     pub use timer::TimerExt;
 }
+
+
+pub use clocks::Clocks;
+pub use delay::Delay;
+pub use spim::Spim;
+pub use timer::Timer;
