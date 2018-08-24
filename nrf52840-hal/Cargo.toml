@@ -1,0 +1,35 @@
+[package]
+name = "nrf52840-embedded-hal"
+version = "0.1.0"
+authors = ["John Scarrott <johnps@outlook.com>"]
+
+[dependencies]
+bare-metal = "0.2.0"
+cortex-m = "0.5.2"
+cortex-m-rt = "0.5.1"
+nb = "0.1.1"
+nrf52840 = "0.2.0"
+
+[dependencies.cast]
+default-features = false
+version = "0.2.2"
+
+[dependencies.embedded-hal]
+features = ["unproven"]
+version = "0.2.1"
+
+[dependencies.void]
+default-features = false
+version = "1.0.2"
+
+[features]
+default = ["rt"]
+rt = ["nrf52840/rt"]
+[profile.dev]
+debug = true
+lto = false
+
+[profile.release]
+debug = true
+lto = true
+opt-level = "s"
