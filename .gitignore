@@ -1,4 +1,4 @@
-
 /target/
+/nrf52-hal/target/
 **/*.rs.bk
 Cargo.lock
