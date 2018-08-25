@@ -1,5 +1,9 @@
 [workspace]
-members = ["nrf52-hal", "nrf52840-hal"]
+members = [
+  "boards/adafruit_nrf52pro",
+  "nrf52-hal",
+  "nrf52840-hal",
+]
 
 [profile.dev]
 incremental = false

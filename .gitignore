@@ -1,5 +1,6 @@
 /target/
-/*-hal/target/
+.gdb_history
+[._]*.sw[a-p]
 **/*.rs.bk
 Cargo.lock
 
