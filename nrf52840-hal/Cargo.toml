@@ -1,5 +1,5 @@
 [package]
-name = "nrf52840-embedded-hal"
+name = "nrf52840-hal"
 version = "0.1.0"
 authors = ["John Scarrott <johnps@outlook.com>"]
 

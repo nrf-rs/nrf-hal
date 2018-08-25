@@ -1,15 +1,8 @@
-//! General Purpose Input / Output
+// TODO - clean these up
+#![allow(unused_imports)]
+#![allow(non_camel_case_types)]
 
 use core::marker::PhantomData;
-
-/// Extension trait to split a P0 peripheral in independent pins and registers
-pub trait GpioExt {
-    /// The to split the P0 into
-    type Parts;
-
-    /// Splits the P0 block into independent pins and registers
-    fn split(self) -> Self::Parts;
-}
 
 /// Input mode (type state)
 pub struct Input<MODE> {
@@ -18,41 +11,155 @@ pub struct Input<MODE> {
 
 /// Floating input (type state)
 pub struct Floating;
-
-/// Pulled down input (type state)
-pub struct PullDown;
-
-/// Pulled up input (type state)
-pub struct PullUp;
-
-/// Open drain input or output (type state)
-pub struct OpenDrain;
+// /// Pulled down input (type state)
+// pub struct PullDown;
+// /// Pulled up input (type state)
+// pub struct PullUp;
 
 /// Output mode (type state)
 pub struct Output<MODE> {
     _mode: PhantomData<MODE>,
 }
 
+/// Extension trait to split a GPIO peripheral in independent pins and registers
+pub trait GpioExt {
+    /// The to split the GPIO into
+    type Parts;
+
+    /// Splits the GPIO block into independent pins and registers
+    fn split(
+        self,
+        // apb2: &mut APB2
+    ) -> Self::Parts;
+}
+
 /// Push pull output (type state)
 pub struct PushPull;
+// /// Open drain output (type state)
+// pub struct OpenDrain;
+
+// /// Alternate function
+// pub struct Alternate<MODE> {
+//     _mode: PhantomData<MODE>,
+// }
+
 
 macro_rules! gpio {
-    ($GPIOX:ident, $gpiox:ident, $PXx:ident, [
-        $($PXi:ident: ($pxi:ident, $i:expr, $MODE:ty),)+
-    ]) => {
-        /// P0
-        pub mod $gpiox {
-            use core::marker::PhantomData;
-
-            use hal::digital::{InputPin, OutputPin, StatefulOutputPin};
-            use nrf52840::P0;
-
+    (
+        $PX:ident, $px:ident, $Pg:ident [
+            $($PXi:ident: ($pxi:ident, $i:expr, $MODE:ty),)+
+        ]
+    ) => {
+        /// GPIO
+        pub mod $px {
             use super::{
-                Floating, GpioExt, Input, OpenDrain, Output,
-                PullDown, PullUp, PushPull,
+                // Alternate,
+                Floating,
+                GpioExt,
+                Input,
+                // OpenDrain,
+                Output,
+                // PullDown, PullUp,
+                PushPull,
+
+                PhantomData,
             };
 
-            /// P0 parts
+            use nrf52840;
+            use nrf52840::$PX;
+            use nrf52840::$px::PIN_CNF;
+            use hal::digital::{OutputPin, StatefulOutputPin, InputPin};
+
+            // ===============================================================
+            // Implement Generic Pins for this port, which allows you to use
+            // other peripherals without having to be completely rust-generic
+            // across all of the possible pins
+            // ===============================================================
+            /// Generic $PX pin
+            pub struct $Pg<MODE> {
+                pub pin: u8,
+                _mode: PhantomData<MODE>,
+            }
+
+            impl<MODE> $Pg<MODE> {
+                /// Convert the pin to be a floating input
+                pub fn into_floating_input(self) -> $Pg<Input<Floating>> {
+                    unsafe { &(*$PX::ptr()).pin_cnf[self.pin as usize] }.write(|w| {
+                        w.dir().input()
+                         .input().connect()
+                         .pull().disabled()
+                         .drive().s0s1()
+                         .sense().disabled()
+                    });
+
+                    $Pg {
+                        _mode: PhantomData,
+                        pin: self.pin
+                    }
+                }
+
+                /// Convert the pin to be a push-pull output with normal drive
+                pub fn into_push_pull_output(self) -> $Pg<Output<PushPull>> {
+                    unsafe { &(*$PX::ptr()).pin_cnf[self.pin as usize] }.write(|w| {
+                        w.dir().output()
+                         .input().connect() // AJM - hack for SPI
+                         .pull().disabled()
+                         .drive().s0s1()
+                         .sense().disabled()
+                    });
+
+                    $Pg {
+                        _mode: PhantomData,
+                        pin: self.pin
+                    }
+                }
+            }
+
+            impl<MODE> InputPin for $Pg<Input<MODE>> {
+                fn is_high(&self) -> bool {
+                    !self.is_low()
+                }
+
+                fn is_low(&self) -> bool {
+                    unsafe { ((*$PX::ptr()).in_.read().bits() & (1 << self.pin)) == 0 }
+                }
+            }
+
+            impl<MODE> OutputPin for $Pg<Output<MODE>> {
+                /// Set the output as high
+                fn set_high(&mut self) {
+                    // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+                    // TODO - I wish I could do something like `.pins$i()`...
+                    unsafe { (*$PX::ptr()).outset.write(|w| w.bits(1u32 << self.pin)); }
+                }
+
+                /// Set the output as low
+                fn set_low(&mut self) {
+                    // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+                    // TODO - I wish I could do something like `.pins$i()`...
+                    unsafe { (*$PX::ptr()).outclr.write(|w| w.bits(1u32 << self.pin)); }
+                }
+            }
+
+            impl<MODE> StatefulOutputPin for $Pg<Output<MODE>> {
+                /// Is the output pin set as high?
+                fn is_set_high(&self) -> bool {
+                    !self.is_set_low()
+                }
+
+                /// Is the output pin set as low?
+                fn is_set_low(&self) -> bool {
+                    // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
+                    // TODO - I wish I could do something like `.pins$i()`...
+                    unsafe { ((*$PX::ptr()).out.read().bits() & (1 << self.pin)) == 0 }
+                }
+            }
+
+            // ===============================================================
+            // This chunk allows you to obtain an nrf52840-hal gpio from the
+            // upstream nrf52840 gpio definitions by defining a trait
+            // ===============================================================
+            /// GPIO parts
             pub struct Parts {
                 $(
                     /// Pin
@@ -60,249 +167,66 @@ macro_rules! gpio {
                 )+
             }
 
-            impl GpioExt for $GPIOX {
+            impl GpioExt for $PX {
                 type Parts = Parts;
 
                 fn split(self) -> Parts {
                     Parts {
                         $(
-                            $pxi: $PXi { _mode: PhantomData },
+                            $pxi: $PXi {
+                                _mode: PhantomData,
+                            },
                         )+
                     }
                 }
             }
 
-            /// Partially erased pin
-            pub struct $PXx<MODE> {
-                i: u8,
-                _mode: PhantomData<MODE>,
-            }
-
-            impl<MODE> StatefulOutputPin for $PXx<Output<MODE>> {
-                fn is_set_high(&self) -> bool {
-                    !self.is_set_low()
-                }
-
-                fn is_set_low(&self) -> bool {
-                    // NOTE(unsafe) atomic read with no side effects
-                    unsafe { (*P0::ptr()).out.read().bits() & (1 << self.i) == 0 }
-                }
-            }
-
-            impl<MODE> OutputPin for $PXx<Output<MODE>> {
-                fn set_high(&mut self) {
-                    // NOTE(unsafe) atomic write to a stateless register
-                    unsafe { (*P0::ptr()).outset.write(|w| w.bits(1 << self.i)) }
-                }
-
-                fn set_low(&mut self) {
-                    // NOTE(unsafe) atomic write to a stateless register
-                    unsafe { (*P0::ptr()).outclr.write(|w| w.bits(1 << self.i)) }
-                }
-            }
-
-            impl<MODE> InputPin for $PXx<Input<MODE>> {
-                fn is_high(&self) -> bool {
-                    !self.is_low()
-                }
-
-                fn is_low(&self) -> bool {
-                    // NOTE(unsafe) atomic read with no side effects
-                    unsafe { (*P0::ptr()).in_.read().bits() & (1 << self.i) == 0 }
-                }
-            }
-
+            // ===============================================================
+            // Implement each of the typed pins usable through the nrf52840-hal
+            // defined interface
+            // ===============================================================
             $(
-                /// Pin
                 pub struct $PXi<MODE> {
                     _mode: PhantomData<MODE>,
                 }
 
+
                 impl<MODE> $PXi<MODE> {
-                    /// Configures the pin to operate as a floating input pin
-                    pub fn into_floating_input(
-                        self,
-                    ) -> $PXi<Input<Floating>> {
-                        let pincnf = unsafe { &(*P0::ptr()).pin_cnf[$i] };
-                        pincnf.write(|w| {
-                            w.dir()
-                                .input()
-                                .drive()
-                                .s0s1()
-                                .pull()
-                                .disabled()
-                                .sense()
-                                .disabled()
-                                .input()
-                                .connect()
-                        });
-                        $PXi { _mode: PhantomData }
-                    }
-
-                    /// Configures the pin to operate as a open drain input pin
-                    pub fn into_open_drain_input(
-                        self,
-                    ) -> $PXi<Input<OpenDrain>> {
-                        let pincnf = unsafe { &(*P0::ptr()).pin_cnf[$i] };
-                        pincnf.write(|w| {
-                            w.dir()
-                                .input()
-                                .drive()
-                                .s0d1()
-                                .pull()
-                                .disabled()
-                                .sense()
-                                .disabled()
-                                .input()
-                                .connect()
-                        });
-                        $PXi { _mode: PhantomData }
-                    }
-
-                    /// Configures the pin to operate as a pulled down input pin
-                    pub fn into_pull_down_input(
-                        self,
-                        ) -> $PXi<Input<PullDown>> {
-                        let pincnf = unsafe { &(*P0::ptr()).pin_cnf[$i] };
-                        pincnf.write(|w| {
-                            w.dir()
-                                .input()
-                                .drive()
-                                .s0s1()
-                                .pull()
-                                .pulldown()
-                                .sense()
-                                .disabled()
-                                .input()
-                                .connect()
+                    /// Convert the pin to be a floating input
+                    pub fn into_floating_input(self) -> $PXi<Input<Floating>> {
+                        unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
+                            w.dir().input()
+                             .input().connect()
+                             .pull().disabled()
+                             .drive().s0s1()
+                             .sense().disabled()
                         });
 
-                        $PXi { _mode: PhantomData }
-                    }
-
-                    /// Configures the pin to operate as a pulled up input pin
-                    pub fn into_pull_up_input(
-                        self,
-                    ) -> $PXi<Input<PullUp>> {
-                        let pincnf = unsafe { &(*P0::ptr()).pin_cnf[$i] };
-                        pincnf.write(|w| {
-                            w.dir()
-                                .input()
-                                .drive()
-                                .s0s1()
-                                .pull()
-                                .pullup()
-                                .sense()
-                                .disabled()
-                                .input()
-                                .connect()
-                        });
-
-                        $PXi { _mode: PhantomData }
-                    }
-
-                    /// Configures the pin to operate as an open drain output pin
-                    pub fn into_open_drain_output(
-                        self,
-                    ) -> $PXi<Output<OpenDrain>> {
-                        let pincnf = unsafe { &(*P0::ptr()).pin_cnf[$i] };
-                        pincnf.write(|w| {
-                            w.dir()
-                                .output()
-                                .drive()
-                                .s0d1()
-                                .pull()
-                                .disabled()
-                                .sense()
-                                .disabled()
-                                .input()
-                                .disconnect()
-                        });
-
-                        $PXi { _mode: PhantomData }
-                    }
-
-                    /// Configures the pin to operate as an push pull output pin
-                    pub fn into_push_pull_output(
-                        self,
-                    ) -> $PXi<Output<PushPull>> {
-
-                        let pincnf = unsafe { &(*P0::ptr()).pin_cnf[$i] };
-                        pincnf.write(|w| {
-                            w.dir()
-                                .output()
-                                .drive()
-                                .s0s1()
-                                .pull()
-                                .disabled()
-                                .sense()
-                                .disabled()
-                                .input()
-                                .disconnect()
-                        });
-
-                        $PXi { _mode: PhantomData }
-                    }
-                }
-
-                impl $PXi<Output<OpenDrain>> {
-                    /// Enables / disables the internal pull up
-                    pub fn internal_pull_up(&mut self, on: bool) {
-                        let pincnf = unsafe { &(*P0::ptr()).pin_cnf[$i] };
-                        if on {
-                            pincnf.modify(|_, w| w.pull().pullup());
-                        } else {
-                            pincnf.modify(|_, w| w.pull().disabled());
+                        $PXi {
+                            _mode: PhantomData,
                         }
                     }
-                }
 
-                impl<MODE> $PXi<Output<MODE>> {
-                    /// Erases the pin number from the type
-                    ///
-                    /// This is useful when you want to collect the pins into an array where you
-                    /// need all the elements to have the same type
-                    pub fn downgrade(self) -> $PXx<Output<MODE>> {
-                        $PXx {
-                            i: $i,
-                            _mode: self._mode,
+                    /// Convert the pin to bepin a push-pull output with normal drive
+                    pub fn into_push_pull_output(self) -> $PXi<Output<PushPull>> {
+                        unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
+                            w.dir().output()
+                             .input().disconnect()
+                             .pull().disabled()
+                             .drive().s0s1()
+                             .sense().disabled()
+                        });
+
+                        $PXi {
+                            _mode: PhantomData,
                         }
                     }
-                }
 
-                impl<MODE> StatefulOutputPin for $PXi<Output<MODE>> {
-                    fn is_set_high(&self) -> bool {
-                        !self.is_set_low()
-                    }
-
-                    fn is_set_low(&self) -> bool {
-                        // NOTE(unsafe) atomic read with no side effects
-                        unsafe { (*P0::ptr()).out.read().bits() & (1 << $i) == 0 }
-                    }
-                }
-
-                impl<MODE> OutputPin for $PXi<Output<MODE>> {
-                    fn set_high(&mut self) {
-                        // NOTE(unsafe) atomic write to a stateless register
-                        //unsafe { (*P0::ptr()).outset.write(|w| w.bits(1 << $i)) }
-                        unsafe { (*P0::ptr()).outset.write(|w| w.bits(1 << $i)) }
-                    }
-
-                    fn set_low(&mut self) {
-                        // NOTE(unsafe) atomic write to a stateless register
-                        unsafe { (*P0::ptr()).outclr.write(|w| w.bits(1 << $i)) }
-                    }
-                }
-
-                impl<MODE> $PXi<Input<MODE>> {
-                    /// Erases the pin number from the type
-                    ///
-                    /// This is useful when you want to collect the pins into an array where you
-                    /// need all the elements to have the same type
-                    pub fn downgrade(self) -> $PXx<Input<MODE>> {
-                        $PXx {
-                            i: $i,
-                            _mode: self._mode,
+                    /// Degrade to a generic pin struct, which can be used with peripherals
+                    pub fn degrade(self) -> $Pg<MODE> {
+                        $Pg {
+                            _mode: PhantomData,
+                            pin: $i
                         }
                     }
                 }
@@ -313,53 +237,103 @@ macro_rules! gpio {
                     }
 
                     fn is_low(&self) -> bool {
-                        // NOTE(unsafe) atomic read with no side effects
-                        unsafe { (*P0::ptr()).in_.read().bits() & (1 << $i) == 0 }
+                        unsafe { ((*$PX::ptr()).in_.read().bits() & (1 << $i)) == 0 }
+                    }
+                }
+
+                impl<MODE> OutputPin for $PXi<Output<MODE>> {
+                    /// Set the output as high
+                    fn set_high(&mut self) {
+                        // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+                        // TODO - I wish I could do something like `.pins$i()`...
+                        unsafe { (*$PX::ptr()).outset.write(|w| w.bits(1u32 << $i)); }
+                    }
+
+                    /// Set the output as low
+                    fn set_low(&mut self) {
+                        // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+                        // TODO - I wish I could do something like `.pins$i()`...
+                        unsafe { (*$PX::ptr()).outclr.write(|w| w.bits(1u32 << $i)); }
+                    }
+                }
+
+                impl<MODE> StatefulOutputPin for $PXi<Output<MODE>> {
+                    /// Is the output pin set as high?
+                    fn is_set_high(&self) -> bool {
+                        !self.is_set_low()
+                    }
+
+                    /// Is the output pin set as low?
+                    fn is_set_low(&self) -> bool {
+                        // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
+                        // TODO - I wish I could do something like `.pins$i()`...
+                        unsafe { ((*$PX::ptr()).out.read().bits() & (1 << $i)) == 0 }
                     }
                 }
             )+
-
-                impl<TYPE> $PXx<TYPE> {
-                    pub fn get_id (&self) -> u8
-                    {
-                        self.i
-                    }
-                }
         }
     }
 }
 
-gpio!(P0, gpio, PIN, [
-    PIN0: (pin0, 0, Input<Floating>),
-    PIN1: (pin1, 1, Input<Floating>),
-    PIN2: (pin2, 2, Input<Floating>),
-    PIN3: (pin3, 3, Input<Floating>),
-    PIN4: (pin4, 4, Input<Floating>),
-    PIN5: (pin5, 5, Input<Floating>),
-    PIN6: (pin6, 6, Input<Floating>),
-    PIN7: (pin7, 7, Input<Floating>),
-    PIN8: (pin8, 8, Input<Floating>),
-    PIN9: (pin9, 9, Input<Floating>),
-    PIN10: (pin10, 10, Input<Floating>),
-    PIN11: (pin11, 11, Input<Floating>),
-    PIN12: (pin12, 12, Input<Floating>),
-    PIN13: (pin13, 13, Input<Floating>),
-    PIN14: (pin14, 14, Input<Floating>),
-    PIN15: (pin15, 15, Input<Floating>),
-    PIN16: (pin16, 16, Input<Floating>),
-    PIN17: (pin17, 17, Input<Floating>),
-    PIN18: (pin18, 18, Input<Floating>),
-    PIN19: (pin19, 19, Input<Floating>),
-    PIN20: (pin20, 20, Input<Floating>),
-    PIN21: (pin21, 21, Input<Floating>),
-    PIN22: (pin22, 22, Input<Floating>),
-    PIN23: (pin23, 23, Input<Floating>),
-    PIN24: (pin24, 24, Input<Floating>),
-    PIN25: (pin25, 25, Input<Floating>),
-    PIN26: (pin26, 26, Input<Floating>),
-    PIN27: (pin27, 27, Input<Floating>),
-    PIN28: (pin28, 28, Input<Floating>),
-    PIN29: (pin29, 29, Input<Floating>),
-    PIN30: (pin30, 30, Input<Floating>),
-    PIN31: (pin31, 31, Input<Floating>),
+// ===========================================================================
+// Definition of all the items used by the macros above.
+// ===========================================================================
+gpio!(P0, p0, P0_Pin [
+    P0_0:  (p0_0,  0,  Input<Floating>),
+    P0_1:  (p0_1,  1,  Input<Floating>),
+    P0_2:  (p0_2,  2,  Input<Floating>),
+    P0_3:  (p0_3,  3,  Input<Floating>),
+    P0_4:  (p0_4,  4,  Input<Floating>),
+    P0_5:  (p0_5,  5,  Input<Floating>),
+    P0_6:  (p0_6,  6,  Input<Floating>),
+    P0_7:  (p0_7,  7,  Input<Floating>),
+    P0_8:  (p0_8,  8,  Input<Floating>),
+    P0_9:  (p0_9,  9,  Input<Floating>),
+    P0_10: (p0_10, 10, Input<Floating>),
+    P0_11: (p0_11, 11, Input<Floating>),
+    P0_12: (p0_12, 12, Input<Floating>),
+    P0_13: (p0_13, 13, Input<Floating>),
+    P0_14: (p0_14, 14, Input<Floating>),
+    P0_15: (p0_15, 15, Input<Floating>),
+    P0_16: (p0_16, 16, Input<Floating>),
+    P0_17: (p0_17, 17, Input<Floating>),
+    P0_18: (p0_18, 18, Input<Floating>),
+    P0_19: (p0_19, 19, Input<Floating>),
+    P0_20: (p0_20, 20, Input<Floating>),
+    P0_21: (p0_21, 21, Input<Floating>),
+    P0_22: (p0_22, 22, Input<Floating>),
+    P0_23: (p0_23, 23, Input<Floating>),
+    P0_24: (p0_24, 24, Input<Floating>),
+    P0_25: (p0_25, 25, Input<Floating>),
+    P0_26: (p0_26, 26, Input<Floating>),
+    P0_27: (p0_27, 27, Input<Floating>),
+    P0_28: (p0_28, 28, Input<Floating>),
+    P0_29: (p0_29, 29, Input<Floating>),
+    P0_30: (p0_30, 30, Input<Floating>),
+    P0_31: (p0_31, 31, Input<Floating>),
+
 ]);
+
+// ===========================================================================
+// The macro doesn't seem to work for P1  as it has a different struct but uses
+// the same module. Not sure the best way to deal with P1 only implementing half the pins
+// either
+// ===========================================================================
+//gpio!(P1, p0, P1_Pin [
+//    P1_0:  (p1_0,  0, Input<Floating>),
+//    P1_1:  (p1_1,  1, Input<Floating>),
+//    P1_2:  (p1_2,  2, Input<Floating>),
+//    P1_3:  (p1_3,  3, Input<Floating>),
+//    P1_4:  (p1_4,  4, Input<Floating>),
+//    P1_5:  (p1_5,  5, Input<Floating>),
+//    P1_6:  (p1_6,  6, Input<Floating>),
+//    P1_7:  (p1_7,  7, Input<Floating>),
+//    P1_8:  (p1_8,  8, Input<Floating>),
+//    P1_9:  (p1_9,  9, Input<Floating>),
+//    P1_10: (p1_10, 10, Input<Floating>),
+//    P1_11: (p1_11, 11, Input<Floating>),
+//    P1_12: (p1_12, 12, Input<Floating>),
+//    P1_13: (p1_13, 13, Input<Floating>),
+//    P1_14: (p1_14, 14, Input<Floating>),
+//    P1_15: (p1_15, 15, Input<Floating>),
+//]);
