@@ -25,11 +25,4 @@ version = "1.0.2"
 [features]
 default = ["rt"]
 rt = ["nrf52840/rt"]
-[profile.dev]
-debug = true
-lto = false
 
-[profile.release]
-debug = true
-lto = true
-opt-level = "s"
