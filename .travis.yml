@@ -9,3 +9,4 @@ addons:
 script:
   - rustup target add thumbv7em-none-eabihf
   - cargo build
+  - cargo build --examples
