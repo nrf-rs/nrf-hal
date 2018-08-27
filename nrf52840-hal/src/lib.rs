@@ -1,16 +1,32 @@
 #![no_std]
-#![cfg_attr(feature = "rt", feature(global_asm))]
-#![cfg_attr(feature = "rt", feature(used))]
-#![feature(const_fn)]
-#![allow(non_camel_case_types)]
 
-extern crate bare_metal;
 extern crate cast;
 extern crate cortex_m;
-pub extern crate embedded_hal as hal;
+extern crate embedded_hal as hal;
+extern crate nb;
 extern crate void;
-pub extern crate nb;
 pub extern crate nrf52840;
 
 
+pub mod delay;
+// pub mod spim;
 pub mod gpio;
+pub mod clocks;
+pub mod time;
+pub mod timer;
+
+pub mod prelude {
+    pub use hal::prelude::*;
+
+    pub use clocks::ClocksExt;
+    pub use gpio::GpioExt;
+    // pub use spim::SpimExt;
+    pub use time::U32Ext;
+    pub use timer::TimerExt;
+}
+
+
+pub use clocks::Clocks;
+pub use delay::Delay;
+// pub use spim::Spim;
+pub use timer::Timer;
