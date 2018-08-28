@@ -6,7 +6,7 @@
 use core::ops::Deref;
 
 use nb;
-use nrf52840::{
+use target_device::{
     timer0,
     TIMER0,
     TIMER1,

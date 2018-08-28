@@ -1,11 +1,9 @@
 //! HAL interface to the SPIM peripheral
 //!
 //! See product specification, chapter 31.
-
-
 use core::ops::Deref;
 
-use nrf52::{
+use target_device::{
     spim0,
     SPIM0,
     SPIM1,
@@ -143,7 +141,7 @@ impl<T> Spim<T> where T: SpimExt {
             //
             // The MAXCNT field is 8 bits wide and accepts the full range of
             // values.
-            unsafe { w.maxcnt().bits(tx_buffer.len() as u8) }
+            unsafe { w.maxcnt().bits(tx_buffer.len() as _) }
         );
 
         // Set up the DMA read
@@ -155,7 +153,7 @@ impl<T> Spim<T> where T: SpimExt {
         self.0.rxd.maxcnt.write(|w|
             // This is safe for the same reasons that writing to TXD.MAXCNT is
             // safe. Please refer to the explanation there.
-            unsafe { w.maxcnt().bits(rx_buffer.len() as u8) }
+            unsafe { w.maxcnt().bits(rx_buffer.len() as _) }
         );
 
         // Start SPI transaction

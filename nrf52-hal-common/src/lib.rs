@@ -1,14 +1,26 @@
 #![no_std]
 
+extern crate cast;
+extern crate cortex_m;
 extern crate embedded_hal as hal;
-pub extern crate nrf52;
-extern crate nrf52_hal_common;
+extern crate nb;
+extern crate void;
 
-pub use nrf52_hal_common::*;
+#[cfg(feature = "52832")]
+pub extern crate nrf52 as target_device;
+
+#[cfg(feature = "52840")]
+pub extern crate nrf52840 as target_device;
+
+pub mod delay;
+pub mod spim;
+pub mod gpio;
+pub mod clocks;
+pub mod time;
+pub mod timer;
 
 pub mod prelude {
     pub use hal::prelude::*;
-    pub use nrf52_hal_common::prelude::*;
 
     pub use clocks::ClocksExt;
     pub use gpio::GpioExt;

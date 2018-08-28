@@ -1,4 +1,4 @@
-use nrf52::CLOCK;
+use target_device::CLOCK;
 use time::{Hertz, U32Ext};
 
 pub trait ClocksExt {
