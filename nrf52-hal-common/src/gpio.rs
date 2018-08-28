@@ -44,6 +44,7 @@ pub struct PushPull;
 // }
 
 
+
 macro_rules! gpio {
     (
         $PX:ident, $px:ident, $Pg:ident [
@@ -65,9 +66,9 @@ macro_rules! gpio {
                 PhantomData,
             };
 
-            use nrf52840;
-            use nrf52840::$PX;
-            use nrf52840::$px::PIN_CNF;
+            use target_device;
+            use target_device::$PX;
+            use target_device::$px::PIN_CNF;
             use hal::digital::{OutputPin, StatefulOutputPin, InputPin};
 
             // ===============================================================
@@ -156,8 +157,8 @@ macro_rules! gpio {
             }
 
             // ===============================================================
-            // This chunk allows you to obtain an nrf52840-hal gpio from the
-            // upstream nrf52840 gpio definitions by defining a trait
+            // This chunk allows you to obtain an nrf52-hal gpio from the
+            // upstream nrf52 gpio definitions by defining a trait
             // ===============================================================
             /// GPIO parts
             pub struct Parts {
@@ -182,7 +183,7 @@ macro_rules! gpio {
             }
 
             // ===============================================================
-            // Implement each of the typed pins usable through the nrf52840-hal
+            // Implement each of the typed pins usable through the nrf52-hal
             // defined interface
             // ===============================================================
             $(
@@ -277,6 +278,9 @@ macro_rules! gpio {
 
 // ===========================================================================
 // Definition of all the items used by the macros above.
+//
+// For now, it is a little repetitive, especially as the nrf52 only has one
+// 32-bit GPIO port (P0)
 // ===========================================================================
 gpio!(P0, p0, P0_Pin [
     P0_0:  (p0_0,  0,  Input<Floating>),
@@ -311,29 +315,4 @@ gpio!(P0, p0, P0_Pin [
     P0_29: (p0_29, 29, Input<Floating>),
     P0_30: (p0_30, 30, Input<Floating>),
     P0_31: (p0_31, 31, Input<Floating>),
-
 ]);
-
-// ===========================================================================
-// The macro doesn't seem to work for P1  as it has a different struct but uses
-// the same module. Not sure the best way to deal with P1 only implementing half the pins
-// either
-// ===========================================================================
-//gpio!(P1, p0, P1_Pin [
-//    P1_0:  (p1_0,  0, Input<Floating>),
-//    P1_1:  (p1_1,  1, Input<Floating>),
-//    P1_2:  (p1_2,  2, Input<Floating>),
-//    P1_3:  (p1_3,  3, Input<Floating>),
-//    P1_4:  (p1_4,  4, Input<Floating>),
-//    P1_5:  (p1_5,  5, Input<Floating>),
-//    P1_6:  (p1_6,  6, Input<Floating>),
-//    P1_7:  (p1_7,  7, Input<Floating>),
-//    P1_8:  (p1_8,  8, Input<Floating>),
-//    P1_9:  (p1_9,  9, Input<Floating>),
-//    P1_10: (p1_10, 10, Input<Floating>),
-//    P1_11: (p1_11, 11, Input<Floating>),
-//    P1_12: (p1_12, 12, Input<Floating>),
-//    P1_13: (p1_13, 13, Input<Floating>),
-//    P1_14: (p1_14, 14, Input<Floating>),
-//    P1_15: (p1_15, 15, Input<Floating>),
-//]);
