@@ -191,6 +191,77 @@ impl<T> Spim<T> where T: SpimExt {
         Ok(())
     }
 
+    /// Write to an SPI slave
+    ///
+    /// This method uses the provided chip select pin to initiate the
+    /// transaction, then transmits all bytes in `tx_buffer`.
+    ///
+    /// The buffer must have a length of at most 255 bytes.
+    pub fn write(&mut self,
+        chip_select: &mut P0_Pin<Output<PushPull>>,
+        tx_buffer  : &[u8],
+    )
+        -> Result<(), Error>
+    {
+        // This is overly restrictive. See:
+        // https://github.com/nrf-rs/nrf52/issues/17
+        if tx_buffer.len() > u8::max_value() as usize {
+            return Err(Error::TxBufferTooLong);
+        }
+
+        // Pull chip select pin high, which is the inactive state
+        chip_select.set_high();
+
+        // Set up the DMA write
+        self.0.txd.ptr.write(|w|
+            // We're giving the register a pointer to the stack. Since we're
+            // waiting for the SPI transaction to end before this stack pointer
+            // becomes invalid, there's nothing wrong here.
+            //
+            // The PTR field is a full 32 bits wide and accepts the full range
+            // of values.
+            unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) }
+        );
+        self.0.txd.maxcnt.write(|w|
+            // We're giving it the length of the buffer, so no danger of
+            // accessing invalid memory. We have verified that the length of the
+            // buffer fits in an `u8`, so the cast to `u8` is also fine.
+            //
+            // The MAXCNT field is 8 bits wide and accepts the full range of
+            // values.
+            unsafe { w.maxcnt().bits(tx_buffer.len() as _) }
+        );
+
+        // Tell the RXD channel it doesn't need to read anything
+        self.0.rxd.maxcnt.write(|w|
+            // This is safe for the same reasons that writing to TXD.MAXCNT is
+            // safe. Please refer to the explanation there.
+            unsafe { w.maxcnt().bits(0) }
+        );
+
+        // Start SPI transaction
+        chip_select.set_low();
+        self.0.tasks_start.write(|w|
+            // `1` is a valid value to write to task registers.
+            unsafe { w.bits(1) }
+        );
+
+        // Wait for transmission to end
+        while self.0.events_end.read().bits() == 0 {}
+
+        // Reset the event, otherwise it will always read `1` from now on.
+        self.0.events_end.write(|w| w);
+
+        // End SPI transaction
+        chip_select.set_high();
+
+        if self.0.txd.amount.read().bits() != tx_buffer.len() as u32 {
+            return Err(Error::Transmit);
+        }
+
+        Ok(())
+    }
+
     /// Return the raw interface to the underlying SPIM peripheral
     pub fn free(self) -> T {
         self.0
