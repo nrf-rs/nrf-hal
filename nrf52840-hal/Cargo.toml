@@ -8,6 +8,7 @@ authors = [
     "Wez Furlong <wez@wezfurlong.org>",
 ]
 repository = "https://github.com/nrf-rs/nrf52-hal"
+description = "HAL for nRF52840 microcontrollers"
 
 [dependencies]
 bare-metal = "0.2.0"
