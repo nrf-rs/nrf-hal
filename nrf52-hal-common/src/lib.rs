@@ -7,10 +7,10 @@ extern crate nb;
 extern crate void;
 
 #[cfg(feature = "52832")]
-pub extern crate nrf52 as target_device;
+pub extern crate nrf52 as target;
 
 #[cfg(feature = "52840")]
-pub extern crate nrf52840 as target_device;
+pub extern crate nrf52840 as target;
 
 pub mod delay;
 pub mod spim;

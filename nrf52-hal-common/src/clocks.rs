@@ -1,4 +1,4 @@
-use target_device::CLOCK;
+use target::CLOCK;
 use time::{Hertz, U32Ext};
 
 pub trait ClocksExt {

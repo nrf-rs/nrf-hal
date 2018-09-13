@@ -3,7 +3,7 @@
 //! See product specification, chapter 31.
 use core::ops::Deref;
 
-use target_device::{
+use target::{
     spim0,
     SPIM0,
     SPIM1,
@@ -114,6 +114,9 @@ impl<T> Spim<T> where T: SpimExt {
     )
         -> Result<(), Error>
     {
+        // TODO: some targets have a maxcnt whose size is larger
+        // than a u8, so this length check is overly restrictive
+        // and could be lifted.
         if tx_buffer.len() > u8::max_value() as usize {
             return Err(Error::TxBufferTooLong);
         }
@@ -137,10 +140,13 @@ impl<T> Spim<T> where T: SpimExt {
         self.0.txd.maxcnt.write(|w|
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
-            // buffer fits in an `u8`, so the cast to `u8` is also fine.
+            // buffer fits in an `u8`, so the cast to the type of maxcnt
+            // is also fine.
             //
-            // The MAXCNT field is 8 bits wide and accepts the full range of
-            // values.
+            // Note that that nrf52840 maxcnt is a wider
+            // type than a u8, so we use a `_` cast rather than a `u8` cast.
+            // The MAXCNT field is thus at least 8 bits wide and accepts the full
+            // range of values that fit in a `u8`.
             unsafe { w.maxcnt().bits(tx_buffer.len() as _) }
         );
 

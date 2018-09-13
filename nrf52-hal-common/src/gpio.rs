@@ -66,9 +66,9 @@ macro_rules! gpio {
                 PhantomData,
             };
 
-            use target_device;
-            use target_device::$PX;
-            use target_device::$px::PIN_CNF;
+            use target;
+            use target::$PX;
+            use target::$px::PIN_CNF;
             use hal::digital::{OutputPin, StatefulOutputPin, InputPin};
 
             // ===============================================================

@@ -6,7 +6,7 @@
 use core::ops::Deref;
 
 use nb;
-use target_device::{
+use target::{
     timer0,
     TIMER0,
     TIMER1,
