@@ -1,7 +1,13 @@
 [package]
 name = "nrf52840-hal"
 version = "0.1.0"
-authors = ["John Scarrott <johnps@outlook.com>"]
+authors = [
+    "James Munns <james.munns@gmail.com>",
+    "Hanno Braun <hanno@braun-robotics.com",
+    "John Scarrott <johnps@outlook.com>",
+    "Wez Furlong <wez@wezfurlong.org>",
+]
+repository = "https://github.com/nrf-rs/nrf52-hal"
 
 [dependencies]
 bare-metal = "0.2.0"

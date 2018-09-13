@@ -9,7 +9,7 @@ description = "Common HAL for the nRF52 family of microcontrollers.  More specif
 keywords = ["arm", "cortex-m", "nrf52", "hal"]
 license = "MIT OR Apache-2.0"
 name = "nrf52-hal-common"
-repository = "https://github.com/nrf-rs/nrf52"
+repository = "https://github.com/nrf-rs/nrf52-hal"
 version = "0.0.1"
 
 [dependencies]

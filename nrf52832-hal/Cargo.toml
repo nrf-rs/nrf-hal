@@ -4,11 +4,11 @@ authors = [
     "Hanno Braun <hanno@braun-robotics.com"
 ]
 categories = ["embedded", "hardware-support", "no-std"]
-description = "HAL for the nRF52 family of microcontrollers"
+description = "HAL for the nRF52832 family of microcontrollers"
 keywords = ["arm", "cortex-m", "nrf52", "hal"]
 license = "MIT OR Apache-2.0"
-name = "nrf52-hal"
-repository = "https://github.com/jamesmunns/nrf52-hal"
+name = "nrf52832-hal"
+repository = "https://github.com/nrf-rs/nrf52-hal"
 version = "0.0.1"
 
 [dependencies]

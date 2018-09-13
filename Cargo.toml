@@ -1,7 +1,7 @@
 [workspace]
 members = [
   "boards/adafruit_nrf52pro",
-  "nrf52-hal",
+  "nrf52832-hal",
   "nrf52840-hal",
 ]
 

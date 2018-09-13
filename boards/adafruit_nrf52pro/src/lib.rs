@@ -1,5 +1,5 @@
 #![no_std]
-pub extern crate nrf52_hal as hal;
+pub extern crate nrf52832_hal as hal;
 use hal::gpio::{p0, Floating, Input};
 pub use hal::nrf52;
 
