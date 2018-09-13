@@ -1,10 +1,11 @@
 [package]
 authors = [
     "James Munns <james.munns@gmail.com>",
-    "Hanno Braun <hanno@braun-robotics.com"
+    "Hanno Braun <hanno@braun-robotics.com",
+    "Wez Furlong <wez@wezfurlong.org",
 ]
 categories = ["embedded", "hardware-support", "no-std"]
-description = "HAL for the nRF52 family of microcontrollers"
+description = "Common HAL for the nRF52 family of microcontrollers.  More specific HAL crates also exist."
 keywords = ["arm", "cortex-m", "nrf52", "hal"]
 license = "MIT OR Apache-2.0"
 name = "nrf52-hal-common"
