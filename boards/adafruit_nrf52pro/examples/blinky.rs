@@ -9,7 +9,11 @@ extern crate nb;
 extern crate adafruit_nrf52pro;
 extern crate panic_semihosting;
 
-use adafruit_nrf52pro::hal::{prelude::*, timer::Timer};
+use adafruit_nrf52pro::hal::{
+    prelude::*,
+    gpio::Level,
+    timer::Timer,
+};
 use adafruit_nrf52pro::nrf52::{Peripherals};
 use adafruit_nrf52pro::Pins;
 
@@ -19,8 +23,8 @@ fn main() -> ! {
     let p = Peripherals::take().unwrap();
     let pins = Pins::new(p.P0.split());
 
-    let mut led1 = pins.led1.into_push_pull_output();
-    let mut led2 = pins.led2.into_push_pull_output();
+    let mut led1 = pins.led1.into_push_pull_output(Level::Low);
+    let mut led2 = pins.led2.into_push_pull_output(Level::Low);
 
     let mut timer = p.TIMER0.constrain();
 

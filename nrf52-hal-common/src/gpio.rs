@@ -44,6 +44,13 @@ pub struct PushPull;
 // }
 
 
+/// Represents a digital input or output level
+pub enum Level {
+    Low,
+    High,
+}
+
+
 
 macro_rules! gpio {
     (
@@ -58,6 +65,7 @@ macro_rules! gpio {
                 Floating,
                 GpioExt,
                 Input,
+                Level,
                 // OpenDrain,
                 Output,
                 // PullDown, PullUp,
@@ -100,7 +108,19 @@ macro_rules! gpio {
                 }
 
                 /// Convert the pin to be a push-pull output with normal drive
-                pub fn into_push_pull_output(self) -> $Pg<Output<PushPull>> {
+                pub fn into_push_pull_output(self, initial_output: Level)
+                    -> $Pg<Output<PushPull>>
+                {
+                    let mut pin = $Pg {
+                        _mode: PhantomData,
+                        pin: self.pin
+                    };
+
+                    match initial_output {
+                        Level::Low  => pin.set_low(),
+                        Level::High => pin.set_high(),
+                    }
+
                     unsafe { &(*$PX::ptr()).pin_cnf[self.pin as usize] }.write(|w| {
                         w.dir().output()
                          .input().connect() // AJM - hack for SPI
@@ -109,10 +129,7 @@ macro_rules! gpio {
                          .sense().disabled()
                     });
 
-                    $Pg {
-                        _mode: PhantomData,
-                        pin: self.pin
-                    }
+                    pin
                 }
             }
 
@@ -209,7 +226,18 @@ macro_rules! gpio {
                     }
 
                     /// Convert the pin to bepin a push-pull output with normal drive
-                    pub fn into_push_pull_output(self) -> $PXi<Output<PushPull>> {
+                    pub fn into_push_pull_output(self, initial_output: Level)
+                        -> $PXi<Output<PushPull>>
+                    {
+                        let mut pin = $PXi {
+                            _mode: PhantomData,
+                        };
+
+                        match initial_output {
+                            Level::Low  => pin.set_low(),
+                            Level::High => pin.set_high(),
+                        }
+
                         unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
                             w.dir().output()
                              .input().disconnect()
@@ -218,9 +246,7 @@ macro_rules! gpio {
                              .sense().disabled()
                         });
 
-                        $PXi {
-                            _mode: PhantomData,
-                        }
+                        pin
                     }
 
                     /// Degrade to a generic pin struct, which can be used with peripherals
