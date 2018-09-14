@@ -47,7 +47,7 @@ pub struct PushPull;
 
 macro_rules! gpio {
     (
-        $PX:ident, $px:ident, $Pg:ident [
+        $PX:ident, $pxsvd:ident, $px:ident, $Pg:ident [
             $($PXi:ident: ($pxi:ident, $i:expr, $MODE:ty),)+
         ]
     ) => {
@@ -68,7 +68,7 @@ macro_rules! gpio {
 
             use target;
             use target::$PX;
-            use target::$px::PIN_CNF;
+            use target::$pxsvd::PIN_CNF;
             use hal::digital::{OutputPin, StatefulOutputPin, InputPin};
 
             // ===============================================================
@@ -282,7 +282,7 @@ macro_rules! gpio {
 // For now, it is a little repetitive, especially as the nrf52 only has one
 // 32-bit GPIO port (P0)
 // ===========================================================================
-gpio!(P0, p0, P0_Pin [
+gpio!(P0, p0, p0, P0_Pin [
     P0_00: (p0_00,  0, Input<Floating>),
     P0_01: (p0_01,  1, Input<Floating>),
     P0_02: (p0_02,  2, Input<Floating>),
@@ -315,4 +315,26 @@ gpio!(P0, p0, P0_Pin [
     P0_29: (p0_29, 29, Input<Floating>),
     P0_30: (p0_30, 30, Input<Floating>),
     P0_31: (p0_31, 31, Input<Floating>),
+]);
+
+// The p1 types are present in the p0 module generated from the
+// svd, but we want to export them in a p1 module from this crate.
+#[cfg(feature = "52840")]
+gpio!(P1, p0, p1, P1_Pin [
+    P1_00: (p1_00,  0, Input<Floating>),
+    P1_01: (p1_01,  1, Input<Floating>),
+    P1_02: (p1_02,  2, Input<Floating>),
+    P1_03: (p1_03,  3, Input<Floating>),
+    P1_04: (p1_04,  4, Input<Floating>),
+    P1_05: (p1_05,  5, Input<Floating>),
+    P1_06: (p1_06,  6, Input<Floating>),
+    P1_07: (p1_07,  7, Input<Floating>),
+    P1_08: (p1_08,  8, Input<Floating>),
+    P1_09: (p1_09,  9, Input<Floating>),
+    P1_10: (p1_10, 10, Input<Floating>),
+    P1_11: (p1_11, 11, Input<Floating>),
+    P1_12: (p1_12, 12, Input<Floating>),
+    P1_13: (p1_13, 13, Input<Floating>),
+    P1_14: (p1_14, 14, Input<Floating>),
+    P1_15: (p1_15, 15, Input<Floating>),
 ]);
