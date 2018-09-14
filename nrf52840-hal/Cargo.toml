@@ -23,6 +23,7 @@ version = "0.2.2"
 
 [dependencies.nrf52-hal-common]
 path = "../nrf52-hal-common"
+features = ["52840"]
 
 [dependencies.embedded-hal]
 features = ["unproven"]
@@ -34,5 +35,5 @@ version = "1.0.2"
 
 [features]
 default = ["rt"]
-rt = ["nrf52840/rt", "nrf52-hal-common/52840"]
+rt = ["nrf52840/rt"]
 
