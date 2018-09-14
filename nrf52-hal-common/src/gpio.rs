@@ -35,8 +35,8 @@ pub trait GpioExt {
 
 /// Push pull output (type state)
 pub struct PushPull;
-// /// Open drain output (type state)
-// pub struct OpenDrain;
+/// Open drain output (type state)
+pub struct OpenDrain;
 
 // /// Alternate function
 // pub struct Alternate<MODE> {
@@ -49,7 +49,6 @@ pub enum Level {
     Low,
     High,
 }
-
 
 
 macro_rules! gpio {
@@ -66,7 +65,7 @@ macro_rules! gpio {
                 GpioExt,
                 Input,
                 Level,
-                // OpenDrain,
+                OpenDrain,
                 Output,
                 // PullDown, PullUp,
                 PushPull,
@@ -76,7 +75,10 @@ macro_rules! gpio {
 
             use target;
             use target::$PX;
-            use target::$pxsvd::PIN_CNF;
+            use target::$pxsvd::{
+                pin_cnf,
+                PIN_CNF,
+            };
             use hal::digital::{OutputPin, StatefulOutputPin, InputPin};
 
             // ===============================================================
@@ -127,6 +129,43 @@ macro_rules! gpio {
                          .pull().disabled()
                          .drive().s0s1()
                          .sense().disabled()
+                    });
+
+                    pin
+                }
+
+                /// Convert the pin to be an open-drain output
+                ///
+                /// This method currently does not support configuring an
+                /// internal pull-up or pull-down resistor.
+                pub fn into_open_drain_output(self,
+                    config:         OpenDrainConfig,
+                    initial_output: Level,
+                )
+                    -> $Pg<Output<OpenDrain>>
+                {
+                    let mut pin = $Pg {
+                        _mode: PhantomData,
+                        pin: self.pin
+                    };
+
+                    match initial_output {
+                        Level::Low  => pin.set_low(),
+                        Level::High => pin.set_high(),
+                    }
+
+                    // This is safe, as we restrict our access to the dedicated
+                    // register for this pin.
+                    let pin_cnf = unsafe {
+                        &(*$PX::ptr()).pin_cnf[self.pin as usize]
+                    };
+                    pin_cnf.write(|w| {
+                        w
+                            .dir().output()
+                            .input().disconnect()
+                            .pull().disabled()
+                            .drive().variant(config.variant())
+                            .sense().disabled()
                     });
 
                     pin
@@ -249,6 +288,42 @@ macro_rules! gpio {
                         pin
                     }
 
+                    /// Convert the pin to be an open-drain output
+                    ///
+                    /// This method currently does not support configuring an
+                    /// internal pull-up or pull-down resistor.
+                    pub fn into_open_drain_output(self,
+                        config:         OpenDrainConfig,
+                        initial_output: Level,
+                    )
+                        -> $PXi<Output<OpenDrain>>
+                    {
+                        let mut pin = $PXi {
+                            _mode: PhantomData,
+                        };
+
+                        match initial_output {
+                            Level::Low  => pin.set_low(),
+                            Level::High => pin.set_high(),
+                        }
+
+                        // This is safe, as we restrict our access to the
+                        // dedicated register for this pin.
+                        let pin_cnf = unsafe {
+                            &(*$PX::ptr()).pin_cnf[$i]
+                        };
+                        pin_cnf.write(|w| {
+                            w
+                                .dir().output()
+                                .input().disconnect()
+                                .pull().disabled()
+                                .drive().variant(config.variant())
+                                .sense().disabled()
+                        });
+
+                        pin
+                    }
+
                     /// Degrade to a generic pin struct, which can be used with peripherals
                     pub fn degrade(self) -> $Pg<MODE> {
                         $Pg {
@@ -298,6 +373,27 @@ macro_rules! gpio {
                     }
                 }
             )+
+
+            /// Pin configuration for open-drain mode
+            pub enum OpenDrainConfig {
+                Disconnect0Standard1,
+                Disconnect0HighDrive1,
+                Standard0Disconnect1,
+                HighDrive0Disconnect1,
+            }
+
+            impl OpenDrainConfig {
+                fn variant(self) -> pin_cnf::DRIVEW {
+                    use self::OpenDrainConfig::*;
+
+                    match self {
+                        Disconnect0Standard1  => pin_cnf::DRIVEW::D0S1,
+                        Disconnect0HighDrive1 => pin_cnf::DRIVEW::D0H1,
+                        Standard0Disconnect1  => pin_cnf::DRIVEW::S0D1,
+                        HighDrive0Disconnect1 => pin_cnf::DRIVEW::H0D1,
+                    }
+                }
+            }
         }
     }
 }
