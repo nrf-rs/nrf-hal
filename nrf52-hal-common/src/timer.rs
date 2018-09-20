@@ -83,6 +83,11 @@ impl<T> Timer<T> where T: TimerExt {
             unsafe { w.cc().bits(cycles) }
         );
 
+        // Clear the counter value
+        self.0.tasks_clear.write(|w|
+            unsafe { w.bits(1) }
+        );
+
         // Start the timer
         self.0.tasks_start.write(|w|
             unsafe { w.bits(1) }
