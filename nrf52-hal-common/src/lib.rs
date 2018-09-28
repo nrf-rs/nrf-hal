@@ -16,6 +16,7 @@ pub mod delay;
 pub mod spim;
 pub mod gpio;
 pub mod clocks;
+pub mod rng;
 pub mod time;
 pub mod timer;
 
@@ -24,6 +25,7 @@ pub mod prelude {
 
     pub use clocks::ClocksExt;
     pub use gpio::GpioExt;
+    pub use rng::RngExt;
     pub use spim::SpimExt;
     pub use time::U32Ext;
     pub use timer::TimerExt;
