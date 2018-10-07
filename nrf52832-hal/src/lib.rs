@@ -15,10 +15,11 @@ pub mod prelude {
     pub use spim::SpimExt;
     pub use time::U32Ext;
     pub use timer::TimerExt;
+    pub use uarte::UarteExt;
 }
-
 
 pub use clocks::Clocks;
 pub use delay::Delay;
 pub use spim::Spim;
 pub use timer::Timer;
+pub use uarte::Uarte;
