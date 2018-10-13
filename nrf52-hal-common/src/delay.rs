@@ -46,21 +46,24 @@ impl DelayMs<u8> for Delay {
 
 impl DelayUs<u32> for Delay {
     fn delay_us(&mut self, us: u32) {
-        let mut rvr = us * (self.clocks.hfclk().0 / 1_000_000);
+        // The SysTick Reload Value register supports values between 1 and 0x00FFFFFF.
+        const MAX_RVR: u32 =  0x00FF_FFFF;
 
-        while rvr != 0 {
-            let rvr_inner = if rvr < (1 << 24) {
-                rvr
+        let mut total_rvr = us * (self.clocks.hfclk().0 / 1_000_000);
+
+        while total_rvr != 0 {
+            let current_rvr = if total_rvr <= MAX_RVR {
+                total_rvr
             } else {
-                1 << 24
+                MAX_RVR
             };
 
-            self.syst.set_reload(rvr);
+            self.syst.set_reload(current_rvr);
             self.syst.clear_current();
             self.syst.enable_counter();
 
             // Update the tracking variable while we are waiting...
-            rvr -= rvr_inner;
+            total_rvr -= current_rvr;
 
             while !self.syst.has_wrapped() {}
 
