@@ -9,6 +9,7 @@ use nb;
 use target::{
     timer0,
     Interrupt,
+    NVIC,
     TIMER0,
     TIMER1,
     TIMER2,
@@ -74,6 +75,32 @@ impl<T> Timer<T> where T: TimerExt {
     /// Return the raw interface to the underlying timer peripheral
     pub fn free(self) -> T {
         self.0
+    }
+
+    /// Enables the interrupt for this timer
+    ///
+    /// Enables an interrupt that is fired when the timer reaches the value that
+    /// is given as an argument to `start`.
+    pub fn enable_interrupt(&mut self, nvic: &mut NVIC) {
+        // As of this writing, the timer code only uses
+        // `cc[0]`/`events_compare[0]`. If the code is extended to use other
+        // compare registers, the following needs to be adapted.
+        self.0.intenset.modify(|_, w| w.compare0().set());
+
+        nvic.enable(T::INTERRUPT);
+    }
+
+    /// Disables the interrupt for this timer
+    ///
+    /// Disables an interrupt that is fired when the timer reaches the value
+    /// that is given as an argument to `start`.
+    pub fn disable_interrupt(&mut self, nvic: &mut NVIC) {
+        // As of this writing, the timer code only uses
+        // `cc[0]`/`events_compare[0]`. If the code is extended to use other
+        // compare registers, the following needs to be adapted.
+        self.0.intenclr.modify(|_, w| w.compare0().clear());
+
+        nvic.disable(T::INTERRUPT);
     }
 
     /// Start the timer
