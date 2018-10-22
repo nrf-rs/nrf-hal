@@ -8,6 +8,7 @@ use core::ops::Deref;
 use nb;
 use target::{
     timer0,
+    Interrupt,
     TIMER0,
     TIMER1,
     TIMER2,
@@ -18,13 +19,18 @@ use void::Void;
 
 
 pub trait TimerExt : Deref<Target=timer0::RegisterBlock> + Sized {
+    // The interrupt that belongs to this timer instance
+    const INTERRUPT: Interrupt;
+
     fn constrain(self) -> Timer<Self>;
 }
 
 macro_rules! impl_timer_ext {
-    ($($timer:ty,)*) => {
+    ($($timer:tt,)*) => {
         $(
             impl TimerExt for $timer {
+                const INTERRUPT: Interrupt = Interrupt::$timer;
+
                 fn constrain(self) -> Timer<Self> {
                     Timer::new(self)
                 }
