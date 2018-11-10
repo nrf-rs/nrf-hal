@@ -3,15 +3,15 @@
 //! See product specification, chapter 31.
 use core::ops::Deref;
 
-use target::{
+use crate::target::{
     spim0,
     SPIM0,
     SPIM1,
     SPIM2,
 };
 
-use prelude::*;
-use gpio::{
+use crate::prelude::*;
+use crate::gpio::{
     p0::P0_Pin,
     Floating,
     Input,

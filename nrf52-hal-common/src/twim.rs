@@ -8,21 +8,21 @@
 
 use core::ops::Deref;
 
-use target::{
+use crate::target::{
     twim0,
     P0,
     TWIM0,
     TWIM1,
 };
 
-use gpio::{
+use crate::gpio::{
     p0::P0_Pin,
     Floating,
     Input,
 };
 
 
-pub use target::twim0::frequency::FREQUENCYW as Frequency;
+pub use crate::target::twim0::frequency::FREQUENCYW as Frequency;
 
 
 pub trait TwimExt: Deref<Target=twim0::RegisterBlock> + Sized {
@@ -99,7 +99,7 @@ impl<T> Twim<T> where T: TwimExt {
 
         // Configure frequency
         twim.frequency.write(|w| w.frequency().variant(frequency));
-        
+
 
         Twim(twim)
     }

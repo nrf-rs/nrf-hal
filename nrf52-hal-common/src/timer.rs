@@ -6,7 +6,7 @@
 use core::ops::Deref;
 
 use nb;
-use target::{
+use crate::target::{
     timer0,
     TIMER0,
     TIMER1,

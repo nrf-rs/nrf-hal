@@ -73,13 +73,13 @@ macro_rules! gpio {
                 PhantomData,
             };
 
-            use target;
-            use target::$PX;
-            use target::$pxsvd::{
+            use crate::target;
+            use crate::target::$PX;
+            use crate::target::$pxsvd::{
                 pin_cnf,
                 PIN_CNF,
             };
-            use hal::digital::{OutputPin, StatefulOutputPin, InputPin};
+            use crate::hal::digital::{OutputPin, StatefulOutputPin, InputPin};
 
             // ===============================================================
             // Implement Generic Pins for this port, which allows you to use

@@ -1,16 +1,12 @@
 #![no_std]
 
-extern crate cast;
-extern crate cortex_m;
-extern crate embedded_hal as hal;
-extern crate nb;
-extern crate void;
+use embedded_hal as hal;
 
 #[cfg(feature = "52832")]
-pub extern crate nrf52 as target;
+pub use nrf52832_pac as target;
 
 #[cfg(feature = "52840")]
-pub extern crate nrf52840 as target;
+pub use nrf52840_pac as target;
 
 pub mod delay;
 pub mod spim;
@@ -23,22 +19,22 @@ pub mod twim;
 pub mod uarte;
 
 pub mod prelude {
-    pub use hal::prelude::*;
+    pub use crate::hal::prelude::*;
 
-    pub use clocks::ClocksExt;
-    pub use gpio::GpioExt;
-    pub use rng::RngExt;
-    pub use spim::SpimExt;
-    pub use time::U32Ext;
-    pub use timer::TimerExt;
-    pub use twim::TwimExt;
-    pub use uarte::UarteExt;
+    pub use crate::clocks::ClocksExt;
+    pub use crate::gpio::GpioExt;
+    pub use crate::rng::RngExt;
+    pub use crate::spim::SpimExt;
+    pub use crate::time::U32Ext;
+    pub use crate::timer::TimerExt;
+    pub use crate::twim::TwimExt;
+    pub use crate::uarte::UarteExt;
 }
 
 
-pub use clocks::Clocks;
-pub use delay::Delay;
-pub use spim::Spim;
-pub use timer::Timer;
-pub use twim::Twim;
-pub use uarte::Uarte;
+pub use crate::clocks::Clocks;
+pub use crate::delay::Delay;
+pub use crate::spim::Spim;
+pub use crate::timer::Timer;
+pub use crate::twim::Twim;
+pub use crate::uarte::Uarte;
