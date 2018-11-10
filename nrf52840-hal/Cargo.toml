@@ -1,6 +1,6 @@
 [package]
 name = "nrf52840-hal"
-version = "0.6.0-beta.1"
+version = "0.6.0-beta.2"
 description = "HAL for nRF52840 microcontrollers"
 
 repository = "https://github.com/nrf-rs/nrf52-hal"
@@ -33,7 +33,7 @@ version = "0.2.2"
 path = "../nrf52-hal-common"
 default-features = false
 features = ["52840"]
-version = "=0.6.0-beta.1"
+version = "=0.6.0-beta.2"
 
 [dependencies.embedded-hal]
 features = ["unproven"]
