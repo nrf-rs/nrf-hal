@@ -7,20 +7,20 @@
 
 use core::ops::Deref;
 
-use target::{
+use crate::target::{
     uarte0,
     UARTE0,
 };
 
-use prelude::*;
-use gpio::{
+use crate::prelude::*;
+use crate::gpio::{
     p0::P0_Pin,
     Output,
     PushPull,
 };
 
 // Re-export SVD variants to allow user to directly set values
-pub use target::uarte0::{
+pub use crate::target::uarte0::{
     baudrate::BAUDRATEW as Baudrate,
     config::PARITYW as Parity,
 };

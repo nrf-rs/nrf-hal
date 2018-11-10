@@ -1,3 +1,4 @@
+/* Linker script for the nRF52 - WITHOUT SOFT DEVICE */
 MEMORY
 {
   /* NOTE K = KiBi = 1024 bytes */

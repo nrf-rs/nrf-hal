@@ -5,7 +5,7 @@
 
 use core::ops::Deref;
 
-use target::{
+use crate::target::{
     rng,
     RNG,
 };
