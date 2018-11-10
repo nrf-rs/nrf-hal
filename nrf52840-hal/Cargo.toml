@@ -6,7 +6,7 @@ description = "HAL for nRF52840 microcontrollers"
 repository = "https://github.com/nrf-rs/nrf52-hal"
 authors = [
     "James Munns <james@onevariable.com>",
-    "Hanno Braun <hanno@braun-robotics.com",
+    "Hanno Braun <hanno@braun-robotics.com>",
     "John Scarrott <johnps@outlook.com>",
     "Wez Furlong <wez@wezfurlong.org>",
 ]
@@ -31,6 +31,7 @@ version = "0.2.2"
 
 [dependencies.nrf52-hal-common]
 path = "../nrf52-hal-common"
+default-features = false
 features = ["52840"]
 version = "=0.6.0-beta.1"
 

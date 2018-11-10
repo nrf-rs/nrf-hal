@@ -6,7 +6,7 @@ description = "Common HAL for the nRF52 family of microcontrollers.  More specif
 repository = "https://github.com/nrf-rs/nrf52-hal"
 authors = [
     "James Munns <james@onevariable.com>",
-    "Hanno Braun <hanno@braun-robotics.com",
+    "Hanno Braun <hanno@braun-robotics.com>",
     "John Scarrott <johnps@outlook.com>",
     "Wez Furlong <wez@wezfurlong.org>",
 ]
