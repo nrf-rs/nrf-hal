@@ -1,6 +1,6 @@
 [package]
 name = "nrf52-hal-common"
-version = "0.6.0-beta.1"
+version = "0.6.0-beta.2"
 description = "Common HAL for the nRF52 family of microcontrollers.  More specific HAL crates also exist."
 
 repository = "https://github.com/nrf-rs/nrf52-hal"
