@@ -1,24 +1,22 @@
 #![no_main]
 #![no_std]
 
-#[macro_use]
-extern crate cortex_m_rt;
-#[macro_use]
-extern crate nb;
+use cortex_m_rt::entry;
+use nb::block;
 
-extern crate adafruit_nrf52pro;
-extern crate panic_semihosting;
+#[allow(unused_imports)]
+use panic_semihosting;
 
-use adafruit_nrf52pro::hal::{
+use adafruit_nrf52pro_bsc::hal::{
     prelude::*,
     gpio::Level,
     timer::Timer,
 };
-use adafruit_nrf52pro::nrf52::{Peripherals};
-use adafruit_nrf52pro::Pins;
+use adafruit_nrf52pro_bsc::nrf52832_pac::{Peripherals};
+use adafruit_nrf52pro_bsc::Pins;
 
-entry!(main);
 
+#[entry]
 fn main() -> ! {
     let p = Peripherals::take().unwrap();
     let pins = Pins::new(p.P0.split());
