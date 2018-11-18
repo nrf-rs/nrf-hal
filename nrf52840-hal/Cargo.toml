@@ -1,6 +1,6 @@
 [package]
 name = "nrf52840-hal"
-version = "0.6.0-beta.3"
+version = "0.6.0-beta.4"
 description = "HAL for nRF52840 microcontrollers"
 
 repository = "https://github.com/nrf-rs/nrf52-hal"

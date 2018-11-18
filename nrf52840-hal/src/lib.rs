@@ -2,7 +2,7 @@
 
 use embedded_hal as hal;
 pub use nrf52840_pac;
-pub use nrf52_hal_common::{self, *};
+pub use nrf52_hal_common::*;
 
 pub mod prelude {
     pub use crate::hal::prelude::*;
