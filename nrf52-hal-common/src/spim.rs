@@ -2,6 +2,7 @@
 //!
 //! See product specification, chapter 31.
 use core::ops::Deref;
+use core::sync::atomic::{compiler_fence, Ordering::AcqRel};
 
 use crate::target::{
     spim0,
@@ -188,6 +189,10 @@ impl<T> Spim<T> where T: SpimExt {
             return Err(Error::Receive);
         }
 
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account DMA
+        compiler_fence(AcqRel);
+
         Ok(())
     }
 
@@ -258,6 +263,10 @@ impl<T> Spim<T> where T: SpimExt {
         if self.0.txd.amount.read().bits() != tx_buffer.len() as u32 {
             return Err(Error::Transmit);
         }
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account DMA
+        compiler_fence(AcqRel);
 
         Ok(())
     }

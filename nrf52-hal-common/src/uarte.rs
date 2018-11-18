@@ -4,8 +4,8 @@
 //!
 //! - nrf52832: Section 35
 //! - nrf52840: Section 6.34
-
 use core::ops::Deref;
+use core::sync::atomic::{compiler_fence, Ordering::AcqRel};
 
 use crate::target::{
     uarte0,
@@ -148,6 +148,10 @@ impl<T> Uarte<T> where T: UarteExt {
         if self.0.txd.amount.read().bits() != tx_buffer.len() as u32 {
             return Err(Error::Transmit);
         }
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account DMA
+        compiler_fence(AcqRel);
 
         Ok(())
     }

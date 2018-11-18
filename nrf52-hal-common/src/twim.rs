@@ -4,9 +4,8 @@
 //!
 //! - nrf52832: Section 33
 //! - nrf52840: Section 6.31
-
-
 use core::ops::Deref;
+use core::sync::atomic::{compiler_fence, Ordering::AcqRel};
 
 use crate::target::{
     twim0,
@@ -165,6 +164,10 @@ impl<T> Twim<T> where T: TwimExt {
             return Err(Error::Transmit);
         }
 
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account DMA
+        compiler_fence(AcqRel);
+
         Ok(())
     }
 
@@ -229,6 +232,10 @@ impl<T> Twim<T> where T: TwimExt {
         if self.0.rxd.amount.read().bits() != buffer.len() as u32 {
             return Err(Error::Receive);
         }
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account DMA
+        compiler_fence(AcqRel);
 
         Ok(())
     }
