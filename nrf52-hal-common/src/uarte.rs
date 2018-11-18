@@ -145,13 +145,13 @@ impl<T> Uarte<T> where T: UarteExt {
         // Reset the event, otherwise it will always read `1` from now on.
         self.0.events_endtx.write(|w| w);
 
-        if self.0.txd.amount.read().bits() != tx_buffer.len() as u32 {
-            return Err(Error::Transmit);
-        }
-
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account DMA
         compiler_fence(AcqRel);
+
+        if self.0.txd.amount.read().bits() != tx_buffer.len() as u32 {
+            return Err(Error::Transmit);
+        }
 
         Ok(())
     }
