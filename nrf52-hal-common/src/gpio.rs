@@ -12,9 +12,9 @@ pub struct Input<MODE> {
 /// Floating input (type state)
 pub struct Floating;
 // /// Pulled down input (type state)
-// pub struct PullDown;
+pub struct PullDown;
 // /// Pulled up input (type state)
-// pub struct PullUp;
+pub struct PullUp;
 
 /// Output mode (type state)
 pub struct Output<MODE> {
@@ -67,7 +67,8 @@ macro_rules! gpio {
                 Level,
                 OpenDrain,
                 Output,
-                // PullDown, PullUp,
+                PullDown,
+                PullUp,
                 PushPull,
 
                 PhantomData,
@@ -99,6 +100,34 @@ macro_rules! gpio {
                         w.dir().input()
                          .input().connect()
                          .pull().disabled()
+                         .drive().s0s1()
+                         .sense().disabled()
+                    });
+
+                    $Pg {
+                        _mode: PhantomData,
+                        pin: self.pin
+                    }
+                }
+                pub fn into_pullup_input(self) -> $Pg<Input<PullUp>> {
+                    unsafe { &(*$PX::ptr()).pin_cnf[self.pin as usize] }.write(|w| {
+                        w.dir().input()
+                         .input().connect()
+                         .pull().pullup()
+                         .drive().s0s1()
+                         .sense().disabled()
+                    });
+
+                    $Pg {
+                        _mode: PhantomData,
+                        pin: self.pin
+                    }
+                }
+                pub fn into_pulldown_input(self) -> $Pg<Input<PullDown>> {
+                    unsafe { &(*$PX::ptr()).pin_cnf[self.pin as usize] }.write(|w| {
+                        w.dir().input()
+                         .input().connect()
+                         .pull().pulldown()
                          .drive().s0s1()
                          .sense().disabled()
                     });
@@ -255,6 +284,32 @@ macro_rules! gpio {
                             w.dir().input()
                              .input().connect()
                              .pull().disabled()
+                             .drive().s0s1()
+                             .sense().disabled()
+                        });
+
+                        $PXi {
+                            _mode: PhantomData,
+                        }
+                    }
+                    pub fn into_pulldown_input(self) -> $PXi<Input<PullDown>> {
+                        unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
+                            w.dir().input()
+                             .input().connect()
+                             .pull().pulldown()
+                             .drive().s0s1()
+                             .sense().disabled()
+                        });
+
+                        $PXi {
+                            _mode: PhantomData,
+                        }
+                    }
+                    pub fn into_pullup_input(self) -> $PXi<Input<PullUp>> {
+                        unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
+                            w.dir().input()
+                             .input().connect()
+                             .pull().pullup()
                              .drive().s0s1()
                              .sense().disabled()
                         });
