@@ -4,7 +4,6 @@
 
 
 use core::ops::Deref;
-use core::sync::atomic::{compiler_fence, Ordering::AcqRel};
 
 use crate::target::{
     rng,
@@ -42,10 +41,6 @@ impl Rng {
 
             *b = self.0.value.read().value().bits();
         }
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account DMA
-        compiler_fence(AcqRel);
 
         self.0.tasks_stop.write(|w| unsafe { w.bits(1) });
     }
