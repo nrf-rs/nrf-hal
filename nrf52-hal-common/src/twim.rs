@@ -5,7 +5,7 @@
 //! - nrf52832: Section 33
 //! - nrf52840: Section 6.31
 use core::ops::Deref;
-use core::sync::atomic::{compiler_fence, Ordering::AcqRel};
+use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
 use crate::target::{
     twim0,
@@ -160,13 +160,14 @@ impl<T> Twim<T> where T: TwimExt {
         while self.0.events_stopped.read().bits() == 0 {}
         self.0.events_stopped.write(|w| w); // reset event
 
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // after all possible DMA actions have completed
+        compiler_fence(SeqCst);
+
         if self.0.txd.amount.read().bits() != buffer.len() as u32 {
             return Err(Error::Transmit);
         }
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account DMA
-        compiler_fence(AcqRel);
 
         Ok(())
     }
@@ -229,13 +230,14 @@ impl<T> Twim<T> where T: TwimExt {
         while self.0.events_stopped.read().bits() == 0 {}
         self.0.events_stopped.write(|w| w); // reset event
 
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // after all possible DMA actions have completed
+        compiler_fence(SeqCst);
+
         if self.0.rxd.amount.read().bits() != buffer.len() as u32 {
             return Err(Error::Receive);
         }
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account DMA
-        compiler_fence(AcqRel);
 
         Ok(())
     }
@@ -326,12 +328,13 @@ impl<T> Twim<T> where T: TwimExt {
         self.0.events_stopped.write(|w| w); // reset event
         self.0.shorts.write(|w| w);
 
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // after all possible DMA actions have completed
+        compiler_fence(SeqCst);
+
         let bad_write = self.0.txd.amount.read().bits() != wr_buffer.len() as u32;
         let bad_read  = self.0.rxd.amount.read().bits() != rd_buffer.len() as u32;
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account DMA
-        compiler_fence(AcqRel);
 
         if bad_write {
             return Err(Error::Transmit);
