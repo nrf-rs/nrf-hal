@@ -2,7 +2,7 @@
 //!
 //! See product specification, chapter 31.
 use core::ops::Deref;
-use core::sync::atomic::{compiler_fence, Ordering::AcqRel};
+use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
 use crate::target::{
     spim0,
@@ -179,6 +179,11 @@ impl<T> Spim<T> where T: SpimExt {
         // Reset the event, otherwise it will always read `1` from now on.
         self.0.events_end.write(|w| w);
 
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // after all possible DMA actions have completed
+        compiler_fence(SeqCst);
+
         // End SPI transaction
         chip_select.set_high();
 
@@ -188,10 +193,6 @@ impl<T> Spim<T> where T: SpimExt {
         if self.0.rxd.amount.read().bits() != rx_buffer.len() as u32 {
             return Err(Error::Receive);
         }
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account DMA
-        compiler_fence(AcqRel);
 
         Ok(())
     }
@@ -257,16 +258,17 @@ impl<T> Spim<T> where T: SpimExt {
         // Reset the event, otherwise it will always read `1` from now on.
         self.0.events_end.write(|w| w);
 
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // after all possible DMA actions have completed
+        compiler_fence(SeqCst);
+
         // End SPI transaction
         chip_select.set_high();
 
         if self.0.txd.amount.read().bits() != tx_buffer.len() as u32 {
             return Err(Error::Transmit);
         }
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account DMA
-        compiler_fence(AcqRel);
 
         Ok(())
     }
