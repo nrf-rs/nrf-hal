@@ -1,6 +1,6 @@
 [package]
 name = "nrf52-hal-common"
-version = "0.6.0-beta.3"
+version = "0.6.0"
 description = "Common HAL for the nRF52 family of microcontrollers.  More specific HAL crates also exist."
 
 repository = "https://github.com/nrf-rs/nrf52-hal"
@@ -30,11 +30,11 @@ version = "0.2.2"
 
 [dependencies.nrf52832-pac]
 optional = true
-version = "=0.6.0-beta.2"
+version = "=0.6.0"
 
 [dependencies.nrf52840-pac]
 optional = true
-version = "=0.6.0-beta.2"
+version = "=0.6.0"
 
 [dependencies.embedded-hal]
 features = ["unproven"]
