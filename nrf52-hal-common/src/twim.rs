@@ -118,6 +118,11 @@ impl<T> Twim<T> where T: TwimExt {
             return Err(Error::BufferTooLong);
         }
 
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // before any DMA action has started
+        compiler_fence(SeqCst);
+
         self.0.address.write(|w| unsafe { w.address().bits(address) });
 
         // Set up the DMA write
@@ -184,6 +189,11 @@ impl<T> Twim<T> where T: TwimExt {
         if buffer.len() > u8::max_value() as usize {
             return Err(Error::BufferTooLong);
         }
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // before any DMA action has started
+        compiler_fence(SeqCst);
 
         self.0.address.write(|w| unsafe { w.address().bits(address) });
 
@@ -262,6 +272,11 @@ impl<T> Twim<T> where T: TwimExt {
         if rd_buffer.len() > u8::max_value() as usize {
             return Err(Error::BufferTooLong);
         }
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // before any DMA action has started
+        compiler_fence(SeqCst);
 
         self.0.address.write(|w| unsafe { w.address().bits(address) });
 

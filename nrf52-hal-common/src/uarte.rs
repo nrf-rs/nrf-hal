@@ -115,6 +115,11 @@ impl<T> Uarte<T> where T: UarteExt {
             return Err(Error::TxBufferTooLong);
         }
 
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // before any DMA action has started
+        compiler_fence(SeqCst);
+
         // Set up the DMA write
         self.0.txd.ptr.write(|w|
             // We're giving the register a pointer to the stack. Since we're
