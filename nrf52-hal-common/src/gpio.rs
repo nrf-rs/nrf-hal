@@ -11,9 +11,9 @@ pub struct Input<MODE> {
 
 /// Floating input (type state)
 pub struct Floating;
-// /// Pulled down input (type state)
+/// Pulled down input (type state)
 pub struct PullDown;
-// /// Pulled up input (type state)
+/// Pulled up input (type state)
 pub struct PullUp;
 
 /// Output mode (type state)
