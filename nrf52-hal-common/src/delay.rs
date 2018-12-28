@@ -3,8 +3,8 @@ use cast::u32;
 use cortex_m::peripheral::SYST;
 use cortex_m::peripheral::syst::SystClkSource;
 
-use hal::blocking::delay::{DelayMs, DelayUs};
-use clocks::Clocks;
+use crate::hal::blocking::delay::{DelayMs, DelayUs};
+use crate::clocks::Clocks;
 
 /// System timer (SysTick) as a delay provider
 pub struct Delay {

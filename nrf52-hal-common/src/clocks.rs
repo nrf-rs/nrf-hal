@@ -1,5 +1,5 @@
-use target::CLOCK;
-use time::{Hertz, U32Ext};
+use crate::target::CLOCK;
+use crate::time::{Hertz, U32Ext};
 
 pub trait ClocksExt {
     fn constrain(self) -> ClocksCfg;

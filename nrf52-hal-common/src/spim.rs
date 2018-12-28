@@ -2,16 +2,17 @@
 //!
 //! See product specification, chapter 31.
 use core::ops::Deref;
+use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
-use target::{
+use crate::target::{
     spim0,
     SPIM0,
     SPIM1,
     SPIM2,
 };
 
-use prelude::*;
-use gpio::{
+use crate::prelude::*;
+use crate::gpio::{
     p0::P0_Pin,
     Floating,
     Input,
@@ -127,6 +128,11 @@ impl<T> Spim<T> where T: SpimExt {
         // Pull chip select pin high, which is the inactive state
         chip_select.set_high();
 
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // before any DMA action has started
+        compiler_fence(SeqCst);
+
         // Set up the DMA write
         self.0.txd.ptr.write(|w|
             // We're giving the register a pointer to the stack. Since we're
@@ -178,6 +184,11 @@ impl<T> Spim<T> where T: SpimExt {
         // Reset the event, otherwise it will always read `1` from now on.
         self.0.events_end.write(|w| w);
 
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // after all possible DMA actions have completed
+        compiler_fence(SeqCst);
+
         // End SPI transaction
         chip_select.set_high();
 
@@ -211,6 +222,11 @@ impl<T> Spim<T> where T: SpimExt {
 
         // Pull chip select pin high, which is the inactive state
         chip_select.set_high();
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // before any DMA action has started
+        compiler_fence(SeqCst);
 
         // Set up the DMA write
         self.0.txd.ptr.write(|w|
@@ -251,6 +267,11 @@ impl<T> Spim<T> where T: SpimExt {
 
         // Reset the event, otherwise it will always read `1` from now on.
         self.0.events_end.write(|w| w);
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // after all possible DMA actions have completed
+        compiler_fence(SeqCst);
 
         // End SPI transaction
         chip_select.set_high();

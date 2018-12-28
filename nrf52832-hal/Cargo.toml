@@ -1,31 +1,37 @@
 [package]
-authors = [
-    "James Munns <james.munns@gmail.com>",
-    "Hanno Braun <hanno@braun-robotics.com"
-]
-categories = ["embedded", "hardware-support", "no-std"]
-description = "HAL for nRF52832 microcontrollers"
-keywords = ["arm", "cortex-m", "nrf52", "hal"]
-license = "MIT OR Apache-2.0"
 name = "nrf52832-hal"
+version = "0.6.0"
+description = "HAL for nRF52832 microcontrollers"
+
 repository = "https://github.com/nrf-rs/nrf52-hal"
-version = "0.0.1"
+authors = [
+    "James Munns <james@onevariable.com>",
+    "Hanno Braun <hanno@braun-robotics.com>"
+]
+
+categories = ["embedded", "hardware-support", "no-std"]
+keywords = ["arm", "cortex-m", "nrf52", "hal", "nrf52832"]
+license = "MIT OR Apache-2.0"
+edition = "2018"
 
 [dependencies]
-cortex-m = "0.5.4"
+cortex-m = "0.5.8"
 nb = "0.1.1"
-void = { version = "1", default-features = false }
+nrf52832-pac = "0.6.0"
 
-[dependencies.nrf52-hal-common]
-path = "../nrf52-hal-common"
-features = ["52832"]
-
-[dependencies.nrf52]
-version = "0.4.0"
+[dependencies.void]
+default-features = false
+version = "1.0.2"
 
 [dependencies.cast]
 default-features = false
 version = "0.2.2"
+
+[dependencies.nrf52-hal-common]
+path = "../nrf52-hal-common"
+default-features = false
+features = ["52832"]
+version = "0.6.0"
 
 [dependencies.embedded-hal]
 features = ["unproven"]
@@ -33,6 +39,6 @@ version = "0.2.1"
 
 [features]
 doc = []
-rt = ["nrf52/rt"]
+rt = ["nrf52832-pac/rt"]
 default = ["rt"]
 

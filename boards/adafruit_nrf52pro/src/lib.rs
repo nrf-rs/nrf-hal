@@ -1,7 +1,7 @@
 #![no_std]
-pub extern crate nrf52832_hal as hal;
-use hal::gpio::{p0, Floating, Input};
-pub use hal::nrf52;
+pub use nrf52832_hal as hal;
+use crate::hal::gpio::{p0, Floating, Input};
+pub use crate::hal::nrf52832_pac;
 
 /// Maps the pins to the names printed on the device
 pub struct Pins {

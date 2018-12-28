@@ -4,23 +4,23 @@
 //!
 //! - nrf52832: Section 35
 //! - nrf52840: Section 6.34
-
 use core::ops::Deref;
+use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
-use target::{
+use crate::target::{
     uarte0,
     UARTE0,
 };
 
-use prelude::*;
-use gpio::{
+use crate::prelude::*;
+use crate::gpio::{
     p0::P0_Pin,
     Output,
     PushPull,
 };
 
 // Re-export SVD variants to allow user to directly set values
-pub use target::uarte0::{
+pub use crate::target::uarte0::{
     baudrate::BAUDRATEW as Baudrate,
     config::PARITYW as Parity,
 };
@@ -115,6 +115,11 @@ impl<T> Uarte<T> where T: UarteExt {
             return Err(Error::TxBufferTooLong);
         }
 
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // before any DMA action has started
+        compiler_fence(SeqCst);
+
         // Set up the DMA write
         self.0.txd.ptr.write(|w|
             // We're giving the register a pointer to the stack. Since we're
@@ -144,6 +149,11 @@ impl<T> Uarte<T> where T: UarteExt {
 
         // Reset the event, otherwise it will always read `1` from now on.
         self.0.events_endtx.write(|w| w);
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // after all possible DMA actions have completed
+        compiler_fence(SeqCst);
 
         if self.0.txd.amount.read().bits() != tx_buffer.len() as u32 {
             return Err(Error::Transmit);
