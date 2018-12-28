@@ -31,7 +31,7 @@ version = "0.2.2"
 path = "../nrf52-hal-common"
 default-features = false
 features = ["52832"]
-version = "=0.6.1"
+version = "0.6.1"
 
 [dependencies.embedded-hal]
 features = ["unproven"]
