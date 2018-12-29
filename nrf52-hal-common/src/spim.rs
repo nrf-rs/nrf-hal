@@ -1,8 +1,10 @@
 //! HAL interface to the SPIM peripheral
 //!
 //! See product specification, chapter 31.
+use embedded_hal::blocking::spi::Transfer;
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
+use core::cmp::min;
 
 use crate::target::{
     spim0,
@@ -43,6 +45,10 @@ impl_spim_ext!(
     SPIM2,
 );
 
+#[cfg(feature = "52832")]
+const MAX_SPI_DMA_SIZE: u32 = 255;    // NRF52832 1..0xFF
+#[cfg(feature = "52840")]
+const MAX_SPI_DMA_SIZE: u32 = 65535; // NRF52840 1..0xFFFF
 
 /// Interface to a SPIM instance
 ///
@@ -54,6 +60,92 @@ impl_spim_ext!(
 /// - The frequency is hardcoded to 500 kHz.
 /// - The over-read character is hardcoded to `0`.
 pub struct Spim<T>(T);
+
+impl<T> Transfer<u8> for Spim<T> where T: SpimExt
+{
+   type Error = Error;
+
+    fn transfer<'w>(&mut self, words: &'w mut [u8]) -> Result<&'w [u8], Error> {
+        // TODO: some targets have a maxcnt whose size is larger
+        // than a u8, so this length check is overly restrictive
+        // and could be lifted.
+        if words.len() > MAX_SPI_DMA_SIZE as usize {
+            return Err(Error::TxBufferTooLong);
+        }
+
+        let mut offset:u32 = 0;
+        while offset < words.len() as u32 {
+            let datalen = min(MAX_SPI_DMA_SIZE,(words.len() as u32 )- offset);
+            let dataptr = offset + (words.as_ptr() as u32);
+            offset += MAX_SPI_DMA_SIZE;
+
+            // Set up the DMA write
+            self.0.txd.ptr.write(|w|
+                // We're giving the register a pointer to the stack. Since we're
+                // waiting for the SPI transaction to end before this stack pointer
+                // becomes invalid, there's nothing wrong here.
+                //
+                // The PTR field is a full 32 bits wide and accepts the full range
+                // of values.
+                unsafe { w.ptr().bits(dataptr) }
+            );
+            self.0.txd.maxcnt.write(|w|
+                // We're giving it the length of the buffer, so no danger of
+                // accessing invalid memory. We have verified that the length of the
+                // buffer fits in an `u8`, so the cast to the type of maxcnt
+                // is also fine.
+                //
+                // Note that that nrf52840 maxcnt is a wider
+                // type than a u8, so we use a `_` cast rather than a `u8` cast.
+                // The MAXCNT field is thus at least 8 bits wide and accepts the full
+                // range of values that fit in a `u8`.
+                unsafe { w.maxcnt().bits(datalen as _) }
+            );
+
+            // Set up the DMA read
+            self.0.rxd.ptr.write(|w|
+                // This is safe for the same reasons that writing to TXD.PTR is
+                // safe. Please refer to the explanation there.
+                unsafe { w.ptr().bits(dataptr) }
+            );
+            self.0.rxd.maxcnt.write(|w|
+                // This is safe for the same reasons that writing to TXD.MAXCNT is
+                // safe. Please refer to the explanation there.
+                unsafe { w.maxcnt().bits(datalen as _) }
+            );
+
+            self.0.tasks_start.write(|w|
+                // `1` is a valid value to write to task registers.
+                unsafe { w.bits(1) }
+            );
+
+            // Conservative compiler fence to prevent optimizations that do not
+            // take in to account DMA
+            compiler_fence(SeqCst);
+
+            // Wait for END event
+            //
+            // This event is triggered once both transmitting and receiving are
+            // done.
+            while self.0.events_end.read().bits() == 0 {}
+
+            // Reset the event, otherwise it will always read `1` from now on.
+            self.0.events_end.write(|w| w);
+
+            if self.0.txd.amount.read().bits() !=datalen {
+                return Err(Error::Transmit);
+            }
+            if self.0.rxd.amount.read().bits() != datalen{
+                return Err(Error::Receive);
+            }
+
+            // Conservative compiler fence to prevent optimizations that do not
+            // take in to account DMA
+            compiler_fence(SeqCst);
+        }
+        Ok(words)
+    }
+}
 
 impl<T> Spim<T> where T: SpimExt {
     pub fn new(spim: T, pins: Pins) -> Self {
@@ -115,13 +207,10 @@ impl<T> Spim<T> where T: SpimExt {
     )
         -> Result<(), Error>
     {
-        // TODO: some targets have a maxcnt whose size is larger
-        // than a u8, so this length check is overly restrictive
-        // and could be lifted.
-        if tx_buffer.len() > u8::max_value() as usize {
+        if tx_buffer.len() > MAX_SPI_DMA_SIZE as usize {
             return Err(Error::TxBufferTooLong);
         }
-        if rx_buffer.len() > u8::max_value() as usize {
+        if rx_buffer.len() > MAX_SPI_DMA_SIZE as usize {
             return Err(Error::RxBufferTooLong);
         }
 
@@ -207,16 +296,15 @@ impl<T> Spim<T> where T: SpimExt {
     /// This method uses the provided chip select pin to initiate the
     /// transaction, then transmits all bytes in `tx_buffer`.
     ///
-    /// The buffer must have a length of at most 255 bytes.
+
     pub fn write(&mut self,
         chip_select: &mut P0_Pin<Output<PushPull>>,
         tx_buffer  : &[u8],
     )
         -> Result<(), Error>
     {
-        // This is overly restrictive. See:
-        // https://github.com/nrf-rs/nrf52/issues/17
-        if tx_buffer.len() > u8::max_value() as usize {
+
+        if tx_buffer.len() > MAX_SPI_DMA_SIZE as usize {
             return Err(Error::TxBufferTooLong);
         }
 
