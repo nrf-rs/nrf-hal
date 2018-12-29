@@ -66,13 +66,6 @@ impl<T> Transfer<u8> for Spim<T> where T: SpimExt
    type Error = Error;
 
     fn transfer<'w>(&mut self, words: &'w mut [u8]) -> Result<&'w [u8], Error> {
-        // TODO: some targets have a maxcnt whose size is larger
-        // than a u8, so this length check is overly restrictive
-        // and could be lifted.
-        if words.len() > MAX_SPI_DMA_SIZE as usize {
-            return Err(Error::TxBufferTooLong);
-        }
-
         let mut offset:u32 = 0;
         while offset < words.len() as u32 {
             let datalen = min(MAX_SPI_DMA_SIZE, (words.len() as u32) - offset);
