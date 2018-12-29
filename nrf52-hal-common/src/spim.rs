@@ -72,40 +72,7 @@ impl<T> Transfer<u8> for Spim<T> where T: SpimExt
             let dataptr = offset + (words.as_ptr() as u32);
             offset += MAX_SPI_DMA_SIZE;
 
-            // Set up the DMA write
-            self.0.txd.ptr.write(|w|
-                // We're giving the register a pointer to the stack. Since we're
-                // waiting for the SPI transaction to end before this stack pointer
-                // becomes invalid, there's nothing wrong here.
-                //
-                // The PTR field is a full 32 bits wide and accepts the full range
-                // of values.
-                unsafe { w.ptr().bits(dataptr) }
-            );
-            self.0.txd.maxcnt.write(|w|
-                // We're giving it the length of the buffer, so no danger of
-                // accessing invalid memory. We have verified that the length of the
-                // buffer fits in an `u8`, so the cast to the type of maxcnt
-                // is also fine.
-                //
-                // Note that that nrf52840 maxcnt is a wider
-                // type than a u8, so we use a `_` cast rather than a `u8` cast.
-                // The MAXCNT field is thus at least 8 bits wide and accepts the full
-                // range of values that fit in a `u8`.
-                unsafe { w.maxcnt().bits(datalen as _) }
-            );
-
-            // Set up the DMA read
-            self.0.rxd.ptr.write(|w|
-                // This is safe for the same reasons that writing to TXD.PTR is
-                // safe. Please refer to the explanation there.
-                unsafe { w.ptr().bits(dataptr) }
-            );
-            self.0.rxd.maxcnt.write(|w|
-                // This is safe for the same reasons that writing to TXD.MAXCNT is
-                // safe. Please refer to the explanation there.
-                unsafe { w.maxcnt().bits(datalen as _) }
-            );
+            self.setup_spi_dma(dataptr,datalen,dataptr,datalen);
 
             self.0.tasks_start.write(|w|
                 // `1` is a valid value to write to task registers.
@@ -184,6 +151,42 @@ impl<T> Spim<T> where T: SpimExt {
         Spim(spim)
     }
 
+    /// Internal helper function to setup SPIM DMA registers
+    fn  setup_spi_dma(&mut self,
+                       tx_data_ptr:u32,
+                       tx_len:u32,
+                       rx_data_ptr:u32,
+                       rx_len:u32) -> (){
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // before any DMA action has started
+        compiler_fence(SeqCst);
+
+        // Set up the DMA write
+        self.0.txd.ptr.write(|w|
+            unsafe { w.ptr().bits(tx_data_ptr) }
+        );
+        self.0.txd.maxcnt.write(|w|
+            // Note that that nrf52840 maxcnt is a wider
+            // type than a u8, so we use a `_` cast rather than a `u8` cast.
+            // The MAXCNT field is thus at least 8 bits wide and accepts the full
+            // range of values that fit in a `u8`.
+            unsafe { w.maxcnt().bits(tx_len as _ ) }
+        );
+
+        // Set up the DMA read
+        self.0.rxd.ptr.write(|w|
+            // This is safe for the same reasons that writing to TXD.PTR is
+            // safe. Please refer to the explanation there.
+            unsafe { w.ptr().bits(rx_data_ptr ) }
+        );
+        self.0.rxd.maxcnt.write(|w|
+            // This is safe for the same reasons that writing to TXD.MAXCNT is
+            // safe. Please refer to the explanation there.
+            unsafe { w.maxcnt().bits(rx_len as _) }
+        );
+    }
+
     /// Read from an SPI slave
     ///
     /// This method implements a complete read transaction, which consists of
@@ -210,22 +213,18 @@ impl<T> Spim<T> where T: SpimExt {
         // Pull chip select pin high, which is the inactive state
         chip_select.set_high();
 
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started
-        compiler_fence(SeqCst);
-
+        self.setup_spi_dma(
         // Set up the DMA write
-        self.0.txd.ptr.write(|w|
             // We're giving the register a pointer to the stack. Since we're
             // waiting for the SPI transaction to end before this stack pointer
             // becomes invalid, there's nothing wrong here.
             //
             // The PTR field is a full 32 bits wide and accepts the full range
             // of values.
-            unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) }
-        );
-        self.0.txd.maxcnt.write(|w|
+
+            // tx_data_ptr:
+            tx_buffer.as_ptr() as u32,
+
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
             // buffer fits in an `u8`, so the cast to the type of maxcnt
@@ -235,19 +234,21 @@ impl<T> Spim<T> where T: SpimExt {
             // type than a u8, so we use a `_` cast rather than a `u8` cast.
             // The MAXCNT field is thus at least 8 bits wide and accepts the full
             // range of values that fit in a `u8`.
-            unsafe { w.maxcnt().bits(tx_buffer.len() as _) }
-        );
+
+            //tx_len:
+            tx_buffer.len() as _,
 
         // Set up the DMA read
-        self.0.rxd.ptr.write(|w|
             // This is safe for the same reasons that writing to TXD.PTR is
             // safe. Please refer to the explanation there.
-            unsafe { w.ptr().bits(rx_buffer.as_mut_ptr() as u32) }
-        );
-        self.0.rxd.maxcnt.write(|w|
+
+            //rx_data_ptr:
+            rx_buffer.as_mut_ptr() as u32,
             // This is safe for the same reasons that writing to TXD.MAXCNT is
             // safe. Please refer to the explanation there.
-            unsafe { w.maxcnt().bits(rx_buffer.len() as _) }
+
+            //rx_len:
+            rx_buffer.len() as _
         );
 
         // Start SPI transaction
@@ -303,39 +304,27 @@ impl<T> Spim<T> where T: SpimExt {
 
         // Pull chip select pin high, which is the inactive state
         chip_select.set_high();
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started
-        compiler_fence(SeqCst);
-
         // Set up the DMA write
-        self.0.txd.ptr.write(|w|
+        self.setup_spi_dma(
+
             // We're giving the register a pointer to the stack. Since we're
             // waiting for the SPI transaction to end before this stack pointer
             // becomes invalid, there's nothing wrong here.
             //
             // The PTR field is a full 32 bits wide and accepts the full range
             // of values.
-            unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) }
-        );
-        self.0.txd.maxcnt.write(|w|
+            tx_buffer.as_ptr() as u32,
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
             // buffer fits in an `u8`, so the cast to `u8` is also fine.
             //
             // The MAXCNT field is 8 bits wide and accepts the full range of
             // values.
-            unsafe { w.maxcnt().bits(tx_buffer.len() as _) }
-        );
+            tx_buffer.len() as _,
 
         // Tell the RXD channel it doesn't need to read anything
-        self.0.rxd.maxcnt.write(|w|
-            // This is safe for the same reasons that writing to TXD.MAXCNT is
-            // safe. Please refer to the explanation there.
-            unsafe { w.maxcnt().bits(0) }
+            0 , 0
         );
-
         // Start SPI transaction
         chip_select.set_low();
         self.0.tasks_start.write(|w|
