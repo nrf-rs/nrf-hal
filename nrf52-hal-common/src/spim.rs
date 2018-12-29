@@ -75,7 +75,7 @@ impl<T> Transfer<u8> for Spim<T> where T: SpimExt
 
         let mut offset:u32 = 0;
         while offset < words.len() as u32 {
-            let datalen = min(MAX_SPI_DMA_SIZE,(words.len() as u32 )- offset);
+            let datalen = min(MAX_SPI_DMA_SIZE, (words.len() as u32) - offset);
             let dataptr = offset + (words.as_ptr() as u32);
             offset += MAX_SPI_DMA_SIZE;
 
