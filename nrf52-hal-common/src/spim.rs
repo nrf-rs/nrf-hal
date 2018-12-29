@@ -72,32 +72,7 @@ impl<T> Transfer<u8> for Spim<T> where T: SpimExt
             let dataptr = offset + (words.as_ptr() as u32);
             offset += MAX_SPI_DMA_SIZE;
 
-            self.setup_spi_dma(dataptr,datalen,dataptr,datalen);
-
-            self.0.tasks_start.write(|w|
-                // `1` is a valid value to write to task registers.
-                unsafe { w.bits(1) }
-            );
-
-            // Conservative compiler fence to prevent optimizations that do not
-            // take in to account DMA
-            compiler_fence(SeqCst);
-
-            // Wait for END event
-            //
-            // This event is triggered once both transmitting and receiving are
-            // done.
-            while self.0.events_end.read().bits() == 0 {}
-
-            // Reset the event, otherwise it will always read `1` from now on.
-            self.0.events_end.write(|w| w);
-
-            if self.0.txd.amount.read().bits() !=datalen {
-                return Err(Error::Transmit);
-            }
-            if self.0.rxd.amount.read().bits() != datalen{
-                return Err(Error::Receive);
-            }
+            self.do_spi_dma_transfer(dataptr,datalen,dataptr,datalen)?;
 
             // Conservative compiler fence to prevent optimizations that do not
             // take in to account DMA
@@ -151,12 +126,13 @@ impl<T> Spim<T> where T: SpimExt {
         Spim(spim)
     }
 
-    /// Internal helper function to setup SPIM DMA registers
-    fn  setup_spi_dma(&mut self,
-                       tx_data_ptr:u32,
-                       tx_len:u32,
-                       rx_data_ptr:u32,
-                       rx_len:u32) -> (){
+    /// Internal helper function to setup SPIM DMA transfer
+    fn  do_spi_dma_transfer(&mut self,
+            tx_data_ptr:u32,
+            tx_len:u32,
+            rx_data_ptr:u32,
+            rx_len:u32) -> Result<(), Error>
+    {
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
         // before any DMA action has started
@@ -185,6 +161,38 @@ impl<T> Spim<T> where T: SpimExt {
             // safe. Please refer to the explanation there.
             unsafe { w.maxcnt().bits(rx_len as _) }
         );
+        // Start SPI transaction
+        self.0.tasks_start.write(|w|
+            // `1` is a valid value to write to task registers.
+            unsafe { w.bits(1) }
+        );
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // after all possible DMA actions have completed
+        compiler_fence(SeqCst);
+
+        // Wait for END event
+        //
+        // This event is triggered once both transmitting and receiving are
+        // done.
+        while self.0.events_end.read().bits() == 0 {}
+
+        // Reset the event, otherwise it will always read `1` from now on.
+        self.0.events_end.write(|w| w);
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // after all possible DMA actions have completed
+        compiler_fence(SeqCst);
+
+        if self.0.txd.amount.read().bits() != tx_len {
+            return Err(Error::Transmit);
+        }
+        if self.0.rxd.amount.read().bits() != rx_len {
+            return Err(Error::Receive);
+        }
+        Ok(())
     }
 
     /// Read from an SPI slave
@@ -210,10 +218,10 @@ impl<T> Spim<T> where T: SpimExt {
             return Err(Error::RxBufferTooLong);
         }
 
-        // Pull chip select pin high, which is the inactive state
-        chip_select.set_high();
+        // Pull chip select pin low, which is the active state
+        chip_select.set_low();
 
-        self.setup_spi_dma(
+        let err = self.do_spi_dma_transfer(
         // Set up the DMA write
             // We're giving the register a pointer to the stack. Since we're
             // waiting for the SPI transaction to end before this stack pointer
@@ -251,38 +259,9 @@ impl<T> Spim<T> where T: SpimExt {
             rx_buffer.len() as _
         );
 
-        // Start SPI transaction
-        chip_select.set_low();
-        self.0.tasks_start.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) }
-        );
-
-        // Wait for END event
-        //
-        // This event is triggered once both transmitting and receiving are
-        // done.
-        while self.0.events_end.read().bits() == 0 {}
-
-        // Reset the event, otherwise it will always read `1` from now on.
-        self.0.events_end.write(|w| w);
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed
-        compiler_fence(SeqCst);
-
         // End SPI transaction
         chip_select.set_high();
-
-        if self.0.txd.amount.read().bits() != tx_buffer.len() as u32 {
-            return Err(Error::Transmit);
-        }
-        if self.0.rxd.amount.read().bits() != rx_buffer.len() as u32 {
-            return Err(Error::Receive);
-        }
-
-        Ok(())
+        return err;
     }
 
     /// Write to an SPI slave
@@ -302,10 +281,9 @@ impl<T> Spim<T> where T: SpimExt {
             return Err(Error::TxBufferTooLong);
         }
 
-        // Pull chip select pin high, which is the inactive state
-        chip_select.set_high();
+        chip_select.set_low();
         // Set up the DMA write
-        self.setup_spi_dma(
+        let err = self.do_spi_dma_transfer(
 
             // We're giving the register a pointer to the stack. Since we're
             // waiting for the SPI transaction to end before this stack pointer
@@ -325,32 +303,9 @@ impl<T> Spim<T> where T: SpimExt {
         // Tell the RXD channel it doesn't need to read anything
             0 , 0
         );
-        // Start SPI transaction
-        chip_select.set_low();
-        self.0.tasks_start.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) }
-        );
-
-        // Wait for transmission to end
-        while self.0.events_end.read().bits() == 0 {}
-
-        // Reset the event, otherwise it will always read `1` from now on.
-        self.0.events_end.write(|w| w);
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed
-        compiler_fence(SeqCst);
-
         // End SPI transaction
         chip_select.set_high();
-
-        if self.0.txd.amount.read().bits() != tx_buffer.len() as u32 {
-            return Err(Error::Transmit);
-        }
-
-        Ok(())
+        return err;
     }
 
     /// Return the raw interface to the underlying SPIM peripheral
