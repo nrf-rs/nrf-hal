@@ -14,6 +14,9 @@ pub mod prelude {
     pub use crate::time::U32Ext;
     pub use crate::timer::TimerExt;
     pub use crate::uarte::UarteExt;
+
+    #[cfg(feature = "async")]
+    pub use crate::uarte_async::UarteAsyncExt;
 }
 
 pub use crate::clocks::Clocks;
@@ -21,3 +24,6 @@ pub use crate::delay::Delay;
 pub use crate::spim::Spim;
 pub use crate::timer::Timer;
 pub use crate::uarte::Uarte;
+
+#[cfg(feature = "async")]
+pub use crate::uarte_async::UarteAsync;

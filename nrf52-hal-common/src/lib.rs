@@ -18,6 +18,9 @@ pub mod timer;
 pub mod twim;
 pub mod uarte;
 
+#[cfg(feature = "async")]
+pub mod uarte_async;
+
 pub mod prelude {
     pub use crate::hal::prelude::*;
 
@@ -29,6 +32,9 @@ pub mod prelude {
     pub use crate::timer::TimerExt;
     pub use crate::twim::TwimExt;
     pub use crate::uarte::UarteExt;
+
+    #[cfg(feature = "async")]
+    pub use crate::uarte_async::UarteAsyncExt;
 }
 
 
@@ -38,3 +44,6 @@ pub use crate::spim::Spim;
 pub use crate::timer::Timer;
 pub use crate::twim::Twim;
 pub use crate::uarte::Uarte;
+
+#[cfg(feature = "async")]
+pub use crate::uarte_async::UarteAsync;

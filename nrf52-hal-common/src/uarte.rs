@@ -6,16 +6,10 @@
 //! - nrf52840: Section 6.34
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
-use core::ptr::NonNull;
-use lazy_static::lazy_static;
-use core::cmp::min;
 
 use crate::target::{
     uarte0,
     UARTE0,
-    interrupt,
-    Interrupt,
-    NVIC,
 };
 
 use crate::prelude::*;
@@ -25,8 +19,6 @@ use crate::gpio::{
     PushPull,
 };
 
-use bbqueue::{BBQueue, Producer, Consumer, typenum::*, GrantR};
-
 // Re-export SVD variants to allow user to directly set values
 pub use crate::target::uarte0::{
     baudrate::BAUDRATEW as Baudrate,
@@ -34,28 +26,15 @@ pub use crate::target::uarte0::{
 };
 
 pub trait UarteExt: Deref<Target = uarte0::RegisterBlock> + Sized {
-    fn constrain(self, nvic: NVIC, pins: Pins, parity: Parity, baudrate: Baudrate) -> Uarte<Self>;
+    fn constrain(self, pins: Pins, parity: Parity, baudrate: Baudrate) -> Uarte<Self>;
 }
 
 impl UarteExt for UARTE0 {
-    fn constrain(self, nvic: NVIC, pins: Pins, parity: Parity, baudrate: Baudrate) -> Uarte<Self> {
-        Uarte::new(self, nvic, pins, parity, baudrate)
+    fn constrain(self, pins: Pins, parity: Parity, baudrate: Baudrate) -> Uarte<Self> {
+        Uarte::new(self, pins, parity, baudrate)
     }
 }
 
-lazy_static! {
-    static ref MUH_BUFFAH: BBQueue<U2048> = {
-        BBQueue::new()
-    };
-}
-
-enum DmaState {
-    Idle,
-    ActiveGrant((GrantR, usize)),
-}
-
-static mut MAYBE_CONSUMER: Option<Consumer<'static, U2048>> = None;
-static mut DMA_STATUS: DmaState = DmaState::Idle;
 
 /// Interface to a UARTE instance
 ///
@@ -65,14 +44,10 @@ static mut DMA_STATUS: DmaState = DmaState::Idle;
 ///   are disabled before using `Uarte`. See product specification:
 ///     - nrf52832: Section 15.2
 ///     - nrf52840: Section 6.1.2
-pub struct Uarte<T>{
-    periph: T,
-    prod: Producer<'static, U2048>,
-    nvic: NVIC,
-}
+pub struct Uarte<T>(T);
 
 impl<T> Uarte<T> where T: UarteExt {
-    pub fn new(uarte: T, mut nvic: NVIC, mut pins: Pins, parity: Parity, baudrate: Baudrate) -> Self {
+    pub fn new(uarte: T, mut pins: Pins, parity: Parity, baudrate: Baudrate) -> Self {
         // Select pins
         pins.rxd.set_high();
         uarte.psel.rxd.write(|w| {
@@ -121,44 +96,75 @@ impl<T> Uarte<T> where T: UarteExt {
             w.baudrate().variant(baudrate)
         );
 
-        let (prod, cons) = MUH_BUFFAH.split();
-
-        unsafe {
-            MAYBE_CONSUMER = Some(cons)
-        };
-
-        nvic.enable(Interrupt::UARTE0_UART0);
-
-        uarte.intenset.write(|w| {
-            w.endtx().set_bit()
-        });
-
-        Uarte {
-            periph: uarte,
-            prod,
-            nvic,
-        }
+        Uarte(uarte)
     }
 
-    pub fn write_async(
-        &mut self,
-        tx_buffer: &[u8]
-    ) -> Result<(), Error> {
-        let w_grant = self.prod.grant(tx_buffer.len())
-            .map_err(|_| Error::TxBufferTooLong)?;
+    /// Write via UARTE
+    ///
+    /// This method uses transmits all bytes in `tx_buffer`
+    ///
+    /// The buffer must have a length of at most 255 bytes
+    pub fn write(&mut self,
+        tx_buffer  : &[u8],
+    )
+        -> Result<(), Error>
+    {
+        // This is overly restrictive. See (similar SPIM issue):
+        // https://github.com/nrf-rs/nrf52/issues/17
+        if tx_buffer.len() > u8::max_value() as usize {
+            return Err(Error::TxBufferTooLong);
+        }
 
-        w_grant.buf.copy_from_slice(tx_buffer);
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // before any DMA action has started
+        compiler_fence(SeqCst);
 
-        self.prod.commit(tx_buffer.len(), w_grant);
+        // Set up the DMA write
+        self.0.txd.ptr.write(|w|
+            // We're giving the register a pointer to the stack. Since we're
+            // waiting for the UARTE transaction to end before this stack pointer
+            // becomes invalid, there's nothing wrong here.
+            //
+            // The PTR field is a full 32 bits wide and accepts the full range
+            // of values.
+            unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) }
+        );
+        self.0.txd.maxcnt.write(|w|
+            // We're giving it the length of the buffer, so no danger of
+            // accessing invalid memory. We have verified that the length of the
+            // buffer fits in an `u8`, so the cast to `u8` is also fine.
+            //
+            // The MAXCNT field is 8 bits wide and accepts the full range of
+            // values.
+            unsafe { w.maxcnt().bits(tx_buffer.len() as _) });
 
-        NVIC::pend(Interrupt::UARTE0_UART0);
+        // Start UARTE Transmit transaction
+        self.0.tasks_starttx.write(|w|
+            // `1` is a valid value to write to task registers.
+            unsafe { w.bits(1) });
+
+        // Wait for transmission to end
+        while self.0.events_endtx.read().bits() == 0 {}
+
+        // Reset the event, otherwise it will always read `1` from now on.
+        self.0.events_endtx.write(|w| w);
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // after all possible DMA actions have completed
+        compiler_fence(SeqCst);
+
+        if self.0.txd.amount.read().bits() != tx_buffer.len() as u32 {
+            return Err(Error::Transmit);
+        }
 
         Ok(())
     }
 
     /// Return the raw interface to the underlying UARTE peripheral
     pub fn free(self) -> T {
-        self.periph
+        self.0
     }
 }
 
@@ -177,86 +183,4 @@ pub enum Error {
     RxBufferTooLong,
     Transmit,
     Receive,
-}
-
-#[interrupt]
-unsafe fn UARTE0_UART0() {
-    // First, check if end_tx is pending, and clear it
-    let uart = &*UARTE0::ptr();
-
-    let end_tx = uart.events_endtx.read().bits() != 0;
-
-    if end_tx {
-        uart.events_endtx.write(|w| w.bits(0));
-    }
-    let cons: &mut Consumer<_> = MAYBE_CONSUMER.as_mut().unwrap();
-
-    use crate::uarte::DmaState::*;
-    let mut stat = Idle;
-
-    ::core::mem::swap(&mut stat, &mut DMA_STATUS);
-
-    match (end_tx, stat) {
-        (false, Idle) => {
-            // check for pending data, send if possible
-        }
-        (true, Idle) => {
-            // what?
-            panic!("what?");
-            // return;
-        }
-        (false, ActiveGrant((gr, sz))) => {
-            // Starting condition but already busy, let it go
-            // Place grant back!
-            DMA_STATUS = ActiveGrant((gr, sz));
-            return;
-        }
-        (true, ActiveGrant((gr, sz))) => {
-            // Complete, check for retrigger
-            let sent = uart.txd.amount.read().bits() as usize;
-            // assert!(sent < sz);
-            cons.release(min(sz, sent), gr);
-        }
-    }
-
-    let rgrant = cons.read();
-    let len = rgrant.buf.len();
-
-    if len == 0 {
-        // No data pending, no more sending
-        return;
-    }
-
-    let sz = ::core::cmp::min(255, len);
-
-    // Conservative compiler fence to prevent optimizations that do not
-    // take in to account actions by DMA. The fence has been placed here,
-    // before any DMA action has started
-    compiler_fence(SeqCst);
-
-    // Set up the DMA write
-    uart.txd.ptr.write(|w|
-        // We're giving the register a pointer to the stack. Since we're
-        // waiting for the UARTE transaction to end before this stack pointer
-        // becomes invalid, there's nothing wrong here.
-        //
-        // The PTR field is a full 32 bits wide and accepts the full range
-        // of values.
-        w.ptr().bits(rgrant.buf.as_ptr() as u32)
-    );
-    uart.txd.maxcnt.write(|w|
-        // We're giving it the length of the buffer, so no danger of
-        // accessing invalid memory. We have verified that the length of the
-        // buffer fits in an `u8`, so the cast to `u8` is also fine.
-        //
-        // The MAXCNT field is 8 bits wide and accepts the full range of
-        // values.
-        w.maxcnt().bits(sz as _));
-
-    // Start UARTE Transmit transaction
-    uart.tasks_starttx.write(|w|
-        // `1` is a valid value to write to task registers.
-        w.bits(1));
-
-    DMA_STATUS = ActiveGrant((rgrant, sz));
 }

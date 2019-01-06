@@ -43,4 +43,4 @@ version = "0.2.1"
 doc = []
 rt = ["nrf52840-pac/rt"]
 default = ["rt"]
-
+async = ["nrf52-hal-common/async"]
