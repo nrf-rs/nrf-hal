@@ -12,4 +12,6 @@ script:
   - rustup target add thumbv7em-none-eabihf
   - cargo build --manifest-path nrf52832-hal/Cargo.toml
   - cargo build --manifest-path nrf52840-hal/Cargo.toml
+  - cargo build --manifest-path nrf52832-hal/Cargo.toml --features="async"
+  - cargo build --manifest-path nrf52840-hal/Cargo.toml --features="async"
   - cargo build --manifest-path boards/adafruit_nrf52pro/Cargo.toml --examples
