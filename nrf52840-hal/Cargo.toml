@@ -35,12 +35,7 @@ default-features = false
 features = ["52840"]
 version = "0.6.1"
 
-[dependencies.embedded-hal]
-features = ["unproven"]
-version = "0.2.1"
-
 [features]
 doc = []
 rt = ["nrf52840-pac/rt"]
 default = ["rt"]
-async = ["nrf52-hal-common/async"]

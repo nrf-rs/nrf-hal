@@ -37,7 +37,7 @@ pub use crate::target::uarte0::{
 };
 
 pub trait UarteAsyncExt: Deref<Target = uarte0::RegisterBlock> + Sized {
-    fn constrain(
+    fn constrain_async(
         self,
         nvic: &mut NVIC,
         pins: Pins,
@@ -49,7 +49,7 @@ pub trait UarteAsyncExt: Deref<Target = uarte0::RegisterBlock> + Sized {
 }
 
 impl UarteAsyncExt for UARTE0 {
-    fn constrain(
+    fn constrain_async(
         self,
         nvic: &mut NVIC,
         pins: Pins,
@@ -216,7 +216,7 @@ unsafe fn UARTE0_UART0() {
     }
     let cons: &mut Consumer = MAYBE_CONSUMER.as_mut().unwrap();
 
-    use crate::uarte_async::DmaState::*;
+    use crate::uarte::nonblocking::DmaState::*;
     let mut stat = Idle;
 
     ::core::mem::swap(&mut stat, &mut DMA_STATUS);
