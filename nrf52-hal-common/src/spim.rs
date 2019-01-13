@@ -13,6 +13,7 @@ use crate::target::{
     SPIM2,
 };
 
+use crate::easy_dma_size;
 use crate::prelude::*;
 use crate::gpio::{
     p0::P0_Pin,
@@ -21,7 +22,6 @@ use crate::gpio::{
     Output,
     PushPull,
 };
-
 
 pub trait SpimExt : Deref<Target=spim0::RegisterBlock> + Sized {
     fn constrain(self, pins: Pins) -> Spim<Self>;
@@ -45,11 +45,6 @@ impl_spim_ext!(
     SPIM2,
 );
 
-#[cfg(feature = "52832")]
-const MAX_SPI_DMA_SIZE: u32 = 255;    // NRF52832 1..0xFF
-#[cfg(feature = "52840")]
-const MAX_SPI_DMA_SIZE: u32 = 65535; // NRF52840 1..0xFFFF
-
 /// Interface to a SPIM instance
 ///
 /// This is a very basic interface that comes with the following limitations:
@@ -66,13 +61,13 @@ impl<T> Transfer<u8> for Spim<T> where T: SpimExt
    type Error = Error;
 
     fn transfer<'w>(&mut self, words: &'w mut [u8]) -> Result<&'w [u8], Error> {
-        let mut offset:u32 = 0;
-        while offset < words.len() as u32 {
-            let datalen = min(MAX_SPI_DMA_SIZE, (words.len() as u32) - offset);
-            let dataptr = offset + (words.as_ptr() as u32);
-            offset += MAX_SPI_DMA_SIZE;
+        let mut offset:usize = 0;
+        while offset < words.len() {
+            let datalen = min(easy_dma_size(), words.len()  - offset);
+            let dataptr = offset + (words.as_ptr() as usize);
+            offset += easy_dma_size();
 
-            self.do_spi_dma_transfer(dataptr,datalen,dataptr,datalen,|_|{})?;
+            self.do_spi_dma_transfer(dataptr as u32,datalen as u32,dataptr as u32,datalen as u32,|_|{})?;
 
             // Conservative compiler fence to prevent optimizations that do not
             // take in to account DMA
@@ -126,7 +121,7 @@ impl<T> Spim<T> where T: SpimExt {
         Spim(spim)
     }
 
-    /// Internal helper function to setup SPIM DMA transfer
+    /// Internal helper function to setup and execute SPIM DMA transfer
     fn  do_spi_dma_transfer<CSFun>(&mut self,
             tx_data_ptr:u32,
             tx_len:u32,
@@ -220,10 +215,10 @@ impl<T> Spim<T> where T: SpimExt {
     )
         -> Result<(), Error>
     {
-        if tx_buffer.len() > MAX_SPI_DMA_SIZE as usize {
+        if tx_buffer.len() > easy_dma_size() {
             return Err(Error::TxBufferTooLong);
         }
-        if rx_buffer.len() > MAX_SPI_DMA_SIZE as usize {
+        if rx_buffer.len() > easy_dma_size() {
             return Err(Error::RxBufferTooLong);
         }
 
@@ -280,7 +275,7 @@ impl<T> Spim<T> where T: SpimExt {
         -> Result<(), Error>
     {
 
-        if tx_buffer.len() > MAX_SPI_DMA_SIZE as usize {
+        if tx_buffer.len() > easy_dma_size() {
             return Err(Error::TxBufferTooLong);
         }
 

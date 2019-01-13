@@ -6,12 +6,14 @@
 //! - nrf52840: Section 6.34
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
+use core::cmp::min;
 
 use crate::target::{
     uarte0,
     UARTE0,
 };
 
+use crate::easy_dma_size;
 use crate::prelude::*;
 use crate::gpio::{
     p0::P0_Pin,
@@ -99,66 +101,65 @@ impl<T> Uarte<T> where T: UarteExt {
         Uarte(uarte)
     }
 
+
     /// Write via UARTE
     ///
     /// This method uses transmits all bytes in `tx_buffer`
-    ///
-    /// The buffer must have a length of at most 255 bytes
+
     pub fn write(&mut self,
         tx_buffer  : &[u8],
     )
         -> Result<(), Error>
     {
-        // This is overly restrictive. See (similar SPIM issue):
-        // https://github.com/nrf-rs/nrf52/issues/17
-        if tx_buffer.len() > u8::max_value() as usize {
-            return Err(Error::TxBufferTooLong);
+        let mut offset = 0;
+        while offset < tx_buffer.len() {
+            let datalen = min(easy_dma_size(), tx_buffer.len() - offset);
+            let dataptr = offset + (tx_buffer.as_ptr() as usize);
+            offset += easy_dma_size();
+            // Conservative compiler fence to prevent optimizations that do not
+            // take in to account actions by DMA. The fence has been placed here,
+            // before any DMA action has started
+            compiler_fence(SeqCst);
+
+            // Set up the DMA write
+            self.0.txd.ptr.write(|w|
+                // We're giving the register a pointer to the stack. Since we're
+                // waiting for the UARTE transaction to end before this stack pointer
+                // becomes invalid, there's nothing wrong here.
+                //
+                // The PTR field is a full 32 bits wide and accepts the full range
+                // of values.
+                unsafe { w.ptr().bits(dataptr as u32) }
+            );
+            self.0.txd.maxcnt.write(|w|
+                // We're giving it the length of the buffer, so no danger of
+                // accessing invalid memory. We have verified that the length of the
+                // buffer fits in an `u8`, so the cast to `u8` is also fine.
+                //
+                // The MAXCNT field is 8 bits wide and accepts the full range of
+                // values.
+                unsafe { w.maxcnt().bits(datalen as _) });
+
+            // Start UARTE Transmit transaction
+            self.0.tasks_starttx.write(|w|
+                // `1` is a valid value to write to task registers.
+                unsafe { w.bits(1) });
+
+            // Wait for transmission to end
+            while self.0.events_endtx.read().bits() == 0 {}
+
+            // Reset the event, otherwise it will always read `1` from now on.
+            self.0.events_endtx.write(|w| w);
+
+            // Conservative compiler fence to prevent optimizations that do not
+            // take in to account actions by DMA. The fence has been placed here,
+            // after all possible DMA actions have completed
+            compiler_fence(SeqCst);
+
+            if self.0.txd.amount.read().bits() != datalen as u32 {
+                return Err(Error::Transmit);
+            }
         }
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started
-        compiler_fence(SeqCst);
-
-        // Set up the DMA write
-        self.0.txd.ptr.write(|w|
-            // We're giving the register a pointer to the stack. Since we're
-            // waiting for the UARTE transaction to end before this stack pointer
-            // becomes invalid, there's nothing wrong here.
-            //
-            // The PTR field is a full 32 bits wide and accepts the full range
-            // of values.
-            unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) }
-        );
-        self.0.txd.maxcnt.write(|w|
-            // We're giving it the length of the buffer, so no danger of
-            // accessing invalid memory. We have verified that the length of the
-            // buffer fits in an `u8`, so the cast to `u8` is also fine.
-            //
-            // The MAXCNT field is 8 bits wide and accepts the full range of
-            // values.
-            unsafe { w.maxcnt().bits(tx_buffer.len() as _) });
-
-        // Start UARTE Transmit transaction
-        self.0.tasks_starttx.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) });
-
-        // Wait for transmission to end
-        while self.0.events_endtx.read().bits() == 0 {}
-
-        // Reset the event, otherwise it will always read `1` from now on.
-        self.0.events_endtx.write(|w| w);
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed
-        compiler_fence(SeqCst);
-
-        if self.0.txd.amount.read().bits() != tx_buffer.len() as u32 {
-            return Err(Error::Transmit);
-        }
-
         Ok(())
     }
 
@@ -179,8 +180,7 @@ pub struct Pins {
 
 #[derive(Debug)]
 pub enum Error {
-    TxBufferTooLong,
-    RxBufferTooLong,
+
     Transmit,
     Receive,
 }
