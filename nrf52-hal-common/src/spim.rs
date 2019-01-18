@@ -118,10 +118,15 @@ impl<T> Spim<T> where T: SpimExt {
         // TODO: some targets have a maxcnt whose size is larger
         // than a u8, so this length check is overly restrictive
         // and could be lifted.
-        if tx_buffer.len() > u8::max_value() as usize {
+        #[cfg(feature = "52832")]
+        const LEN: u8 = u8::max_value();
+        #[cfg(feature = "52840")]
+        const LEN: u16 = u16::max_value();
+
+        if tx_buffer.len() > LEN as usize {
             return Err(Error::TxBufferTooLong);
         }
-        if rx_buffer.len() > u8::max_value() as usize {
+        if rx_buffer.len() > LEN as usize {
             return Err(Error::RxBufferTooLong);
         }
 
