@@ -338,11 +338,11 @@ impl nRF52840DK {
         let com_uart = p.UARTE0.constrain(uarte::Pins {
                 txd: pins0.p0_06.into_push_pull_output(Level::High).degrade(),
                 rxd: pins0.p0_08.into_push_pull_output(Level::High).degrade(),
-                cts: Some(pins0.p0_07.into_push_pull_output(Level::High).degrade()),
-                rts: Some(pins0.p0_05.into_push_pull_output(Level::High).degrade()),
+                cts: None, // Some(pins0.p0_07.into_push_pull_output(Level::High).degrade()),
+                rts: None, //Some(pins0.p0_05.into_push_pull_output(Level::High).degrade()),
             },
             UartParity::EXCLUDED,
-            UartBaudrate::BAUD1M
+            UartBaudrate::BAUD9600 // BAUD1M
         );
 
         nRF52840DK {
