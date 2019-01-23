@@ -342,7 +342,7 @@ impl nRF52840DK {
                 rts: None, //Some(pins0.p0_05.into_push_pull_output(Level::High).degrade()),
             },
             UartParity::EXCLUDED,
-            UartBaudrate::BAUD9600 // BAUD1M
+            UartBaudrate::BAUD115200 //BAUD9600 // BAUD1M
         );
 
         nRF52840DK {
