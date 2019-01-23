@@ -18,6 +18,8 @@ use crate::gpio::{
     p0::P0_Pin,
     Output,
     PushPull,
+    Input,
+    Floating,
 };
 
 // Re-export SVD variants to allow user to directly set values
@@ -49,7 +51,6 @@ pub struct Uarte<T>(T);
 impl<T> Uarte<T> where T: UarteExt {
     pub fn new(uarte: T, mut pins: Pins, parity: Parity, baudrate: Baudrate) -> Self {
         // Select pins
-        pins.rxd.set_high();
         uarte.psel.rxd.write(|w| {
             let w = unsafe { w.pin().bits(pins.rxd.pin) };
             w.connect().connected()
@@ -168,9 +169,9 @@ impl<T> Uarte<T> where T: UarteExt {
 
 
 pub struct Pins {
-    pub rxd: P0_Pin<Output<PushPull>>,
+    pub rxd: P0_Pin<Input<Floating>>,
     pub txd: P0_Pin<Output<PushPull>>,
-    pub cts: Option<P0_Pin<Output<PushPull>>>,
+    pub cts: Option<P0_Pin<Input<Floating>>>,
     pub rts: Option<P0_Pin<Output<PushPull>>>,
 }
 
