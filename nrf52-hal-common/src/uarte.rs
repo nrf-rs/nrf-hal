@@ -21,6 +21,7 @@ use crate::gpio::{
     Input,
     Floating,
 };
+use crate::timer::Timer;
 
 // Re-export SVD variants to allow user to directly set values
 pub use crate::target::uarte0::{
@@ -161,6 +162,130 @@ impl<T> Uarte<T> where T: UarteExt {
         Ok(())
     }
 
+    /// Read via UARTE
+    ///
+    /// This method fills all bytes in `rx_buffer`, and blocks
+    /// until the buffer is full.
+    ///
+    /// The buffer must have a length of at most 255 bytes
+    pub fn read(&mut self,
+        rx_buffer  : &mut [u8],
+    )
+        -> Result<(), Error>
+    {
+        self.start_read(rx_buffer)?;
+
+        // Wait for transmission to end
+        while self.0.events_endrx.read().bits() == 0 {}
+
+        self.finalize_read();
+
+        if self.0.rxd.amount.read().bits() != rx_buffer.len() as u32 {
+            return Err(Error::Receive);
+        }
+
+        Ok(())
+    }
+
+    /// Read via UARTE
+    ///
+    /// This method fills all bytes in `rx_buffer`, and blocks
+    /// until the buffer is full.
+    ///
+    /// The buffer must have a length of at most 255 bytes
+    pub fn read_timeout<I>(
+        &mut self,
+        rx_buffer: &mut [u8],
+        timer: &mut Timer<I>,
+        cycles: u32
+    ) -> Result<(), Error> where I: TimerExt
+    {
+        // Start the read
+        self.start_read(rx_buffer)?;
+
+        // Start the timeout timer
+        timer.start(cycles);
+
+        // Wait for transmission to end
+        let mut event_complete = false;
+        let mut timeout_occured = false;
+
+        loop {
+            event_complete |= self.0.events_endrx.read().bits() != 0;
+            timeout_occured |= timer.wait().is_ok();
+            if event_complete || timeout_occured {
+                break;
+            }
+        }
+
+        // Cleanup, even in the error case
+        self.finalize_read();
+
+        let bytes_read = self.0.rxd.amount.read().bits() as usize;
+
+        if timeout_occured {
+            return Err(Error::Timeout(bytes_read));
+        }
+
+        if bytes_read != rx_buffer.len() as usize {
+            return Err(Error::Receive);
+        }
+
+        Ok(())
+    }
+
+    /// Start a UARTE read transaction by setting the control
+    /// values and triggering a read task
+    fn start_read(&mut self, rx_buffer: &mut [u8]) -> Result<(), Error> {
+        // This is overly restrictive. See (similar SPIM issue):
+        // https://github.com/nrf-rs/nrf52/issues/17
+        if rx_buffer.len() > u8::max_value() as usize {
+            return Err(Error::TxBufferTooLong);
+        }
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // before any DMA action has started
+        compiler_fence(SeqCst);
+
+        // Set up the DMA read
+        self.0.rxd.ptr.write(|w|
+            // We're giving the register a pointer to the stack. Since we're
+            // waiting for the UARTE transaction to end before this stack pointer
+            // becomes invalid, there's nothing wrong here.
+            //
+            // The PTR field is a full 32 bits wide and accepts the full range
+            // of values.
+            unsafe { w.ptr().bits(rx_buffer.as_ptr() as u32) }
+        );
+        self.0.rxd.maxcnt.write(|w|
+            // We're giving it the length of the buffer, so no danger of
+            // accessing invalid memory. We have verified that the length of the
+            // buffer fits in an `u8`, so the cast to `u8` is also fine.
+            //
+            // The MAXCNT field is 8 bits wide and accepts the full range of
+            // values.
+            unsafe { w.maxcnt().bits(rx_buffer.len() as _) });
+
+        // Start UARTE Receive transaction
+        self.0.tasks_startrx.write(|w|
+            // `1` is a valid value to write to task registers.
+            unsafe { w.bits(1) });
+
+        Ok(())
+    }
+
+    /// Finalize a UARTE read transaction by clearing the event
+    fn finalize_read(&mut self) {
+        // Reset the event, otherwise it will always read `1` from now on.
+        self.0.events_endrx.write(|w| w);
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // after all possible DMA actions have completed
+        compiler_fence(SeqCst);
+    }
+
     /// Return the raw interface to the underlying UARTE peripheral
     pub fn free(self) -> T {
         self.0
@@ -182,4 +307,5 @@ pub enum Error {
     RxBufferTooLong,
     Transmit,
     Receive,
+    Timeout(usize),
 }

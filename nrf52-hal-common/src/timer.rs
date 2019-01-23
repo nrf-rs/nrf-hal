@@ -5,7 +5,7 @@
 
 use core::ops::Deref;
 
-use nb;
+use nb::{self, block};
 use crate::target::{
     timer0,
     Interrupt,
@@ -145,5 +145,10 @@ impl<T> Timer<T> where T: TimerExt {
         self.0.events_compare[0].write(|w| w);
 
         Ok(())
+    }
+
+    pub fn delay(&mut self, cycles: u32) {
+        self.start(cycles);
+        block!(self.wait()).unwrap();
     }
 }
