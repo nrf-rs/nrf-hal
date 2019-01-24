@@ -40,5 +40,7 @@ version = "0.2.1"
 [features]
 doc = []
 rt = ["nrf52832-pac/rt"]
-default = ["rt"]
+xxAA-package = []
+xxAB-package = []
+default = ["rt", "xxAA-package"]
 
