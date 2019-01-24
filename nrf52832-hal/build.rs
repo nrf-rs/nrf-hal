@@ -26,5 +26,6 @@ fn main() {
     println!("cargo:rustc-link-search={}", out.display());
 
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=memory.x");
+    println!("cargo:rerun-if-changed=memory_xxAA.x");
+    println!("cargo:rerun-if-changed=memory_xxAB.x");
 }
