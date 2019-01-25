@@ -54,7 +54,7 @@ use nrf52840_hal::{
 /// Provides access to all features of the nRF52840-DK board
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
-pub struct nRF52840DK {
+pub struct Board {
     /// The nRF52's pins which are not otherwise occupied on the nRF52840-DK
     pub pins: Pins,
 
@@ -285,7 +285,7 @@ pub struct nRF52840DK {
     pub I2S: nrf52::I2S,
 }
 
-impl nRF52840DK {
+impl Board {
     /// Take the peripherals safely
     ///
     /// This method will return an instance of `nRF52840DK` the first time it is
@@ -345,7 +345,7 @@ impl nRF52840DK {
             UartBaudrate::BAUD115200 //BAUD9600 // BAUD1M
         );
 
-        nRF52840DK {
+        Board {
             com: com_uart,
             flash: flash_spim,
             flash_cs: flash_cs,

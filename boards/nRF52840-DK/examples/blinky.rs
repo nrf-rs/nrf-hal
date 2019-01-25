@@ -12,13 +12,13 @@ use nrf52840_dk_bsp::{
         prelude::*,
         timer::Timer,
     },
-    nRF52840DK,
+    Board,
 };
 
 
 #[entry]
 fn main() -> ! {
-    let mut nrf52 = nRF52840DK::take().unwrap();
+    let mut nrf52 = Board::take().unwrap();
 
     let mut timer = nrf52.TIMER0.constrain();
 
