@@ -16,7 +16,7 @@ use crate::target::{
     TIMER3,
     TIMER4,
 };
-use void::Void;
+use void::{unreachable, Void};
 
 
 pub trait TimerExt : Deref<Target=timer0::RegisterBlock> + Sized {
@@ -149,6 +149,9 @@ impl<T> Timer<T> where T: TimerExt {
 
     pub fn delay(&mut self, cycles: u32) {
         self.start(cycles);
-        block!(self.wait()).unwrap();
+        match block!(self.wait()) {
+            Ok(_) => {},
+            Err(x) => unreachable(x),
+        }
     }
 }
