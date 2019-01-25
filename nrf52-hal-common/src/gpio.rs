@@ -140,8 +140,8 @@ impl<MODE> Pin<MODE> {
 
         Pin {
             _mode: PhantomData,
-            port: self.port,
             #[cfg(feature = "52840")]
+            port: self.port,
             pin: self.pin
         }
     }
@@ -152,8 +152,8 @@ impl<MODE> Pin<MODE> {
     {
         let mut pin = Pin {
             _mode: PhantomData,
-            port: self.port,
             #[cfg(feature = "52840")]
+            port: self.port,
             pin: self.pin
         };
 
@@ -193,8 +193,8 @@ impl<MODE> Pin<MODE> {
     {
         let mut pin = Pin {
             _mode: PhantomData,
-            port: self.port,
             #[cfg(feature = "52840")]
+            port: self.port,
             pin: self.pin
         };
 
