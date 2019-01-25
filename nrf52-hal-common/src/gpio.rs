@@ -75,11 +75,11 @@ impl<MODE> Pin<MODE> {
     /// Convert the pin to be a floating input
     pub fn into_floating_input(self) -> Pin<Input<Floating>> {
         unsafe {
-            &({
+            &(*{
                 #[cfg(feature = "52832")]
-                { *P0::ptr() }
+                { P0::ptr() }
                 #[cfg(feature = "52840")]
-                { if !self.port { core::ptr::read(P0::ptr()) } else { core::ptr::read(P1::ptr()) } }
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
             }).pin_cnf[self.pin as usize]
         }
         .write(|w| {
@@ -99,11 +99,11 @@ impl<MODE> Pin<MODE> {
     }
     pub fn into_pullup_input(self) -> Pin<Input<PullUp>> {
         unsafe {
-            &({
+            &(*{
                 #[cfg(feature = "52832")]
-                { *P0::ptr() }
+                { P0::ptr() }
                 #[cfg(feature = "52840")]
-                { if !self.port { core::ptr::read(P0::ptr()) } else { core::ptr::read(P1::ptr()) } }
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
             }).pin_cnf[self.pin as usize]
         }
         .write(|w| {
@@ -123,11 +123,11 @@ impl<MODE> Pin<MODE> {
     }
     pub fn into_pulldown_input(self) -> Pin<Input<PullDown>> {
         unsafe {
-            &({
+            &(*{
                 #[cfg(feature = "52832")]
-                { *P0::ptr() }
+                { P0::ptr() }
                 #[cfg(feature = "52840")]
-                { if !self.port { core::ptr::read(P0::ptr()) } else { core::ptr::read(P1::ptr()) } }
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
             }).pin_cnf[self.pin as usize]
         }
         .write(|w| {
@@ -163,11 +163,11 @@ impl<MODE> Pin<MODE> {
         }
 
         unsafe {
-            &({
+            &(*{
                 #[cfg(feature = "52832")]
-                { *P0::ptr() }
+                { P0::ptr() }
                 #[cfg(feature = "52840")]
-                { if !self.port { core::ptr::read(P0::ptr()) } else { core::ptr::read(P1::ptr()) } }
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
             }).pin_cnf[self.pin as usize]
         }
         .write(|w| {
@@ -206,11 +206,11 @@ impl<MODE> Pin<MODE> {
         // This is safe, as we restrict our access to the dedicated
         // register for this pin.
         let pin_cnf = unsafe {
-            &({
+            &(*{
                 #[cfg(feature = "52832")]
-                { *P0::ptr() }
+                { P0::ptr() }
                 #[cfg(feature = "52840")]
-                { if !self.port { core::ptr::read(P0::ptr()) } else { core::ptr::read(P1::ptr()) } }
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
             }).pin_cnf[self.pin as usize]
         };
         pin_cnf.write(|w| {
@@ -233,11 +233,11 @@ impl<MODE> InputPin for Pin<Input<MODE>> {
 
     fn is_low(&self) -> bool {
         unsafe { (
-            ({
+            (*{
                 #[cfg(feature = "52832")]
-                { *P0::ptr() }
+                { P0::ptr() }
                 #[cfg(feature = "52840")]
-                { if !self.port { core::ptr::read(P0::ptr()) } else { core::ptr::read(P1::ptr()) } }
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
             }).in_.read().bits() & (1 << self.pin)
         ) == 0 }
     }
@@ -249,11 +249,11 @@ impl<MODE> OutputPin for Pin<Output<MODE>> {
         // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
         // TODO - I wish I could do something like `.pins$i()`...
         unsafe {
-            ({
+            (*{
                 #[cfg(feature = "52832")]
-                { *P0::ptr() }
+                { P0::ptr() }
                 #[cfg(feature = "52840")]
-                { if !self.port { core::ptr::read(P0::ptr()) } else { core::ptr::read(P1::ptr()) } }
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
             }).outset.write(|w| w.bits(1u32 << self.pin));
         }
     }
@@ -263,11 +263,11 @@ impl<MODE> OutputPin for Pin<Output<MODE>> {
         // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
         // TODO - I wish I could do something like `.pins$i()`...
         unsafe {
-            ({
+            (*{
                 #[cfg(feature = "52832")]
-                { *P0::ptr() }
+                { P0::ptr() }
                 #[cfg(feature = "52840")]
-                { if !self.port { core::ptr::read(P0::ptr()) } else { core::ptr::read(P1::ptr()) } }
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
             }).outclr.write(|w| w.bits(1u32 << self.pin));
         }
     }
@@ -284,11 +284,11 @@ impl<MODE> StatefulOutputPin for Pin<Output<MODE>> {
         // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
         // TODO - I wish I could do something like `.pins$i()`...
         unsafe { (
-            ({
+            (*{
                 #[cfg(feature = "52832")]
-                { *P0::ptr() }
+                { P0::ptr() }
                 #[cfg(feature = "52840")]
-                { if !self.port { core::ptr::read(P0::ptr()) } else { core::ptr::read(P1::ptr()) } }
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
             }).out.read().bits() & (1 << self.pin)
         ) == 0 }
     }
