@@ -113,7 +113,8 @@ impl<T> Spim<T> where T: SpimExt {
     ///
     /// Uses the provided chip select pin to initiate the transaction. Transmits
     /// all bytes in `tx_buffer`, then receives bytes until `rx_buffer` is full.
-    /// Both buffer must have a length of at most 255 bytes.
+    /// Both buffer must have a length of at most 255 bytes on the nRF52832
+    /// and at most 65535 bytes on the nRF52840.
     pub fn read(&mut self,
         chip_select: &mut Pin<Output<PushPull>>,
         tx_buffer  : &[u8],
@@ -121,11 +122,10 @@ impl<T> Spim<T> where T: SpimExt {
     )
         -> Result<(), Error>
     {
-        // TODO: some targets have a maxcnt whose size is larger
-        // than a u8, so this length check is overly restrictive
-        // and could be lifted.
+        // The nRF52832 has an 8 bit wide (txd/rxd).maxcnt register.
         #[cfg(feature = "52832")]
         const LEN: u8 = u8::max_value();
+        // The nRF52840 has a 16 bit wide uarte.(txd/rxd).maxcnt register.
         #[cfg(feature = "52840")]
         const LEN: u16 = u16::max_value();
 

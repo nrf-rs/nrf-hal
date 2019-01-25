@@ -111,15 +111,20 @@ impl<T> Uarte<T> where T: UarteExt {
     ///
     /// This method uses transmits all bytes in `tx_buffer`
     ///
-    /// The buffer must have a length of at most 255 bytes
+    /// The buffer must have a length of at most 255 bytes on the nRF52832
+    /// and at most 65535 bytes on the nRF52840.
     pub fn write(&mut self,
         tx_buffer  : &[u8],
     )
         -> Result<(), Error>
     {
-        // This is overly restrictive. See (similar SPIM issue):
-        // https://github.com/nrf-rs/nrf52/issues/17
-        if tx_buffer.len() > u8::max_value() as usize {
+        // The nRF52832 has an 8 bit wide uarte.(txd/rxd).maxcnt register.
+        #[cfg(feature = "52832")]
+        const LEN: u8 = u8::max_value();
+        // The nRF52840 has a 16 bit wide uarte.(txd/rxd).maxcnt register.
+        #[cfg(feature = "52840")]
+        const LEN: u16 = u16::max_value();
+        if tx_buffer.len() > LEN as usize {
             return Err(Error::TxBufferTooLong);
         }
 
