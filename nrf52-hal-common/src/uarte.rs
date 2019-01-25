@@ -192,7 +192,15 @@ impl<T> Uarte<T> where T: UarteExt {
     /// Read via UARTE
     ///
     /// This method fills all bytes in `rx_buffer`, and blocks
-    /// until the buffer is full.
+    /// until the buffer is full or the timeout expires, whichever
+    /// comes first.
+    ///
+    /// If the timeout occurs, an `Error::Timeout(n)` will be returned,
+    /// where `n` is the number of bytes read successfully.
+    ///
+    /// This method assumes the interrupt for the given timer is NOT enabled,
+    /// and in cases where a timeout does NOT occur, the timer will be left running
+    /// until completion.
     ///
     /// The buffer must have a length of at most 255 bytes
     pub fn read_timeout<I>(
@@ -265,8 +273,8 @@ impl<T> Uarte<T> where T: UarteExt {
             // accessing invalid memory. We have verified that the length of the
             // buffer fits in an `u8`, so the cast to `u8` is also fine.
             //
-            // The MAXCNT field is 8 bits wide and accepts the full range of
-            // values.
+            // The MAXCNT field is at least 8 bits wide and accepts the full
+            // range of values.
             unsafe { w.maxcnt().bits(rx_buffer.len() as _) });
 
         // Start UARTE Receive transaction
