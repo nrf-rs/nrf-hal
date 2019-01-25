@@ -13,7 +13,7 @@ use crate::target::{
 
 use crate::prelude::*;
 use crate::gpio::{
-    p0::P0_Pin,
+    Pin,
     Floating,
     Input,
     Output,
@@ -109,7 +109,7 @@ impl<T> Spim<T> where T: SpimExt {
     /// all bytes in `tx_buffer`, then receives bytes until `rx_buffer` is full.
     /// Both buffer must have a length of at most 255 bytes.
     pub fn read(&mut self,
-        chip_select: &mut P0_Pin<Output<PushPull>>,
+        chip_select: &mut Pin<Output<PushPull>>,
         tx_buffer  : &[u8],
         rx_buffer  : &mut [u8],
     )
@@ -214,7 +214,7 @@ impl<T> Spim<T> where T: SpimExt {
     ///
     /// The buffer must have a length of at most 255 bytes.
     pub fn write(&mut self,
-        chip_select: &mut P0_Pin<Output<PushPull>>,
+        chip_select: &mut Pin<Output<PushPull>>,
         tx_buffer  : &[u8],
     )
         -> Result<(), Error>
@@ -297,13 +297,13 @@ impl<T> Spim<T> where T: SpimExt {
 
 pub struct Pins {
     // SPI clock
-    pub sck: P0_Pin<Output<PushPull>>,
+    pub sck: Pin<Output<PushPull>>,
 
     // Master out, slave in
-    pub mosi: P0_Pin<Output<PushPull>>,
+    pub mosi: Pin<Output<PushPull>>,
 
     // Master in, slave out
-    pub miso: P0_Pin<Input<Floating>>,
+    pub miso: Pin<Input<Floating>>,
 }
 
 

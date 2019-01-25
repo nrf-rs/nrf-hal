@@ -24,9 +24,9 @@ use nrf52840_hal::{
     gpio::{
         p0::{
             self,
-            P0_Pin
         },
         p1,
+        Pin,
         Floating,
         Input,
         Output,
@@ -63,7 +63,7 @@ pub struct nRF52840DK {
 
     /// The nRF52840-DK SPI which is wired to the SPI flash
     pub flash: Spim<nrf52::SPIM2>,
-    pub flash_cs: p0::P0_Pin<Output<PushPull>>,
+    pub flash_cs: Pin<Output<PushPull>>,
 
     /// The LEDs on the nRF52840-DK board
     pub leds: Leds,
@@ -528,10 +528,10 @@ pub struct Leds {
 }
 
 /// An LED on the nRF52840-DK board
-pub struct Led(p0::P0_Pin<Output<PushPull>>);
+pub struct Led(Pin<Output<PushPull>>);
 
 impl Led {
-    fn new<Mode>(pin: P0_Pin<Mode>) -> Self {
+    fn new<Mode>(pin: Pin<Mode>) -> Self {
         Led(pin.into_push_pull_output(Level::High))
     }
 
@@ -562,10 +562,10 @@ pub struct Buttons {
 }
 
 /// An LED on the nRF52840-DK board
-pub struct Button(p0::P0_Pin<Input<PullUp>>);
+pub struct Button(Pin<Input<PullUp>>);
 
 impl Button {
-    fn new<Mode>(pin: P0_Pin<Mode>) -> Self {
+    fn new<Mode>(pin: Pin<Mode>) -> Self {
         Button(pin.into_pullup_input())
     }
 }

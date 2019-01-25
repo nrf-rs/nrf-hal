@@ -15,7 +15,7 @@ use crate::target::{
 };
 
 use crate::gpio::{
-    p0::P0_Pin,
+    Pin,
     Floating,
     Input,
 };
@@ -374,10 +374,10 @@ impl<T> Twim<T> where T: TwimExt {
 /// Currently, only P0 pins are supported.
 pub struct Pins {
     // Serial Clock Line
-    pub scl: P0_Pin<Input<Floating>>,
+    pub scl: Pin<Input<Floating>>,
 
     // Serial Data Line
-    pub sda: P0_Pin<Input<Floating>>,
+    pub sda: Pin<Input<Floating>>,
 }
 
 
