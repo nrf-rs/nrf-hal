@@ -56,8 +56,8 @@ pub struct Board {
     /// The nRF52's pins which are not otherwise occupied on the nRF52840-DK
     pub pins: Pins,
 
-    /// The nRF52840-DK UART which is wired to the virtual COM port
-    pub com: Uarte<nrf52::UARTE0>,
+    /// The nRF52840-DK UART which is wired to the virtual USB CDC port
+    pub cdc: Uarte<nrf52::UARTE0>,
 
     /// The nRF52840-DK SPI which is wired to the SPI flash
     pub flash: Spim<nrf52::SPIM2>,
@@ -331,10 +331,10 @@ impl Board {
         // let flash_wp = pins.p0_22.into_push_pull_output(Level::High).degrade();
         // let flash_hold = pins.p0_23.into_push_pull_output(Level::High).degrade();
 
-        // The nRF52840-DK features a virtual COM port.
+        // The nRF52840-DK features an USB CDC port.
         // It features HWFC but does not have to use it.
         // It can transmit a flexible baudrate of up to 1Mbps.
-        let com_uart = p.UARTE0.constrain(uarte::Pins {
+        let cdc_uart = p.UARTE0.constrain(uarte::Pins {
                 txd: pins0.p0_06.into_push_pull_output(Level::High).degrade(),
                 rxd: pins0.p0_08.into_push_pull_output(Level::High).degrade(),
                 cts: None, // Some(pins0.p0_07.into_push_pull_output(Level::High).degrade()),
@@ -345,7 +345,7 @@ impl Board {
         );
 
         Board {
-            com: com_uart,
+            cdc: cdc_uart,
             flash: flash_spim,
             flash_cs: flash_cs,
 
