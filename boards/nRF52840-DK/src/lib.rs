@@ -1,10 +1,8 @@
 //! Board support crate for the Nordic nRF52840-DK
 //!
-//! This crate is in early development. Not much to see here, right now.
+//! This crate is in early development. UARTE, SPIM and TWI should be functiona,
+//! but might miss some features.
 #![no_std]
-
-//#![deny(missing_docs)]
-#![deny(warnings)]
 
 pub use cortex_m;
 pub use cortex_m_rt;
@@ -16,7 +14,7 @@ pub mod prelude {
     pub use nrf52840_hal::prelude::*;
 }
 
-// TODO:
+// TODO: Maybe we want a debug module like in the DWM1001-Dev implementation.
 // pub mod debug;
 
 use nrf52840_hal::{
@@ -116,7 +114,8 @@ pub struct Board {
     pub UICR: nrf52::UICR,
 
     // /// nRF52 peripheral: BPROT
-    // TODO:
+    // TODO: This peripheral register is somehow not present within the nrf52840-pac.
+    // Find out whether this is needed or not.
     // pub BPROT: nrf52::BPROT,
 
     /// nRF52 peripheral: POWER
