@@ -20,6 +20,7 @@ use crate::gpio::{
     PushPull,
 };
 
+use crate::target_constants::spi::MAX_BUFFER_LENGTH;
 
 pub trait SpimExt : Deref<Target=spim0::RegisterBlock> + Sized {
     fn constrain(self, pins: Pins) -> Spim<Self>;
@@ -122,17 +123,10 @@ impl<T> Spim<T> where T: SpimExt {
     )
         -> Result<(), Error>
     {
-        // The nRF52832 has an 8 bit wide (txd/rxd).maxcnt register.
-        #[cfg(feature = "52832")]
-        const LEN: u8 = u8::max_value();
-        // The nRF52840 has a 16 bit wide uarte.(txd/rxd).maxcnt register.
-        #[cfg(feature = "52840")]
-        const LEN: u16 = u16::max_value();
-
-        if tx_buffer.len() > LEN as usize {
+        if tx_buffer.len() > MAX_BUFFER_LENGTH as usize {
             return Err(Error::TxBufferTooLong);
         }
-        if rx_buffer.len() > LEN as usize {
+        if rx_buffer.len() > MAX_BUFFER_LENGTH as usize {
             return Err(Error::RxBufferTooLong);
         }
 
@@ -225,9 +219,7 @@ impl<T> Spim<T> where T: SpimExt {
     )
         -> Result<(), Error>
     {
-        // This is overly restrictive. See:
-        // https://github.com/nrf-rs/nrf52/issues/17
-        if tx_buffer.len() > u8::max_value() as usize {
+        if tx_buffer.len() > MAX_BUFFER_LENGTH as usize {
             return Err(Error::TxBufferTooLong);
         }
 

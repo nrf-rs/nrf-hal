@@ -25,6 +25,8 @@ pub use crate::target::uarte0::{
     config::PARITYW as Parity,
 };
 
+use crate::target_constants::uart::MAX_BUFFER_LENGTH;
+
 pub trait UarteExt: Deref<Target = uarte0::RegisterBlock> + Sized {
     fn constrain(self, pins: Pins, parity: Parity, baudrate: Baudrate) -> Uarte<Self>;
 }
@@ -118,13 +120,7 @@ impl<T> Uarte<T> where T: UarteExt {
     )
         -> Result<(), Error>
     {
-        // The nRF52832 has an 8 bit wide uarte.(txd/rxd).maxcnt register.
-        #[cfg(feature = "52832")]
-        const LEN: u8 = u8::max_value();
-        // The nRF52840 has a 16 bit wide uarte.(txd/rxd).maxcnt register.
-        #[cfg(feature = "52840")]
-        const LEN: u16 = u16::max_value();
-        if tx_buffer.len() > LEN as usize {
+        if tx_buffer.len() > MAX_BUFFER_LENGTH as usize {
             return Err(Error::TxBufferTooLong);
         }
 

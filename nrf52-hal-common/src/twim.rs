@@ -23,6 +23,7 @@ use crate::gpio::{
 
 pub use crate::target::twim0::frequency::FREQUENCYW as Frequency;
 
+use crate::target_constants::twi::MAX_BUFFER_LENGTH;
 
 pub trait TwimExt: Deref<Target=twim0::RegisterBlock> + Sized {
     fn constrain(self, pins: Pins, frequency: Frequency)
@@ -84,10 +85,14 @@ impl<T> Twim<T> where T: TwimExt {
         // Select pins
         twim.psel.scl.write(|w| {
             let w = unsafe { w.pin().bits(pins.scl.pin) };
+            #[cfg(feature = "52840")]
+            let w = unsafe { w.port().bit(pins.scl.port) };
             w.connect().connected()
         });
         twim.psel.sda.write(|w| {
             let w = unsafe { w.pin().bits(pins.sda.pin) };
+            #[cfg(feature = "52840")]
+            let w = unsafe { w.port().bit(pins.scl.port) };
             w.connect().connected()
         });
 
@@ -105,17 +110,16 @@ impl<T> Twim<T> where T: TwimExt {
 
     /// Write to an I2C slave
     ///
-    /// The buffer must have a length of at most 255 bytes.
+    /// The buffer must have a length of at most 255 bytes on the nRF52832
+    /// and at most 65535 bytes on the nRF52840.
     pub fn write(&mut self,
         address: u8,
         buffer:  &[u8],
     )
         -> Result<(), Error>
     {
-        // This is overly restrictive. See:
-        // https://github.com/nrf-rs/nrf52-hal/issues/17
-        if buffer.len() > u8::max_value() as usize {
-            return Err(Error::BufferTooLong);
+        if buffer.len() > MAX_BUFFER_LENGTH as usize {
+            return Err(Error::TxBufferTooLong);
         }
 
         // Conservative compiler fence to prevent optimizations that do not
@@ -178,16 +182,17 @@ impl<T> Twim<T> where T: TwimExt {
     }
 
     /// Read from an I2C slave
+    ///
+    /// The buffer must have a length of at most 255 bytes on the nRF52832
+    /// and at most 65535 bytes on the nRF52840.
     pub fn read(&mut self,
         address: u8,
         buffer:  &mut [u8],
     )
         -> Result<(), Error>
     {
-        // This is overly restrictive. See:
-        // https://github.com/nrf-rs/nrf52-hal/issues/17
-        if buffer.len() > u8::max_value() as usize {
-            return Err(Error::BufferTooLong);
+        if buffer.len() > MAX_BUFFER_LENGTH as usize {
+            return Err(Error::RxBufferTooLong);
         }
 
         // Conservative compiler fence to prevent optimizations that do not
@@ -263,14 +268,12 @@ impl<T> Twim<T> where T: TwimExt {
     )
         -> Result<(), Error>
     {
-        // This is overly restrictive. See:
-        // https://github.com/nrf-rs/nrf52-hal/issues/17
-        if wr_buffer.len() > u8::max_value() as usize {
-            return Err(Error::BufferTooLong);
+        if wr_buffer.len() > MAX_BUFFER_LENGTH as usize {
+            return Err(Error::TxBufferTooLong);
         }
 
-        if rd_buffer.len() > u8::max_value() as usize {
-            return Err(Error::BufferTooLong);
+        if rd_buffer.len() > MAX_BUFFER_LENGTH as usize {
+            return Err(Error::RxBufferTooLong);
         }
 
         // Conservative compiler fence to prevent optimizations that do not
@@ -383,7 +386,8 @@ pub struct Pins {
 
 #[derive(Debug)]
 pub enum Error {
-    BufferTooLong,
+    TxBufferTooLong,
+    RxBufferTooLong,
     Transmit,
     Receive,
 }

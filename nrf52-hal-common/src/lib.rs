@@ -17,6 +17,9 @@ pub mod time;
 pub mod timer;
 pub mod twim;
 pub mod uarte;
+pub mod constants;
+
+pub use crate::constants::target as target_constants;
 
 pub mod prelude {
     pub use crate::hal::prelude::*;
