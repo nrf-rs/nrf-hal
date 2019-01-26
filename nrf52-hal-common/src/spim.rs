@@ -62,19 +62,19 @@ impl<T> Spim<T> where T: SpimExt {
         spim.psel.sck.write(|w| {
             let w = unsafe { w.pin().bits(pins.sck.pin) };
             #[cfg(feature = "52840")]
-            let w = unsafe { w.port().bit(pins.sck.port) };
+            let w = w.port().bit(pins.sck.port);
             w.connect().connected()
         });
         spim.psel.mosi.write(|w| {
             let w = unsafe { w.pin().bits(pins.mosi.pin) };
             #[cfg(feature = "52840")]
-            let w = unsafe { w.port().bit(pins.mosi.port) };
+            let w = w.port().bit(pins.mosi.port);
             w.connect().connected()
         });
         spim.psel.miso.write(|w| {
             let w = unsafe { w.pin().bits(pins.miso.pin) };
             #[cfg(feature = "52840")]
-            let w = unsafe { w.port().bit(pins.miso.port) };
+            let w = w.port().bit(pins.miso.port);
             w.connect().connected()
         });
 

@@ -86,13 +86,13 @@ impl<T> Twim<T> where T: TwimExt {
         twim.psel.scl.write(|w| {
             let w = unsafe { w.pin().bits(pins.scl.pin) };
             #[cfg(feature = "52840")]
-            let w = unsafe { w.port().bit(pins.scl.port) };
+            let w = w.port().bit(pins.scl.port);
             w.connect().connected()
         });
         twim.psel.sda.write(|w| {
             let w = unsafe { w.pin().bits(pins.sda.pin) };
             #[cfg(feature = "52840")]
-            let w = unsafe { w.port().bit(pins.scl.port) };
+            let w = w.port().bit(pins.scl.port);
             w.connect().connected()
         });
 

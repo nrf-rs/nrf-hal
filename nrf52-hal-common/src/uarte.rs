@@ -55,14 +55,14 @@ impl<T> Uarte<T> where T: UarteExt {
         uarte.psel.rxd.write(|w| {
             let w = unsafe { w.pin().bits(pins.rxd.pin) };
             #[cfg(feature = "52840")]
-            let w = unsafe { w.port().bit(pins.rxd.port) };
+            let w = w.port().bit(pins.rxd.port);
             w.connect().connected()
         });
         pins.txd.set_high();
         uarte.psel.txd.write(|w| {
             let w = unsafe { w.pin().bits(pins.txd.pin) };
             #[cfg(feature = "52840")]
-            let w = unsafe { w.port().bit(pins.txd.port) };
+            let w = w.port().bit(pins.txd.port);
             w.connect().connected()
         });
 
@@ -71,7 +71,7 @@ impl<T> Uarte<T> where T: UarteExt {
             if let Some(ref pin) = pins.cts {
                 let w = unsafe { w.pin().bits(pin.pin) };
                 #[cfg(feature = "52840")]
-                let w = unsafe { w.port().bit(pin.port) };
+                let w = w.port().bit(pin.port);
                 w.connect().connected()
             } else {
                 w.connect().disconnected()
@@ -82,7 +82,7 @@ impl<T> Uarte<T> where T: UarteExt {
             if let Some(ref pin) = pins.rts {
                 let w = unsafe { w.pin().bits(pin.pin) };
                 #[cfg(feature = "52840")]
-                let w = unsafe { w.port().bit(pin.port) };
+                let w = w.port().bit(pin.port);
                 w.connect().connected()
             } else {
                 w.connect().disconnected()
