@@ -20,6 +20,7 @@ use crate::gpio::{
     Input,
 };
 
+use crate::easy_dma_size;
 
 pub use crate::target::twim0::frequency::FREQUENCYW as Frequency;
 
@@ -112,9 +113,8 @@ impl<T> Twim<T> where T: TwimExt {
     )
         -> Result<(), Error>
     {
-        // This is overly restrictive. See:
-        // https://github.com/nrf-rs/nrf52-hal/issues/17
-        if buffer.len() > u8::max_value() as usize {
+
+        if buffer.len() >min(easy_dma_size() {
             return Err(Error::BufferTooLong);
         }
 
@@ -184,9 +184,7 @@ impl<T> Twim<T> where T: TwimExt {
     )
         -> Result<(), Error>
     {
-        // This is overly restrictive. See:
-        // https://github.com/nrf-rs/nrf52-hal/issues/17
-        if buffer.len() > u8::max_value() as usize {
+        if buffer.len() > min(easy_dma_size() {
             return Err(Error::BufferTooLong);
         }
 
@@ -263,13 +261,11 @@ impl<T> Twim<T> where T: TwimExt {
     )
         -> Result<(), Error>
     {
-        // This is overly restrictive. See:
-        // https://github.com/nrf-rs/nrf52-hal/issues/17
-        if wr_buffer.len() > u8::max_value() as usize {
+        if wr_buffer.len() > min(easy_dma_size(){
             return Err(Error::BufferTooLong);
         }
 
-        if rd_buffer.len() > u8::max_value() as usize {
+        if rd_buffer.len() > min(easy_dma_size(){
             return Err(Error::BufferTooLong);
         }
 

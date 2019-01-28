@@ -30,8 +30,15 @@ pub mod prelude {
     pub use crate::twim::TwimExt;
     pub use crate::uarte::UarteExt;
 }
-
-
+/// Length of Nordic EasyDMA differs for MCUs
+const fn easy_dma_size() -> usize {
+    // NRF52832 8 bits1..0xFF
+    #[cfg(feature = "52832")]
+    {255}
+    // NRF52840 16 bits 1..0xFFFF
+    #[cfg(feature = "52840")]
+    {65535}
+}
 pub use crate::clocks::Clocks;
 pub use crate::delay::Delay;
 pub use crate::spim::Spim;
