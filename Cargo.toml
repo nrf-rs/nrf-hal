@@ -3,6 +3,7 @@ members = [
   "boards/adafruit_nrf52pro",
   "nrf52832-hal",
   "nrf52840-hal",
+  "examples/rtfm-demo",
 ]
 
 [profile.dev]
