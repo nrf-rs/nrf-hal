@@ -12,6 +12,7 @@ use crate::target::{
     UARTE0,
 };
 
+use crate::easy_dma_size;
 use crate::prelude::*;
 use crate::gpio::{
     p0::P0_Pin,
@@ -34,7 +35,6 @@ impl UarteExt for UARTE0 {
         Uarte::new(self, pins, parity, baudrate)
     }
 }
-
 
 /// Interface to a UARTE instance
 ///
@@ -109,9 +109,7 @@ impl<T> Uarte<T> where T: UarteExt {
     )
         -> Result<(), Error>
     {
-        // This is overly restrictive. See (similar SPIM issue):
-        // https://github.com/nrf-rs/nrf52/issues/17
-        if tx_buffer.len() > u8::max_value() as usize {
+        if tx_buffer.len() > easy_dma_size() {
             return Err(Error::TxBufferTooLong);
         }
 

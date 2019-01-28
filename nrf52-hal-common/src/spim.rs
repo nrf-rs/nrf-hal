@@ -11,6 +11,7 @@ use crate::target::{
     SPIM2,
 };
 
+use crate::easy_dma_size;
 use crate::prelude::*;
 use crate::gpio::{
     p0::P0_Pin,
@@ -134,13 +135,10 @@ impl<T> Spim<T> where T: SpimExt {
     )
         -> Result<(), Error>
     {
-        // TODO: some targets have a maxcnt whose size is larger
-        // than a u8, so this length check is overly restrictive
-        // and could be lifted.
-        if tx_buffer.len() > u8::max_value() as usize {
+        if tx_buffer.len() > easy_dma_size() {
             return Err(Error::TxBufferTooLong);
         }
-        if rx_buffer.len() > u8::max_value() as usize {
+        if rx_buffer.len() > easy_dma_size() {
             return Err(Error::RxBufferTooLong);
         }
 
@@ -226,16 +224,14 @@ impl<T> Spim<T> where T: SpimExt {
     /// This method uses the provided chip select pin to initiate the
     /// transaction, then transmits all bytes in `tx_buffer`.
     ///
-    /// The buffer must have a length of at most 255 bytes.
+
     pub fn write(&mut self,
         chip_select: &mut P0_Pin<Output<PushPull>>,
         tx_buffer  : &[u8],
     )
         -> Result<(), Error>
     {
-        // This is overly restrictive. See:
-        // https://github.com/nrf-rs/nrf52/issues/17
-        if tx_buffer.len() > u8::max_value() as usize {
+        if tx_buffer.len() > easy_dma_size() {
             return Err(Error::TxBufferTooLong);
         }
 
