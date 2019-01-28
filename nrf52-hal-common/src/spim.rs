@@ -62,14 +62,33 @@ impl<T> Spim<T> where T: SpimExt {
             let w = unsafe { w.pin().bits(pins.sck.pin) };
             w.connect().connected()
         });
-        spim.psel.mosi.write(|w| {
-            let w = unsafe { w.pin().bits(pins.mosi.pin) };
-            w.connect().connected()
-        });
-        spim.psel.miso.write(|w| {
-            let w = unsafe { w.pin().bits(pins.miso.pin) };
-            w.connect().connected()
-        });
+
+        match pins.mosi {
+            Some(mosi) => {
+                spim.psel.mosi.write(|w| {
+                    let w = unsafe { w.pin().bits(mosi.pin) };
+                    w.connect().connected()
+                })
+            }
+            None =>{
+                spim.psel.mosi.write(|w| {
+                    w.connect().disconnected()
+                })
+            }
+        }
+        match pins.miso {
+            Some(miso) => {
+                spim.psel.miso.write(|w| {
+                    let w = unsafe { w.pin().bits(miso.pin) };
+                    w.connect().connected()
+                })
+            }
+            None => {
+                spim.psel.miso.write(|w| {
+                    w.connect().disconnected()
+                })
+            }
+        }
 
         // Enable SPIM instance
         spim.enable.write(|w|
@@ -289,16 +308,18 @@ impl<T> Spim<T> where T: SpimExt {
     }
 }
 
-
+/// GPIO pins for SPIM interface
 pub struct Pins {
-    // SPI clock
+    /// SPI clock
     pub sck: P0_Pin<Output<PushPull>>,
 
-    // Master out, slave in
-    pub mosi: P0_Pin<Output<PushPull>>,
+    /// MOSI Master out, slave in
+    /// None if unused
+    pub mosi: Option<P0_Pin<Output<PushPull>>>,
 
-    // Master in, slave out
-    pub miso: P0_Pin<Input<Floating>>,
+    /// MISO Master in, slave out
+    /// None if unused
+    pub miso: Option<P0_Pin<Input<Floating>>>,
 }
 
 
