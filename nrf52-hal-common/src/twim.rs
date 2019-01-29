@@ -265,7 +265,7 @@ impl<T> Twim<T> where T: TwimExt {
             return Err(Error::BufferTooLong);
         }
 
-        if rd_buffer.len() > EASY_DMA_SIZE{
+        if rd_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::BufferTooLong);
         }
 
