@@ -20,7 +20,7 @@ use crate::gpio::{
     Input,
 };
 
-use crate::easy_dma_size;
+use crate::target_constants::EASY_DMA_SIZE;
 
 pub use crate::target::twim0::frequency::FREQUENCYW as Frequency;
 
@@ -114,7 +114,7 @@ impl<T> Twim<T> where T: TwimExt {
         -> Result<(), Error>
     {
 
-        if buffer.len() > easy_dma_size() {
+        if buffer.len() > EASY_DMA_SIZE {
             return Err(Error::BufferTooLong);
         }
 
@@ -184,7 +184,7 @@ impl<T> Twim<T> where T: TwimExt {
     )
         -> Result<(), Error>
     {
-        if buffer.len() > easy_dma_size() {
+        if buffer.len() > EASY_DMA_SIZE {
             return Err(Error::BufferTooLong);
         }
 
@@ -261,11 +261,11 @@ impl<T> Twim<T> where T: TwimExt {
     )
         -> Result<(), Error>
     {
-        if wr_buffer.len() > easy_dma_size(){
+        if wr_buffer.len() > EASY_DMA_SIZE{
             return Err(Error::BufferTooLong);
         }
 
-        if rd_buffer.len() > easy_dma_size(){
+        if rd_buffer.len() > EASY_DMA_SIZE{
             return Err(Error::BufferTooLong);
         }
 

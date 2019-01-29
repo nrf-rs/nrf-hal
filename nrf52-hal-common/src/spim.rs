@@ -11,7 +11,7 @@ use crate::target::{
     SPIM2,
 };
 
-use crate::easy_dma_size;
+use crate::target_constants::EASY_DMA_SIZE;
 use crate::prelude::*;
 use crate::gpio::{
     p0::P0_Pin,
@@ -135,10 +135,10 @@ impl<T> Spim<T> where T: SpimExt {
     )
         -> Result<(), Error>
     {
-        if tx_buffer.len() > easy_dma_size() {
+        if tx_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
-        if rx_buffer.len() > easy_dma_size() {
+        if rx_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::RxBufferTooLong);
         }
 
@@ -231,7 +231,7 @@ impl<T> Spim<T> where T: SpimExt {
     )
         -> Result<(), Error>
     {
-        if tx_buffer.len() > easy_dma_size() {
+        if tx_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
 
