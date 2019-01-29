@@ -12,7 +12,7 @@ use crate::target::{
     UARTE0,
 };
 
-use crate::easy_dma_size;
+use crate::target_constants::EASY_DMA_SIZE;
 use crate::prelude::*;
 use crate::gpio::{
     p0::P0_Pin,
@@ -109,7 +109,7 @@ impl<T> Uarte<T> where T: UarteExt {
     )
         -> Result<(), Error>
     {
-        if tx_buffer.len() > easy_dma_size() {
+        if tx_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
 
