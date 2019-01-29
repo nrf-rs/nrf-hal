@@ -33,7 +33,7 @@ pub mod prelude {
 
 /// Length of Nordic EasyDMA differs for MCUs
 #[cfg(feature = "52832")]
-pub mod target_constants{
+pub mod target_constants {
     // NRF52832 8 bits1..0xFF
     pub const EASY_DMA_SIZE:usize = 255;
 }
