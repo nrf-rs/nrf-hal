@@ -35,7 +35,7 @@ pub mod prelude {
 #[cfg(feature = "52832")]
 pub mod target_constants {
     // NRF52832 8 bits1..0xFF
-    pub const EASY_DMA_SIZE:usize = 255;
+    pub const EASY_DMA_SIZE: usize = 255;
 }
     // NRF52840 16 bits 1..0xFFFF
 #[cfg(feature = "52840")]
