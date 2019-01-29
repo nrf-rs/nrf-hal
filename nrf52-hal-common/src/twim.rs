@@ -114,7 +114,7 @@ impl<T> Twim<T> where T: TwimExt {
         -> Result<(), Error>
     {
 
-        if buffer.len() >min(easy_dma_size() {
+        if buffer.len() > easy_dma_size() {
             return Err(Error::BufferTooLong);
         }
 
@@ -184,7 +184,7 @@ impl<T> Twim<T> where T: TwimExt {
     )
         -> Result<(), Error>
     {
-        if buffer.len() > min(easy_dma_size() {
+        if buffer.len() > easy_dma_size() {
             return Err(Error::BufferTooLong);
         }
 
@@ -261,11 +261,11 @@ impl<T> Twim<T> where T: TwimExt {
     )
         -> Result<(), Error>
     {
-        if wr_buffer.len() > min(easy_dma_size(){
+        if wr_buffer.len() > easy_dma_size(){
             return Err(Error::BufferTooLong);
         }
 
-        if rd_buffer.len() > min(easy_dma_size(){
+        if rd_buffer.len() > easy_dma_size(){
             return Err(Error::BufferTooLong);
         }
 
