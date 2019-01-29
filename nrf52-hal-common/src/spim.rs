@@ -224,7 +224,6 @@ impl<T> Spim<T> where T: SpimExt {
     /// This method uses the provided chip select pin to initiate the
     /// transaction, then transmits all bytes in `tx_buffer`.
     ///
-
     pub fn write(&mut self,
         chip_select: &mut P0_Pin<Output<PushPull>>,
         tx_buffer  : &[u8],
