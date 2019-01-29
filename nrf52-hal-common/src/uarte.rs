@@ -37,7 +37,6 @@ impl UarteExt for UARTE0 {
     }
 }
 
-
 /// Interface to a UARTE instance
 ///
 /// This is a very basic interface that comes with the following limitations:
@@ -100,7 +99,6 @@ impl<T> Uarte<T> where T: UarteExt {
 
         Uarte(uarte)
     }
-
 
     /// Write via UARTE
     ///
@@ -180,7 +178,6 @@ pub struct Pins {
 
 #[derive(Debug)]
 pub enum Error {
-
     Transmit,
     Receive,
 }
