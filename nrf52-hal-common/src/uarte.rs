@@ -13,7 +13,7 @@ use crate::target::{
     UARTE0,
 };
 
-use crate::easy_dma_size;
+use crate::target_constants::EASY_DMA_SIZE;
 use crate::prelude::*;
 use crate::gpio::{
     p0::P0_Pin,
@@ -113,9 +113,9 @@ impl<T> Uarte<T> where T: UarteExt {
     {
         let mut offset = 0;
         while offset < tx_buffer.len() {
-            let datalen = min(easy_dma_size(), tx_buffer.len() - offset);
+            let datalen = min(EASY_DMA_SIZE, tx_buffer.len() - offset);
             let dataptr = offset + (tx_buffer.as_ptr() as usize);
-            offset += easy_dma_size();
+            offset += EASY_DMA_SIZE;
             // Conservative compiler fence to prevent optimizations that do not
             // take in to account actions by DMA. The fence has been placed here,
             // before any DMA action has started

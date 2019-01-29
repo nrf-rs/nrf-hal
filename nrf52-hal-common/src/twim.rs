@@ -22,7 +22,7 @@ use crate::gpio::{
     Input,
 };
 
-use crate::easy_dma_size;
+use crate::target_constants::EASY_DMA_SIZE;
 
 pub use crate::target::twim0::frequency::FREQUENCYW as Frequency;
 
@@ -117,9 +117,9 @@ impl<T> Twim<T> where T: TwimExt {
     {
         let mut offset = 0;
         while offset < buffer.len() {
-            let datalen = min(easy_dma_size(), buffer.len() - offset);
+            let datalen = min(EASY_DMA_SIZE, buffer.len() - offset);
             let dataptr = offset + (buffer.as_ptr() as usize);
-            offset += easy_dma_size();
+            offset += EASY_DMA_SIZE;
             // Conservative compiler fence to prevent optimizations that do not
             // take in to account actions by DMA. The fence has been placed here,
             // before any DMA action has started
@@ -188,9 +188,9 @@ impl<T> Twim<T> where T: TwimExt {
     {
         let mut offset = 0;
         while offset < buffer.len() {
-            let datalen = min(easy_dma_size(), buffer.len() - offset);
+            let datalen = min(EASY_DMA_SIZE, buffer.len() - offset);
             let dataptr = offset + (buffer.as_ptr() as usize);
-            offset += easy_dma_size();
+            offset += EASY_DMA_SIZE;
 
             // Conservative compiler fence to prevent optimizations that do not
             // take in to account actions by DMA. The fence has been placed here,
@@ -265,11 +265,11 @@ impl<T> Twim<T> where T: TwimExt {
     )
         -> Result<(), Error>
     {
-        if wr_buffer.len() > easy_dma_size() {
+        if wr_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::BufferTooLong);
         }
 
-        if rd_buffer.len() > easy_dma_size() {
+        if rd_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::BufferTooLong);
         }
 

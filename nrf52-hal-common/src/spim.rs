@@ -13,7 +13,7 @@ use crate::target::{
     SPIM2,
 };
 
-use crate::easy_dma_size;
+use crate::target_constants::EASY_DMA_SIZE;
 use crate::prelude::*;
 use crate::gpio::{
     p0::P0_Pin,
@@ -63,9 +63,9 @@ impl<T> Transfer<u8> for Spim<T> where T: SpimExt
     fn transfer<'w>(&mut self, words: &'w mut [u8]) -> Result<&'w [u8], Error> {
         let mut offset:usize = 0;
         while offset < words.len() {
-            let datalen = min(easy_dma_size(), words.len()  - offset);
+            let datalen = min(EASY_DMA_SIZE, words.len()  - offset);
             let dataptr = offset + (words.as_ptr() as usize);
-            offset += easy_dma_size();
+            offset += EASY_DMA_SIZE;
 
             self.do_spi_dma_transfer(dataptr as u32,datalen as u32,dataptr as u32,datalen as u32,|_|{})?;
 
@@ -234,10 +234,10 @@ impl<T> Spim<T> where T: SpimExt {
     )
         -> Result<(), Error>
     {
-        if tx_buffer.len() > easy_dma_size() {
+        if tx_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
-        if rx_buffer.len() > easy_dma_size() {
+        if rx_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::RxBufferTooLong);
         }
 
@@ -294,7 +294,7 @@ impl<T> Spim<T> where T: SpimExt {
         -> Result<(), Error>
     {
 
-        if tx_buffer.len() > easy_dma_size() {
+        if tx_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
 
