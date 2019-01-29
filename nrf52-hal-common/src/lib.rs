@@ -39,7 +39,7 @@ pub mod target_constants {
 }
     // NRF52840 16 bits 1..0xFFFF
 #[cfg(feature = "52840")]
-pub mod target_constants{
+pub mod target_constants {
     pub const EASY_DMA_SIZE:usize = 65535;
 }
 
