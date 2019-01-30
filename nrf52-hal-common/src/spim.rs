@@ -187,7 +187,7 @@ impl<T> Spim<T> where T: SpimExt {
         // Check If buffer is in data RAM, compiler sometimes put static data
         // in flash this area is not accessable by EasyDMA
         if (tx_data_ptr as usize) < SRAM_LOWER || tx_data_ptr as usize >= SRAM_UPPER {
-            return Err(Error::DMABufferInUnaccessableMemory)
+            return Err(Error::DMABufferNotInDataMemory)
         }
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
@@ -281,7 +281,7 @@ impl<T> Spim<T> where T: SpimExt {
         }
 
         self.do_spi_dma_transfer(
-        // Set up the DMA write
+            // Set up the DMA write
             // We're giving the register a pointer to the stack. Since we're
             // waiting for the SPI transaction to end before this stack pointer
             // becomes invalid, there's nothing wrong here.
@@ -302,20 +302,21 @@ impl<T> Spim<T> where T: SpimExt {
             // The MAXCNT field is thus at least 8 bits wide and accepts the full
             // range of values that fit in a `u8`.
 
-            //tx_len:
+            // tx_len:
             tx_buffer.len() as _,
 
             // Set up the DMA read
             // This is safe for the same reasons that writing to TXD.PTR is
             // safe. Please refer to the explanation there.
 
-            //rx_data_ptr:
+            // rx_data_ptr:
             rx_buffer.as_mut_ptr() as u32,
             // This is safe for the same reasons that writing to TXD.MAXCNT is
             // safe. Please refer to the explanation there.
 
-            //rx_len:
+            // rx_len:
             rx_buffer.len() as _,
+            // chip select callback
             |cs|{if cs {chip_select.set_low()} else {chip_select.set_high()} }
         )
     }
@@ -353,11 +354,9 @@ impl<T> Spim<T> where T: SpimExt {
             // The MAXCNT field is 8 bits wide and accepts the full range of
             // values.
             tx_buffer.len() as _,
-
-        // Tell the RXD channel it doesn't need to read anything
+            // Tell the RXD channel it doesn't need to read anything
             0 , 0,
             |cs|{if cs {chip_select.set_low()} else {chip_select.set_high()} }
-
         )
     }
 
@@ -386,7 +385,8 @@ pub struct Pins {
 pub enum Error {
     TxBufferTooLong,
     RxBufferTooLong,
-    DMABufferInUnaccessableMemory,
+    /// EasyDMA can only read from data memory, read only buffers in flash will fail
+    DMABufferNotInDataMemory,
     Transmit,
     Receive,
 }
