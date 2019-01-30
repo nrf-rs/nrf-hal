@@ -64,15 +64,12 @@ impl<T> embedded_hal::blocking::spi::Transfer<u8> for Spim<T> where T: SpimExt
     fn transfer<'w>(&mut self, words: &'w mut [u8]) -> Result<&'w [u8], Error> {
         let mut offset:usize = 0;
         while offset < words.len() {
-            let datalen = min(EASY_DMA_SIZE, words.len() - offset);
-            let dataptr = offset + (words.as_ptr() as usize);
-            offset += datalen;
+            let data_len = min(EASY_DMA_SIZE, words.len() - offset);
+            let data_ptr = offset + (words.as_ptr() as usize);
+            offset += data_len;
 
-            self.do_spi_dma_transfer(dataptr as u32,datalen as u32,dataptr as u32,datalen as u32,|_|{})?;
+            self.do_spi_dma_transfer(data_ptr as u32,data_len as u32,data_ptr as u32,data_len as u32,|_|{})?;
 
-            // Conservative compiler fence to prevent optimizations that do not
-            // take in to account DMA
-            compiler_fence(SeqCst);
         }
         Ok(words)
     }
@@ -88,16 +85,12 @@ impl<T> embedded_hal::blocking::spi::Write<u8> for Spim<T> where T: SpimExt
         if SRAM_LOWER <= p && p < SRAM_UPPER {
             let mut offset:usize = 0;
             while offset < words.len() {
-                let datalen = min(EASY_DMA_SIZE, words.len()  - offset);
-                let dataptr = offset + (words.as_ptr() as usize);
-                offset += datalen;
+                let data_len = min(EASY_DMA_SIZE, words.len()  - offset);
+                let data_ptr = offset + (words.as_ptr() as usize);
+                offset += data_len;
 
                 // setup spi dma tx buffer and 0 for read buffer length
-                self.do_spi_dma_transfer(dataptr as u32,datalen as u32,0,0,|_|{})?;
-
-                // Conservative compiler fence to prevent optimizations that do not
-                // take in to account DMA
-                compiler_fence(SeqCst);
+                self.do_spi_dma_transfer(data_ptr as u32,data_len as u32,0,0,|_|{})?;
             }
         } else {
             // Force copy from flash mode.
@@ -105,17 +98,13 @@ impl<T> embedded_hal::blocking::spi::Write<u8> for Spim<T> where T: SpimExt
             let mut buffer:[u8;FORCE_COPY_BUFFER_SIZE] = [0;FORCE_COPY_BUFFER_SIZE];
             let mut offset:usize = 0;
             while offset < words.len() {
-                let datalen = min(blocksize, words.len()  - offset);
-                for i in 0..datalen{
+                let data_len = min(blocksize, words.len()  - offset);
+                for i in 0..data_len{
                     buffer[i] = words[offset+i];
                 }
                 offset += blocksize;
                 // setup spi dma tx buffer and 0 for read buffer length
-                self.do_spi_dma_transfer(buffer.as_ptr() as u32,datalen as u32,0,0,|_|{})?;
-
-                // Conservative compiler fence to prevent optimizations that do not
-                // take in to account DMA
-                compiler_fence(SeqCst);
+                self.do_spi_dma_transfer(buffer.as_ptr() as u32,data_len as u32,0,0,|_|{})?;
             }
         }
         Ok(())
