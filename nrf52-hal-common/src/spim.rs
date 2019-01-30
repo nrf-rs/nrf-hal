@@ -66,7 +66,7 @@ impl<T> embedded_hal::blocking::spi::Transfer<u8> for Spim<T> where T: SpimExt
         while offset < words.len() {
             let datalen = min(EASY_DMA_SIZE, words.len() - offset);
             let dataptr = offset + (words.as_ptr() as usize);
-            offset += EASY_DMA_SIZE;
+            offset += datalen;
 
             self.do_spi_dma_transfer(dataptr as u32,datalen as u32,dataptr as u32,datalen as u32,|_|{})?;
 
@@ -90,7 +90,7 @@ impl<T> embedded_hal::blocking::spi::Write<u8> for Spim<T> where T: SpimExt
             while offset < words.len() {
                 let datalen = min(EASY_DMA_SIZE, words.len()  - offset);
                 let dataptr = offset + (words.as_ptr() as usize);
-                offset += EASY_DMA_SIZE;
+                offset += datalen;
 
                 // setup spi dma tx buffer and 0 for read buffer length
                 self.do_spi_dma_transfer(dataptr as u32,datalen as u32,0,0,|_|{})?;
