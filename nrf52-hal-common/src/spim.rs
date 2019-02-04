@@ -11,6 +11,7 @@ use crate::target::{
     SPIM2,
 };
 
+use crate::target_constants::EASY_DMA_SIZE;
 use crate::prelude::*;
 use crate::gpio::{
     Pin,
@@ -19,8 +20,6 @@ use crate::gpio::{
     Output,
     PushPull,
 };
-
-use crate::target_constants::spi::MAX_BUFFER_LENGTH;
 
 pub trait SpimExt : Deref<Target=spim0::RegisterBlock> + Sized {
     fn constrain(self, pins: Pins) -> Spim<Self>;
@@ -65,18 +64,37 @@ impl<T> Spim<T> where T: SpimExt {
             let w = w.port().bit(pins.sck.port);
             w.connect().connected()
         });
-        spim.psel.mosi.write(|w| {
-            let w = unsafe { w.pin().bits(pins.mosi.pin) };
-            #[cfg(feature = "52840")]
-            let w = w.port().bit(pins.mosi.port);
-            w.connect().connected()
-        });
-        spim.psel.miso.write(|w| {
-            let w = unsafe { w.pin().bits(pins.miso.pin) };
-            #[cfg(feature = "52840")]
-            let w = w.port().bit(pins.miso.port);
-            w.connect().connected()
-        });
+
+        match pins.mosi {
+            Some(mosi) => {
+                spim.psel.mosi.write(|w| {
+                    let w = unsafe { w.pin().bits(mosi.pin) };
+                    #[cfg(feature = "52840")]
+                    let w = w.port().bit(mosi.port);
+                    w.connect().connected()
+                })
+            }
+            None =>{
+                spim.psel.mosi.write(|w| {
+                    w.connect().disconnected()
+                })
+            }
+        }
+        match pins.miso {
+            Some(miso) => {
+                spim.psel.miso.write(|w| {
+                    let w = unsafe { w.pin().bits(miso.pin) };
+                    #[cfg(feature = "52840")]
+                    let w = w.port().bit(miso.port);
+                    w.connect().connected()
+                })
+            }
+            None => {
+                spim.psel.miso.write(|w| {
+                    w.connect().disconnected()
+                })
+            }
+        }
 
         // Enable SPIM instance
         spim.enable.write(|w|
@@ -123,10 +141,10 @@ impl<T> Spim<T> where T: SpimExt {
     )
         -> Result<(), Error>
     {
-        if tx_buffer.len() > MAX_BUFFER_LENGTH as usize {
+        if tx_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
-        if rx_buffer.len() > MAX_BUFFER_LENGTH as usize {
+        if rx_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::RxBufferTooLong);
         }
 
@@ -212,14 +230,13 @@ impl<T> Spim<T> where T: SpimExt {
     /// This method uses the provided chip select pin to initiate the
     /// transaction, then transmits all bytes in `tx_buffer`.
     ///
-    /// The buffer must have a length of at most 255 bytes.
     pub fn write(&mut self,
         chip_select: &mut Pin<Output<PushPull>>,
         tx_buffer  : &[u8],
     )
         -> Result<(), Error>
     {
-        if tx_buffer.len() > MAX_BUFFER_LENGTH as usize {
+        if tx_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
 
@@ -292,16 +309,18 @@ impl<T> Spim<T> where T: SpimExt {
     }
 }
 
-
+/// GPIO pins for SPIM interface
 pub struct Pins {
-    // SPI clock
+    /// SPI clock
     pub sck: Pin<Output<PushPull>>,
 
-    // Master out, slave in
-    pub mosi: Pin<Output<PushPull>>,
+    /// MOSI Master out, slave in
+    /// None if unused
+    pub mosi: Option<Pin<Output<PushPull>>>,
 
-    // Master in, slave out
-    pub miso: Pin<Input<Floating>>,
+    /// MISO Master in, slave out
+    /// None if unused
+    pub miso: Option<Pin<Input<Floating>>>,
 }
 
 

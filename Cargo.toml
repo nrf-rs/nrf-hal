@@ -4,6 +4,7 @@ members = [
   "boards/nRF52840-DK",
   "nrf52832-hal",
   "nrf52840-hal",
+  "examples/rtfm-demo",
 ]
 
 [profile.dev]

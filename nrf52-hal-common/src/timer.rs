@@ -5,7 +5,7 @@
 
 use core::ops::Deref;
 
-use nb;
+use nb::{self, block};
 use crate::target::{
     timer0,
     Interrupt,
@@ -16,7 +16,7 @@ use crate::target::{
     TIMER3,
     TIMER4,
 };
-use void::Void;
+use void::{unreachable, Void};
 
 
 pub trait TimerExt : Deref<Target=timer0::RegisterBlock> + Sized {
@@ -145,5 +145,13 @@ impl<T> Timer<T> where T: TimerExt {
         self.0.events_compare[0].write(|w| w);
 
         Ok(())
+    }
+
+    pub fn delay(&mut self, cycles: u32) {
+        self.start(cycles);
+        match block!(self.wait()) {
+            Ok(_) => {},
+            Err(x) => unreachable(x),
+        }
     }
 }

@@ -323,8 +323,8 @@ impl Board {
         // As for now, only the normal SPI mode is available, so we are using this for the interface.
         let flash_spim = p.SPIM2.constrain(spim::Pins {
             sck : pins0.p0_19.into_push_pull_output(Level::Low).degrade(),
-            mosi: pins0.p0_20.into_push_pull_output(Level::Low).degrade(),
-            miso: pins0.p0_21.into_floating_input().degrade(),
+            mosi: Some(pins0.p0_20.into_push_pull_output(Level::Low).degrade()),
+            miso: Some(pins0.p0_21.into_floating_input().degrade()),
         });
 
         let flash_cs = pins0.p0_17.into_push_pull_output(Level::High).degrade();
@@ -336,8 +336,8 @@ impl Board {
         // It can transmit a flexible baudrate of up to 1Mbps.
         let cdc_uart = p.UARTE0.constrain(uarte::Pins {
                 txd: pins0.p0_06.into_push_pull_output(Level::High).degrade(),
-                rxd: pins0.p0_08.into_push_pull_output(Level::High).degrade(),
-                cts: Some(pins0.p0_07.into_push_pull_output(Level::High).degrade()),
+                rxd: pins0.p0_08.into_floating_input().degrade(),
+                cts: Some(pins0.p0_07.into_floating_input().degrade()),
                 rts: Some(pins0.p0_05.into_push_pull_output(Level::High).degrade()),
             },
             UartParity::EXCLUDED,

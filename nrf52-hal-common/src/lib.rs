@@ -17,9 +17,6 @@ pub mod time;
 pub mod timer;
 pub mod twim;
 pub mod uarte;
-pub mod constants;
-
-pub use crate::constants::target as target_constants;
 
 pub mod prelude {
     pub use crate::hal::prelude::*;
@@ -34,6 +31,17 @@ pub mod prelude {
     pub use crate::uarte::UarteExt;
 }
 
+/// Length of Nordic EasyDMA differs for MCUs
+#[cfg(feature = "52832")]
+pub mod target_constants {
+    // NRF52832 8 bits1..0xFF
+    pub const EASY_DMA_SIZE: usize = 255;
+}
+#[cfg(feature = "52840")]
+pub mod target_constants {
+    // NRF52840 16 bits 1..0xFFFF
+    pub const EASY_DMA_SIZE: usize = 65535;
+}
 
 pub use crate::clocks::Clocks;
 pub use crate::delay::Delay;

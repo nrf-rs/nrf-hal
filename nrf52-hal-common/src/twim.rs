@@ -20,10 +20,9 @@ use crate::gpio::{
     Input,
 };
 
+use crate::target_constants::EASY_DMA_SIZE;
 
 pub use crate::target::twim0::frequency::FREQUENCYW as Frequency;
-
-use crate::target_constants::twi::MAX_BUFFER_LENGTH;
 
 pub trait TwimExt: Deref<Target=twim0::RegisterBlock> + Sized {
     fn constrain(self, pins: Pins, frequency: Frequency)
@@ -118,7 +117,8 @@ impl<T> Twim<T> where T: TwimExt {
     )
         -> Result<(), Error>
     {
-        if buffer.len() > MAX_BUFFER_LENGTH as usize {
+
+        if buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
 
@@ -191,7 +191,7 @@ impl<T> Twim<T> where T: TwimExt {
     )
         -> Result<(), Error>
     {
-        if buffer.len() > MAX_BUFFER_LENGTH as usize {
+        if buffer.len() > EASY_DMA_SIZE {
             return Err(Error::RxBufferTooLong);
         }
 
@@ -268,11 +268,11 @@ impl<T> Twim<T> where T: TwimExt {
     )
         -> Result<(), Error>
     {
-        if wr_buffer.len() > MAX_BUFFER_LENGTH as usize {
+        if wr_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
 
-        if rd_buffer.len() > MAX_BUFFER_LENGTH as usize {
+        if rd_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::RxBufferTooLong);
         }
 
