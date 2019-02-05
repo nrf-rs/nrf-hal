@@ -5,6 +5,8 @@
 //! - nrf52832: Section 33
 //! - nrf52840: Section 6.31
 use core::ops::Deref;
+use core::cmp::min;
+
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
 use crate::target::{
@@ -113,67 +115,67 @@ impl<T> Twim<T> where T: TwimExt {
     )
         -> Result<(), Error>
     {
+        let mut offset = 0;
+        while offset < buffer.len() {
+            let datalen = min(EASY_DMA_SIZE, buffer.len() - offset);
+            let dataptr = offset + (buffer.as_ptr() as usize);
+            offset += datalen;
+            // Conservative compiler fence to prevent optimizations that do not
+            // take in to account actions by DMA. The fence has been placed here,
+            // before any DMA action has started
+            compiler_fence(SeqCst);
 
-        if buffer.len() > EASY_DMA_SIZE {
-            return Err(Error::BufferTooLong);
+            self.0.address.write(|w| unsafe { w.address().bits(address) });
+
+            // Set up the DMA write
+            self.0.txd.ptr.write(|w|
+                // We're giving the register a pointer to the stack. Since we're
+                // waiting for the I2C transaction to end before this stack pointer
+                // becomes invalid, there's nothing wrong here.
+                //
+                // The PTR field is a full 32 bits wide and accepts the full range
+                // of values.
+                unsafe { w.ptr().bits(dataptr as u32) }
+            );
+            self.0.txd.maxcnt.write(|w|
+                // We're giving it the length of the buffer, so no danger of
+                // accessing invalid memory. We have verified that the length of the
+                // buffer fits in an `u8`, so the cast to `u8` is also fine.
+                //
+                // The MAXCNT field is 8 bits wide and accepts the full range of
+                // values.
+                unsafe { w.maxcnt().bits(datalen as _) }
+            );
+
+            // Start write operation
+            self.0.tasks_starttx.write(|w|
+                // `1` is a valid value to write to task registers.
+                unsafe { w.bits(1) }
+            );
+
+            // Wait until write operation is about to end
+            while self.0.events_lasttx.read().bits() == 0 {}
+            self.0.events_lasttx.write(|w| w); // reset event
+
+            // Stop read operation
+            self.0.tasks_stop.write(|w|
+                // `1` is a valid value to write to task registers.
+                unsafe { w.bits(1) }
+            );
+
+            // Wait until write operation has ended
+            while self.0.events_stopped.read().bits() == 0 {}
+            self.0.events_stopped.write(|w| w); // reset event
+
+            // Conservative compiler fence to prevent optimizations that do not
+            // take in to account actions by DMA. The fence has been placed here,
+            // after all possible DMA actions have completed
+            compiler_fence(SeqCst);
+
+            if self.0.txd.amount.read().bits() != datalen as u32 {
+                return Err(Error::Transmit);
+            }
         }
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started
-        compiler_fence(SeqCst);
-
-        self.0.address.write(|w| unsafe { w.address().bits(address) });
-
-        // Set up the DMA write
-        self.0.txd.ptr.write(|w|
-            // We're giving the register a pointer to the stack. Since we're
-            // waiting for the I2C transaction to end before this stack pointer
-            // becomes invalid, there's nothing wrong here.
-            //
-            // The PTR field is a full 32 bits wide and accepts the full range
-            // of values.
-            unsafe { w.ptr().bits(buffer.as_ptr() as u32) }
-        );
-        self.0.txd.maxcnt.write(|w|
-            // We're giving it the length of the buffer, so no danger of
-            // accessing invalid memory. We have verified that the length of the
-            // buffer fits in an `u8`, so the cast to `u8` is also fine.
-            //
-            // The MAXCNT field is 8 bits wide and accepts the full range of
-            // values.
-            unsafe { w.maxcnt().bits(buffer.len() as _) }
-        );
-
-        // Start write operation
-        self.0.tasks_starttx.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) }
-        );
-
-        // Wait until write operation is about to end
-        while self.0.events_lasttx.read().bits() == 0 {}
-        self.0.events_lasttx.write(|w| w); // reset event
-
-        // Stop read operation
-        self.0.tasks_stop.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) }
-        );
-
-        // Wait until write operation has ended
-        while self.0.events_stopped.read().bits() == 0 {}
-        self.0.events_stopped.write(|w| w); // reset event
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed
-        compiler_fence(SeqCst);
-
-        if self.0.txd.amount.read().bits() != buffer.len() as u32 {
-            return Err(Error::Transmit);
-        }
-
         Ok(())
     }
 
@@ -184,69 +186,71 @@ impl<T> Twim<T> where T: TwimExt {
     )
         -> Result<(), Error>
     {
-        if buffer.len() > EASY_DMA_SIZE {
-            return Err(Error::BufferTooLong);
+        let mut offset = 0;
+        while offset < buffer.len() {
+            let datalen = min(EASY_DMA_SIZE, buffer.len() - offset);
+            let dataptr = offset + (buffer.as_ptr() as usize);
+            offset += datalen;
+
+            // Conservative compiler fence to prevent optimizations that do not
+            // take in to account actions by DMA. The fence has been placed here,
+            // before any DMA action has started
+            compiler_fence(SeqCst);
+
+            self.0.address.write(|w| unsafe { w.address().bits(address) });
+
+            // Set up the DMA read
+            self.0.rxd.ptr.write(|w|
+                // We're giving the register a pointer to the stack. Since we're
+                // waiting for the I2C transaction to end before this stack pointer
+                // becomes invalid, there's nothing wrong here.
+                //
+                // The PTR field is a full 32 bits wide and accepts the full range
+                // of values.
+                unsafe { w.ptr().bits(dataptr as u32) }
+            );
+            self.0.rxd.maxcnt.write(|w|
+                // We're giving it the length of the buffer, so no danger of
+                // accessing invalid memory. We have verified that the length of the
+                // buffer fits in an `u8`, so the cast to the type of maxcnt
+                // is also fine.
+                //
+                // Note that that nrf52840 maxcnt is a wider
+                // type than a u8, so we use a `_` cast rather than a `u8` cast.
+                // The MAXCNT field is thus at least 8 bits wide and accepts the
+                // full range of values that fit in a `u8`.
+                unsafe { w.maxcnt().bits(datalen as _) }
+            );
+
+            // Start read operation
+            self.0.tasks_startrx.write(|w|
+                // `1` is a valid value to write to task registers.
+                unsafe { w.bits(1) }
+            );
+
+            // Wait until read operation is about to end
+            while self.0.events_lastrx.read().bits() == 0 {}
+            self.0.events_lastrx.write(|w| w); // reset event
+
+            // Stop read operation
+            self.0.tasks_stop.write(|w|
+                // `1` is a valid value to write to task registers.
+                unsafe { w.bits(1) }
+            );
+
+            // Wait until read operation has ended
+            while self.0.events_stopped.read().bits() == 0 {}
+            self.0.events_stopped.write(|w| w); // reset event
+
+            // Conservative compiler fence to prevent optimizations that do not
+            // take in to account actions by DMA. The fence has been placed here,
+            // after all possible DMA actions have completed
+            compiler_fence(SeqCst);
+
+            if self.0.rxd.amount.read().bits() != datalen as u32 {
+                return Err(Error::Receive);
+            }
         }
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started
-        compiler_fence(SeqCst);
-
-        self.0.address.write(|w| unsafe { w.address().bits(address) });
-
-        // Set up the DMA read
-        self.0.rxd.ptr.write(|w|
-            // We're giving the register a pointer to the stack. Since we're
-            // waiting for the I2C transaction to end before this stack pointer
-            // becomes invalid, there's nothing wrong here.
-            //
-            // The PTR field is a full 32 bits wide and accepts the full range
-            // of values.
-            unsafe { w.ptr().bits(buffer.as_mut_ptr() as u32) }
-        );
-        self.0.rxd.maxcnt.write(|w|
-            // We're giving it the length of the buffer, so no danger of
-            // accessing invalid memory. We have verified that the length of the
-            // buffer fits in an `u8`, so the cast to the type of maxcnt
-            // is also fine.
-            //
-            // Note that that nrf52840 maxcnt is a wider
-            // type than a u8, so we use a `_` cast rather than a `u8` cast.
-            // The MAXCNT field is thus at least 8 bits wide and accepts the
-            // full range of values that fit in a `u8`.
-            unsafe { w.maxcnt().bits(buffer.len() as _) }
-        );
-
-        // Start read operation
-        self.0.tasks_startrx.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) }
-        );
-
-        // Wait until read operation is about to end
-        while self.0.events_lastrx.read().bits() == 0 {}
-        self.0.events_lastrx.write(|w| w); // reset event
-
-        // Stop read operation
-        self.0.tasks_stop.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) }
-        );
-
-        // Wait until read operation has ended
-        while self.0.events_stopped.read().bits() == 0 {}
-        self.0.events_stopped.write(|w| w); // reset event
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed
-        compiler_fence(SeqCst);
-
-        if self.0.rxd.amount.read().bits() != buffer.len() as u32 {
-            return Err(Error::Receive);
-        }
-
         Ok(())
     }
 
