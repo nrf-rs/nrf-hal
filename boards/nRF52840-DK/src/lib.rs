@@ -478,7 +478,7 @@ impl Board {
 pub struct Pins {
     pub P0_03: p0::P0_03<Input<Floating>>,
     pub P0_04: p0::P0_04<Input<Floating>>,
-    _RESET: p0::P0_18<Input<Floating>>,
+       _RESET: p0::P0_18<Input<Floating>>,
     pub P0_22: p0::P0_22<Input<Floating>>,
     pub P0_23: p0::P0_23<Input<Floating>>,
     pub P0_26: p0::P0_26<Input<Floating>>,
