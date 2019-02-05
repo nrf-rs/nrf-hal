@@ -20,9 +20,7 @@ pub mod prelude {
 use nrf52840_hal::{
     prelude::*,
     gpio::{
-        p0::{
-            self,
-        },
+        p0,
         p1,
         Pin,
         Floating,
@@ -51,7 +49,6 @@ use nrf52840_hal::{
 
 /// Provides access to all features of the nRF52840-DK board
 #[allow(non_snake_case)]
-#[allow(non_camel_case_types)]
 pub struct Board {
     /// The nRF52's pins which are not otherwise occupied on the nRF52840-DK
     pub pins: Pins,
@@ -328,8 +325,6 @@ impl Board {
         });
 
         let flash_cs = pins0.p0_17.into_push_pull_output(Level::High).degrade();
-        // let flash_wp = pins.p0_22.into_push_pull_output(Level::High).degrade();
-        // let flash_hold = pins.p0_23.into_push_pull_output(Level::High).degrade();
 
         // The nRF52840-DK features an USB CDC port.
         // It features HWFC but does not have to use it.
@@ -341,7 +336,7 @@ impl Board {
                 rts: Some(pins0.p0_05.into_push_pull_output(Level::High).degrade()),
             },
             UartParity::EXCLUDED,
-            UartBaudrate::BAUD115200 //BAUD9600 // BAUD1M
+            UartBaudrate::BAUD115200
         );
 
         Board {
