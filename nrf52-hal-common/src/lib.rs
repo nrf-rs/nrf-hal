@@ -36,11 +36,19 @@ pub mod prelude {
 pub mod target_constants {
     // NRF52832 8 bits1..0xFF
     pub const EASY_DMA_SIZE: usize = 255;
+    // Easy DMA can only read from data ram
+    pub const SRAM_LOWER:usize = 0x2000_0000;
+    pub const SRAM_UPPER:usize = 0x3000_0000;
+    pub const FORCE_COPY_BUFFER_SIZE:usize = 255;
 }
 #[cfg(feature = "52840")]
 pub mod target_constants {
     // NRF52840 16 bits 1..0xFFFF
     pub const EASY_DMA_SIZE: usize = 65535;
+    // Limits for Easy DMA - it can only read from data ram
+    pub const SRAM_LOWER:usize = 0x2000_0000;
+    pub const SRAM_UPPER:usize = 0x3000_0000;
+    pub const FORCE_COPY_BUFFER_SIZE:usize = 1024;
 }
 
 pub use crate::clocks::Clocks;
