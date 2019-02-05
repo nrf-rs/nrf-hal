@@ -15,7 +15,7 @@ use crate::target::{
 use crate::target_constants::EASY_DMA_SIZE;
 use crate::prelude::*;
 use crate::gpio::{
-    p0::P0_Pin,
+    Pin,
     Output,
     PushPull,
     Input,
@@ -54,11 +54,15 @@ impl<T> Uarte<T> where T: UarteExt {
         // Select pins
         uarte.psel.rxd.write(|w| {
             let w = unsafe { w.pin().bits(pins.rxd.pin) };
+            #[cfg(feature = "52840")]
+            let w = w.port().bit(pins.rxd.port);
             w.connect().connected()
         });
         pins.txd.set_high();
         uarte.psel.txd.write(|w| {
             let w = unsafe { w.pin().bits(pins.txd.pin) };
+            #[cfg(feature = "52840")]
+            let w = w.port().bit(pins.txd.port);
             w.connect().connected()
         });
 
@@ -66,6 +70,8 @@ impl<T> Uarte<T> where T: UarteExt {
         uarte.psel.cts.write(|w| {
             if let Some(ref pin) = pins.cts {
                 let w = unsafe { w.pin().bits(pin.pin) };
+                #[cfg(feature = "52840")]
+                let w = w.port().bit(pin.port);
                 w.connect().connected()
             } else {
                 w.connect().disconnected()
@@ -75,6 +81,8 @@ impl<T> Uarte<T> where T: UarteExt {
         uarte.psel.rts.write(|w| {
             if let Some(ref pin) = pins.rts {
                 let w = unsafe { w.pin().bits(pin.pin) };
+                #[cfg(feature = "52840")]
+                let w = w.port().bit(pin.port);
                 w.connect().connected()
             } else {
                 w.connect().disconnected()
@@ -105,7 +113,8 @@ impl<T> Uarte<T> where T: UarteExt {
     ///
     /// This method uses transmits all bytes in `tx_buffer`
     ///
-    /// The buffer must have a length of at most 255 bytes
+    /// The buffer must have a length of at most 255 bytes on the nRF52832
+    /// and at most 65535 bytes on the nRF52840.
     pub fn write(&mut self,
         tx_buffer  : &[u8],
     )
@@ -302,10 +311,10 @@ impl<T> Uarte<T> where T: UarteExt {
 
 
 pub struct Pins {
-    pub rxd: P0_Pin<Input<Floating>>,
-    pub txd: P0_Pin<Output<PushPull>>,
-    pub cts: Option<P0_Pin<Input<Floating>>>,
-    pub rts: Option<P0_Pin<Output<PushPull>>>,
+    pub rxd: Pin<Input<Floating>>,
+    pub txd: Pin<Output<PushPull>>,
+    pub cts: Option<Pin<Input<Floating>>>,
+    pub rts: Option<Pin<Output<PushPull>>>,
 }
 
 

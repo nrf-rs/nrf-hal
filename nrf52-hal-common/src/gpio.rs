@@ -51,21 +51,293 @@ pub enum Level {
 }
 
 
+// ===============================================================
+// Implement Generic Pins for this port, which allows you to use
+// other peripherals without having to be completely rust-generic
+// across all of the possible pins
+// ===============================================================
+/// Generic $PX pin
+pub struct Pin<MODE> {
+    pub pin: u8,
+    #[cfg(feature = "52840")]
+    pub port: bool,
+    _mode: PhantomData<MODE>,
+}
+
+#[cfg(feature = "52832")]
+use crate::target::P0;
+#[cfg(feature = "52840")]
+use crate::target::{ P0, P1 };
+
+use crate::hal::digital::{OutputPin, StatefulOutputPin, InputPin};
+
+impl<MODE> Pin<MODE> {
+    /// Convert the pin to be a floating input
+    pub fn into_floating_input(self) -> Pin<Input<Floating>> {
+        unsafe {
+            &(*{
+                #[cfg(feature = "52832")]
+                { P0::ptr() }
+                #[cfg(feature = "52840")]
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
+            }).pin_cnf[self.pin as usize]
+        }
+        .write(|w| {
+            w.dir().input()
+                .input().connect()
+                .pull().disabled()
+                .drive().s0s1()
+                .sense().disabled()
+        });
+
+        Pin {
+            _mode: PhantomData,
+            #[cfg(feature = "52840")]
+            port: self.port,
+            pin: self.pin
+        }
+    }
+    pub fn into_pullup_input(self) -> Pin<Input<PullUp>> {
+        unsafe {
+            &(*{
+                #[cfg(feature = "52832")]
+                { P0::ptr() }
+                #[cfg(feature = "52840")]
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
+            }).pin_cnf[self.pin as usize]
+        }
+        .write(|w| {
+            w.dir().input()
+                .input().connect()
+                .pull().pullup()
+                .drive().s0s1()
+                .sense().disabled()
+        });
+
+        Pin {
+            _mode: PhantomData,
+            #[cfg(feature = "52840")]
+            port: self.port,
+            pin: self.pin
+        }
+    }
+    pub fn into_pulldown_input(self) -> Pin<Input<PullDown>> {
+        unsafe {
+            &(*{
+                #[cfg(feature = "52832")]
+                { P0::ptr() }
+                #[cfg(feature = "52840")]
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
+            }).pin_cnf[self.pin as usize]
+        }
+        .write(|w| {
+            w.dir().input()
+                .input().connect()
+                .pull().pulldown()
+                .drive().s0s1()
+                .sense().disabled()
+        });
+
+        Pin {
+            _mode: PhantomData,
+            #[cfg(feature = "52840")]
+            port: self.port,
+            pin: self.pin
+        }
+    }
+
+    /// Convert the pin to be a push-pull output with normal drive
+    pub fn into_push_pull_output(self, initial_output: Level)
+        -> Pin<Output<PushPull>>
+    {
+        let mut pin = Pin {
+            _mode: PhantomData,
+            #[cfg(feature = "52840")]
+            port: self.port,
+            pin: self.pin
+        };
+
+        match initial_output {
+            Level::Low  => pin.set_low(),
+            Level::High => pin.set_high(),
+        }
+
+        unsafe {
+            &(*{
+                #[cfg(feature = "52832")]
+                { P0::ptr() }
+                #[cfg(feature = "52840")]
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
+            }).pin_cnf[self.pin as usize]
+        }
+        .write(|w| {
+            w.dir().output()
+                .input().connect() // AJM - hack for SPI
+                .pull().disabled()
+                .drive().s0s1()
+                .sense().disabled()
+        });
+
+        pin
+    }
+
+    /// Convert the pin to be an open-drain output
+    ///
+    /// This method currently does not support configuring an
+    /// internal pull-up or pull-down resistor.
+    pub fn into_open_drain_output(self,
+        config:         OpenDrainConfig,
+        initial_output: Level,
+    )
+        -> Pin<Output<OpenDrain>>
+    {
+        let mut pin = Pin {
+            _mode: PhantomData,
+            #[cfg(feature = "52840")]
+            port: self.port,
+            pin: self.pin
+        };
+
+        match initial_output {
+            Level::Low  => pin.set_low(),
+            Level::High => pin.set_high(),
+        }
+
+        // This is safe, as we restrict our access to the dedicated
+        // register for this pin.
+        let pin_cnf = unsafe {
+            &(*{
+                #[cfg(feature = "52832")]
+                { P0::ptr() }
+                #[cfg(feature = "52840")]
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
+            }).pin_cnf[self.pin as usize]
+        };
+        pin_cnf.write(|w| {
+            w
+                .dir().output()
+                .input().disconnect()
+                .pull().disabled()
+                .drive().variant(config.variant())
+                .sense().disabled()
+        });
+
+        pin
+    }
+}
+
+impl<MODE> InputPin for Pin<Input<MODE>> {
+    fn is_high(&self) -> bool {
+        !self.is_low()
+    }
+
+    fn is_low(&self) -> bool {
+        unsafe { (
+            (*{
+                #[cfg(feature = "52832")]
+                { P0::ptr() }
+                #[cfg(feature = "52840")]
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
+            }).in_.read().bits() & (1 << self.pin)
+        ) == 0 }
+    }
+}
+
+impl<MODE> OutputPin for Pin<Output<MODE>> {
+    /// Set the output as high
+    fn set_high(&mut self) {
+        // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+        // TODO - I wish I could do something like `.pins$i()`...
+        unsafe {
+            (*{
+                #[cfg(feature = "52832")]
+                { P0::ptr() }
+                #[cfg(feature = "52840")]
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
+            }).outset.write(|w| w.bits(1u32 << self.pin));
+        }
+    }
+
+    /// Set the output as low
+    fn set_low(&mut self) {
+        // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+        // TODO - I wish I could do something like `.pins$i()`...
+        unsafe {
+            (*{
+                #[cfg(feature = "52832")]
+                { P0::ptr() }
+                #[cfg(feature = "52840")]
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
+            }).outclr.write(|w| w.bits(1u32 << self.pin));
+        }
+    }
+}
+
+impl<MODE> StatefulOutputPin for Pin<Output<MODE>> {
+    /// Is the output pin set as high?
+    fn is_set_high(&self) -> bool {
+        !self.is_set_low()
+    }
+
+    /// Is the output pin set as low?
+    fn is_set_low(&self) -> bool {
+        // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
+        // TODO - I wish I could do something like `.pins$i()`...
+        unsafe { (
+            (*{
+                #[cfg(feature = "52832")]
+                { P0::ptr() }
+                #[cfg(feature = "52840")]
+                { if !self.port { P0::ptr() } else { P1::ptr() } }
+            }).out.read().bits() & (1 << self.pin)
+        ) == 0 }
+    }
+}
+
+/// Pin configuration for open-drain mode
+pub enum OpenDrainConfig {
+    Disconnect0Standard1,
+    Disconnect0HighDrive1,
+    Standard0Disconnect1,
+    HighDrive0Disconnect1,
+}
+
+use crate::target::p0::{
+    pin_cnf,
+    PIN_CNF,
+};
+
+impl OpenDrainConfig {
+    fn variant(self) -> pin_cnf::DRIVEW {
+        use self::OpenDrainConfig::*;
+
+        match self {
+            Disconnect0Standard1  => pin_cnf::DRIVEW::D0S1,
+            Disconnect0HighDrive1 => pin_cnf::DRIVEW::D0H1,
+            Standard0Disconnect1  => pin_cnf::DRIVEW::S0D1,
+            HighDrive0Disconnect1 => pin_cnf::DRIVEW::H0D1,
+        }
+    }
+}
+
 macro_rules! gpio {
     (
-        $PX:ident, $pxsvd:ident, $px:ident, $Pg:ident [
+        $PX:ident, $pxsvd:ident, $px:ident, $port_value:expr, [
             $($PXi:ident: ($pxi:ident, $i:expr, $MODE:ty),)+
         ]
     ) => {
         /// GPIO
         pub mod $px {
             use super::{
+                Pin,
+
                 // Alternate,
                 Floating,
                 GpioExt,
                 Input,
                 Level,
                 OpenDrain,
+                OpenDrainConfig,
                 Output,
                 PullDown,
                 PullUp,
@@ -76,170 +348,9 @@ macro_rules! gpio {
 
             use crate::target;
             use crate::target::$PX;
-            use crate::target::$pxsvd::{
-                pin_cnf,
-                PIN_CNF,
-            };
             use crate::hal::digital::{OutputPin, StatefulOutputPin, InputPin};
 
-            // ===============================================================
-            // Implement Generic Pins for this port, which allows you to use
-            // other peripherals without having to be completely rust-generic
-            // across all of the possible pins
-            // ===============================================================
-            /// Generic $PX pin
-            pub struct $Pg<MODE> {
-                pub pin: u8,
-                _mode: PhantomData<MODE>,
-            }
-
-            impl<MODE> $Pg<MODE> {
-                /// Convert the pin to be a floating input
-                pub fn into_floating_input(self) -> $Pg<Input<Floating>> {
-                    unsafe { &(*$PX::ptr()).pin_cnf[self.pin as usize] }.write(|w| {
-                        w.dir().input()
-                         .input().connect()
-                         .pull().disabled()
-                         .drive().s0s1()
-                         .sense().disabled()
-                    });
-
-                    $Pg {
-                        _mode: PhantomData,
-                        pin: self.pin
-                    }
-                }
-                pub fn into_pullup_input(self) -> $Pg<Input<PullUp>> {
-                    unsafe { &(*$PX::ptr()).pin_cnf[self.pin as usize] }.write(|w| {
-                        w.dir().input()
-                         .input().connect()
-                         .pull().pullup()
-                         .drive().s0s1()
-                         .sense().disabled()
-                    });
-
-                    $Pg {
-                        _mode: PhantomData,
-                        pin: self.pin
-                    }
-                }
-                pub fn into_pulldown_input(self) -> $Pg<Input<PullDown>> {
-                    unsafe { &(*$PX::ptr()).pin_cnf[self.pin as usize] }.write(|w| {
-                        w.dir().input()
-                         .input().connect()
-                         .pull().pulldown()
-                         .drive().s0s1()
-                         .sense().disabled()
-                    });
-
-                    $Pg {
-                        _mode: PhantomData,
-                        pin: self.pin
-                    }
-                }
-
-                /// Convert the pin to be a push-pull output with normal drive
-                pub fn into_push_pull_output(self, initial_output: Level)
-                    -> $Pg<Output<PushPull>>
-                {
-                    let mut pin = $Pg {
-                        _mode: PhantomData,
-                        pin: self.pin
-                    };
-
-                    match initial_output {
-                        Level::Low  => pin.set_low(),
-                        Level::High => pin.set_high(),
-                    }
-
-                    unsafe { &(*$PX::ptr()).pin_cnf[self.pin as usize] }.write(|w| {
-                        w.dir().output()
-                         .input().connect() // AJM - hack for SPI
-                         .pull().disabled()
-                         .drive().s0s1()
-                         .sense().disabled()
-                    });
-
-                    pin
-                }
-
-                /// Convert the pin to be an open-drain output
-                ///
-                /// This method currently does not support configuring an
-                /// internal pull-up or pull-down resistor.
-                pub fn into_open_drain_output(self,
-                    config:         OpenDrainConfig,
-                    initial_output: Level,
-                )
-                    -> $Pg<Output<OpenDrain>>
-                {
-                    let mut pin = $Pg {
-                        _mode: PhantomData,
-                        pin: self.pin
-                    };
-
-                    match initial_output {
-                        Level::Low  => pin.set_low(),
-                        Level::High => pin.set_high(),
-                    }
-
-                    // This is safe, as we restrict our access to the dedicated
-                    // register for this pin.
-                    let pin_cnf = unsafe {
-                        &(*$PX::ptr()).pin_cnf[self.pin as usize]
-                    };
-                    pin_cnf.write(|w| {
-                        w
-                            .dir().output()
-                            .input().disconnect()
-                            .pull().disabled()
-                            .drive().variant(config.variant())
-                            .sense().disabled()
-                    });
-
-                    pin
-                }
-            }
-
-            impl<MODE> InputPin for $Pg<Input<MODE>> {
-                fn is_high(&self) -> bool {
-                    !self.is_low()
-                }
-
-                fn is_low(&self) -> bool {
-                    unsafe { ((*$PX::ptr()).in_.read().bits() & (1 << self.pin)) == 0 }
-                }
-            }
-
-            impl<MODE> OutputPin for $Pg<Output<MODE>> {
-                /// Set the output as high
-                fn set_high(&mut self) {
-                    // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
-                    // TODO - I wish I could do something like `.pins$i()`...
-                    unsafe { (*$PX::ptr()).outset.write(|w| w.bits(1u32 << self.pin)); }
-                }
-
-                /// Set the output as low
-                fn set_low(&mut self) {
-                    // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
-                    // TODO - I wish I could do something like `.pins$i()`...
-                    unsafe { (*$PX::ptr()).outclr.write(|w| w.bits(1u32 << self.pin)); }
-                }
-            }
-
-            impl<MODE> StatefulOutputPin for $Pg<Output<MODE>> {
-                /// Is the output pin set as high?
-                fn is_set_high(&self) -> bool {
-                    !self.is_set_low()
-                }
-
-                /// Is the output pin set as low?
-                fn is_set_low(&self) -> bool {
-                    // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
-                    // TODO - I wish I could do something like `.pins$i()`...
-                    unsafe { ((*$PX::ptr()).out.read().bits() & (1 << self.pin)) == 0 }
-                }
-            }
+            
 
             // ===============================================================
             // This chunk allows you to obtain an nrf52-hal gpio from the
@@ -380,9 +491,11 @@ macro_rules! gpio {
                     }
 
                     /// Degrade to a generic pin struct, which can be used with peripherals
-                    pub fn degrade(self) -> $Pg<MODE> {
-                        $Pg {
+                    pub fn degrade(self) -> Pin<MODE> {
+                        Pin {
                             _mode: PhantomData,
+                            #[cfg(feature = "52840")]
+                            port: $port_value,
                             pin: $i
                         }
                     }
@@ -428,27 +541,6 @@ macro_rules! gpio {
                     }
                 }
             )+
-
-            /// Pin configuration for open-drain mode
-            pub enum OpenDrainConfig {
-                Disconnect0Standard1,
-                Disconnect0HighDrive1,
-                Standard0Disconnect1,
-                HighDrive0Disconnect1,
-            }
-
-            impl OpenDrainConfig {
-                fn variant(self) -> pin_cnf::DRIVEW {
-                    use self::OpenDrainConfig::*;
-
-                    match self {
-                        Disconnect0Standard1  => pin_cnf::DRIVEW::D0S1,
-                        Disconnect0HighDrive1 => pin_cnf::DRIVEW::D0H1,
-                        Standard0Disconnect1  => pin_cnf::DRIVEW::S0D1,
-                        HighDrive0Disconnect1 => pin_cnf::DRIVEW::H0D1,
-                    }
-                }
-            }
         }
     }
 }
@@ -459,7 +551,7 @@ macro_rules! gpio {
 // For now, it is a little repetitive, especially as the nrf52 only has one
 // 32-bit GPIO port (P0)
 // ===========================================================================
-gpio!(P0, p0, p0, P0_Pin [
+gpio!(P0, p0, p0, false, [
     P0_00: (p0_00,  0, Input<Floating>),
     P0_01: (p0_01,  1, Input<Floating>),
     P0_02: (p0_02,  2, Input<Floating>),
@@ -497,7 +589,7 @@ gpio!(P0, p0, p0, P0_Pin [
 // The p1 types are present in the p0 module generated from the
 // svd, but we want to export them in a p1 module from this crate.
 #[cfg(feature = "52840")]
-gpio!(P1, p0, p1, P1_Pin [
+gpio!(P1, p0, p1, true, [
     P1_00: (p1_00,  0, Input<Floating>),
     P1_01: (p1_01,  1, Input<Floating>),
     P1_02: (p1_02,  2, Input<Floating>),
