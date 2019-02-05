@@ -22,7 +22,7 @@ use crate::gpio::{
     Input,
 };
 
-use crate::target_constants::EASY_DMA_SIZE;
+use crate::target_constants::{EASY_DMA_SIZE,SRAM_LOWER,SRAM_UPPER};
 
 pub use crate::target::twim0::frequency::FREQUENCYW as Frequency;
 
@@ -108,13 +108,15 @@ impl<T> Twim<T> where T: TwimExt {
 
     /// Write to an I2C slave
     ///
-    /// The buffer must have a length of at most 255 bytes.
     pub fn write(&mut self,
         address: u8,
         buffer:  &[u8],
     )
         -> Result<(), Error>
     {
+        if SRAM_LOWER <= ( buffer.as_ptr() as usize ) && (buffer.as_ptr() as usize) < SRAM_UPPER {
+            return Err(Error::DMABufferNotInDataMemory)
+        }
         let mut offset = 0;
         while offset < buffer.len() {
             let datalen = min(EASY_DMA_SIZE, buffer.len() - offset);
@@ -272,6 +274,9 @@ impl<T> Twim<T> where T: TwimExt {
         if rd_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::BufferTooLong);
         }
+        if SRAM_LOWER <= ( wr_buffer.as_ptr() as usize ) && (wr_buffer.as_ptr() as usize) < SRAM_UPPER {
+            return Err(Error::DMABufferNotInDataMemory)
+        }
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
@@ -386,4 +391,6 @@ pub enum Error {
     BufferTooLong,
     Transmit,
     Receive,
+    /// EasyDMA can only read from data memory, read only buffers in flash will fail
+    DMABufferNotInDataMemory,
 }

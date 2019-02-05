@@ -13,7 +13,7 @@ use crate::target::{
     UARTE0,
 };
 
-use crate::target_constants::EASY_DMA_SIZE;
+use crate::target_constants::{EASY_DMA_SIZE,SRAM_LOWER,SRAM_UPPER};
 use crate::prelude::*;
 use crate::gpio::{
     p0::P0_Pin,
@@ -111,6 +111,9 @@ impl<T> Uarte<T> where T: UarteExt {
     )
         -> Result<(), Error>
     {
+        if SRAM_LOWER <= ( tx_buffer.as_ptr() as usize ) && (tx_buffer.as_ptr() as usize) < SRAM_UPPER {
+            return Err(Error::DMABufferNotInDataMemory)
+        }
         let mut offset = 0;
         while offset < tx_buffer.len() {
             let datalen = min(EASY_DMA_SIZE, tx_buffer.len() - offset);
@@ -315,5 +318,6 @@ pub enum Error {
     Transmit,
     Receive,
     TxBufferTooLong,
+    DMABufferNotInDataMemory,
     Timeout(usize),
 }
