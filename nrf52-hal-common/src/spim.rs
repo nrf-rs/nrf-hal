@@ -15,13 +15,12 @@ use crate::target::{
 use crate::target_constants::{EASY_DMA_SIZE,SRAM_LOWER,SRAM_UPPER,FORCE_COPY_BUFFER_SIZE};
 use crate::prelude::*;
 use crate::gpio::{
-    p0::P0_Pin,
+    Pin,
     Floating,
     Input,
     Output,
     PushPull,
 };
-
 
 pub trait SpimExt : Deref<Target=spim0::RegisterBlock> + Sized {
     fn constrain(self, pins: Pins) -> Spim<Self>;
@@ -116,6 +115,8 @@ impl<T> Spim<T> where T: SpimExt {
         // Select pins
         spim.psel.sck.write(|w| {
             let w = unsafe { w.pin().bits(pins.sck.pin) };
+            #[cfg(feature = "52840")]
+            let w = w.port().bit(pins.sck.port);
             w.connect().connected()
         });
 
@@ -123,6 +124,8 @@ impl<T> Spim<T> where T: SpimExt {
             Some(mosi) => {
                 spim.psel.mosi.write(|w| {
                     let w = unsafe { w.pin().bits(mosi.pin) };
+                    #[cfg(feature = "52840")]
+                    let w = w.port().bit(mosi.port);
                     w.connect().connected()
                 })
             }
@@ -136,6 +139,8 @@ impl<T> Spim<T> where T: SpimExt {
             Some(miso) => {
                 spim.psel.miso.write(|w| {
                     let w = unsafe { w.pin().bits(miso.pin) };
+                    #[cfg(feature = "52840")]
+                    let w = w.port().bit(miso.port);
                     w.connect().connected()
                 })
             }
@@ -267,7 +272,7 @@ impl<T> Spim<T> where T: SpimExt {
     /// all bytes in `tx_buffer`, then receives bytes until `rx_buffer` is full.
     /// Both buffer must have a length of at most 255 bytes.
     pub fn read(&mut self,
-        chip_select: &mut P0_Pin<Output<PushPull>>,
+        chip_select: &mut Pin<Output<PushPull>>,
         tx_buffer  : &[u8],
         rx_buffer  : &mut [u8],
     )
@@ -328,7 +333,7 @@ impl<T> Spim<T> where T: SpimExt {
     ///
 
     pub fn write(&mut self,
-        chip_select: &mut P0_Pin<Output<PushPull>>,
+        chip_select: &mut Pin<Output<PushPull>>,
         tx_buffer  : &[u8],
     )
         -> Result<(), Error>
@@ -369,15 +374,15 @@ impl<T> Spim<T> where T: SpimExt {
 /// GPIO pins for SPIM interface
 pub struct Pins {
     /// SPI clock
-    pub sck: P0_Pin<Output<PushPull>>,
+    pub sck: Pin<Output<PushPull>>,
 
     /// MOSI Master out, slave in
     /// None if unused
-    pub mosi: Option<P0_Pin<Output<PushPull>>>,
+    pub mosi: Option<Pin<Output<PushPull>>>,
 
     /// MISO Master in, slave out
     /// None if unused
-    pub miso: Option<P0_Pin<Input<Floating>>>,
+    pub miso: Option<Pin<Input<Floating>>>,
 }
 
 

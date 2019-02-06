@@ -17,7 +17,7 @@ use crate::target::{
 };
 
 use crate::gpio::{
-    p0::P0_Pin,
+    Pin,
     Floating,
     Input,
 };
@@ -25,7 +25,6 @@ use crate::gpio::{
 use crate::target_constants::{EASY_DMA_SIZE,SRAM_LOWER,SRAM_UPPER};
 
 pub use crate::target::twim0::frequency::FREQUENCYW as Frequency;
-
 
 pub trait TwimExt: Deref<Target=twim0::RegisterBlock> + Sized {
     fn constrain(self, pins: Pins, frequency: Frequency)
@@ -87,10 +86,14 @@ impl<T> Twim<T> where T: TwimExt {
         // Select pins
         twim.psel.scl.write(|w| {
             let w = unsafe { w.pin().bits(pins.scl.pin) };
+            #[cfg(feature = "52840")]
+            let w = w.port().bit(pins.scl.port);
             w.connect().connected()
         });
         twim.psel.sda.write(|w| {
             let w = unsafe { w.pin().bits(pins.sda.pin) };
+            #[cfg(feature = "52840")]
+            let w = w.port().bit(pins.sda.port);
             w.connect().connected()
         });
 
@@ -268,11 +271,11 @@ impl<T> Twim<T> where T: TwimExt {
         -> Result<(), Error>
     {
         if wr_buffer.len() > EASY_DMA_SIZE {
-            return Err(Error::BufferTooLong);
+            return Err(Error::TxBufferTooLong);
         }
 
         if rd_buffer.len() > EASY_DMA_SIZE {
-            return Err(Error::BufferTooLong);
+            return Err(Error::RxBufferTooLong);
         }
         if SRAM_LOWER <= ( wr_buffer.as_ptr() as usize ) && (wr_buffer.as_ptr() as usize) < SRAM_UPPER {
             return Err(Error::DMABufferNotInDataMemory)
@@ -379,18 +382,18 @@ impl<T> Twim<T> where T: TwimExt {
 /// Currently, only P0 pins are supported.
 pub struct Pins {
     // Serial Clock Line
-    pub scl: P0_Pin<Input<Floating>>,
+    pub scl: Pin<Input<Floating>>,
 
     // Serial Data Line
-    pub sda: P0_Pin<Input<Floating>>,
+    pub sda: Pin<Input<Floating>>,
 }
 
 
 #[derive(Debug)]
 pub enum Error {
-    BufferTooLong,
+    TxBufferTooLong,
+    RxBufferTooLong,
     Transmit,
     Receive,
-    /// EasyDMA can only read from data memory, read only buffers in flash will fail
     DMABufferNotInDataMemory,
 }
