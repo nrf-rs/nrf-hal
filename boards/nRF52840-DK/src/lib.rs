@@ -110,10 +110,8 @@ pub struct Board {
     /// nRF52 peripheral: UICR
     pub UICR: nrf52::UICR,
 
-    // /// nRF52 peripheral: BPROT
-    // TODO: This peripheral register is somehow not present within the nrf52840-pac.
-    // Find out whether this is needed or not.
-    // pub BPROT: nrf52::BPROT,
+    /// nRF52 peripheral: ACL
+    pub ACL: nrf52::ACL,
 
     /// nRF52 peripheral: POWER
     pub POWER: nrf52::POWER,
@@ -410,8 +408,7 @@ impl Board {
             // nRF52 peripherals
             FICR  : p.FICR,
             UICR  : p.UICR,
-            // TODO:
-            // BPROT : p.BPROT,
+            ACL   : p.ACL,
             POWER : p.POWER,
             CLOCK : p.CLOCK,
             RADIO : p.RADIO,
