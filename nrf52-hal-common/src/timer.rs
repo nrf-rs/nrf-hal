@@ -5,6 +5,10 @@
 
 use core::ops::Deref;
 
+use embedded_hal::{
+    prelude::*,
+    timer,
+};
 use nb::{self, block};
 use crate::target::{
     timer0,
@@ -103,17 +107,30 @@ impl<T> Timer<T> where T: TimerExt {
         nvic.disable(T::INTERRUPT);
     }
 
+    pub fn delay(&mut self, cycles: u32) {
+        self.start(cycles);
+        match block!(self.wait()) {
+            Ok(_) => {},
+            Err(x) => unreachable(x),
+        }
+    }
+}
+
+impl<T> timer::CountDown for Timer<T> where T: TimerExt {
+    type Time = u32;
+
+
     /// Start the timer
     ///
     /// The timer will run for the given number of cycles, then it will stop and
     /// reset.
-    pub fn start(&mut self, cycles: u32) {
+    fn start<Time>(&mut self, cycles: Time) where Time: Into<Self::Time> {
         // Configure timer to trigger EVENTS_COMPARE when given number of cycles
         // is reached.
         self.0.cc[0].write(|w|
             // The timer mode was set to 32 bits above, so all possible values
             // of `cycles` are valid.
-            unsafe { w.cc().bits(cycles) }
+            unsafe { w.cc().bits(cycles.into()) }
         );
 
         // Clear the counter value
@@ -135,7 +152,7 @@ impl<T> Timer<T> where T: TimerExt {
     ///
     /// To block until the timer has stopped, use the `block!` macro from the
     /// `nb` crate. Please refer to the documentation of `nb` for other options.
-    pub fn wait(&mut self) -> nb::Result<(), Void> {
+    fn wait(&mut self) -> nb::Result<(), Void> {
         if self.0.events_compare[0].read().bits() == 0 {
             // EVENTS_COMPARE has not been triggered yet
             return Err(nb::Error::WouldBlock);
@@ -145,13 +162,5 @@ impl<T> Timer<T> where T: TimerExt {
         self.0.events_compare[0].write(|w| w);
 
         Ok(())
-    }
-
-    pub fn delay(&mut self, cycles: u32) {
-        self.start(cycles);
-        match block!(self.wait()) {
-            Ok(_) => {},
-            Err(x) => unreachable(x),
-        }
     }
 }
