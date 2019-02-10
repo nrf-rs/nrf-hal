@@ -17,11 +17,11 @@ use crate::target::{
     TIMER0,
     TIMER1,
     TIMER2,
-    TIMER3,
-    TIMER4,
 };
 use void::{unreachable, Void};
 
+#[cfg(any(feature = "52832", feature = "52840"))]
+use crate::target::{TIMER3, TIMER4};
 
 pub trait TimerExt : Deref<Target=timer0::RegisterBlock> + Sized {
     // The interrupt that belongs to this timer instance
@@ -48,10 +48,13 @@ impl_timer_ext!(
     TIMER0,
     TIMER1,
     TIMER2,
+);
+
+#[cfg(any(feature = "52832", feature = "52840"))]
+impl_timer_ext!(
     TIMER3,
     TIMER4,
 );
-
 
 /// Interface to a TIMER instance
 ///

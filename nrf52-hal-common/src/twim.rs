@@ -11,8 +11,10 @@ use crate::target::{
     twim0,
     P0,
     TWIM0,
-    TWIM1,
 };
+
+#[cfg(any(feature = "52832", feature = "52840"))]
+use crate::target::TWIM1;
 
 use crate::gpio::{
     Pin,
@@ -43,11 +45,10 @@ macro_rules! impl_twim_ext {
     }
 }
 
-impl_twim_ext!(
-    TWIM0,
-    TWIM1,
-);
+impl_twim_ext!(TWIM0,);
 
+#[cfg(any(feature = "52832", feature = "52840"))]
+impl_twim_ext!(TWIM1,);
 
 /// Interface to a TWIM instance
 ///
