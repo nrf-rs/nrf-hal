@@ -5,12 +5,10 @@ use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 use core::cmp::min;
 
-use crate::target::{
-    spim0,
-    SPIM0,
-    SPIM1,
-    SPIM2,
-};
+use crate::target::{spim0, SPIM0};
+
+#[cfg(any(feature = "52832", feature = "52840"))]
+use crate::target::{SPIM1, SPIM2};
 
 use crate::target_constants::{EASY_DMA_SIZE,SRAM_LOWER,SRAM_UPPER,FORCE_COPY_BUFFER_SIZE};
 use crate::prelude::*;
@@ -38,12 +36,13 @@ macro_rules! impl_spim_ext {
     }
 }
 
+impl_spim_ext!(SPIM0,);
+
+#[cfg(any(feature = "52832", feature = "52840"))]
 impl_spim_ext!(
-    SPIM0,
     SPIM1,
     SPIM2,
 );
-
 
 /// Interface to a SPIM instance
 ///

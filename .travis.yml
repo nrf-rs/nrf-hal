@@ -9,10 +9,12 @@ addons:
     packages:
       - gcc-arm-none-eabi
 script:
-  - rustup target add thumbv7em-none-eabihf
+  - rustup target add thumbv7em-none-eabi thumbv7em-none-eabihf
+  - cargo build --manifest-path nrf52810-hal/Cargo.toml --target thumbv7em-none-eabi
   - cargo build --manifest-path nrf52832-hal/Cargo.toml
   - cargo build --manifest-path nrf52840-hal/Cargo.toml
   - cargo build --manifest-path boards/adafruit_nrf52pro/Cargo.toml --examples
   - cargo build --manifest-path boards/nRF52840-DK/Cargo.toml --examples
   - cargo build --manifest-path examples/rtfm-demo/Cargo.toml
+  - cargo build --manifest-path examples/rtfm-demo/Cargo.toml --no-default-features --features="52810" --target thumbv7em-none-eabi
   - cargo build --manifest-path examples/rtfm-demo/Cargo.toml --no-default-features --features="52840"

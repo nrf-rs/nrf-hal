@@ -64,10 +64,10 @@ pub struct Pin<MODE> {
     _mode: PhantomData<MODE>,
 }
 
-#[cfg(feature = "52832")]
 use crate::target::P0;
+
 #[cfg(feature = "52840")]
-use crate::target::{ P0, P1 };
+use crate::target::{ P1 };
 
 use crate::hal::digital::{OutputPin, StatefulOutputPin, InputPin};
 
@@ -76,7 +76,7 @@ impl<MODE> Pin<MODE> {
     pub fn into_floating_input(self) -> Pin<Input<Floating>> {
         unsafe {
             &(*{
-                #[cfg(feature = "52832")]
+                #[cfg(any(feature = "52810", feature = "52832"))]
                 { P0::ptr() }
                 #[cfg(feature = "52840")]
                 { if !self.port { P0::ptr() } else { P1::ptr() } }
@@ -100,7 +100,7 @@ impl<MODE> Pin<MODE> {
     pub fn into_pullup_input(self) -> Pin<Input<PullUp>> {
         unsafe {
             &(*{
-                #[cfg(feature = "52832")]
+                #[cfg(any(feature = "52810", feature = "52832"))]
                 { P0::ptr() }
                 #[cfg(feature = "52840")]
                 { if !self.port { P0::ptr() } else { P1::ptr() } }
@@ -124,7 +124,7 @@ impl<MODE> Pin<MODE> {
     pub fn into_pulldown_input(self) -> Pin<Input<PullDown>> {
         unsafe {
             &(*{
-                #[cfg(feature = "52832")]
+                #[cfg(any(feature = "52810", feature = "52832"))]
                 { P0::ptr() }
                 #[cfg(feature = "52840")]
                 { if !self.port { P0::ptr() } else { P1::ptr() } }
@@ -164,7 +164,7 @@ impl<MODE> Pin<MODE> {
 
         unsafe {
             &(*{
-                #[cfg(feature = "52832")]
+                #[cfg(any(feature = "52810", feature = "52832"))]
                 { P0::ptr() }
                 #[cfg(feature = "52840")]
                 { if !self.port { P0::ptr() } else { P1::ptr() } }
@@ -207,7 +207,7 @@ impl<MODE> Pin<MODE> {
         // register for this pin.
         let pin_cnf = unsafe {
             &(*{
-                #[cfg(feature = "52832")]
+                #[cfg(any(feature = "52810", feature = "52832"))]
                 { P0::ptr() }
                 #[cfg(feature = "52840")]
                 { if !self.port { P0::ptr() } else { P1::ptr() } }
@@ -234,7 +234,7 @@ impl<MODE> InputPin for Pin<Input<MODE>> {
     fn is_low(&self) -> bool {
         unsafe { (
             (*{
-                #[cfg(feature = "52832")]
+                #[cfg(any(feature = "52810", feature = "52832"))]
                 { P0::ptr() }
                 #[cfg(feature = "52840")]
                 { if !self.port { P0::ptr() } else { P1::ptr() } }
@@ -250,7 +250,7 @@ impl<MODE> OutputPin for Pin<Output<MODE>> {
         // TODO - I wish I could do something like `.pins$i()`...
         unsafe {
             (*{
-                #[cfg(feature = "52832")]
+                #[cfg(any(feature = "52810", feature = "52832"))]
                 { P0::ptr() }
                 #[cfg(feature = "52840")]
                 { if !self.port { P0::ptr() } else { P1::ptr() } }
@@ -264,7 +264,7 @@ impl<MODE> OutputPin for Pin<Output<MODE>> {
         // TODO - I wish I could do something like `.pins$i()`...
         unsafe {
             (*{
-                #[cfg(feature = "52832")]
+                #[cfg(any(feature = "52810", feature = "52832"))]
                 { P0::ptr() }
                 #[cfg(feature = "52840")]
                 { if !self.port { P0::ptr() } else { P1::ptr() } }
@@ -285,7 +285,7 @@ impl<MODE> StatefulOutputPin for Pin<Output<MODE>> {
         // TODO - I wish I could do something like `.pins$i()`...
         unsafe { (
             (*{
-                #[cfg(feature = "52832")]
+                #[cfg(any(feature = "52810", feature = "52832"))]
                 { P0::ptr() }
                 #[cfg(feature = "52840")]
                 { if !self.port { P0::ptr() } else { P1::ptr() } }

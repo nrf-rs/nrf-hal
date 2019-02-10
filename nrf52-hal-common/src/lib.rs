@@ -2,6 +2,9 @@
 
 use embedded_hal as hal;
 
+#[cfg(feature = "52810")]
+pub use nrf52810_pac as target;
+
 #[cfg(feature = "52832")]
 pub use nrf52832_pac as target;
 
@@ -32,7 +35,7 @@ pub mod prelude {
 }
 
 /// Length of Nordic EasyDMA differs for MCUs
-#[cfg(feature = "52832")]
+#[cfg(any(feature = "52810", feature = "52832"))]
 pub mod target_constants {
     // NRF52832 8 bits1..0xFF
     pub const EASY_DMA_SIZE: usize = 255;
