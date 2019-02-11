@@ -30,7 +30,7 @@ version = "0.2.2"
 
 [dependencies.nrf52810-pac]
 optional = true
-version = "0.1.1"
+version = "0.6.0"
 
 [dependencies.nrf52832-pac]
 optional = true
