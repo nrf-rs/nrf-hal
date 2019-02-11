@@ -1,6 +1,6 @@
 [package]
 name = "nrf52810-hal"
-version = "0.1.0"
+version = "0.6.0"
 edition = "2018"
 description = "HAL for nRF52810 microcontrollers"
 repository = "https://github.com/nrf-rs/nrf52-hal"
@@ -9,6 +9,7 @@ authors = [
     "Hanno Braun <hanno@braun-robotics.com>",
     "John Scarrott <johnps@outlook.com>",
     "Wez Furlong <wez@wezfurlong.org>",
+    "Ferdia McKeogh <ferdia@mckeogh.tech",
 ]
 categories = ["embedded", "hardware-support", "no-std"]
 keywords = ["arm", "cortex-m", "nrf52", "hal", "nrf52810"]
@@ -17,7 +18,7 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 cortex-m = "0.5.8"
 nb = "0.1.1"
-nrf52810-pac = "0.1.1"
+nrf52810-pac = "0.6.0"
 
 [dependencies.void]
 default-features = false
