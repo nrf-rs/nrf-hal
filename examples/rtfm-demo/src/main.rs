@@ -7,6 +7,9 @@ use panic_semihosting;
 use cortex_m_semihosting::{debug, hprintln};
 use rtfm::app;
 
+#[cfg(feature = "52810")]
+use nrf52810_pac;
+
 #[cfg(feature = "52832")]
 use nrf52832_pac;
 
@@ -14,6 +17,7 @@ use nrf52832_pac;
 use nrf52840_pac;
 
 
+#[cfg_attr(feature="52810", app(device = nrf52810_pac))]
 #[cfg_attr(feature="52832", app(device = nrf52832_pac))]
 #[cfg_attr(feature="52840", app(device = nrf52840_pac))]
 const APP: () = {
