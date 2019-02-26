@@ -6,7 +6,9 @@
 
 ## Documentation
 
-`//TODO`
+* [`nrf52810-hal`](https://docs.rs/nrf52810-hal)
+* [`nrf52832-hal`](https://docs.rs/nrf52832-hal)
+* [`nrf52840-hal`](https://docs.rs/nrf52840-hal)
 
 ## License
 
