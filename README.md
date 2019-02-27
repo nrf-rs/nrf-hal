@@ -10,6 +10,12 @@
 * [`nrf52832-hal`](https://docs.rs/nrf52832-hal)
 * [`nrf52840-hal`](https://docs.rs/nrf52840-hal)
 
+## Resources on the nRF52 devices
+
+- [nRF52840 Reference Manual](http://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.0.pdf)
+- [nRF52832 Reference Manual](http://infocenter.nordicsemi.com/pdf/nRF52832_PS_v1.4.pdf)
+- [nRF52810 Reference Manual](http://infocenter.nordicsemi.com/pdf/nRF52810_PS_v1.2.pdf)
+
 ## License
 
 Licensed under either of
