@@ -4,6 +4,7 @@
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 use core::cmp::min;
+pub use embedded_hal::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};
 
 use crate::target::{spim0, SPIM0};
 
@@ -21,15 +22,15 @@ use crate::gpio::{
 };
 
 pub trait SpimExt : Deref<Target=spim0::RegisterBlock> + Sized {
-    fn constrain(self, pins: Pins) -> Spim<Self>;
+    fn constrain(self, pins: Pins, frequency: Frequency, mode: Mode, orc: u8) -> Spim<Self>;
 }
 
 macro_rules! impl_spim_ext {
     ($($spim:ty,)*) => {
         $(
             impl SpimExt for $spim {
-                fn constrain(self, pins: Pins) -> Spim<Self> {
-                    Spim::new(self, pins)
+                fn constrain(self, pins: Pins, frequency: Frequency, mode: Mode, orc: u8) -> Spim<Self> {
+                    Spim::new(self, pins, frequency, mode, orc)
                 }
             }
         )*
@@ -92,7 +93,7 @@ impl<T> embedded_hal::blocking::spi::Write<u8> for Spim<T> where T: SpimExt
             }
         } else {
             // Force copy from flash mode.
-            let blocksize = min(EASY_DMA_SIZE,FORCE_COPY_BUFFER_SIZE); 
+            let blocksize = min(EASY_DMA_SIZE,FORCE_COPY_BUFFER_SIZE);
             let mut buffer:[u8;FORCE_COPY_BUFFER_SIZE] = [0;FORCE_COPY_BUFFER_SIZE];
             let mut offset:usize = 0;
             while offset < words.len() {
@@ -110,7 +111,7 @@ impl<T> embedded_hal::blocking::spi::Write<u8> for Spim<T> where T: SpimExt
     }
 }
 impl<T> Spim<T> where T: SpimExt {
-    pub fn new(spim: T, pins: Pins) -> Self {
+    pub fn new(spim: T, pins: Pins, frequency: Frequency, mode: Mode, orc: u8) -> Self {
         // Select pins
         spim.psel.sck.write(|w| {
             let w = unsafe { w.pin().bits(pins.sck.pin) };
@@ -155,25 +156,58 @@ impl<T> Spim<T> where T: SpimExt {
             w.enable().enabled()
         );
 
-        // Set to SPI mode 0
-        spim.config.write(|w|
-            w
-                .order().msb_first()
-                .cpha().leading()
-                .cpol().active_high()
-        );
+        // Configure mode
+        spim.config.write(|w| {
+            // Can't match on `mode` as embedded_hal::spi::Mode only derives PartialEq, not Eq
+            if mode == MODE_0 {
+                w.order().msb_first().cpol().active_high().cpha().leading()
+            } else if mode == MODE_1 {
+                w.order().msb_first().cpol().active_high().cpha().trailing()
+            } else if mode == MODE_2 {
+                w.order().msb_first().cpol().active_low().cpha().leading()
+            } else {
+                w.order().msb_first().cpol().active_low().cpha().trailing()
+            }
+        });
 
         // Configure frequency
-        spim.frequency.write(|w|
-            w.frequency().k500() // 500 kHz
-        );
+        spim.frequency.write(|w| match frequency {
+            Frequency::K125 => {
+                w.frequency().k125() // 125 kHz
+            }
+            Frequency::K250 => {
+                w.frequency().k250() // 250 kHz
+            }
+            Frequency::K500 => {
+                w.frequency().k500() // 500 kHz
+            }
+            Frequency::M1 => {
+                w.frequency().m1() // 1 MHz
+            }
+            Frequency::M2 => {
+                w.frequency().m2() // 2 MHz
+            }
+            Frequency::M4 => {
+                w.frequency().m4() // 4 MHz
+            }
+            Frequency::M8 => {
+                w.frequency().m8() // 8 MHz
+            }
+            #[cfg(feature = "52840")]
+            Frequency::M16 => {
+                w.frequency().m16() // 16 MHz
+            }
+            #[cfg(feature = "52840")]
+            Frequency::M32 => {
+                w.frequency().m32() // 32 MHz
+            }
+        });
 
         // Set over-read character to `0`
         spim.orc.write(|w|
             // The ORC field is 8 bits long, so `0` is a valid value to write
             // there.
-            unsafe { w.orc().bits(0) }
-        );
+            unsafe { w.orc().bits(orc) });
 
         Spim(spim)
     }
@@ -384,6 +418,22 @@ pub struct Pins {
     pub miso: Option<Pin<Input<Floating>>>,
 }
 
+/// Frequencies for SPIM interface
+pub enum Frequency {
+    K125,
+    K250,
+    K500,
+    M1,
+    M2,
+    M4,
+    M8,
+    /// (only the 52840 can operate at 16M and 32M)
+    #[cfg(feature = "52840")]
+    M16,
+    /// (only the 52840 can operate at 16M and 32M)
+    #[cfg(feature = "52840")]
+    M32,
+}
 
 #[derive(Debug)]
 pub enum Error {
