@@ -4,6 +4,7 @@
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 use core::cmp::min;
+pub use crate::target::spim0::frequency::FREQUENCYW as Frequency;
 pub use embedded_hal::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};
 
 use crate::target::{spim0, SPIM0};
@@ -158,7 +159,7 @@ impl<T> Spim<T> where T: SpimExt {
 
         // Configure mode
         spim.config.write(|w| {
-            // Can't match on `mode` as embedded_hal::spi::Mode only derives PartialEq, not Eq
+            // Can't match on `mode` due to embedded-hal, see https://github.com/rust-embedded/embedded-hal/pull/126
             if mode == MODE_0 {
                 w.order().msb_first().cpol().active_high().cpha().leading()
             } else if mode == MODE_1 {
@@ -171,37 +172,9 @@ impl<T> Spim<T> where T: SpimExt {
         });
 
         // Configure frequency
-        spim.frequency.write(|w| match frequency {
-            Frequency::K125 => {
-                w.frequency().k125() // 125 kHz
-            }
-            Frequency::K250 => {
-                w.frequency().k250() // 250 kHz
-            }
-            Frequency::K500 => {
-                w.frequency().k500() // 500 kHz
-            }
-            Frequency::M1 => {
-                w.frequency().m1() // 1 MHz
-            }
-            Frequency::M2 => {
-                w.frequency().m2() // 2 MHz
-            }
-            Frequency::M4 => {
-                w.frequency().m4() // 4 MHz
-            }
-            Frequency::M8 => {
-                w.frequency().m8() // 8 MHz
-            }
-            #[cfg(feature = "52840")]
-            Frequency::M16 => {
-                w.frequency().m16() // 16 MHz
-            }
-            #[cfg(feature = "52840")]
-            Frequency::M32 => {
-                w.frequency().m32() // 32 MHz
-            }
-        });
+        spim.frequency.write(|w|
+                w.frequency().variant(frequency)
+        );
 
         // Set over-read character to `0`
         spim.orc.write(|w|
@@ -416,23 +389,6 @@ pub struct Pins {
     /// MISO Master in, slave out
     /// None if unused
     pub miso: Option<Pin<Input<Floating>>>,
-}
-
-/// Frequencies for SPIM interface
-pub enum Frequency {
-    K125,
-    K250,
-    K500,
-    M1,
-    M2,
-    M4,
-    M8,
-    /// (only the 52840 can operate at 16M and 32M)
-    #[cfg(feature = "52840")]
-    M16,
-    /// (only the 52840 can operate at 16M and 32M)
-    #[cfg(feature = "52840")]
-    M32,
 }
 
 #[derive(Debug)]
