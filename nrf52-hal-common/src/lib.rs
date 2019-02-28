@@ -20,6 +20,7 @@ pub mod time;
 pub mod timer;
 pub mod twim;
 pub mod uarte;
+pub mod temp;
 
 pub mod prelude {
     pub use crate::hal::prelude::*;
