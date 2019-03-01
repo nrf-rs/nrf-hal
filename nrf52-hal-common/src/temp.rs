@@ -20,11 +20,7 @@ impl Temp {
         self.stop_measurement();
         self.start_measurement();
 
-        while self.0.events_datardy.read().bits() == 0 {}
-
-        self.0.events_datardy.reset(); // clear event
-        let raw = self.0.temp.read().bits();
-        I30F2::from_bits(raw as i32)
+        nb::block!(self.read()).unwrap()
     }
 
     /// Kicks off a temperature measurement.
