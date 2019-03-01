@@ -2,6 +2,7 @@
 
 use fpa::I30F2;
 use nb;
+use void::Void;
 use crate::target::TEMP;
 
 /// Integrated temperature sensor.
@@ -45,7 +46,7 @@ impl Temp {
     /// Before calling this, `start_measurement` must be called.
     ///
     /// Returns the measured temperature in °C.
-    pub fn read(&mut self) -> nb::Result<I30F2, ()> {
+    pub fn read(&mut self) -> nb::Result<I30F2, Void> {
         if self.0.events_datardy.read().bits() == 0 {
             return Err(nb::Error::WouldBlock);
         } else {
