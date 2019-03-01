@@ -37,6 +37,8 @@ use nrf52840_hal::{
     },
     spim::{
         self,
+        Frequency,
+        MODE_0,
         Spim
     },
     uarte::{
@@ -320,7 +322,7 @@ impl Board {
             sck : pins0.p0_19.into_push_pull_output(Level::Low).degrade(),
             mosi: Some(pins0.p0_20.into_push_pull_output(Level::Low).degrade()),
             miso: Some(pins0.p0_21.into_floating_input().degrade()),
-        });
+        }, Frequency::K500, MODE_0, 0);
 
         let flash_cs = pins0.p0_17.into_push_pull_output(Level::High).degrade();
 
