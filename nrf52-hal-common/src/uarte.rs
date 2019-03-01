@@ -6,6 +6,7 @@
 //! - nrf52840: Section 6.34
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
+use core::fmt;
 
 use crate::target::{
     uarte0,
@@ -309,6 +310,19 @@ impl<T> Uarte<T> where T: UarteExt {
     }
 }
 
+impl<T> fmt::Write for Uarte<T> where T: UarteExt {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        // Copy all data into an on-stack buffer so we never try to EasyDMA from
+        // flash
+        let buf = &mut [0; 16][..];
+        for block in s.as_bytes().chunks(16) {
+            buf[..block.len()].copy_from_slice(block);
+            self.write(&buf[..block.len()]).map_err(|_| fmt::Error)?;
+        }
+
+        Ok(())
+    }
+}
 
 pub struct Pins {
     pub rxd: Pin<Input<Floating>>,
