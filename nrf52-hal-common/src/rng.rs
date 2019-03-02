@@ -4,6 +4,7 @@
 
 
 use core::ops::Deref;
+use rand::RngCore;
 
 use crate::target::{
     rng,
@@ -82,5 +83,23 @@ impl Rng {
             (buf[5] as u64) << 40 |
             (buf[6] as u64) << 48 |
             (buf[7] as u64) << 56
+    }
+}
+
+impl RngCore for Rng {
+    fn next_u32(&mut self) -> u32 {
+        self.random_u32()
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        self.random_u64()
+    }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        self.random(dest)
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+        Ok(self.fill_bytes(dest))
     }
 }
