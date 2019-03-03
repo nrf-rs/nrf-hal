@@ -4,7 +4,7 @@
 
 
 use core::ops::Deref;
-use rand::RngCore;
+use rand_core::{CryptoRng, RngCore};
 
 use crate::target::{
     rng,
@@ -99,7 +99,9 @@ impl RngCore for Rng {
         self.random(dest)
     }
 
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
         Ok(self.fill_bytes(dest))
     }
 }
+
+impl CryptoRng for Rng {}

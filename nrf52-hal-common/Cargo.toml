@@ -20,10 +20,7 @@ edition = "2018"
 cortex-m = "0.5.8"
 nb = "0.1.1"
 fpa = "0.1.0"
-
-[dependencies.rand]
-default-features = false
-version = "0.6.5"
+rand_core = "0.4.0"
 
 [dependencies.void]
 default-features = false
