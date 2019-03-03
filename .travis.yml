@@ -3,7 +3,9 @@ rust:
   - stable
   - beta
   - nightly
-cache: cargo
+cache:
+  cargo: true
+  timeout: 600
 addons:
   apt:
     packages:
