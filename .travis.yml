@@ -3,10 +3,6 @@ rust:
   - stable
   - beta
   - nightly
-addons:
-  apt:
-    packages:
-      - gcc-arm-none-eabi
 script:
   - rustup target add thumbv7em-none-eabi thumbv7em-none-eabihf
   - cargo build --manifest-path nrf52810-hal/Cargo.toml --target thumbv7em-none-eabi
