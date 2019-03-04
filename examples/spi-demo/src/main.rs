@@ -48,7 +48,12 @@ fn main() -> ! {
         miso: Some(spimiso),
         mosi: Some(spimosi),
     };
-    let mut spi = p.SPIM2.constrain(pins, nrf52832_hal::spim::Frequency::K500, nrf52832_hal::spim::MODE_0, 0 );
+    let mut spi = p.SPIM2.constrain(
+        pins,
+        nrf52832_hal::spim::Frequency::K500,
+        nrf52832_hal::spim::MODE_0,
+        0,
+    );
 
     let reference_data = b"Hello,echo Loopback";
     // Read only test vector
