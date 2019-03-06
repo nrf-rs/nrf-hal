@@ -120,7 +120,8 @@ impl<T> Uarte<T> where T: UarteExt {
     )
         -> Result<(), Error>
     {
-        if SRAM_LOWER <= ( tx_buffer.as_ptr() as usize ) && (tx_buffer.as_ptr() as usize) < SRAM_UPPER {
+        if SRAM_LOWER <= ( tx_buffer.as_ptr() as usize )
+                && (tx_buffer.as_ptr() as usize + tx_buffer.len() ) < SRAM_UPPER {
             return Err(Error::DMABufferNotInDataMemory)
         }
         let mut offset = 0;

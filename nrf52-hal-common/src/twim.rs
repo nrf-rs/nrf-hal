@@ -118,8 +118,9 @@ impl<T> Twim<T> where T: TwimExt {
     )
         -> Result<(), Error>
     {
-        if SRAM_LOWER <= ( buffer.as_ptr() as usize ) && (buffer.as_ptr() as usize) < SRAM_UPPER {
-            return Err(Error::DMABufferNotInDataMemory)
+        if SRAM_LOWER <= (buffer.as_ptr() as usize)
+                && (buffer.as_ptr() as usize + buffer.len()) < SRAM_UPPER {
+            return Err(Error::DMABufferNotInDataMemory);
         }
         let mut offset = 0;
         while offset < buffer.len() {
@@ -278,8 +279,9 @@ impl<T> Twim<T> where T: TwimExt {
         if rd_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::RxBufferTooLong);
         }
-        if SRAM_LOWER <= ( wr_buffer.as_ptr() as usize ) && (wr_buffer.as_ptr() as usize) < SRAM_UPPER {
-            return Err(Error::DMABufferNotInDataMemory)
+        if SRAM_LOWER <= (wr_buffer.as_ptr() as usize)
+                && (wr_buffer.as_ptr() as usize + wr_buffer.len()) < SRAM_UPPER {
+            return Err(Error::DMABufferNotInDataMemory);
         }
 
         // Conservative compiler fence to prevent optimizations that do not
