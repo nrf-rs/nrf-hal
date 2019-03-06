@@ -1,0 +1,38 @@
+[package]
+name = "spi-demo"
+version = "0.1.0"
+authors = ["Fredrik Simonsson <simson@thesimson.net>"]
+edition = "2018"
+
+[dependencies]
+cortex-m-rt = "0.6.5"
+panic-halt = "0.2.0"
+embedded-hal-spy = "0.0.3"
+
+[dependencies.embedded-hal]
+features = ["unproven"]
+version = "0.2"
+
+[dependencies.nrf52832-hal]
+version = "0.7.0"
+path = "../../nrf52832-hal"
+optional = true
+
+[dependencies.nrf52832-pac]
+version = "0.6.0"
+optional = true
+
+[features]
+52832 = ["nrf52832-hal", "nrf52832-pac"]
+default = ["52832"]
+
+[profile.release]
+opt-level = 3
+codegen-units = 1 # better optimizations
+debug = false # symbols are nice and they don't increase the size on Flash
+lto = true # better optimizations
+
+[profile.dev]
+opt-level = 0
+# codegen-units = 1 # better optimizations
+debug = true # symbols are nice and they don't increase the size on Flash
