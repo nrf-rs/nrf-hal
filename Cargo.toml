@@ -6,6 +6,7 @@ members = [
   "nrf52832-hal",
   "nrf52840-hal",
   "examples/rtfm-demo",
+  "examples/spi-demo",
 ]
 
 [profile.dev]
