@@ -372,6 +372,31 @@ impl<T> Twim<T> where T: TwimExt {
     }
 }
 
+/// Implementation of embedded_hal::blocking::i2c Traits
+
+impl<T> embedded_hal::blocking::i2c::Write for Twim<T> where T: TwimExt {
+    type Error = Error;
+
+    fn write<'w>(&mut self, addr: u8, bytes: &'w [u8]) -> Result<(), Error> {
+        self.write(addr, bytes)
+    }
+}
+
+impl<T> embedded_hal::blocking::i2c::Read for Twim<T> where T: TwimExt {
+    type Error = Error;
+
+    fn read<'w>(&mut self, addr: u8, bytes: &'w mut [u8]) -> Result<(), Error> {
+        self.read(addr, bytes)
+    }
+}
+
+impl<T> embedded_hal::blocking::i2c::WriteRead for Twim<T> where T: TwimExt {
+    type Error = Error;
+
+    fn write_read<'w>(&mut self, addr: u8, bytes:&'w[u8], buffer: &'w mut [u8]) -> Result<(), Error> {
+        self.write_then_read(addr, bytes, buffer)
+    }
+}
 
 /// The pins used by the TWIN peripheral
 ///
