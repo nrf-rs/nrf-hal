@@ -7,6 +7,7 @@ members = [
   "nrf52840-hal",
   "examples/rtfm-demo",
   "examples/spi-demo",
+  "examples/twi-ssd1306",
 ]
 
 [profile.dev]
@@ -19,3 +20,4 @@ lto = false
 debug = true
 lto = true
 opt-level = "s"
+
