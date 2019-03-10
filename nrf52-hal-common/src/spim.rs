@@ -54,38 +54,21 @@ where
     type Error = Error;
 
     fn transfer<'w>(&mut self, words: &'w mut [u8]) -> Result<&'w [u8], Error> {
-        // Mask on segment where Data RAM is located on nrf52840 and nrf52832
-        // Upper limit is choosen to entire area where DataRam can be placed
-        let needs_copy = !slice_in_ram(words);
-        let chunk_sz = if needs_copy {
-            EASY_DMA_SIZE
-        } else {
-            FORCE_COPY_BUFFER_SIZE
-        };
+        // If the slice isn't in RAM, we can't write back to it at all
+        ram_slice_check(words)?;
 
-        for chunk in words.chunks(chunk_sz) {
-            if needs_copy {
-                // We don't really need to initialize this...
-                let mut buf = [0u8; FORCE_COPY_BUFFER_SIZE];
-                buf[..chunk.len()].copy_from_slice(chunk);
-
-                self.do_spi_dma_transfer(
-                    DmaSlice::from_slice(&buf[..chunk.len()]),
-                    DmaSlice::from_slice(&buf[..chunk.len()]),
-                    |_| {},
-                )?;
-            } else {
-                self.do_spi_dma_transfer(
-                    DmaSlice::from_slice(chunk),
-                    DmaSlice::from_slice(chunk),
-                    |_| {},
-                )?;
-            }
+        for chunk in words.chunks(EASY_DMA_SIZE) {
+            self.do_spi_dma_transfer(
+                DmaSlice::from_slice(chunk),
+                DmaSlice::from_slice(chunk),
+                |_| {},
+            )?;
         }
 
         Ok(words)
     }
 }
+
 impl<T> embedded_hal::blocking::spi::Write<u8> for Spim<T>
 where
     T: SpimExt,
