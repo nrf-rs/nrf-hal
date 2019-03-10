@@ -59,7 +59,7 @@ pub mod target_constants {
     pub const FORCE_COPY_BUFFER_SIZE: usize = 1024;
 }
 
-/// Does this slice resize entirely within RAM?
+/// Does this slice reside entirely within RAM?
 pub(crate) fn slice_in_ram(slice: &[u8]) -> bool {
     let ptr = slice.as_ptr() as usize;
     ptr >= target_constants::SRAM_LOWER &&
