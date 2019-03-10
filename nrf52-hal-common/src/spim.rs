@@ -80,9 +80,9 @@ where
         // Upper limit is choosen to entire area where DataRam can be placed
         let needs_copy = !slice_in_ram(words);
         let chunk_sz = if needs_copy {
-            EASY_DMA_SIZE
-        } else {
             FORCE_COPY_BUFFER_SIZE
+        } else {
+            EASY_DMA_SIZE
         };
 
         for chunk in words.chunks(chunk_sz) {
