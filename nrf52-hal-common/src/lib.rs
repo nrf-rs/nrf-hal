@@ -41,18 +41,49 @@ pub mod target_constants {
     // NRF52832 8 bits1..0xFF
     pub const EASY_DMA_SIZE: usize = 255;
     // Easy DMA can only read from data ram
-    pub const SRAM_LOWER:usize = 0x2000_0000;
-    pub const SRAM_UPPER:usize = 0x3000_0000;
-    pub const FORCE_COPY_BUFFER_SIZE:usize = 255;
+    pub const SRAM_LOWER: usize = 0x2000_0000;
+    pub const SRAM_UPPER: usize = 0x3000_0000;
+    pub const FORCE_COPY_BUFFER_SIZE: usize = 255;
 }
 #[cfg(feature = "52840")]
 pub mod target_constants {
     // NRF52840 16 bits 1..0xFFFF
     pub const EASY_DMA_SIZE: usize = 65535;
     // Limits for Easy DMA - it can only read from data ram
-    pub const SRAM_LOWER:usize = 0x2000_0000;
-    pub const SRAM_UPPER:usize = 0x3000_0000;
-    pub const FORCE_COPY_BUFFER_SIZE:usize = 1024;
+    pub const SRAM_LOWER: usize = 0x2000_0000;
+    pub const SRAM_UPPER: usize = 0x3000_0000;
+    pub const FORCE_COPY_BUFFER_SIZE: usize = 1024;
+}
+
+/// Does this slice resize entirely within RAM?
+pub(crate) fn slice_in_ram(slice: &[u8]) -> bool {
+    let ptr = slice.as_ptr() as usize;
+    ptr >= target_constants::SRAM_LOWER &&
+        (ptr + slice.len()) < target_constants::SRAM_UPPER
+}
+
+/// A handy structure for converting rust slices into ptr and len pairs
+/// for use with EasyDMA. Care must be taken to make sure mutability
+/// guarantees are respected
+pub(crate) struct DmaSlice {
+    ptr: u32,
+    len: u32,
+}
+
+impl DmaSlice {
+    pub fn null() -> Self {
+        Self {
+            ptr: 0,
+            len: 0,
+        }
+    }
+
+    pub fn from_slice(slice: &[u8]) -> Self {
+        Self {
+            ptr: slice.as_ptr() as u32,
+            len: slice.len() as u32,
+        }
+    }
 }
 
 pub use crate::clocks::Clocks;
