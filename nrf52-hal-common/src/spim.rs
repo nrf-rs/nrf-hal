@@ -3,16 +3,17 @@
 //! See product specification, chapter 31.
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
-use core::cmp::min;
+
 pub use crate::target::spim0::frequency::FREQUENCYW as Frequency;
 pub use embedded_hal::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};
 
 use crate::target::{spim0, SPIM0};
+use core::iter::repeat_with;
 
 #[cfg(any(feature = "52832", feature = "52840"))]
 use crate::target::{SPIM1, SPIM2};
 
-use crate::target_constants::{EASY_DMA_SIZE,SRAM_LOWER,SRAM_UPPER,FORCE_COPY_BUFFER_SIZE};
+use crate::target_constants::{EASY_DMA_SIZE, FORCE_COPY_BUFFER_SIZE};
 use crate::prelude::*;
 use crate::gpio::{
     Pin,
@@ -20,6 +21,10 @@ use crate::gpio::{
     Input,
     Output,
     PushPull,
+};
+use crate::{
+    DmaSlice,
+    slice_in_ram,
 };
 
 pub trait SpimExt : Deref<Target=spim0::RegisterBlock> + Sized {
@@ -52,9 +57,6 @@ impl_spim_ext!(
 /// - The SPIM instances share the same address space with instances of SPIS,
 ///   SPI, TWIM, TWIS, and TWI. You need to make sure that conflicting instances
 ///   are disabled before using `Spim`. See product specification, section 15.2.
-/// - The SPI mode is hardcoded to SPI mode 0.
-/// - The frequency is hardcoded to 500 kHz.
-/// - The over-read character is hardcoded to `0`.
 pub struct Spim<T>(T);
 
 impl<T> embedded_hal::blocking::spi::Transfer<u8> for Spim<T> where T: SpimExt
@@ -62,15 +64,31 @@ impl<T> embedded_hal::blocking::spi::Transfer<u8> for Spim<T> where T: SpimExt
    type Error = Error;
 
     fn transfer<'w>(&mut self, words: &'w mut [u8]) -> Result<&'w [u8], Error> {
-        let mut offset:usize = 0;
-        while offset < words.len() {
-            let data_len = min(EASY_DMA_SIZE, words.len() - offset);
-            let data_ptr = offset + (words.as_ptr() as usize);
-            offset += data_len;
+        // Mask on segment where Data RAM is located on nrf52840 and nrf52832
+        // Upper limit is choosen to entire area where DataRam can be placed
+        let needs_copy = !slice_in_ram(words);
+        let chunk_sz = if needs_copy { EASY_DMA_SIZE } else { FORCE_COPY_BUFFER_SIZE };
 
-            self.do_spi_dma_transfer(data_ptr as u32,data_len as u32,data_ptr as u32,data_len as u32,|_|{})?;
+        for chunk in words.chunks(chunk_sz) {
+            if needs_copy {
+                // We don't really need to initialize this...
+                let mut buf = [0u8; FORCE_COPY_BUFFER_SIZE];
+                buf[..chunk.len()].copy_from_slice(chunk);
 
+                self.do_spi_dma_transfer(
+                    DmaSlice::from_slice(&buf[..chunk.len()]),
+                    DmaSlice::from_slice(&buf[..chunk.len()]),
+                    |_| {},
+                )?;
+            } else {
+                self.do_spi_dma_transfer(
+                    DmaSlice::from_slice(chunk),
+                    DmaSlice::from_slice(chunk),
+                    |_| {},
+                )?;
+            }
         }
+
         Ok(words)
     }
 }
@@ -79,36 +97,32 @@ impl<T> embedded_hal::blocking::spi::Write<u8> for Spim<T> where T: SpimExt
    type Error = Error;
 
     fn write<'w>(&mut self, words: &'w [u8]) -> Result<(), Error> {
-        let p = words.as_ptr() as usize;
         // Mask on segment where Data RAM is located on nrf52840 and nrf52832
         // Upper limit is choosen to entire area where DataRam can be placed
-        if SRAM_LOWER <= p && p < SRAM_UPPER {
-            let mut offset:usize = 0;
-            while offset < words.len() {
-                let data_len = min(EASY_DMA_SIZE, words.len() - offset);
-                let data_ptr = offset + (words.as_ptr() as usize);
-                offset += data_len;
+        let needs_copy = !slice_in_ram(words);
+        let chunk_sz = if needs_copy { EASY_DMA_SIZE } else { FORCE_COPY_BUFFER_SIZE };
 
-                // setup spi dma tx buffer and 0 for read buffer length
-                self.do_spi_dma_transfer(data_ptr as u32,data_len as u32,0,0,|_|{})?;
-            }
-        } else {
-            // Force copy from flash mode.
-            let blocksize = min(EASY_DMA_SIZE,FORCE_COPY_BUFFER_SIZE);
-            let mut buffer:[u8;FORCE_COPY_BUFFER_SIZE] = [0;FORCE_COPY_BUFFER_SIZE];
-            let mut offset:usize = 0;
-            while offset < words.len() {
-                let data_len = min(blocksize, words.len() - offset);
-                for i in 0..data_len{
-                    buffer[i] = words[offset+i];
-                }
-                offset += data_len;
-                // setup spi dma tx buffer and 0 for read buffer length
-                self.do_spi_dma_transfer(buffer.as_ptr() as u32,data_len as u32,0,0,|_|{})?;
+        for chunk in words.chunks(chunk_sz) {
+            if needs_copy {
+                // We don't really need to initialize this...
+                let mut buf = [0u8; FORCE_COPY_BUFFER_SIZE];
+                buf[..chunk.len()].copy_from_slice(chunk);
+
+                self.do_spi_dma_transfer(
+                    DmaSlice::from_slice(&buf[..chunk.len()]),
+                    DmaSlice::null(),
+                    |_| {},
+                )?;
+            } else {
+                self.do_spi_dma_transfer(
+                    DmaSlice::from_slice(chunk),
+                    DmaSlice::null(),
+                    |_| {},
+                )?;
             }
         }
-        Ok(())
 
+        Ok(())
     }
 }
 impl<T> Spim<T> where T: SpimExt {
@@ -173,7 +187,7 @@ impl<T> Spim<T> where T: SpimExt {
 
         // Configure frequency
         spim.frequency.write(|w|
-                w.frequency().variant(frequency)
+            w.frequency().variant(frequency)
         );
 
         // Set over-read character to `0`
@@ -186,20 +200,17 @@ impl<T> Spim<T> where T: SpimExt {
     }
 
     /// Internal helper function to setup and execute SPIM DMA transfer
-    fn  do_spi_dma_transfer<CSFun>(&mut self,
-            tx_data_ptr:u32,
-            tx_len:u32,
-            rx_data_ptr:u32,
-            rx_len:u32,
-            mut cs_n:CSFun
-            ) -> Result<(), Error>
-            where CSFun: FnMut(bool)
+    fn do_spi_dma_transfer<CSFun>(
+        &mut self,
+        tx: DmaSlice,
+        rx: DmaSlice,
+        mut cs_n: CSFun,
+    ) -> Result<(), Error>
+        where CSFun: FnMut(bool)
     {
-        // Check If buffer is in data RAM, compiler sometimes put static data
-        // in flash this area is not accessable by EasyDMA
-        if (tx_data_ptr as usize) < SRAM_LOWER || tx_data_ptr as usize >= SRAM_UPPER {
-            return Err(Error::DMABufferNotInDataMemory)
-        }
+        let (tx_data_ptr, tx_len) = (tx.ptr, tx.len);
+        let (rx_data_ptr, rx_len) = (rx.ptr, rx.len);
+
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
         // before any DMA action has started
@@ -270,104 +281,178 @@ impl<T> Spim<T> where T: SpimExt {
 
     /// Read from an SPI slave
     ///
-    /// This method implements a complete read transaction, which consists of
-    /// the master transmitting what it wishes to read, and the slave responding
-    /// with the requested data.
-    ///
-    /// Uses the provided chip select pin to initiate the transaction. Transmits
-    /// all bytes in `tx_buffer`, then receives bytes until `rx_buffer` is full.
-    /// Both buffer must have a length of at most 255 bytes.
-    pub fn read(&mut self,
+    /// This method is deprecated. Consider using `transfer` or `transfer_split`
+    #[inline(always)]
+    pub fn read(
+        &mut self,
         chip_select: &mut Pin<Output<PushPull>>,
         tx_buffer  : &[u8],
         rx_buffer  : &mut [u8],
     )
         -> Result<(), Error>
     {
-        if tx_buffer.len() > EASY_DMA_SIZE {
-            return Err(Error::TxBufferTooLong);
+        self.transfer_split_uneven(chip_select, tx_buffer, rx_buffer)
+    }
+
+    /// Read and write from a SPI slave, using a single buffer
+    ///
+    /// This method implements a complete read transaction, which consists of
+    /// the master transmitting what it wishes to read, and the slave responding
+    /// with the requested data.
+    ///
+    /// Uses the provided chip select pin to initiate the transaction. Transmits
+    /// all bytes in `buffer`, then receives an equal number of bytes.
+    pub fn transfer(
+        &mut self,
+        chip_select: &mut Pin<Output<PushPull>>,
+        buffer     : &mut [u8],
+    )
+        -> Result<(), Error>
+    {
+        ram_slice_check(buffer)?;
+
+        for chunk in buffer.chunks(EASY_DMA_SIZE) {
+            self.do_spi_dma_transfer(
+                DmaSlice::from_slice(chunk),
+                DmaSlice::from_slice(chunk),
+                |cs| {
+                    if cs {
+                        chip_select.set_low()
+                    } else {
+                        chip_select.set_high()
+                    }
+                }
+            )?;
         }
-        if rx_buffer.len() > EASY_DMA_SIZE {
-            return Err(Error::RxBufferTooLong);
+
+        Ok(())
+    }
+
+    /// Read and write from a SPI slave, using separate read and write buffers
+    ///
+    /// This method implements a complete read transaction, which consists of
+    /// the master transmitting what it wishes to read, and the slave responding
+    /// with the requested data.
+    ///
+    /// Uses the provided chip select pin to initiate the transaction. Transmits
+    /// all bytes in `tx_buffer`, then receives bytes until `rx_buffer` is full.
+    ///
+    /// If `tx_buffer.len() != rx_buffer.len()`, the transaction will stop at the
+    /// smaller of either buffer.
+    pub fn transfer_split_even(
+        &mut self,
+        chip_select: &mut Pin<Output<PushPull>>,
+        tx_buffer  : &[u8],
+        rx_buffer  : &mut [u8],
+    )
+        -> Result<(), Error>
+    {
+        ram_slice_check(tx_buffer)?;
+        ram_slice_check(rx_buffer)?;
+
+        let txi = tx_buffer.chunks(EASY_DMA_SIZE);
+        let rxi = rx_buffer.chunks_mut(EASY_DMA_SIZE);
+        let iter = txi.zip(rxi);
+
+        for (t, r) in iter {
+            self.do_spi_dma_transfer(
+                DmaSlice::from_slice(t),
+                DmaSlice::from_slice(r),
+                |cs| {
+                    if cs {
+                        chip_select.set_low()
+                    } else {
+                        chip_select.set_high()
+                    }
+                }
+            )?;
         }
 
-        self.do_spi_dma_transfer(
-            // Set up the DMA write
-            // We're giving the register a pointer to the stack. Since we're
-            // waiting for the SPI transaction to end before this stack pointer
-            // becomes invalid, there's nothing wrong here.
-            //
-            // The PTR field is a full 32 bits wide and accepts the full range
-            // of values.
+        Ok(())
+    }
 
-            // tx_data_ptr:
-            tx_buffer.as_ptr() as u32,
+    /// Read and write from a SPI slave, using separate read and write buffers
+    ///
+    /// This method implements a complete read transaction, which consists of
+    /// the master transmitting what it wishes to read, and the slave responding
+    /// with the requested data.
+    ///
+    /// Uses the provided chip select pin to initiate the transaction. Transmits
+    /// all bytes in `tx_buffer`, then receives bytes until `rx_buffer` is full.
+    ///
+    /// This method is more complicated than the other `transfer` methods because
+    /// it is allowed to perform transactions where `tx_buffer.len() != rx_buffer.len()`.
+    /// If this occurs, extra incoming bytes will be discarded, OR extra outgoing bytes
+    /// will be filled with the `orc` value.
+    pub fn transfer_split_uneven(
+        &mut self,
+        chip_select: &mut Pin<Output<PushPull>>,
+        tx_buffer  : &[u8],
+        rx_buffer  : &mut [u8],
+    )
+        -> Result<(), Error>
+    {
+        ram_slice_check(tx_buffer)?;
+        ram_slice_check(rx_buffer)?;
+        // For the tx and rx, we want to return Some(chunk)
+        // as long as there is data to send. We then chain a repeat to
+        // the end so once all chunks have been exhausted, we will keep
+        // getting Nones out of the iterators
+        let txi = tx_buffer
+            .chunks(EASY_DMA_SIZE)
+            .map(|c| Some(c))
+            .chain(repeat_with(|| None));
 
-            // We're giving it the length of the buffer, so no danger of
-            // accessing invalid memory. We have verified that the length of the
-            // buffer fits in an `u8`, so the cast to the type of maxcnt
-            // is also fine.
-            //
-            // Note that that nrf52840 maxcnt is a wider
-            // type than a u8, so we use a `_` cast rather than a `u8` cast.
-            // The MAXCNT field is thus at least 8 bits wide and accepts the full
-            // range of values that fit in a `u8`.
+        let rxi = rx_buffer
+            .chunks_mut(EASY_DMA_SIZE)
+            .map(|c| Some(c))
+            .chain(repeat_with(|| None));
 
-            // tx_len:
-            tx_buffer.len() as _,
+        // We then chain the iterators together, and once BOTH are feeding
+        // back Nones, then we are done sending and receiving
+        let iters = txi.zip(rxi)
+            .take_while(|(t, r)| t.is_some() && r.is_some())
 
-            // Set up the DMA read
-            // This is safe for the same reasons that writing to TXD.PTR is
-            // safe. Please refer to the explanation there.
+            // We also turn the slices into either a DmaSlice (if there was data), or a null
+            // DmaSlice (if there is no data)
+            .map(|(t, r)| {
+                (
+                    t.map(|t| DmaSlice::from_slice(t)).unwrap_or_else(|| DmaSlice::null()),
+                    r.map(|r| DmaSlice::from_slice(r)).unwrap_or_else(|| DmaSlice::null()),
+                )
+            });
 
-            // rx_data_ptr:
-            rx_buffer.as_mut_ptr() as u32,
-            // This is safe for the same reasons that writing to TXD.MAXCNT is
-            // safe. Please refer to the explanation there.
+        for (t, r) in iters {
+            self.do_spi_dma_transfer(
+                t,
+                r,
+                |cs| {
+                    if cs {
+                        chip_select.set_low()
+                    } else {
+                        chip_select.set_high()
+                    }
+                }
+            )?;
+        }
 
-            // rx_len:
-            rx_buffer.len() as _,
-            // chip select callback
-            |cs|{if cs {chip_select.set_low()} else {chip_select.set_high()} }
-        )
+        Ok(())
     }
 
     /// Write to an SPI slave
     ///
     /// This method uses the provided chip select pin to initiate the
-    /// transaction, then transmits all bytes in `tx_buffer`.
-    ///
-
+    /// transaction, then transmits all bytes in `tx_buffer`. All incoming
+    /// bytes are discarded.
     pub fn write(&mut self,
         chip_select: &mut Pin<Output<PushPull>>,
         tx_buffer  : &[u8],
-    )
-        -> Result<(), Error>
-    {
-
-        if tx_buffer.len() > EASY_DMA_SIZE {
-            return Err(Error::TxBufferTooLong);
-        }
-
-        // Set up the DMA write
-        self.do_spi_dma_transfer(
-            // We're giving the register a pointer to the stack. Since we're
-            // waiting for the SPI transaction to end before this stack pointer
-            // becomes invalid, there's nothing wrong here.
-            //
-            // The PTR field is a full 32 bits wide and accepts the full range
-            // of values.
-            tx_buffer.as_ptr() as u32,
-            // We're giving it the length of the buffer, so no danger of
-            // accessing invalid memory. We have verified that the length of the
-            // buffer fits in an `u8`, so the cast to `u8` is also fine.
-            //
-            // The MAXCNT field is 8 bits wide and accepts the full range of
-            // values.
-            tx_buffer.len() as _,
-            // Tell the RXD channel it doesn't need to read anything
-            0 , 0,
-            |cs|{if cs {chip_select.set_low()} else {chip_select.set_high()} }
+    ) -> Result<(), Error> {
+        ram_slice_check(tx_buffer)?;
+        self.transfer_split_uneven(
+            chip_select,
+            tx_buffer,
+            &mut [0u8; 0],
         )
     }
 
@@ -399,4 +484,12 @@ pub enum Error {
     DMABufferNotInDataMemory,
     Transmit,
     Receive,
+}
+
+fn ram_slice_check(slice: &[u8]) -> Result<(), Error> {
+    if slice_in_ram(slice) {
+        Ok(())
+    } else {
+        Err(Error::DMABufferNotInDataMemory)
+    }
 }
