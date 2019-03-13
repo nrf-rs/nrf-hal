@@ -1,0 +1,20 @@
+[package]
+authors = ["Ruben Paz <me@ruben.io>"]
+categories = ["embedded", "no-std"]
+description = "BSP for the nRF52-DK"
+keywords = ["arm", "nrf52"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+name = "nrf52-dk-bsp"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+cortex-m = "0.5.8"
+cortex-m-rt = "0.6.7"
+panic-halt = "0.2.0"
+nrf52832-hal = { version = "0.7.0", path = "../../nrf52832-hal" }
+
+[dev-dependencies]
+nb = "0.1.1"
+panic-semihosting = "0.5.1"
