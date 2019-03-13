@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "boards/adafruit_nrf52pro",
+  "boards/nRF52-DK",
   "boards/nRF52840-DK",
   "nrf52810-hal",
   "nrf52832-hal",
@@ -19,3 +20,4 @@ lto = false
 debug = true
 lto = true
 opt-level = "s"
+
