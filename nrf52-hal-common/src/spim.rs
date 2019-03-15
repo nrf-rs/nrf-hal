@@ -57,13 +57,15 @@ where
         // If the slice isn't in RAM, we can't write back to it at all
         ram_slice_check(words)?;
 
-        for chunk in words.chunks(EASY_DMA_SIZE) {
-            self.do_spi_dma_transfer(
-                DmaSlice::from_slice(chunk),
-                DmaSlice::from_slice(chunk),
-                |_| {},
-            )?;
-        }
+        words
+            .chunks(EASY_DMA_SIZE)
+            .try_for_each(|chunk| {
+                self.do_spi_dma_transfer(
+                    DmaSlice::from_slice(chunk),
+                    DmaSlice::from_slice(chunk),
+                    |_| {},
+                )
+            })?;
 
         Ok(words)
     }
@@ -79,35 +81,41 @@ where
         // Mask on segment where Data RAM is located on nrf52840 and nrf52832
         // Upper limit is choosen to entire area where DataRam can be placed
         let needs_copy = !slice_in_ram(words);
+
         let chunk_sz = if needs_copy {
             FORCE_COPY_BUFFER_SIZE
         } else {
             EASY_DMA_SIZE
         };
 
-        for chunk in words.chunks(chunk_sz) {
-            if needs_copy {
-                // We don't really need to initialize this...
-                let mut buf = [0u8; FORCE_COPY_BUFFER_SIZE];
-                buf[..chunk.len()].copy_from_slice(chunk);
+        let step = if needs_copy {
+            Self::spi_dma_copy
+        } else {
+            Self::spi_dma_no_copy
+        };
 
-                self.do_spi_dma_transfer(
-                    DmaSlice::from_slice(&buf[..chunk.len()]),
-                    DmaSlice::null(),
-                    |_| {},
-                )?;
-            } else {
-                self.do_spi_dma_transfer(DmaSlice::from_slice(chunk), DmaSlice::null(), |_| {})?;
-            }
-        }
-
-        Ok(())
+        words.chunks(chunk_sz).try_for_each(|c| step(self, c))
     }
 }
 impl<T> Spim<T>
 where
     T: SpimExt,
 {
+    fn spi_dma_no_copy(&mut self, chunk: &[u8]) -> Result<(), Error> {
+        self.do_spi_dma_transfer(DmaSlice::from_slice(chunk), DmaSlice::null(), |_| {})
+    }
+
+    fn spi_dma_copy(&mut self, chunk: &[u8]) -> Result<(), Error> {
+        let mut buf = [0u8; FORCE_COPY_BUFFER_SIZE];
+        buf[..chunk.len()].copy_from_slice(chunk);
+
+        self.do_spi_dma_transfer(
+            DmaSlice::from_slice(&buf[..chunk.len()]),
+            DmaSlice::null(),
+            |_| {},
+        )
+    }
+
     pub fn new(spim: T, pins: Pins, frequency: Frequency, mode: Mode, orc: u8) -> Self {
         // Select pins
         spim.psel.sck.write(|w| {
@@ -271,21 +279,21 @@ where
     ) -> Result<(), Error> {
         ram_slice_check(buffer)?;
 
-        for chunk in buffer.chunks(EASY_DMA_SIZE) {
-            self.do_spi_dma_transfer(
-                DmaSlice::from_slice(chunk),
-                DmaSlice::from_slice(chunk),
-                |cs| {
-                    if cs {
-                        chip_select.set_low()
-                    } else {
-                        chip_select.set_high()
-                    }
-                },
-            )?;
-        }
-
-        Ok(())
+        buffer
+            .chunks(EASY_DMA_SIZE)
+            .try_for_each(|chunk| {
+                self.do_spi_dma_transfer(
+                    DmaSlice::from_slice(chunk),
+                    DmaSlice::from_slice(chunk),
+                    |cs| {
+                        if cs {
+                            chip_select.set_low()
+                        } else {
+                            chip_select.set_high()
+                        }
+                    },
+                )
+            })
     }
 
     /// Read and write from a SPI slave, using separate read and write buffers
@@ -310,19 +318,17 @@ where
 
         let txi = tx_buffer.chunks(EASY_DMA_SIZE);
         let rxi = rx_buffer.chunks_mut(EASY_DMA_SIZE);
-        let iter = txi.zip(rxi);
 
-        for (t, r) in iter {
-            self.do_spi_dma_transfer(DmaSlice::from_slice(t), DmaSlice::from_slice(r), |cs| {
-                if cs {
-                    chip_select.set_low()
-                } else {
-                    chip_select.set_high()
-                }
-            })?;
-        }
-
-        Ok(())
+        txi.zip(rxi)
+            .try_for_each(|(t, r)| {
+                self.do_spi_dma_transfer(DmaSlice::from_slice(t), DmaSlice::from_slice(r), |cs| {
+                    if cs {
+                        chip_select.set_low()
+                    } else {
+                        chip_select.set_high()
+                    }
+                })
+            })
     }
 
     /// Read and write from a SPI slave, using separate read and write buffers
@@ -362,7 +368,7 @@ where
 
         // We then chain the iterators together, and once BOTH are feeding
         // back Nones, then we are done sending and receiving
-        let iters = txi
+        txi
             .zip(rxi)
             .take_while(|(t, r)| t.is_some() && r.is_some())
             // We also turn the slices into either a DmaSlice (if there was data), or a null
@@ -374,19 +380,16 @@ where
                     r.map(|r| DmaSlice::from_slice(r))
                         .unwrap_or_else(|| DmaSlice::null()),
                 )
-            });
-
-        for (t, r) in iters {
-            self.do_spi_dma_transfer(t, r, |cs| {
-                if cs {
-                    chip_select.set_low()
-                } else {
-                    chip_select.set_high()
-                }
-            })?;
-        }
-
-        Ok(())
+            })
+            .try_for_each(|(t, r)| {
+                self.do_spi_dma_transfer(t, r, |cs| {
+                    if cs {
+                        chip_select.set_low()
+                    } else {
+                        chip_select.set_high()
+                    }
+                })
+            })
     }
 
     /// Write to an SPI slave
