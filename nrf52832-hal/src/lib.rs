@@ -18,6 +18,7 @@ pub mod prelude {
 
 pub use crate::clocks::Clocks;
 pub use crate::delay::Delay;
+pub use crate::saadc::Saadc;
 pub use crate::spim::Spim;
 pub use crate::timer::Timer;
 pub use crate::uarte::Uarte;

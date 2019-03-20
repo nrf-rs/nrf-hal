@@ -21,6 +21,7 @@ pub mod timer;
 pub mod twim;
 pub mod uarte;
 pub mod temp;
+pub mod saadc;
 
 pub mod prelude {
     pub use crate::hal::prelude::*;
@@ -61,3 +62,4 @@ pub use crate::spim::Spim;
 pub use crate::timer::Timer;
 pub use crate::twim::Twim;
 pub use crate::uarte::Uarte;
+pub use crate::saadc::Saadc;

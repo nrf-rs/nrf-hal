@@ -17,5 +17,3 @@ script:
   - cargo build --manifest-path examples/spi-demo/Cargo.toml
   - cargo build --manifest-path examples/twi-ssd1306/Cargo.toml
   - cargo build --manifest-path examples/twi-ssd1306/Cargo.toml --no-default-features --features="52840" --target thumbv7em-none-eabi
-
-
