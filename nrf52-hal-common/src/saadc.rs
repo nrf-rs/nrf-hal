@@ -11,14 +11,6 @@ pub trait SaadcExt: Deref<Target = saadc::RegisterBlock> + Sized {
     fn constrain(self) -> Saadc;
 }
 
-impl Channel<Saadc> for crate::gpio::p0::P0_02<Input<Floating>> {
-    type ID = u8;
-
-    fn channel() -> <Self as embedded_hal::adc::Channel<Saadc>>::ID {
-        0u8
-    }
-}
-
 pub struct Saadc(SAADC);
 
 impl Saadc {
@@ -79,4 +71,29 @@ where
 
         Ok(val)
     }
+}
+
+macro_rules! channel_mappings {
+    ($($n:expr => $pin:path),*) => {
+        $(
+            impl Channel<Saadc> for $pin {
+                type ID = u8;
+
+                fn channel() -> <Self as embedded_hal::adc::Channel<Saadc>>::ID {
+                    $n
+                }
+            }
+        )*
+    };
+}
+
+channel_mappings! {
+    0 => crate::gpio::p0::P0_02<Input<Floating>>,
+    1 => crate::gpio::p0::P0_03<Input<Floating>>,
+    2 => crate::gpio::p0::P0_04<Input<Floating>>,
+    3 => crate::gpio::p0::P0_05<Input<Floating>>,
+    4 => crate::gpio::p0::P0_28<Input<Floating>>,
+    5 => crate::gpio::p0::P0_29<Input<Floating>>,
+    6 => crate::gpio::p0::P0_30<Input<Floating>>,
+    7 => crate::gpio::p0::P0_31<Input<Floating>>
 }
