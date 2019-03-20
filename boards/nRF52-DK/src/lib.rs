@@ -505,7 +505,7 @@ pub struct Buttons {
     pub button_4: Button,
 }
 
-/// An LED on the nRF52-DK board
+/// A Button on the nRF52-DK board
 pub struct Button(Pin<Input<PullUp>>);
 
 impl Button {
