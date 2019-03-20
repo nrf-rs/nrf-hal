@@ -36,7 +36,6 @@ impl Saadc {
                 .burst()
                 .enabled()
         });
-        saadc.ch[0].pselp.write(|w| w.pselp().analog_input0());
         saadc.ch[0].pseln.write(|w| w.pseln().nc());
 
         // Calibrate
@@ -52,7 +51,20 @@ where
     PIN: Channel<Saadc, ID = u8>,
 {
     type Error = ();
-    fn read(&mut self, _pin: &mut PIN) -> nb::Result<u16, Self::Error> {
+    fn read(&mut self, pin: &mut PIN) -> nb::Result<u16, Self::Error> {
+        match PIN::channel() {
+            0 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input0()),
+            1 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input1()),
+            2 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input2()),
+            3 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input3()),
+            4 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input4()),
+            5 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input5()),
+            6 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input6()),
+            7 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input7()),
+            // This can never happen as if another pin was used, there would be a compile time error
+            _ => panic!("Invalid pin"),
+        }
+
         let mut val = 0u16;
         self.0
             .result
