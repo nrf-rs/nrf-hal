@@ -1,4 +1,3 @@
-//use crate::gpio::{Floating, Input, Pin};
 use crate::{
     gpio::{Floating, Input},
     target::{saadc, SAADC},
@@ -10,10 +9,17 @@ use core::{
 use embedded_hal::adc::{Channel, OneShot};
 
 // Only 1 channel is allowed right now, a discussion needs to be had as to how
-// multiple channels should work (See SCAN_MODE)
+// multiple channels should work (See "scan mode" in the datasheet)
+// Issue: https://github.com/nrf-rs/nrf52-hal/issues/82
 
 pub trait SaadcExt: Deref<Target = saadc::RegisterBlock> + Sized {
     fn constrain(self) -> Saadc;
+}
+
+impl SaadcExt for SAADC {
+    fn constrain(self) -> Saadc {
+        Saadc::new(self)
+    }
 }
 
 pub struct Saadc(SAADC);
@@ -91,6 +97,14 @@ where
 
         while self.0.events_end.read().bits() == 0 {}
         self.0.events_end.reset();
+
+        // Will only occur if more than one channel has been enabled
+        if self.0.result.amount.read().bits() != 1 {
+            return Err(nb::Error::Other(()));
+        }
+
+        // Second fence to prevent optimizations creating issues with the EasyDMA-modified `val`
+        compiler_fence(SeqCst);
 
         Ok(val)
     }

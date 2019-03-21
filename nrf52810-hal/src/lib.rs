@@ -14,6 +14,7 @@ pub mod prelude {
     pub use crate::time::U32Ext;
     pub use crate::timer::TimerExt;
     pub use crate::uarte::UarteExt;
+    pub use crate::saadc::SaadcExt;
 }
 
 pub use crate::clocks::Clocks;
