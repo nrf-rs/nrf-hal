@@ -1,7 +1,12 @@
 //use crate::gpio::{Floating, Input, Pin};
-use crate::gpio::{Floating, Input};
-use crate::target::{saadc, SAADC};
-use core::ops::Deref;
+use crate::{
+    gpio::{Floating, Input},
+    target::{saadc, SAADC},
+};
+use core::{
+    ops::Deref,
+    sync::atomic::{compiler_fence, Ordering::SeqCst},
+};
 use embedded_hal::adc::{Channel, OneShot};
 
 // Only 1 channel is allowed right now, a discussion needs to be had as to how
@@ -51,7 +56,7 @@ where
     PIN: Channel<Saadc, ID = u8>,
 {
     type Error = ();
-    fn read(&mut self, pin: &mut PIN) -> nb::Result<u16, Self::Error> {
+    fn read(&mut self, _pin: &mut PIN) -> nb::Result<u16, Self::Error> {
         match PIN::channel() {
             0 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input0()),
             1 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input1()),
@@ -62,10 +67,12 @@ where
             6 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input6()),
             7 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input7()),
             // This can never happen as if another pin was used, there would be a compile time error
-            _ => panic!("Invalid pin"),
+            _ => {
+                return Err(nb::Error::Other(()));
+            }
         }
 
-        let mut val = 0u16;
+        let mut val: u16 = 0;
         self.0
             .result
             .ptr
@@ -74,6 +81,10 @@ where
             .result
             .maxcnt
             .write(|w| unsafe { w.maxcnt().bits(1) });
+
+        // Conservative compiler fence to prevent starting the ADC before the
+        // pointer and maxcount have been set
+        compiler_fence(SeqCst);
 
         self.0.tasks_start.write(|w| unsafe { w.bits(1) });
         self.0.tasks_sample.write(|w| unsafe { w.bits(1) });
