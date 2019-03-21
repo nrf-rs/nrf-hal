@@ -3,6 +3,7 @@ use crate::{
     target::{saadc, SAADC},
 };
 use core::{
+    hint::unreachable_unchecked,
     ops::Deref,
     sync::atomic::{compiler_fence, Ordering::SeqCst},
 };
@@ -72,10 +73,9 @@ where
             5 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input5()),
             6 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input6()),
             7 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input7()),
-            // This can never happen as if another pin was used, there would be a compile time error
-            _ => {
-                return Err(nb::Error::Other(()));
-            }
+            // This can never happen the only analog pins have already been defined
+            // PAY CLOSE ATTENTION TO ANY CHANGES TO THIS IMPL OR THE `channel_mappings!` MACRO
+            _ => unsafe { unreachable_unchecked() }
         }
 
         let mut val: u16 = 0;
