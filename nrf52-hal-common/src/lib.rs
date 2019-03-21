@@ -34,6 +34,7 @@ pub mod prelude {
     pub use crate::timer::TimerExt;
     pub use crate::twim::TwimExt;
     pub use crate::uarte::UarteExt;
+    pub use crate::saadc::SaadcExt;
 }
 
 /// Length of Nordic EasyDMA differs for MCUs
