@@ -61,7 +61,6 @@ where
             self.do_spi_dma_transfer(
                 DmaSlice::from_slice(chunk),
                 DmaSlice::from_slice(chunk),
-                |_| {},
             )
         })?;
 
@@ -100,7 +99,7 @@ where
     T: SpimExt,
 {
     fn spi_dma_no_copy(&mut self, chunk: &[u8]) -> Result<(), Error> {
-        self.do_spi_dma_transfer(DmaSlice::from_slice(chunk), DmaSlice::null(), |_| {})
+        self.do_spi_dma_transfer(DmaSlice::from_slice(chunk), DmaSlice::null())
     }
 
     fn spi_dma_copy(&mut self, chunk: &[u8]) -> Result<(), Error> {
@@ -110,7 +109,6 @@ where
         self.do_spi_dma_transfer(
             DmaSlice::from_slice(&buf[..chunk.len()]),
             DmaSlice::null(),
-            |_| {},
         )
     }
 
@@ -172,48 +170,40 @@ where
     }
 
     /// Internal helper function to setup and execute SPIM DMA transfer
-    fn do_spi_dma_transfer<CSFun>(
+    fn do_spi_dma_transfer(
         &mut self,
         tx: DmaSlice,
         rx: DmaSlice,
-        mut cs_n: CSFun,
-    ) -> Result<(), Error>
-    where
-        CSFun: FnMut(bool),
-    {
-        let (tx_data_ptr, tx_len) = (tx.ptr, tx.len);
-        let (rx_data_ptr, rx_len) = (rx.ptr, rx.len);
+    ) -> Result<(), Error> {
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
         // before any DMA action has started
         compiler_fence(SeqCst);
-        // set CS inactive
-        cs_n(false);
+
         // Set up the DMA write
         self.0
             .txd
             .ptr
-            .write(|w| unsafe { w.ptr().bits(tx_data_ptr) });
+            .write(|w| unsafe { w.ptr().bits(tx.ptr) });
+
         self.0.txd.maxcnt.write(|w|
             // Note that that nrf52840 maxcnt is a wider
             // type than a u8, so we use a `_` cast rather than a `u8` cast.
             // The MAXCNT field is thus at least 8 bits wide and accepts the full
             // range of values that fit in a `u8`.
-            unsafe { w.maxcnt().bits(tx_len as _ ) });
+            unsafe { w.maxcnt().bits(tx.len as _ ) });
 
         // Set up the DMA read
         self.0.rxd.ptr.write(|w|
             // This is safe for the same reasons that writing to TXD.PTR is
             // safe. Please refer to the explanation there.
-            unsafe { w.ptr().bits(rx_data_ptr ) });
+            unsafe { w.ptr().bits(rx.ptr) });
         self.0.rxd.maxcnt.write(|w|
             // This is safe for the same reasons that writing to TXD.MAXCNT is
             // safe. Please refer to the explanation there.
-            unsafe { w.maxcnt().bits(rx_len as _) });
+            unsafe { w.maxcnt().bits(rx.len as _) });
 
-        // Set CS active
-        cs_n(true);
         // Start SPI transaction
         self.0.tasks_start.write(|w|
             // `1` is a valid value to write to task registers.
@@ -233,17 +223,15 @@ where
         // Reset the event, otherwise it will always read `1` from now on.
         self.0.events_end.write(|w| w);
 
-        // Transfer done - set cs inactive
-        cs_n(false);
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
         // after all possible DMA actions have completed
         compiler_fence(SeqCst);
 
-        if self.0.txd.amount.read().bits() != tx_len {
+        if self.0.txd.amount.read().bits() != tx.len {
             return Err(Error::Transmit);
         }
-        if self.0.rxd.amount.read().bits() != rx_len {
+        if self.0.rxd.amount.read().bits() != rx.len {
             return Err(Error::Receive);
         }
         Ok(())
@@ -277,19 +265,19 @@ where
     ) -> Result<(), Error> {
         ram_slice_check(buffer)?;
 
-        buffer.chunks(EASY_DMA_SIZE).try_for_each(|chunk| {
+        chip_select.set_low();
+
+        // Don't return early, as we must reset the CS pin
+        let res = buffer.chunks(EASY_DMA_SIZE).try_for_each(|chunk| {
             self.do_spi_dma_transfer(
                 DmaSlice::from_slice(chunk),
                 DmaSlice::from_slice(chunk),
-                |cs| {
-                    if cs {
-                        chip_select.set_low()
-                    } else {
-                        chip_select.set_high()
-                    }
-                },
             )
-        })
+        });
+
+        chip_select.set_high();
+
+        res
     }
 
     /// Read and write from a SPI slave, using separate read and write buffers
@@ -315,15 +303,16 @@ where
         let txi = tx_buffer.chunks(EASY_DMA_SIZE);
         let rxi = rx_buffer.chunks_mut(EASY_DMA_SIZE);
 
-        txi.zip(rxi).try_for_each(|(t, r)| {
-            self.do_spi_dma_transfer(DmaSlice::from_slice(t), DmaSlice::from_slice(r), |cs| {
-                if cs {
-                    chip_select.set_low()
-                } else {
-                    chip_select.set_high()
-                }
-            })
-        })
+        chip_select.set_low();
+
+        // Don't return early, as we must reset the CS pin
+        let res = txi.zip(rxi).try_for_each(|(t, r)| {
+            self.do_spi_dma_transfer(DmaSlice::from_slice(t), DmaSlice::from_slice(r))
+        });
+
+        chip_select.set_high();
+
+        res
     }
 
     /// Read and write from a SPI slave, using separate read and write buffers
@@ -361,9 +350,13 @@ where
             .map(|c| Some(c))
             .chain(repeat_with(|| None));
 
+        chip_select.set_low();
+
         // We then chain the iterators together, and once BOTH are feeding
         // back Nones, then we are done sending and receiving
-        txi.zip(rxi)
+        //
+        // Don't return early, as we must reset the CS pin
+        let res = txi.zip(rxi)
             .take_while(|(t, r)| t.is_some() && r.is_some())
             // We also turn the slices into either a DmaSlice (if there was data), or a null
             // DmaSlice (if there is no data)
@@ -376,14 +369,12 @@ where
                 )
             })
             .try_for_each(|(t, r)| {
-                self.do_spi_dma_transfer(t, r, |cs| {
-                    if cs {
-                        chip_select.set_low()
-                    } else {
-                        chip_select.set_high()
-                    }
-                })
-            })
+                self.do_spi_dma_transfer(t, r)
+            });
+
+        chip_select.set_high();
+
+        res
     }
 
     /// Write to an SPI slave
