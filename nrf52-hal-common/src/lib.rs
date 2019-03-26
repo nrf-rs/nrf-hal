@@ -11,17 +11,18 @@ pub use nrf52832_pac as target;
 #[cfg(feature = "52840")]
 pub use nrf52840_pac as target;
 
-pub mod delay;
-pub mod spim;
-pub mod gpio;
 pub mod clocks;
+pub mod delay;
+pub mod gpio;
 pub mod rng;
+pub mod rtc;
+pub mod saadc;
+pub mod spim;
+pub mod temp;
 pub mod time;
 pub mod timer;
 pub mod twim;
 pub mod uarte;
-pub mod temp;
-pub mod saadc;
 
 pub mod prelude {
     pub use crate::hal::prelude::*;
@@ -29,12 +30,13 @@ pub mod prelude {
     pub use crate::clocks::ClocksExt;
     pub use crate::gpio::GpioExt;
     pub use crate::rng::RngExt;
+    pub use crate::rtc::RtcExt;
+    pub use crate::saadc::SaadcExt;
     pub use crate::spim::SpimExt;
     pub use crate::time::U32Ext;
     pub use crate::timer::TimerExt;
     pub use crate::twim::TwimExt;
     pub use crate::uarte::UarteExt;
-    pub use crate::saadc::SaadcExt;
 }
 
 /// Length of Nordic EasyDMA differs for MCUs
@@ -59,8 +61,9 @@ pub mod target_constants {
 
 pub use crate::clocks::Clocks;
 pub use crate::delay::Delay;
+pub use crate::rtc::Rtc;
+pub use crate::saadc::Saadc;
 pub use crate::spim::Spim;
 pub use crate::timer::Timer;
 pub use crate::twim::Twim;
 pub use crate::uarte::Uarte;
-pub use crate::saadc::Saadc;
