@@ -43,6 +43,7 @@ impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
     pub fn enable_ext_hfosc(self) -> Clocks<ExternalOscillator, L, LSTAT> {
         self.periph.tasks_hfclkstart.write(|w| unsafe { w.bits(1) });
 
+        // Datasheet says this is likely to take 0.36ms
         while self.periph.events_hfclkstarted.read().bits() != 1 {}
         self.periph.events_hfclkstarted.write(|w| unsafe { w.bits(0) });
 
@@ -79,6 +80,12 @@ impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
     /// Start the Low Frequency clock
     pub fn start_lfclk(self) -> Clocks<H, L, LfOscStarted> {
         self.periph.tasks_lfclkstart.write(|w| unsafe { w.bits(1) });
+
+        // Datasheet says this could take 100us from synth source
+        // 600us from rc source, 0.25s from an external source
+        while self.periph.events_lfclkstarted.read().bits() != 1 {}
+        self.periph.events_lfclkstarted.write(|w| unsafe { w.bits(0) });
+
         Clocks {
             hfclk: self.hfclk,
             lfclk: self.lfclk,
