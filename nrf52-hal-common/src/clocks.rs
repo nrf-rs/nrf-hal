@@ -42,6 +42,10 @@ impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
     /// Use an external oscillator as the high frequency clock source
     pub fn enable_ext_hfosc(self) -> Clocks<ExternalOscillator, L, LSTAT> {
         self.periph.tasks_hfclkstart.write(|w| unsafe { w.bits(1) });
+
+        while self.periph.events_hfclkstarted.read().bits() != 1 {}
+        self.periph.events_hfclkstarted.write(|w| unsafe { w.bits(0) });
+
         Clocks {
             hfclk: ExternalOscillator,
             lfclk: self.lfclk,
