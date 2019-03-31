@@ -25,14 +25,3 @@ optional = true
 [features]
 52832 = ["nrf52832-hal", "nrf52832-pac"]
 default = ["52832"]
-
-[profile.release]
-opt-level = 3
-codegen-units = 1 # better optimizations
-debug = false # symbols are nice and they don't increase the size on Flash
-lto = true # better optimizations
-
-[profile.dev]
-opt-level = 0
-# codegen-units = 1 # better optimizations
-debug = true # symbols are nice and they don't increase the size on Flash

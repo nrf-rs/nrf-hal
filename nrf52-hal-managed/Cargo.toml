@@ -1,0 +1,20 @@
+[package]
+name = "nrf52-hal-managed"
+version = "0.1.0"
+authors = ["James Munns <james.munns@ferrous-systems.com>"]
+edition = "2018"
+
+[dependencies]
+uhr = "0.2"
+
+[dependencies.nrf52-hal-common]
+path = "../nrf52-hal-common"
+default-features = false
+
+[features]
+rtfm = []
+
+default = ["52832"]
+52810 = ["nrf52-hal-common/52810"]
+52832 = ["nrf52-hal-common/52832"]
+52840 = ["nrf52-hal-common/52840"]
