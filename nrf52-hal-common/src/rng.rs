@@ -18,6 +18,7 @@ pub trait RngExt : Deref<Target=rng::RegisterBlock> + Sized {
 
 impl RngExt for RNG {
     fn constrain(self) -> Rng {
+        self.config.write(|w| w.dercen().enabled());
         Rng(self)
     }
 }
