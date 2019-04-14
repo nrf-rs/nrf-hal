@@ -1,0 +1,21 @@
+[package]
+authors = ["Brian Cully <bjc@kublai.com>"]
+categories = ["embedded", "hardware-support", "no-std"]
+description = "BSP for Adafruit nRF52 Bluefruit LE feather."
+license = "MIT OR Apache-2.0"
+keywords = ["arm", "cortex-m", "nrf52", "hal"]
+name = "adafruit-nrf52-bluefruit-le"
+version = "0.0.1"
+edition = "2018"
+
+[dependencies]
+nrf52832-hal = { path = "../../nrf52832-hal" }
+
+[dev-dependencies]
+cortex-m-rt = "0.6.5"
+panic-abort = "0.3.1"
+nb = "~0.1"
+
+[features]
+rt = ["nrf52832-hal/rt"]
+default = ["rt"]
