@@ -148,3 +148,17 @@ where
         Ok(())
     }
 }
+
+impl<T> timer::Cancel for Timer<T>
+where
+    T: TimerExt,
+{
+    type Error = ();
+
+    // Cancel a running timer.
+    fn cancel(&mut self) -> Result<(), Self::Error> {
+        self.0.tasks_stop.write(|w| unsafe { w.bits(1) });
+        self.0.events_compare[0].write(|w| w);
+        Ok(())
+    }
+}
