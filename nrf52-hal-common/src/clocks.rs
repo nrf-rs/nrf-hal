@@ -28,7 +28,7 @@ pub trait ClocksExt {
 /// High Frequency Clock Frequency (in Hz)
 pub const HFCLK_FREQ: u32 = 64_000_000;
 /// Low Frequency Clock Frequency (in Hz)
-pub const LFCLK_FREQ: u32 =     32_768;
+pub const LFCLK_FREQ: u32 = 32_768;
 
 /// A high level abstraction for the CLOCK peripheral
 pub struct Clocks<H, L, LSTAT> {
@@ -45,7 +45,9 @@ impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
 
         // Datasheet says this is likely to take 0.36ms
         while self.periph.events_hfclkstarted.read().bits() != 1 {}
-        self.periph.events_hfclkstarted.write(|w| unsafe { w.bits(0) });
+        self.periph
+            .events_hfclkstarted
+            .write(|w| unsafe { w.bits(0) });
 
         Clocks {
             hfclk: ExternalOscillator,
@@ -66,17 +68,6 @@ impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
         }
     }
 
-    /// Stop the Low Frequency clock
-    pub fn stop_lfclk(self) -> Clocks<H, L, LfOscStopped> {
-        self.periph.tasks_lfclkstop.write(|w| unsafe { w.bits(1) });
-        Clocks {
-            hfclk: self.hfclk,
-            lfclk: self.lfclk,
-            lfstat: LfOscStopped,
-            periph: self.periph,
-        }
-    }
-
     /// Start the Low Frequency clock
     pub fn start_lfclk(self) -> Clocks<H, L, LfOscStarted> {
         self.periph.tasks_lfclkstart.write(|w| unsafe { w.bits(1) });
@@ -84,7 +75,9 @@ impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
         // Datasheet says this could take 100us from synth source
         // 600us from rc source, 0.25s from an external source
         while self.periph.events_lfclkstarted.read().bits() != 1 {}
-        self.periph.events_lfclkstarted.write(|w| unsafe { w.bits(0) });
+        self.periph
+            .events_lfclkstarted
+            .write(|w| unsafe { w.bits(0) });
 
         Clocks {
             hfclk: self.hfclk,
@@ -103,14 +96,25 @@ pub enum LfOscConfiguration {
     ExternalAndBypass,
 }
 
+impl<H, L> Clocks<H, L, LfOscStarted> {
+    /// Stop the Low Frequency clock
+    pub fn stop_lfclk(self) -> Clocks<H, L, LfOscStopped> {
+        self.periph.tasks_lfclkstop.write(|w| unsafe { w.bits(1) });
+        Clocks {
+            hfclk: self.hfclk,
+            lfclk: self.lfclk,
+            lfstat: LfOscStopped,
+            periph: self.periph,
+        }
+    }
+}
+
 impl<H, L> Clocks<H, L, LfOscStopped> {
     /// Use the internal RC Oscillator for the low frequency clock source
     pub fn set_lfclk_src_rc(self) -> Clocks<H, Internal, LfOscStopped> {
-        self.periph.lfclksrc.write(|w| {
-            w.src().rc()
-                .bypass().disabled()
-                .external().disabled()
-        });
+        self.periph
+            .lfclksrc
+            .write(|w| w.src().rc().bypass().disabled().external().disabled());
         Clocks {
             hfclk: self.hfclk,
             lfclk: Internal,
@@ -121,11 +125,9 @@ impl<H, L> Clocks<H, L, LfOscStopped> {
 
     /// Generate the Low Frequency clock from the high frequency clock source
     pub fn set_lfclk_src_synth(self) -> Clocks<H, LfOscSynthesized, LfOscStopped> {
-        self.periph.lfclksrc.write(|w| {
-            w.src().synth()
-                .bypass().disabled()
-                .external().disabled()
-        });
+        self.periph
+            .lfclksrc
+            .write(|w| w.src().synth().bypass().disabled().external().disabled());
         Clocks {
             hfclk: self.hfclk,
             lfclk: LfOscSynthesized,
@@ -135,17 +137,18 @@ impl<H, L> Clocks<H, L, LfOscStopped> {
     }
 
     /// Use an external crystal to drive the low frequency clock
-    pub fn set_lfclk_src_external(self, cfg: LfOscConfiguration) -> Clocks<H, ExternalOscillator, LfOscStopped> {
+    pub fn set_lfclk_src_external(
+        self,
+        cfg: LfOscConfiguration,
+    ) -> Clocks<H, ExternalOscillator, LfOscStopped> {
         let (ext, byp) = match cfg {
             LfOscConfiguration::NoExternalNoBypass => (false, false),
             LfOscConfiguration::ExternalNoBypass => (true, false),
             LfOscConfiguration::ExternalAndBypass => (true, true),
         };
-        self.periph.lfclksrc.write(move |w| {
-            w.src().xtal()
-                .bypass().bit(byp)
-                .external().bit(ext)
-        });
+        self.periph
+            .lfclksrc
+            .write(move |w| w.src().xtal().bypass().bit(byp).external().bit(ext));
         Clocks {
             hfclk: self.hfclk,
             lfclk: ExternalOscillator,
