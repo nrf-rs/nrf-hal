@@ -2,28 +2,17 @@
 //!
 //! See product specification, chapter 24.
 
-
 use core::ops::Deref;
 
-use embedded_hal::{
-    prelude::*,
-    timer,
-};
+use crate::target::{timer0, Interrupt, NVIC, TIMER0, TIMER1, TIMER2};
+use embedded_hal::{prelude::*, timer};
 use nb::{self, block};
-use crate::target::{
-    timer0,
-    Interrupt,
-    NVIC,
-    TIMER0,
-    TIMER1,
-    TIMER2,
-};
 use void::{unreachable, Void};
 
 #[cfg(any(feature = "52832", feature = "52840"))]
 use crate::target::{TIMER3, TIMER4};
 
-pub trait TimerExt : Deref<Target=timer0::RegisterBlock> + Sized {
+pub trait TimerExt: Deref<Target = timer0::RegisterBlock> + Sized {
     // The interrupt that belongs to this timer instance
     const INTERRUPT: Interrupt;
 
@@ -44,17 +33,10 @@ macro_rules! impl_timer_ext {
     }
 }
 
-impl_timer_ext!(
-    TIMER0,
-    TIMER1,
-    TIMER2,
-);
+impl_timer_ext!(TIMER0, TIMER1, TIMER2,);
 
 #[cfg(any(feature = "52832", feature = "52840"))]
-impl_timer_ext!(
-    TIMER3,
-    TIMER4,
-);
+impl_timer_ext!(TIMER3, TIMER4,);
 
 /// Interface to a TIMER instance
 ///
@@ -62,19 +44,18 @@ impl_timer_ext!(
 /// hardcoded to a frequency of 1 MHz and 32 bits accuracy.
 pub struct Timer<T>(T);
 
-impl<T> Timer<T> where T: TimerExt {
+impl<T> Timer<T>
+where
+    T: TimerExt,
+{
     fn new(timer: T) -> Self {
-        timer.shorts.write(|w|
-            w
-                .compare0_clear().enabled()
-                .compare0_stop().enabled()
+        timer
+            .shorts
+            .write(|w| w.compare0_clear().enabled().compare0_stop().enabled());
+        timer.prescaler.write(
+            |w| unsafe { w.prescaler().bits(4) }, // 1 MHz
         );
-        timer.prescaler.write(|w|
-            unsafe { w.prescaler().bits(4) } // 1 MHz
-        );
-        timer.bitmode.write(|w|
-            w.bitmode()._32bit()
-        );
+        timer.bitmode.write(|w| w.bitmode()._32bit());
 
         Timer(timer)
     }
@@ -113,38 +94,38 @@ impl<T> Timer<T> where T: TimerExt {
     pub fn delay(&mut self, cycles: u32) {
         self.start(cycles);
         match block!(self.wait()) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(x) => unreachable(x),
         }
     }
 }
 
-impl<T> timer::CountDown for Timer<T> where T: TimerExt {
+impl<T> timer::CountDown for Timer<T>
+where
+    T: TimerExt,
+{
     type Time = u32;
-
 
     /// Start the timer
     ///
     /// The timer will run for the given number of cycles, then it will stop and
     /// reset.
-    fn start<Time>(&mut self, cycles: Time) where Time: Into<Self::Time> {
+    fn start<Time>(&mut self, cycles: Time)
+    where
+        Time: Into<Self::Time>,
+    {
         // Configure timer to trigger EVENTS_COMPARE when given number of cycles
         // is reached.
         self.0.cc[0].write(|w|
             // The timer mode was set to 32 bits above, so all possible values
             // of `cycles` are valid.
-            unsafe { w.cc().bits(cycles.into()) }
-        );
+            unsafe { w.cc().bits(cycles.into()) });
 
         // Clear the counter value
-        self.0.tasks_clear.write(|w|
-            unsafe { w.bits(1) }
-        );
+        self.0.tasks_clear.write(|w| unsafe { w.bits(1) });
 
         // Start the timer
-        self.0.tasks_start.write(|w|
-            unsafe { w.bits(1) }
-        );
+        self.0.tasks_start.write(|w| unsafe { w.bits(1) });
     }
 
     /// Wait for the timer to stop
