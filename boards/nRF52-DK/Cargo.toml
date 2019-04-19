@@ -13,7 +13,7 @@ edition = "2018"
 cortex-m = "0.5.8"
 cortex-m-rt = "0.6.7"
 panic-halt = "0.2.0"
-nrf52832-hal = { version = "0.7.0", path = "../../nrf52832-hal" }
+nrf52832-hal = { version = "0.8.0-beta1", path = "../../nrf52832-hal" }
 
 [dev-dependencies]
 nb = "0.1.1"
