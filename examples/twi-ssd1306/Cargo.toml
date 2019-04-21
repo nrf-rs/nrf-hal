@@ -15,12 +15,12 @@ features = ["unproven"]
 version = "0.2"
 
 [dependencies.nrf52832-hal]
-version = "0.8.0-beta1"
+version = "0.8.0"
 path = "../../nrf52832-hal"
 optional = true
 
 [dependencies.nrf52840-hal]
-version = "0.8.0-beta1"
+version = "0.8.0"
 path = "../../nrf52840-hal"
 optional = true
 
