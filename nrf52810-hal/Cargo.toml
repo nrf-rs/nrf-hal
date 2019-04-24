@@ -9,7 +9,7 @@ authors = [
     "Hanno Braun <hanno@braun-robotics.com>",
     "John Scarrott <johnps@outlook.com>",
     "Wez Furlong <wez@wezfurlong.org>",
-    "Ferdia McKeogh <ferdia@mckeogh.tech",
+    "Ferdia McKeogh <ferdia@mckeogh.tech>",
 ]
 categories = ["embedded", "hardware-support", "no-std"]
 keywords = ["arm", "cortex-m", "nrf52", "hal", "nrf52810"]
