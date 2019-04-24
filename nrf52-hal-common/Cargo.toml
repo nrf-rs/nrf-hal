@@ -1,6 +1,6 @@
 [package]
 name = "nrf52-hal-common"
-version = "0.8.0"
+version = "0.8.1"
 description = "Common HAL for the nRF52 family of microcontrollers.  More specific HAL crates also exist."
 
 repository = "https://github.com/nrf-rs/nrf52-hal"
@@ -17,7 +17,7 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [dependencies]
-cortex-m = "0.5.8"
+cortex-m = "0.6.0"
 nb = "0.1.1"
 fpa = "0.1.0"
 rand_core = "0.4.0"
@@ -36,11 +36,11 @@ version = "0.6.0"
 
 [dependencies.nrf52832-pac]
 optional = true
-version = "0.6.0"
+version = "0.8.0-beta.1"
 
 [dependencies.nrf52840-pac]
 optional = true
-version = "0.6.0"
+version = "0.8.0-beta.1"
 
 [dependencies.embedded-hal]
 features = ["unproven"]

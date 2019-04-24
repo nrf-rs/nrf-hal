@@ -5,9 +5,9 @@ authors = ["James Munns <james.munns@ferrous-systems.com>"]
 edition = "2018"
 
 [dependencies]
-cortex-m-rtfm = "0.4"
-panic-semihosting = "0.5"
-cortex-m-semihosting = "0.3"
+cortex-m-rtfm = "0.4.3"
+panic-semihosting = "0.5.1"
+cortex-m-semihosting = "0.3.3"
 
 [dependencies.nrf52810-hal]
 version = "0.8.0"
