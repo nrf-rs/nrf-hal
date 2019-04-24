@@ -21,14 +21,19 @@ pub struct Rtc<T, M> {
 }
 
 /// An extension trait for constructing the high level interface
-pub trait RtcExt : Deref<Target=rtc0::RegisterBlock> + Sized {
+pub trait RtcExt: Deref<Target = rtc0::RegisterBlock> + Sized {
+    // The interrupt that belongs to this RTC instance.
+    const INTERRUPT: Interrupt;
+
     fn constrain(self) -> Rtc<Self, Stopped>;
 }
 
 macro_rules! impl_rtc_ext {
-    ($($rtc:ty,)*) => {
+    ($($rtc:ident,)*) => {
         $(
             impl RtcExt for $rtc {
+                const INTERRUPT: Interrupt = Interrupt::$rtc;
+
                 fn constrain(self) -> Rtc<$rtc, Stopped> {
                     Rtc {
                         periph: self,
@@ -36,7 +41,7 @@ macro_rules! impl_rtc_ext {
                     }
                 }
             }
-        )*
+        )+
     }
 }
 
@@ -90,7 +95,7 @@ where
     }
 
     /// Enable the generation of a hardware interrupt from a given stimulus
-    pub fn enable_interrupt(&mut self, int: RtcInterrupt) {
+    pub fn enable_interrupt(&mut self, int: RtcInterrupt, nvic: &mut NVIC) {
         match int {
             RtcInterrupt::Tick => self.periph.intenset.write(|w| w.tick().set()),
             RtcInterrupt::Overflow => self.periph.intenset.write(|w| w.ovrflw().set()),
@@ -99,10 +104,11 @@ where
             RtcInterrupt::Compare2 => self.periph.intenset.write(|w| w.compare2().set()),
             RtcInterrupt::Compare3 => self.periph.intenset.write(|w| w.compare3().set()),
         }
+        nvic.enable(T::INTERRUPT);
     }
 
     /// Disable the generation of a hardware interrupt from a given stimulus
-    pub fn disable_interrupt(&mut self, int: RtcInterrupt) {
+    pub fn disable_interrupt(&mut self, int: RtcInterrupt, nvic: &mut NVIC) {
         match int {
             RtcInterrupt::Tick => self.periph.intenclr.write(|w| w.tick().clear()),
             RtcInterrupt::Overflow => self.periph.intenclr.write(|w| w.ovrflw().clear()),
@@ -111,6 +117,7 @@ where
             RtcInterrupt::Compare2 => self.periph.intenclr.write(|w| w.compare2().clear()),
             RtcInterrupt::Compare3 => self.periph.intenclr.write(|w| w.compare3().clear()),
         }
+        nvic.disable(T::INTERRUPT);
     }
 
     /// Enable the generation of a hardware event from a given stimulus
