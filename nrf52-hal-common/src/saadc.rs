@@ -1,10 +1,9 @@
 use crate::{
     gpio::{Floating, Input},
-    target::{saadc, SAADC},
+    target::SAADC,
 };
 use core::{
     hint::unreachable_unchecked,
-    ops::Deref,
     sync::atomic::{compiler_fence, Ordering::SeqCst},
 };
 use embedded_hal::adc::{Channel, OneShot};
@@ -18,16 +17,6 @@ pub use crate::target::saadc::{
 // Only 1 channel is allowed right now, a discussion needs to be had as to how
 // multiple channels should work (See "scan mode" in the datasheet)
 // Issue: https://github.com/nrf-rs/nrf52-hal/issues/82
-
-pub trait SaadcExt: Deref<Target = saadc::RegisterBlock> + Sized {
-    fn constrain(self) -> Saadc;
-}
-
-impl SaadcExt for SAADC {
-    fn constrain(self) -> Saadc {
-        Saadc::new(self, SaadcConfig::default())
-    }
-}
 
 pub struct Saadc(SAADC);
 
