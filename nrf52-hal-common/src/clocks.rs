@@ -20,11 +20,6 @@ pub struct LfOscStarted;
 /// Low Frequency Clock Stopped
 pub struct LfOscStopped;
 
-/// Extension trait for the CLOCK peripheral
-pub trait ClocksExt {
-    fn constrain(self) -> Clocks<Internal, Internal, LfOscStopped>;
-}
-
 /// High Frequency Clock Frequency (in Hz)
 pub const HFCLK_FREQ: u32 = 64_000_000;
 /// Low Frequency Clock Frequency (in Hz)
@@ -39,6 +34,14 @@ pub struct Clocks<H, L, LSTAT> {
 }
 
 impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
+    pub fn new(clock: CLOCK) -> Clocks<Internal, Internal, LfOscStopped> {
+        Clocks {
+            hfclk: Internal,
+            lfclk: Internal,
+            lfstat: LfOscStopped,
+            periph: clock,
+        }
+    }
     /// Use an external oscillator as the high frequency clock source
     pub fn enable_ext_hfosc(self) -> Clocks<ExternalOscillator, L, LSTAT> {
         self.periph.tasks_hfclkstart.write(|w| unsafe { w.bits(1) });
@@ -154,17 +157,6 @@ impl<H, L> Clocks<H, L, LfOscStopped> {
             lfclk: ExternalOscillator,
             lfstat: self.lfstat,
             periph: self.periph,
-        }
-    }
-}
-
-impl ClocksExt for CLOCK {
-    fn constrain(self) -> Clocks<Internal, Internal, LfOscStopped> {
-        Clocks {
-            hfclk: Internal,
-            lfclk: Internal,
-            lfstat: LfOscStopped,
-            periph: self,
         }
     }
 }

@@ -27,7 +27,6 @@ pub mod uarte;
 pub mod prelude {
     pub use crate::hal::prelude::*;
 
-    pub use crate::clocks::ClocksExt;
     pub use crate::gpio::GpioExt;
     pub use crate::time::U32Ext;
 }
