@@ -1,6 +1,6 @@
 [package]
 name = "nrf52810-hal"
-version = "0.8.0"
+version = "0.8.1"
 edition = "2018"
 description = "HAL for nRF52810 microcontrollers"
 repository = "https://github.com/nrf-rs/nrf52-hal"
