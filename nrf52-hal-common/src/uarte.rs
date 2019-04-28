@@ -236,6 +236,11 @@ impl<T> Uarte<T> where T: UarteExt {
             }
         }
 
+        if !event_complete {
+            // Cancel the reception if it did not complete until now
+            self.cancel_read();
+        }
+
         // Cleanup, even in the error case
         self.finalize_read();
 
@@ -302,6 +307,28 @@ impl<T> Uarte<T> where T: UarteExt {
         // take in to account actions by DMA. The fence has been placed here,
         // after all possible DMA actions have completed
         compiler_fence(SeqCst);
+    }
+
+    /// Stop an unfinished UART read transaction and flush FIFO to DMA buffer
+    fn cancel_read(&mut self) {
+        // Stop reception
+        self.0.tasks_stoprx.write(|w|
+            unsafe { w.bits(1) });
+
+        // Wait for the reception to have stopped
+        while self.0.events_rxto.read().bits() == 0 {}
+
+        // Reset the event flag
+        self.0.events_rxto.write(|w| w);
+
+        // Ask UART to flush FIFO to DMA buffer
+        self.0.tasks_flushrx.write(|w|
+            unsafe { w.bits(1) });
+
+        // Wait for the flush to complete.
+        while self.0.events_endrx.read().bits() == 0 {}
+
+        // The event flag itself is later reset by `finalize_read`.
     }
 
     /// Return the raw interface to the underlying UARTE peripheral
