@@ -14,16 +14,14 @@ use ssd1306::Builder;
 use nrf52832_hal::{
     nrf52832_pac as pac,
     gpio::*,
-    twim,
-    prelude::TwimExt,
+    twim::{self, Twim},
 };
 
 #[cfg(feature = "52840")]
 use nrf52840_hal::{
     nrf52840_pac as pac,
     gpio::*,
-    twim,
-    prelude::TwimExt,
+    twim::{self, Twim},
 };
 
 
@@ -43,7 +41,7 @@ fn main() -> ! {
 
     let pins = twim::Pins { scl, sda };
 
-    let i2c = p.TWIM0.constrain(pins, twim::Frequency::K100);
+    let i2c = Twim::new(p.TWIM0, pins, twim::Frequency::K100);
 
     let mut disp: GraphicsMode<_> = Builder::new().connect_i2c(i2c).into();
 
