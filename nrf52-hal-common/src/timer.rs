@@ -12,31 +12,6 @@ use void::{unreachable, Void};
 #[cfg(any(feature = "52832", feature = "52840"))]
 use crate::target::{TIMER3, TIMER4};
 
-pub trait TimerExt: Deref<Target = timer0::RegisterBlock> + Sized {
-    // The interrupt that belongs to this timer instance
-    const INTERRUPT: Interrupt;
-
-    fn constrain(self) -> Timer<Self>;
-}
-
-macro_rules! impl_timer_ext {
-    ($($timer:tt,)*) => {
-        $(
-            impl TimerExt for $timer {
-                const INTERRUPT: Interrupt = Interrupt::$timer;
-
-                fn constrain(self) -> Timer<Self> {
-                    Timer::new(self)
-                }
-            }
-        )*
-    }
-}
-
-impl_timer_ext!(TIMER0, TIMER1, TIMER2,);
-
-#[cfg(any(feature = "52832", feature = "52840"))]
-impl_timer_ext!(TIMER3, TIMER4,);
 
 /// Interface to a TIMER instance
 ///
@@ -46,9 +21,9 @@ pub struct Timer<T>(T);
 
 impl<T> Timer<T>
 where
-    T: TimerExt,
+    T: Instance,
 {
-    fn new(timer: T) -> Self {
+    pub fn new(timer: T) -> Self {
         timer
             .shorts
             .write(|w| w.compare0_clear().enabled().compare0_stop().enabled());
@@ -102,7 +77,7 @@ where
 
 impl<T> timer::CountDown for Timer<T>
 where
-    T: TimerExt,
+    T: Instance,
 {
     type Time = u32;
 
@@ -151,7 +126,7 @@ where
 
 impl<T> timer::Cancel for Timer<T>
 where
-    T: TimerExt,
+    T: Instance,
 {
     type Error = ();
 
@@ -162,3 +137,25 @@ where
         Ok(())
     }
 }
+
+
+/// Implemented by all `TIMER` instances
+pub trait Instance: Deref<Target = timer0::RegisterBlock> {
+    /// This interrupt associated with this RTC instance
+    const INTERRUPT: Interrupt;
+}
+
+macro_rules! impl_instance {
+    ($($name:ident,)*) => {
+        $(
+            impl Instance for $name {
+                const INTERRUPT: Interrupt = Interrupt::$name;
+            }
+        )*
+    }
+}
+
+impl_instance!(TIMER0, TIMER1, TIMER2,);
+
+#[cfg(any(feature = "52832", feature = "52840"))]
+impl_instance!(TIMER3, TIMER4,);

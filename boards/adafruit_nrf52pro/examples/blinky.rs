@@ -10,7 +10,7 @@ use panic_semihosting;
 use adafruit_nrf52pro_bsc::hal::{
     prelude::*,
     gpio::Level,
-    timer::Timer,
+    timer::{self, Timer},
 };
 use adafruit_nrf52pro_bsc::nrf52832_pac::{Peripherals};
 use adafruit_nrf52pro_bsc::Pins;
@@ -24,7 +24,7 @@ fn main() -> ! {
     let mut led1 = pins.led1.into_push_pull_output(Level::Low);
     let mut led2 = pins.led2.into_push_pull_output(Level::Low);
 
-    let mut timer = p.TIMER0.constrain();
+    let mut timer = Timer::new(p.TIMER0);
 
     // Alternately flash the red and blue leds
     loop {
@@ -39,7 +39,7 @@ fn main() -> ! {
 
 fn delay<T>(timer: &mut Timer<T>, cycles: u32)
 where
-    T: TimerExt,
+    T: timer::Instance,
 {
     timer.start(cycles);
     block!(timer.wait());

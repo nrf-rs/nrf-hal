@@ -9,14 +9,14 @@ use adafruit_nrf52_bluefruit_le::{prelude::*, Board};
 use core::fmt::Write;
 use cortex_m_rt::{entry, exception, ExceptionFrame};
 use nb::block;
-use nrf52832_hal::Timer;
+use nrf52832_hal::timer::{self, Timer};
 
 
 #[entry]
 fn main() -> ! {
     let mut b = Board::take().unwrap();
 
-    let mut timer = b.TIMER4.constrain();
+    let mut timer = Timer::new(b.TIMER4);
 
     b.leds.red.disable();
     b.leds.blue.disable();
@@ -65,7 +65,7 @@ fn main() -> ! {
 
 fn delay<T>(timer: &mut Timer<T>, cycles: u32)
 where
-    T: TimerExt,
+    T: timer::Instance,
 {
     timer.start(cycles);
     block!(timer.wait()).unwrap();

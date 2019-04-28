@@ -6,7 +6,7 @@ extern crate panic_semihosting;
 extern crate nrf52_dk_bsp as dk;
 extern crate nb;
 
-use dk::{ Board, prelude::* };
+use dk::{ Board, prelude::*, nrf52832_hal::Timer };
 use rt::entry;
 use nb::block;
 
@@ -14,7 +14,7 @@ use nb::block;
 fn main() -> ! {
     let mut board = Board::take().unwrap();
 
-    let mut timer = board.TIMER0.constrain();
+    let mut timer = Timer::new(board.TIMER0);
 
     let mut led_is_on = false;
     loop {
