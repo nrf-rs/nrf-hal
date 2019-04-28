@@ -246,7 +246,7 @@ impl<T> Uarte<T> where T: UarteExt {
 
         let bytes_read = self.0.rxd.amount.read().bits() as usize;
 
-        if timeout_occured {
+        if timeout_occured && !event_complete {
             return Err(Error::Timeout(bytes_read));
         }
 
