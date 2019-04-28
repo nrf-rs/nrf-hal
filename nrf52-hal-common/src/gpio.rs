@@ -21,17 +21,6 @@ pub struct Output<MODE> {
     _mode: PhantomData<MODE>,
 }
 
-/// Extension trait to split a GPIO peripheral in independent pins and registers
-pub trait GpioExt {
-    /// The to split the GPIO into
-    type Parts;
-
-    /// Splits the GPIO block into independent pins and registers
-    fn split(
-        self,
-        // apb2: &mut APB2
-    ) -> Self::Parts;
-}
 
 /// Push pull output (type state)
 pub struct PushPull;
@@ -333,7 +322,6 @@ macro_rules! gpio {
 
                 // Alternate,
                 Floating,
-                GpioExt,
                 Input,
                 Level,
                 OpenDrain,
@@ -364,11 +352,9 @@ macro_rules! gpio {
                 )+
             }
 
-            impl GpioExt for $PX {
-                type Parts = Parts;
-
-                fn split(self) -> Parts {
-                    Parts {
+            impl Parts {
+                pub fn new(_gpio: $PX) -> Self {
+                    Self {
                         $(
                             $pxi: $PXi {
                                 _mode: PhantomData,
