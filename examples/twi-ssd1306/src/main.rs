@@ -34,7 +34,7 @@ use nrf52840_hal::{
 #[entry]
 fn main() -> ! {
     let p = pac::Peripherals::take().unwrap();
-    let port0 = p.P0.split();
+    let port0 = p0::Parts::new(p.P0);
 
     let scl = port0.p0_26.into_floating_input().degrade();
     let sda = port0.p0_27.into_floating_input().degrade();

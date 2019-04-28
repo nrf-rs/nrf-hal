@@ -313,8 +313,8 @@ impl Board {
     }
 
     fn new(cp: CorePeripherals, p: Peripherals) -> Self {
-        let pins0 = p.P0.split();
-        let pins1 = p.P1.split();
+        let pins0 = p0::Parts::new(p.P0);
+        let pins1 = p1::Parts::new(p.P1);
 
         // The nRF52840-DK has an 64MB SPI flash on board which can be interfaced through SPI or Quad SPI.
         // As for now, only the normal SPI mode is available, so we are using this for the interface.

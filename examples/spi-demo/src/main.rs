@@ -14,7 +14,6 @@ use nrf52832_hal::gpio;
 use nrf52832_hal::gpio::p0::*;
 use nrf52832_hal::gpio::Level;
 use nrf52832_hal::gpio::*;
-use nrf52832_hal::prelude::GpioExt;
 use nrf52832_hal::spim::Spim;
 
 /// SPIM demonstation code.
@@ -25,7 +24,7 @@ use nrf52832_hal::spim::Spim;
 #[entry]
 fn main() -> ! {
     let p = nrf52832_hal::nrf52832_pac::Peripherals::take().unwrap();
-    let port0 = p.P0.split();
+    let port0 = p0::Parts::new(p.P0);
 
     let cs: P0_21<gpio::Output<PushPull>> = port0.p0_21.into_push_pull_output(Level::Low);
 

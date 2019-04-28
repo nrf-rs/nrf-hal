@@ -239,7 +239,7 @@ impl Board {
     }
 
     pub fn new(cp: CorePeripherals, p: Peripherals) -> Self {
-        let pins = p.P0.split();
+        let pins = p0::Parts::new(p.P0);
 
         let cdc_uarte = Uarte::new(
             p.UARTE0,

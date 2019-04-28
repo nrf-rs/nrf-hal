@@ -295,7 +295,7 @@ impl Board {
     }
 
     fn new(cp: CorePeripherals, p: Peripherals) -> Self {
-        let pins0 = p.P0.split();
+        let pins0 = p0::Parts::new(p.P0);
 
         // The nRF52-DK features an USB CDC port.
         // It features HWFC but does not have to use it.
