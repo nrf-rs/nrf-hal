@@ -29,7 +29,6 @@ pub mod prelude {
 
     pub use crate::clocks::ClocksExt;
     pub use crate::gpio::GpioExt;
-    pub use crate::rng::RngExt;
     pub use crate::rtc::RtcExt;
     pub use crate::saadc::SaadcExt;
     pub use crate::spim::SpimExt;
