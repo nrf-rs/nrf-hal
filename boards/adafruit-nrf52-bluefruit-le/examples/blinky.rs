@@ -1,14 +1,16 @@
 #![no_main]
 #![no_std]
 
+
+extern crate panic_halt;
+
+
 use adafruit_nrf52_bluefruit_le::{prelude::*, Board};
 use core::fmt::Write;
 use cortex_m_rt::{entry, exception, ExceptionFrame};
 use nb::block;
 use nrf52832_hal::Timer;
 
-#[allow(unused_imports)]
-use panic_abort;
 
 #[entry]
 fn main() -> ! {

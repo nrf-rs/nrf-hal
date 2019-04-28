@@ -13,7 +13,7 @@ nrf52832-hal = { path = "../../nrf52832-hal" }
 
 [dev-dependencies]
 cortex-m-rt = "0.6.8"
-panic-abort = "0.3.1"
+panic-halt = "0.2.0"
 nb = "~0.1"
 
 [features]
