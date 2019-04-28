@@ -30,15 +30,6 @@ pub use crate::target::uarte0::{
     config::PARITYW as Parity,
 };
 
-pub trait UarteExt: Deref<Target = uarte0::RegisterBlock> + Sized {
-    fn constrain(self, pins: Pins, parity: Parity, baudrate: Baudrate) -> Uarte<Self>;
-}
-
-impl UarteExt for UARTE0 {
-    fn constrain(self, pins: Pins, parity: Parity, baudrate: Baudrate) -> Uarte<Self> {
-        Uarte::new(self, pins, parity, baudrate)
-    }
-}
 
 /// Interface to a UARTE instance
 ///
@@ -50,7 +41,7 @@ impl UarteExt for UARTE0 {
 ///     - nrf52840: Section 6.1.2
 pub struct Uarte<T>(T);
 
-impl<T> Uarte<T> where T: UarteExt {
+impl<T> Uarte<T> where T: Instance {
     pub fn new(uarte: T, mut pins: Pins, parity: Parity, baudrate: Baudrate) -> Self {
         // Select pins
         uarte.psel.rxd.write(|w| {
@@ -337,7 +328,7 @@ impl<T> Uarte<T> where T: UarteExt {
     }
 }
 
-impl<T> fmt::Write for Uarte<T> where T: UarteExt {
+impl<T> fmt::Write for Uarte<T> where T: Instance {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         // Copy all data into an on-stack buffer so we never try to EasyDMA from
         // flash
@@ -367,3 +358,8 @@ pub enum Error {
     Receive,
     Timeout(usize),
 }
+
+
+pub trait Instance: Deref<Target = uarte0::RegisterBlock> {}
+
+impl Instance for UARTE0 {}

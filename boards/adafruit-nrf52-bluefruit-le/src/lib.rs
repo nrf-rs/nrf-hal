@@ -241,7 +241,8 @@ impl Board {
     pub fn new(cp: CorePeripherals, p: Peripherals) -> Self {
         let pins = p.P0.split();
 
-        let cdc_uarte = p.UARTE0.constrain(
+        let cdc_uarte = Uarte::new(
+            p.UARTE0,
             uarte::Pins {
                 txd: pins.p0_06.into_push_pull_output(Level::High).degrade(),
                 rxd: pins.p0_08.into_floating_input().degrade(),
