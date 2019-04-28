@@ -3,25 +3,9 @@
 //! See nRF52832 product specification, chapter 26.
 
 
-use core::ops::Deref;
 use rand_core::{CryptoRng, RngCore};
 
-use crate::target::{
-    rng,
-    RNG,
-};
-
-
-pub trait RngExt : Deref<Target=rng::RegisterBlock> + Sized {
-    fn constrain(self) -> Rng;
-}
-
-impl RngExt for RNG {
-    fn constrain(self) -> Rng {
-        self.config.write(|w| w.dercen().enabled());
-        Rng(self)
-    }
-}
+use crate::target::RNG;
 
 
 /// Interface to the RNG peripheral
@@ -30,6 +14,11 @@ impl RngExt for RNG {
 pub struct Rng(RNG);
 
 impl Rng {
+    pub fn new(rng: RNG) -> Self {
+        rng.config.write(|w| w.dercen().enabled());
+        Self(rng)
+    }
+
     /// Fill the provided buffer with random bytes
     ///
     /// Will block until the buffer is full.
