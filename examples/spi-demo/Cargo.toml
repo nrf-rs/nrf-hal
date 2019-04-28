@@ -19,7 +19,7 @@ path = "../../nrf52832-hal"
 optional = true
 
 [dependencies.nrf52832-pac]
-version = "0.8.0-beta.1"
+version = "0.8.0"
 optional = true
 
 [features]

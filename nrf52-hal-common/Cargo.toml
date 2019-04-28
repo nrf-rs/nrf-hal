@@ -32,15 +32,15 @@ version = "0.2.2"
 
 [dependencies.nrf52810-pac]
 optional = true
-version = "0.6.0"
+version = "0.8.0"
 
 [dependencies.nrf52832-pac]
 optional = true
-version = "0.8.0-beta.1"
+version = "0.8.0"
 
 [dependencies.nrf52840-pac]
 optional = true
-version = "0.8.0-beta.1"
+version = "0.8.0"
 
 [dependencies.embedded-hal]
 features = ["unproven"]
