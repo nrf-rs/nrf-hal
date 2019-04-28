@@ -318,7 +318,7 @@ impl Board {
 
         // The nRF52840-DK has an 64MB SPI flash on board which can be interfaced through SPI or Quad SPI.
         // As for now, only the normal SPI mode is available, so we are using this for the interface.
-        let flash_spim = p.SPIM2.constrain(spim::Pins {
+        let flash_spim = Spim::new(p.SPIM2, spim::Pins {
             sck : pins0.p0_19.into_push_pull_output(Level::Low).degrade(),
             mosi: Some(pins0.p0_20.into_push_pull_output(Level::Low).degrade()),
             miso: Some(pins0.p0_21.into_floating_input().degrade()),

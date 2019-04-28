@@ -18,26 +18,6 @@ use crate::prelude::*;
 use crate::target_constants::{EASY_DMA_SIZE, FORCE_COPY_BUFFER_SIZE};
 use crate::{slice_in_ram, DmaSlice};
 
-pub trait SpimExt: Deref<Target = spim0::RegisterBlock> + Sized {
-    fn constrain(self, pins: Pins, frequency: Frequency, mode: Mode, orc: u8) -> Spim<Self>;
-}
-
-macro_rules! impl_spim_ext {
-    ($($spim:ty,)*) => {
-        $(
-            impl SpimExt for $spim {
-                fn constrain(self, pins: Pins, frequency: Frequency, mode: Mode, orc: u8) -> Spim<Self> {
-                    Spim::new(self, pins, frequency, mode, orc)
-                }
-            }
-        )*
-    }
-}
-
-impl_spim_ext!(SPIM0,);
-
-#[cfg(any(feature = "52832", feature = "52840"))]
-impl_spim_ext!(SPIM1, SPIM2,);
 
 /// Interface to a SPIM instance
 ///
@@ -49,7 +29,7 @@ pub struct Spim<T>(T);
 
 impl<T> embedded_hal::blocking::spi::Transfer<u8> for Spim<T>
 where
-    T: SpimExt,
+    T: Instance,
 {
     type Error = Error;
 
@@ -70,7 +50,7 @@ where
 
 impl<T> embedded_hal::blocking::spi::Write<u8> for Spim<T>
 where
-    T: SpimExt,
+    T: Instance,
 {
     type Error = Error;
 
@@ -96,7 +76,7 @@ where
 }
 impl<T> Spim<T>
 where
-    T: SpimExt,
+    T: Instance,
 {
     fn spi_dma_no_copy(&mut self, chunk: &[u8]) -> Result<(), Error> {
         self.do_spi_dma_transfer(DmaSlice::from_slice(chunk), DmaSlice::null())
@@ -428,3 +408,15 @@ fn ram_slice_check(slice: &[u8]) -> Result<(), Error> {
         Err(Error::DMABufferNotInDataMemory)
     }
 }
+
+
+/// Implemented by all SPIM instances
+pub trait Instance: Deref<Target = spim0::RegisterBlock> {}
+
+impl Instance for SPIM0 {}
+
+#[cfg(any(feature = "52832", feature = "52840"))]
+impl Instance for SPIM1 {}
+
+#[cfg(any(feature = "52832", feature = "52840"))]
+impl Instance for SPIM2 {}
