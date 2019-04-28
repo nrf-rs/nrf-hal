@@ -6,7 +6,7 @@
 extern crate cortex_m;
 
 extern crate cortex_m_rt;
-extern crate nrf52832_hal;
+pub extern crate nrf52832_hal;
 
 /// Exports traits that are usually needed when using this crate
 pub mod prelude {

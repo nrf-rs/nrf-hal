@@ -22,7 +22,7 @@ use crate::gpio::{
     Input,
     Floating,
 };
-use crate::timer::Timer;
+use crate::timer::{self, Timer};
 
 // Re-export SVD variants to allow user to directly set values
 pub use crate::target::uarte0::{
@@ -216,7 +216,7 @@ impl<T> Uarte<T> where T: UarteExt {
         rx_buffer: &mut [u8],
         timer: &mut Timer<I>,
         cycles: u32
-    ) -> Result<(), Error> where I: TimerExt
+    ) -> Result<(), Error> where I: timer::Instance
     {
         // Start the read
         self.start_read(rx_buffer)?;

@@ -10,7 +10,7 @@ use panic_semihosting;
 use nrf52840_dk_bsp::{
     hal::{
         prelude::*,
-        timer::Timer,
+        timer::{self, Timer},
     },
     Board,
 };
@@ -20,7 +20,7 @@ use nrf52840_dk_bsp::{
 fn main() -> ! {
     let mut nrf52 = Board::take().unwrap();
 
-    let mut timer = nrf52.TIMER0.constrain();
+    let mut timer = Timer::new(nrf52.TIMER0);
 
     // Alternately flash the red and blue leds
     loop {
@@ -33,7 +33,7 @@ fn main() -> ! {
 
 fn delay<T>(timer: &mut Timer<T>, cycles: u32)
 where
-    T: TimerExt,
+    T: timer::Instance,
 {
     timer.start(cycles);
     let _ = block!(timer.wait());
