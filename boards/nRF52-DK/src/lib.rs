@@ -300,7 +300,9 @@ impl Board {
         // The nRF52-DK features an USB CDC port.
         // It features HWFC but does not have to use it.
         // It can transmit a flexible baudrate of up to 1Mbps.
-        let cdc_uart = p.UARTE0.constrain(uarte::Pins {
+        let cdc_uart = Uarte::new(
+                p.UARTE0,
+                uarte::Pins {
                 txd: pins0.p0_06.into_push_pull_output(Level::High).degrade(),
                 rxd: pins0.p0_08.into_floating_input().degrade(),
                 cts: Some(pins0.p0_07.into_floating_input().degrade()),
