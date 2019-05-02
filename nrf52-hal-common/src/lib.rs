@@ -53,8 +53,7 @@ pub mod target_constants {
 /// Does this slice reside entirely within RAM?
 pub(crate) fn slice_in_ram(slice: &[u8]) -> bool {
     let ptr = slice.as_ptr() as usize;
-    ptr >= target_constants::SRAM_LOWER &&
-        (ptr + slice.len()) < target_constants::SRAM_UPPER
+    ptr >= target_constants::SRAM_LOWER && (ptr + slice.len()) < target_constants::SRAM_UPPER
 }
 
 /// A handy structure for converting rust slices into ptr and len pairs
@@ -67,10 +66,7 @@ pub(crate) struct DmaSlice {
 
 impl DmaSlice {
     pub fn null() -> Self {
-        Self {
-            ptr: 0,
-            len: 0,
-        }
+        Self { ptr: 0, len: 0 }
     }
 
     pub fn from_slice(slice: &[u8]) -> Self {
@@ -89,4 +85,4 @@ pub use crate::saadc::Saadc;
 pub use crate::spim::Spim;
 pub use crate::timer::Timer;
 pub use crate::twim::Twim;
-pub use crate::uarte::Uarte;
+pub use crate::uarte::{DMAPool, RXError, TXQSize, Uarte, UarteRX, UarteTX, DMA_SIZE};
