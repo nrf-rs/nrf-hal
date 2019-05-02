@@ -4,9 +4,9 @@
 //!
 //! - nrf52832: Section 35
 //! - nrf52840: Section 6.34
+use core::fmt;
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
-use core::fmt;
 
 #[cfg(feature="9160")]
 use crate::target::{
@@ -21,23 +21,19 @@ use crate::target::{
     UARTE0,
 };
 
-use crate::target_constants::EASY_DMA_SIZE;
+use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::prelude::*;
-use crate::gpio::{
-    Pin,
-    Output,
-    PushPull,
-    Input,
-    Floating,
-};
+use crate::target_constants::EASY_DMA_SIZE;
 use crate::timer::{self, Timer};
+use heapless::{
+    consts::*,
+    pool,
+    pool::singleton::{Box, Pool},
+    spsc::{Consumer, Queue},
+};
 
 // Re-export SVD variants to allow user to directly set values
-pub use uarte0::{
-    baudrate::BAUDRATEW as Baudrate,
-    config::PARITYW as Parity,
-};
-
+pub use crate::target::uarte0::{baudrate::BAUDRATEW as Baudrate, config::PARITYW as Parity};
 
 /// Interface to a UARTE instance
 ///
@@ -49,7 +45,10 @@ pub use uarte0::{
 ///     - nrf52840: Section 6.1.2
 pub struct Uarte<T>(T);
 
-impl<T> Uarte<T> where T: Instance {
+impl<T> Uarte<T>
+where
+    T: Instance,
+{
     pub fn new(uarte: T, mut pins: Pins, parity: Parity, baudrate: Baudrate) -> Self {
         // Select pins
         uarte.psel.rxd.write(|w| {
@@ -90,21 +89,16 @@ impl<T> Uarte<T> where T: Instance {
         });
 
         // Enable UARTE instance
-        uarte.enable.write(|w|
-            w.enable().enabled()
-        );
+        uarte.enable.write(|w| w.enable().enabled());
 
         // Configure
         let hardware_flow_control = pins.rts.is_some() && pins.cts.is_some();
-        uarte.config.write(|w|
-            w.hwfc().bit(hardware_flow_control)
-             .parity().variant(parity)
-        );
+        uarte
+            .config
+            .write(|w| w.hwfc().bit(hardware_flow_control).parity().variant(parity));
 
         // Configure frequency
-        uarte.baudrate.write(|w|
-            w.baudrate().variant(baudrate)
-        );
+        uarte.baudrate.write(|w| w.baudrate().variant(baudrate));
 
         Uarte(uarte)
     }
@@ -115,11 +109,7 @@ impl<T> Uarte<T> where T: Instance {
     ///
     /// The buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
-    pub fn write(&mut self,
-        tx_buffer  : &[u8],
-    )
-        -> Result<(), Error>
-    {
+    pub fn write(&mut self, tx_buffer: &[u8]) -> Result<(), Error> {
         if tx_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
@@ -146,8 +136,7 @@ impl<T> Uarte<T> where T: Instance {
             //
             // The PTR field is a full 32 bits wide and accepts the full range
             // of values.
-            unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) }
-        );
+            unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) });
         self.0.txd.maxcnt.write(|w|
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
@@ -197,11 +186,7 @@ impl<T> Uarte<T> where T: Instance {
     /// until the buffer is full.
     ///
     /// The buffer must have a length of at most 255 bytes
-    pub fn read(&mut self,
-        rx_buffer  : &mut [u8],
-    )
-        -> Result<(), Error>
-    {
+    pub fn read(&mut self, rx_buffer: &mut [u8]) -> Result<(), Error> {
         self.start_read(rx_buffer)?;
 
         // Wait for transmission to end
@@ -234,8 +219,10 @@ impl<T> Uarte<T> where T: Instance {
         &mut self,
         rx_buffer: &mut [u8],
         timer: &mut Timer<I>,
-        cycles: u32
-    ) -> Result<(), Error> where I: timer::Instance
+        cycles: u32,
+    ) -> Result<(), Error>
+    where
+        I: timer::Instance,
     {
         // Start the read
         self.start_read(rx_buffer)?;
@@ -298,8 +285,7 @@ impl<T> Uarte<T> where T: Instance {
             //
             // The PTR field is a full 32 bits wide and accepts the full range
             // of values.
-            unsafe { w.ptr().bits(rx_buffer.as_ptr() as u32) }
-        );
+            unsafe { w.ptr().bits(rx_buffer.as_ptr() as u32) });
         self.0.rxd.maxcnt.write(|w|
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
@@ -331,8 +317,7 @@ impl<T> Uarte<T> where T: Instance {
     /// Stop an unfinished UART read transaction and flush FIFO to DMA buffer
     fn cancel_read(&mut self) {
         // Stop reception
-        self.0.tasks_stoprx.write(|w|
-            unsafe { w.bits(1) });
+        self.0.tasks_stoprx.write(|w| unsafe { w.bits(1) });
 
         // Wait for the reception to have stopped
         while self.0.events_rxto.read().bits() == 0 {}
@@ -341,8 +326,7 @@ impl<T> Uarte<T> where T: Instance {
         self.0.events_rxto.write(|w| w);
 
         // Ask UART to flush FIFO to DMA buffer
-        self.0.tasks_flushrx.write(|w|
-            unsafe { w.bits(1) });
+        self.0.tasks_flushrx.write(|w| unsafe { w.bits(1) });
 
         // Wait for the flush to complete.
         while self.0.events_endrx.read().bits() == 0 {}
@@ -354,9 +338,257 @@ impl<T> Uarte<T> where T: Instance {
     pub fn free(self) -> T {
         self.0
     }
+
+    /// Splits the UARTE into a transmitter and receiver for interrupt driven use
+    ///
+    /// In needs a `Queue` to place received DMA chunks, and a `Consumer` to place DMA chunks to
+    /// send
+    ///
+    /// Note: The act of splitting might not be needed on the nRF52 chips, as they map to the same
+    /// interrupt in the end. Kept as a split for now, but might be merged in the future.
+    pub fn split(
+        self,
+        rxq: Queue<Box<DMAPool>, U2>,
+        txc: Consumer<'static, Box<DMAPool>, TXQSize>,
+    ) -> (UarteRX<T>, UarteTX<T>) {
+        let mut rx = UarteRX::<T>::new(rxq);
+        rx.enable_interrupts();
+        rx.prepare_read().unwrap();
+        rx.start_read();
+
+        let tx = UarteTX::<T>::new(txc);
+        tx.enable_interrupts();
+        (rx, tx)
+    }
 }
 
-impl<T> fmt::Write for Uarte<T> where T: Instance {
+/// DMA block size
+pub const DMA_SIZE: usize = 16;
+pool!(DMAPool: [u8; DMA_SIZE]);
+
+/// UARTE RX part, used in interrupt driven contexts
+pub struct UarteRX<T> {
+    rxq: Queue<Box<DMAPool>, U2>, // double buffering of DMA chunks
+    _marker: core::marker::PhantomData<T>,
+}
+
+/// Receive error in interrupt driven context
+#[derive(Debug)]
+pub enum RXError {
+    /// Out of memory error, global pool is depleted
+    ///
+    /// Potential causes:
+    /// 1. User code is saving the `Box<DMAPool>` (and not dropping them)
+    /// 2. User code running `mem::forget` on the `Box<DMAPool>`
+    /// 3. The pool is too small for the use case
+    OOM,
+}
+
+impl<T> UarteRX<T>
+where
+    T: Instance,
+{
+    /// Construct new UARTE RX, hidden from users - used internally
+    fn new(rxq: Queue<Box<DMAPool>, U2>) -> Self {
+        Self {
+            rxq,
+            _marker: core::marker::PhantomData,
+        }
+    }
+
+    /// Used internally to set up the proper interrupts
+    fn enable_interrupts(&self) {
+        // This operation is safe due to type-state programming guaranteeing that the RX and TX are
+        // unique within the driver
+        let uarte = unsafe { &*T::ptr() };
+
+        uarte
+            .inten
+            .modify(|_, w| w.endrx().set_bit().rxstarted().set_bit());
+    }
+
+    /// Start a UARTE read transaction
+    fn start_read(&mut self) {
+        // This operation is safe due to type-state programming guaranteeing that the RX and TX are
+        // unique within the driver
+        let uarte = unsafe { &*T::ptr() };
+
+        // Start UARTE Receive transaction
+        uarte.tasks_startrx.write(|w|
+            // `1` is a valid value to write to task registers.
+            unsafe { w.bits(1) });
+    }
+
+    /// Prepare UARTE read transaction
+    fn prepare_read(&mut self) -> Result<(), RXError> {
+        // This operation is safe due to type-state programming guaranteeing that the RX and TX are
+        // unique within the driver
+        let uarte = unsafe { &*T::ptr() };
+
+        let b = DMAPool::alloc().ok_or(RXError::OOM)?.freeze();
+        compiler_fence(SeqCst);
+
+        // setup start address
+        uarte
+            .rxd
+            .ptr
+            .write(|w| unsafe { w.ptr().bits(b.as_ptr() as u32) });
+        // setup length
+        uarte
+            .rxd
+            .maxcnt
+            .write(|w| unsafe { w.maxcnt().bits(b.len() as _) });
+
+        if self.rxq.enqueue(b).is_err() {
+            panic!("Internal driver error, RX Queue Overflow");
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Main entry point for the RX driver - Must be called from the corresponding UARTE Interrupt
+    /// handler/task.
+    ///
+    /// Will return:
+    /// 1. `Ok(Some(Box<DMAPool>))` if data was received
+    /// 2. `Ok(None)` if there was no data, i.e. UARTE interrupt was due to other events
+    /// 3. `Err(RXError::OOM)` if the memory pool was depleted, see `RXError` for mitigations
+    pub fn process_interrupt(&mut self) -> Result<Option<Box<DMAPool>>, RXError> {
+        // This operation is safe due to type-state programming guaranteeing that the RX and TX are
+        // unique within the driver
+        let uarte = unsafe { &*T::ptr() };
+
+        // check if dma rx transaction has started
+        if uarte.events_rxstarted.read().bits() == 1 {
+            // DMA transaction has started
+            self.prepare_read()?;
+
+            // Reset the event, otherwise it will always read `1` from now on.
+            uarte.events_rxstarted.write(|w| w);
+        }
+
+        // check id dma transaction finished
+        if uarte.events_endrx.read().bits() == 1 {
+            // our transaction has finished
+            if let Some(ret_b) = self.rxq.dequeue() {
+                // Reset the event, otherwise it will always read `1` from now on.
+                uarte.events_endrx.write(|w| w);
+
+                self.start_read();
+
+                return Ok(Some(ret_b)); // ok to return, rx started will be caught later
+            } else {
+                panic!("Internal driver error, RX Queue Underflow");
+            }
+        }
+
+        // the interrupt was not RXSTARTED or ENDRX, so no action
+        Ok(None)
+    }
+}
+
+/// A transmit queue size of 4 `DMAPool` chunks for now
+pub type TXQSize = U4;
+
+/// UARTE TX part, used in interrupt driven contexts
+pub struct UarteTX<T> {
+    txc: Consumer<'static, Box<DMAPool>, TXQSize>, // chunks to transmit
+    current: Option<Box<DMAPool>>,
+    _marker: core::marker::PhantomData<T>,
+}
+
+impl<T> UarteTX<T>
+where
+    T: Instance,
+{
+    /// Construct new UARTE TX, hidden from users - used internally
+    fn new(txc: Consumer<'static, Box<DMAPool>, TXQSize>) -> Self {
+        Self {
+            txc,
+            current: None,
+            _marker: core::marker::PhantomData,
+        }
+    }
+
+    /// Used internally to set up the proper interrupts
+    fn enable_interrupts(&self) {
+        // This operation is safe due to type-state programming guaranteeing that the RX and TX are
+        // unique within the driver
+        let uarte = unsafe { &*T::ptr() };
+
+        uarte.inten.modify(|_, w| w.endtx().set_bit());
+    }
+
+    /// Sets up the UARTE to send DMA chunk
+    fn start_write(&mut self, b: Box<DMAPool>) {
+        // This operation is safe due to type-state programming guaranteeing that the RX and TX are
+        // unique within the driver
+        let uarte = unsafe { &*T::ptr() };
+
+        compiler_fence(SeqCst);
+
+        // setup start address
+        uarte
+            .txd
+            .ptr
+            .write(|w| unsafe { w.ptr().bits(b.as_ptr() as u32) });
+
+        // setup length
+        uarte
+            .txd
+            .maxcnt
+            .write(|w| unsafe { w.maxcnt().bits(b.len() as _) });
+
+        // Start UARTE transmit transaction
+        uarte.tasks_starttx.write(|w| unsafe { w.bits(1) });
+        self.current = Some(b); // drops the previous current package
+    }
+
+    /// Main entry point for the TX driver - Must be called from the corresponding UARTE Interrupt
+    /// handler/task.
+    pub fn process_interrupt(&mut self) {
+        // This operation is safe due to type-state programming guaranteeing that the RX and TX are
+        // unique within the driver
+        let uarte = unsafe { &*T::ptr() };
+
+        // ENDTX event? (DMA transaction finished)
+        if uarte.events_endtx.read().bits() == 1 {
+            // our transaction has finished
+            match self.txc.dequeue() {
+                None => {
+                    // a ENDTX without an started transaction is an error
+                    if self.current.is_none() {
+                        panic!("Internal error, ENDTX without current transaction.")
+                    }
+                    // we don't have any more to send, so drop the current buffer
+                    self.current = None;
+                }
+                Some(b) => {
+                    self.start_write(b);
+                }
+            }
+
+            // Reset the event, otherwise it will always read `1` from now on.
+            uarte.events_endtx.write(|w| w);
+        } else {
+            if self.current.is_none() {
+                match self.txc.dequeue() {
+                    Some(b) =>
+                    // we were idle, so start a new transaction
+                    {
+                        self.start_write(b)
+                    }
+                    None => (),
+                }
+            }
+        }
+    }
+}
+
+impl<T> fmt::Write for Uarte<T>
+where
+    T: Instance,
+{
     fn write_str(&mut self, s: &str) -> fmt::Result {
         // Copy all data into an on-stack buffer so we never try to EasyDMA from
         // flash
@@ -377,7 +609,6 @@ pub struct Pins {
     pub rts: Option<Pin<Output<PushPull>>>,
 }
 
-
 #[derive(Debug)]
 pub enum Error {
     TxBufferTooLong,
@@ -388,10 +619,19 @@ pub enum Error {
     BufferNotInRAM,
 }
 
+pub trait Instance: Deref<Target = uarte0::RegisterBlock> {
+    fn ptr() -> *const uarte0::RegisterBlock;
+}
 
-pub trait Instance: Deref<Target = uarte0::RegisterBlock> {}
-
-impl Instance for UARTE0 {}
+impl Instance for UARTE0 {
+    fn ptr() -> *const uarte0::RegisterBlock {
+        UARTE0::ptr()
+    }
+}
 
 #[cfg(feature="9160")]
-impl Instance for UARTE1 {}
+impl Instance for UARTE1 {
+    fn ptr() -> *const uarte0::RegisterBlock {
+        UARTE1::ptr()
+    }
+}
