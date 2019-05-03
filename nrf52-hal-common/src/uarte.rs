@@ -30,10 +30,13 @@ use heapless::{
     pool,
     pool::singleton::{Box, Pool},
     spsc::{Consumer, Queue},
+    ArrayLength,
 };
 
 // Re-export SVD variants to allow user to directly set values
-pub use crate::target::uarte0::{baudrate::BAUDRATEW as Baudrate, config::PARITYW as Parity};
+pub use crate::target::uarte0::{
+    baudrate::BAUDRATEW as Baudrate, config::PARITYW as Parity,
+};
 
 /// Interface to a UARTE instance
 ///
@@ -49,7 +52,12 @@ impl<T> Uarte<T>
 where
     T: Instance,
 {
-    pub fn new(uarte: T, mut pins: Pins, parity: Parity, baudrate: Baudrate) -> Self {
+    pub fn new(
+        uarte: T,
+        mut pins: Pins,
+        parity: Parity,
+        baudrate: Baudrate,
+    ) -> Self {
         // Select pins
         uarte.psel.rxd.write(|w| {
             let w = unsafe { w.pin().bits(pins.rxd.pin) };
@@ -93,9 +101,9 @@ where
 
         // Configure
         let hardware_flow_control = pins.rts.is_some() && pins.cts.is_some();
-        uarte
-            .config
-            .write(|w| w.hwfc().bit(hardware_flow_control).parity().variant(parity));
+        uarte.config.write(|w| {
+            w.hwfc().bit(hardware_flow_control).parity().variant(parity)
+        });
 
         // Configure frequency
         uarte.baudrate.write(|w| w.baudrate().variant(baudrate));
@@ -346,17 +354,20 @@ where
     ///
     /// Note: The act of splitting might not be needed on the nRF52 chips, as they map to the same
     /// interrupt in the end. Kept as a split for now, but might be merged in the future.
-    pub fn split(
+    pub fn split<S>(
         self,
         rxq: Queue<Box<DMAPool>, U2>,
-        txc: Consumer<'static, Box<DMAPool>, TXQSize>,
-    ) -> (UarteRX<T>, UarteTX<T>) {
+        txc: Consumer<'static, Box<DMAPool>, S>,
+    ) -> (UarteRX<T>, UarteTX<T, S>)
+    where
+        S: ArrayLength<heapless::pool::singleton::Box<DMAPool>>,
+    {
         let mut rx = UarteRX::<T>::new(rxq);
         rx.enable_interrupts();
         rx.prepare_read().unwrap();
         rx.start_read();
 
-        let tx = UarteTX::<T>::new(txc);
+        let tx = UarteTX::<T, S>::new(txc);
         tx.enable_interrupts();
         (rx, tx)
     }
@@ -453,7 +464,9 @@ where
     /// 1. `Ok(Some(Box<DMAPool>))` if data was received
     /// 2. `Ok(None)` if there was no data, i.e. UARTE interrupt was due to other events
     /// 3. `Err(RXError::OOM)` if the memory pool was depleted, see `RXError` for mitigations
-    pub fn process_interrupt(&mut self) -> Result<Option<Box<DMAPool>>, RXError> {
+    pub fn process_interrupt(
+        &mut self,
+    ) -> Result<Option<Box<DMAPool>>, RXError> {
         // This operation is safe due to type-state programming guaranteeing that the RX and TX are
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };
@@ -487,22 +500,24 @@ where
     }
 }
 
-/// A transmit queue size of 4 `DMAPool` chunks for now
-pub type TXQSize = U4;
-
 /// UARTE TX part, used in interrupt driven contexts
-pub struct UarteTX<T> {
-    txc: Consumer<'static, Box<DMAPool>, TXQSize>, // chunks to transmit
+/// S is the queue length, can be U3, U4 etc.
+pub struct UarteTX<T, S>
+where
+    S: ArrayLength<heapless::pool::singleton::Box<DMAPool>>,
+{
+    txc: Consumer<'static, Box<DMAPool>, S>, // chunks to transmit
     current: Option<Box<DMAPool>>,
     _marker: core::marker::PhantomData<T>,
 }
 
-impl<T> UarteTX<T>
+impl<T, S> UarteTX<T, S>
 where
     T: Instance,
+    S: ArrayLength<heapless::pool::singleton::Box<DMAPool>>,
 {
     /// Construct new UARTE TX, hidden from users - used internally
-    fn new(txc: Consumer<'static, Box<DMAPool>, TXQSize>) -> Self {
+    fn new(txc: Consumer<'static, Box<DMAPool>, S>) -> Self {
         Self {
             txc,
             current: None,
