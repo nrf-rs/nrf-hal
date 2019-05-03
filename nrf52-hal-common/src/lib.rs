@@ -83,6 +83,7 @@ impl DmaSlice {
 
 pub use crate::clocks::Clocks;
 pub use crate::delay::Delay;
+pub use crate::rng::Rng;
 pub use crate::rtc::Rtc;
 pub use crate::saadc::Saadc;
 pub use crate::spim::Spim;
