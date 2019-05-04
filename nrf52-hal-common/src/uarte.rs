@@ -34,9 +34,7 @@ use heapless::{
 };
 
 // Re-export SVD variants to allow user to directly set values
-pub use crate::target::uarte0::{
-    baudrate::BAUDRATEW as Baudrate, config::PARITYW as Parity,
-};
+pub use crate::target::uarte0::{baudrate::BAUDRATEW as Baudrate, config::PARITYW as Parity};
 
 /// Interface to a UARTE instance
 ///
@@ -52,12 +50,7 @@ impl<T> Uarte<T>
 where
     T: Instance,
 {
-    pub fn new(
-        uarte: T,
-        mut pins: Pins,
-        parity: Parity,
-        baudrate: Baudrate,
-    ) -> Self {
+    pub fn new(uarte: T, mut pins: Pins, parity: Parity, baudrate: Baudrate) -> Self {
         // Select pins
         uarte.psel.rxd.write(|w| {
             let w = unsafe { w.pin().bits(pins.rxd.pin) };
@@ -101,9 +94,9 @@ where
 
         // Configure
         let hardware_flow_control = pins.rts.is_some() && pins.cts.is_some();
-        uarte.config.write(|w| {
-            w.hwfc().bit(hardware_flow_control).parity().variant(parity)
-        });
+        uarte
+            .config
+            .write(|w| w.hwfc().bit(hardware_flow_control).parity().variant(parity));
 
         // Configure frequency
         uarte.baudrate.write(|w| w.baudrate().variant(baudrate));
@@ -374,7 +367,54 @@ where
 }
 
 /// DMA block size
+/// Defaults to DMA_SIZE = 16 if not explicitly set
+#[cfg(not(any(
+    feature = "DMA_SIZE_4",
+    feature = "DMA_SIZE_8",
+    feature = "DMA_SIZE_16",
+    feature = "DMA_SIZE_32",
+    feature = "DMA_SIZE_64",
+    feature = "DMA_SIZE_128",
+    feature = "DMA_SIZE_256"
+)))]
 pub const DMA_SIZE: usize = 16;
+
+#[cfg(feature = "DMA_SIZE_4")]
+pub const DMA_SIZE: usize = 4;
+
+#[cfg(feature = "DMA_SIZE_8")]
+pub const DMA_SIZE: usize = 8;
+
+#[cfg(feature = "DMA_SIZE_16")]
+pub const DMA_SIZE: usize = 16;
+
+#[cfg(feature = "DMA_SIZE_32")]
+pub const DMA_SIZE: usize = 32;
+
+#[cfg(feature = "DMA_SIZE_64")]
+pub const DMA_SIZE: usize = 64;
+
+#[cfg(feature = "DMA_SIZE_128")]
+pub const DMA_SIZE: usize = 128;
+
+// Currently causes internal OOM, needs fixing
+#[cfg(feature = "DMA_SIZE_256")]
+pub const DMA_SIZE: usize = 256;
+
+// An alternative solution to the above is to define the DMA_SIZE
+// in a separate (default) crate, which can be overridden
+// by a patch in the user Cargo.toml, pointing to
+// a local crate with the user defined DMA_SIZE constant.
+// What would you prefer?
+
+// The DMA implementation shuld be hidden behind a feature POOL
+// This likely requires a mod {} around the related code
+// or the non-ergonomic repetition of the gate.
+// Is there a better solution?
+//
+// The reason to have a POOL gate is that we don't want the POOL
+// to cause memory OH if not used by the application
+
 pool!(DMAPool: [u8; DMA_SIZE]);
 
 /// UARTE RX part, used in interrupt driven contexts
@@ -464,9 +504,7 @@ where
     /// 1. `Ok(Some(Box<DMAPool>))` if data was received
     /// 2. `Ok(None)` if there was no data, i.e. UARTE interrupt was due to other events
     /// 3. `Err(RXError::OOM)` if the memory pool was depleted, see `RXError` for mitigations
-    pub fn process_interrupt(
-        &mut self,
-    ) -> Result<Option<Box<DMAPool>>, RXError> {
+    pub fn process_interrupt(&mut self) -> Result<Option<Box<DMAPool>>, RXError> {
         // This operation is safe due to type-state programming guaranteeing that the RX and TX are
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };
