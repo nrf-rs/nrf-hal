@@ -33,7 +33,7 @@ pub struct Clocks<H, L, LSTAT> {
     periph: CLOCK,
 }
 
-impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
+impl Clocks<Internal, Internal, LfOscStopped> {
     pub fn new(clock: CLOCK) -> Clocks<Internal, Internal, LfOscStopped> {
         Clocks {
             hfclk: Internal,
@@ -42,6 +42,9 @@ impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
             periph: clock,
         }
     }
+}
+
+impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
     /// Use an external oscillator as the high frequency clock source
     pub fn enable_ext_hfosc(self) -> Clocks<ExternalOscillator, L, LSTAT> {
         self.periph.tasks_hfclkstart.write(|w| unsafe { w.bits(1) });
