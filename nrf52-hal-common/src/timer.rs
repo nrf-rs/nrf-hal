@@ -44,6 +44,10 @@ where
     ///
     /// Enables an interrupt that is fired when the timer reaches the value that
     /// is given as an argument to `start`.
+    ///
+    /// If access to the NVIC is not provided, the interrupt must ALSO be enabled
+    /// there outside of this function (e.g. manually call `nvic.enable`, or through
+    /// the use of RTFM).
     pub fn enable_interrupt(&mut self, nvic: Option<&mut NVIC>) {
         // As of this writing, the timer code only uses
         // `cc[0]`/`events_compare[0]`. If the code is extended to use other
@@ -59,6 +63,10 @@ where
     ///
     /// Disables an interrupt that is fired when the timer reaches the value
     /// that is given as an argument to `start`.
+    ///
+    /// If access to the NVIC is not provided, the interrupt must ALSO be disabled
+    /// there outside of this function (e.g. manually call `nvic.enable`, or through
+    /// the use of RTFM).
     pub fn disable_interrupt(&mut self, nvic: Option<&mut NVIC>) {
         // As of this writing, the timer code only uses
         // `cc[0]`/`events_compare[0]`. If the code is extended to use other
