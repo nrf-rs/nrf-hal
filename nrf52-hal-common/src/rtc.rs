@@ -82,6 +82,10 @@ where
     }
 
     /// Enable the generation of a hardware interrupt from a given stimulus
+    ///
+    /// If access to the NVIC is not provided, the interrupt must ALSO be enabled
+    /// there outside of this function (e.g. manually call `nvic.enable`, or through
+    /// the use of RTFM).
     pub fn enable_interrupt(&mut self, int: RtcInterrupt, nvic: Option<&mut NVIC>) {
         match int {
             RtcInterrupt::Tick => self.periph.intenset.write(|w| w.tick().set()),
@@ -97,6 +101,10 @@ where
     }
 
     /// Disable the generation of a hardware interrupt from a given stimulus
+    ///
+    /// If access to the NVIC is not provided, the interrupt must ALSO be disabled
+    /// there outside of this function (e.g. manually call `nvic.enable`, or through
+    /// the use of RTFM).
     pub fn disable_interrupt(&mut self, int: RtcInterrupt, nvic: Option<&mut NVIC>) {
         match int {
             RtcInterrupt::Tick => self.periph.intenclr.write(|w| w.tick().clear()),
