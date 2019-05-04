@@ -42,5 +42,15 @@ version = "0.2.1"
 [features]
 doc = []
 rt = ["nrf52840-pac/rt"]
-default = ["rt"]
+default = ["rt", "POOL"]
+POOL = ["nrf52-hal-common/POOL"]
+DMA_SIZE_4 = ["nrf52-hal-common/DMA_SIZE_4"]
+DMA_SIZE_8 = ["nrf52-hal-common/DMA_SIZE_8"]
+DMA_SIZE_16 = ["nrf52-hal-common/DMA_SIZE_16"]
+DMA_SIZE_32 = ["nrf52-hal-common/DMA_SIZE_32"]
+DMA_SIZE_64 = ["nrf52-hal-common/DMA_SIZE_64"]
+DMA_SIZE_128 = ["nrf52-hal-common/DMA_SIZE_128"]
+DMA_SIZE_256 = ["nrf52-hal-common/DMA_SIZE_256"]
+
+
 
