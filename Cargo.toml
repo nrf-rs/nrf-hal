@@ -8,6 +8,7 @@ members = [
   "nrf52832-hal",
   "nrf52840-hal",
   "examples/rtfm-demo",
+  "examples/rtfm-uarte-interrupts",
   "examples/spi-demo",
   "examples/twi-ssd1306",
 ]
