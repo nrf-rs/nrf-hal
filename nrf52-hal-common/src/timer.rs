@@ -22,12 +22,17 @@ use crate::target::{TIMER3, TIMER4};
 ///
 /// Right now, this is a very basic interface. The timer will always be
 /// hardcoded to a frequency of 1 MHz and 32 bits accuracy.
+///
+/// CC[0] is used for the current/most-recent delay period and CC[1] is used
+/// to grab the current value of the counter at a given instant.
 pub struct Timer<T>(T);
 
 impl<T> Timer<T>
 where
     T: Instance,
 {
+    pub const TICKS_PER_SECOND: u32 = 1_000_000;
+
     pub fn new(timer: T) -> Self {
         timer
             .shorts
@@ -43,6 +48,12 @@ where
     /// Return the raw interface to the underlying timer peripheral
     pub fn free(self) -> T {
         self.0
+    }
+
+    /// Return the current value of the counter, by capturing to CC[1].
+    pub fn read(&self) -> u32 {
+        self.0.tasks_capture[1].write(|w| w.tasks_capture().trigger());
+        self.0.cc[1].read().bits()
     }
 
     /// Enables the interrupt for this timer
