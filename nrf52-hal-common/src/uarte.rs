@@ -8,6 +8,13 @@ use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 use core::fmt;
 
+#[cfg(feature="9160")]
+use crate::target::{
+    uarte0_ns as uarte0,
+    UARTE0_NS as UARTE0,
+};
+
+#[cfg(not(feature="9160"))]
 use crate::target::{
     uarte0,
     UARTE0,
@@ -25,7 +32,7 @@ use crate::gpio::{
 use crate::timer::{self, Timer};
 
 // Re-export SVD variants to allow user to directly set values
-pub use crate::target::uarte0::{
+pub use uarte0::{
     baudrate::BAUDRATEW as Baudrate,
     config::PARITYW as Parity,
 };

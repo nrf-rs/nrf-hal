@@ -2,9 +2,14 @@
 
 use core::ops::Deref;
 
+
+#[cfg(feature="9160")]
+use crate::target::{rtc0_ns as rtc0, Interrupt, NVIC, RTC0_NS as RTC0, RTC1_NS as RTC1};
+
+#[cfg(not(feature="9160"))]
 use crate::target::{rtc0, Interrupt, NVIC, RTC0, RTC1};
 
-#[cfg(not(feature = "52810"))]
+#[cfg(any(feature = "52840", feature="52832"))]
 use crate::target::RTC2;
 
 // Zero Size Type State structs
@@ -237,5 +242,5 @@ macro_rules! impl_instance {
 
 impl_instance!(RTC0, RTC1,);
 
-#[cfg(not(feature = "52810"))]
+#[cfg(any(feature = "52840", feature="52832"))]
 impl_instance!(RTC2,);

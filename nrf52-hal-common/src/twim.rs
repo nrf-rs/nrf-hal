@@ -7,6 +7,14 @@
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
+#[cfg(feature="9160")]
+use crate::target::{
+    twim0_ns as twim0,
+    P0_NS as P0,
+    TWIM0_NS as TWIM0,
+};
+
+#[cfg(not(feature="9160"))]
 use crate::target::{
     twim0,
     P0,
@@ -24,7 +32,7 @@ use crate::gpio::{
 
 use crate::target_constants::EASY_DMA_SIZE;
 
-pub use crate::target::twim0::frequency::FREQUENCYW as Frequency;
+pub use twim0::frequency::FREQUENCYW as Frequency;
 
 
 /// Interface to a TWIM instance

@@ -17,10 +17,12 @@ pub use nrf9160_pac as target;
 pub mod clocks;
 pub mod delay;
 pub mod gpio;
+#[cfg(not(feature="9160"))]
 pub mod rng;
 pub mod rtc;
 pub mod saadc;
 pub mod spim;
+#[cfg(not(feature="9160"))]
 pub mod temp;
 pub mod time;
 pub mod timer;
@@ -86,6 +88,7 @@ impl DmaSlice {
 
 pub use crate::clocks::Clocks;
 pub use crate::delay::Delay;
+#[cfg(not(feature="9160"))]
 pub use crate::rng::Rng;
 pub use crate::rtc::Rtc;
 pub use crate::saadc::Saadc;

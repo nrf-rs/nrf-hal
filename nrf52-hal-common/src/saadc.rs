@@ -1,6 +1,11 @@
+#[cfg(feature="9160")]
+use crate::target::{SAADC_NS as SAADC, saadc_ns as saadc};
+
+#[cfg(not(feature="9160"))]
+use crate::target::{SAADC, saadc};
+
 use crate::{
     gpio::{Floating, Input},
-    target::SAADC,
 };
 use core::{
     hint::unreachable_unchecked,
@@ -8,7 +13,7 @@ use core::{
 };
 use embedded_hal::adc::{Channel, OneShot};
 
-pub use crate::target::saadc::{
+pub use saadc::{
     ch::config::{GAINW as Gain, REFSELW as Reference, RESPW as Resistor, TACQW as Time},
     oversample::OVERSAMPLEW as Oversample,
     resolution::VALW as Resolution,
