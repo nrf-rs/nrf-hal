@@ -604,12 +604,12 @@ impl Led {
     }
 
     /// Enable the LED
-    pub fn on(&mut self) {
+    pub fn enable(&mut self) {
         self.0.set_high()
     }
 
     /// Disable the LED
-    pub fn off(&mut self) {
+    pub fn disable(&mut self) {
         self.0.set_low()
     }
 }
