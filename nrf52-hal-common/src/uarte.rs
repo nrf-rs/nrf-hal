@@ -123,10 +123,18 @@ impl<T> Uarte<T> where T: Instance {
             return Err(Error::TxBufferTooLong);
         }
 
+        if !crate::slice_in_ram(tx_buffer){
+            return Err(Error::BufferNotInRAM);
+        }
+
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
         // before any DMA action has started
         compiler_fence(SeqCst);
+
+        // Reset the events.
+        self.0.events_endtx.write(|w| w);
+        self.0.events_txstopped.write(|w| w);
 
         // Set up the DMA write
         self.0.txd.ptr.write(|w|
@@ -153,17 +161,22 @@ impl<T> Uarte<T> where T: Instance {
             unsafe { w.bits(1) });
 
         // Wait for transmission to end
-        while self.0.events_endtx.read().bits() == 0 {}
-
-        // Reset the event, otherwise it will always read `1` from now on.
-        self.0.events_endtx.write(|w| w);
+        let mut endtx;
+        let mut txstopped;
+        loop {
+            endtx = self.0.events_endtx.read().bits() != 0;
+            txstopped = self.0.events_txstopped.read().bits() != 0;
+            if endtx || txstopped {
+                break;
+            }
+        }
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
         // after all possible DMA actions have completed
         compiler_fence(SeqCst);
 
-        if self.0.txd.amount.read().bits() != tx_buffer.len() as u32 {
+        if txstopped {
             return Err(Error::Transmit);
         }
 
@@ -364,6 +377,7 @@ pub enum Error {
     Transmit,
     Receive,
     Timeout(usize),
+    BufferNotInRAM,
 }
 
 
