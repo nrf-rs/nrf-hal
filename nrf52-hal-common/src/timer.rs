@@ -52,7 +52,7 @@ where
 
     /// Return the current value of the counter, by capturing to CC[1].
     pub fn read(&self) -> u32 {
-        self.0.tasks_capture[1].write(|w| w.tasks_capture().trigger());
+        self.0.tasks_capture[1].write(|w| unsafe { w.bits(1) });
         self.0.cc[1].read().bits()
     }
 
