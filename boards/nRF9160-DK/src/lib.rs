@@ -600,7 +600,7 @@ pub struct Led(Pin<Output<PushPull>>);
 
 impl Led {
     fn new<Mode>(pin: Pin<Mode>) -> Self {
-        Led(pin.into_push_pull_output(Level::High))
+        Led(pin.into_push_pull_output(Level::Low))
     }
 
     /// Enable the LED
