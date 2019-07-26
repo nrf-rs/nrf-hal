@@ -4,7 +4,12 @@
 
 use core::ops::Deref;
 
+#[cfg(feature="9160")]
+use crate::target::{timer0_ns as timer0, Interrupt, NVIC, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1, TIMER2_NS as TIMER2};
+
+#[cfg(not(feature="9160"))]
 use crate::target::{timer0, Interrupt, NVIC, TIMER0, TIMER1, TIMER2};
+
 use embedded_hal::{prelude::*, timer};
 use nb::{self, block};
 use void::{unreachable, Void};

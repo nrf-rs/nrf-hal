@@ -1,9 +1,23 @@
 [package]
-name = "nRF9160-DK"
+authors = [
+   "Ruben Paz <me@ruben.io>",
+   "Jonathan Pallant <jonathan.pallant@42technology.com>",
+]
+categories = ["embedded", "no-std"]
+description = "BSP for the nRF9160-DK"
+keywords = ["arm", "nrf9160"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+name = "nrf9160-dk-bsp"
 version = "0.1.0"
-authors = ["Jonathan Pallant (42 Technology) <jonathan.pallant@42technology.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+cortex-m = "0.6.0"
+cortex-m-rt = "0.6.7"
+panic-halt = "0.2.0"
+nrf9160-hal = { version = "0.1.0", path = "../../nrf9160-hal" }
+
+[dev-dependencies]
+nb = "0.1.1"
+panic-semihosting = "0.5.1"
