@@ -15,10 +15,12 @@ pub mod prelude {
 
 use hal::{
     gpio::{p0, Floating, Input, Level, Output, Pin, PullUp, PushPull},
-    nrf9160_pac::{self as pac, CorePeripherals, Peripherals},
+    pac::{CorePeripherals, Peripherals},
     prelude::*,
     uarte::{self, Baudrate as UartBaudrate, Parity as UartParity, Uarte},
 };
+
+pub use hal::pac;
 
 /// Provides access to all features of the nRF9160-DK board
 #[allow(non_snake_case)]
