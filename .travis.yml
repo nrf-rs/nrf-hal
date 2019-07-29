@@ -4,6 +4,6 @@ rust:
   - beta
   - nightly
 install:
-  - rustup target add thumbv7em-none-eabi thumbv7em-none-eabihf
+  - rustup target add thumbv7em-none-eabi thumbv7em-none-eabihf thumbv8m.main-none-eabi
 script:
   - scripts/build.sh
