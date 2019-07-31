@@ -637,7 +637,7 @@ impl Button {
         Button(pin.into_pullup_input())
     }
 
-    fn is_active(&self) -> bool {
+    pub fn is_active(&self) -> bool {
         self.0.is_low()
     }
 }
