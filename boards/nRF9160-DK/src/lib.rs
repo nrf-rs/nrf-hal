@@ -29,7 +29,7 @@ pub struct Board {
     pub pins: Pins,
 
     /// The nRF9160-DK UART which is wired to the virtual USB CDC port
-    pub cdc: Uarte<pac::UARTE0_NS>,
+    pub cdc_uart: Uarte<pac::UARTE0_NS>,
 
     /// The LEDs on the nRF9160-DK board
     pub leds: Leds,
@@ -435,7 +435,7 @@ impl Board {
         );
 
         Board {
-            cdc: cdc_uart,
+            cdc_uart,
 
             pins: Pins {
                 P0_00: pins0.p0_00,

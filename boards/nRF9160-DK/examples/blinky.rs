@@ -16,7 +16,7 @@ fn main() -> ! {
     let mut board = Board::take().unwrap();
     let mut timer = Timer::new(board.TIMER0_NS);
 
-    writeln!(board.cdc, "Hello, world!").unwrap();
+    writeln!(board.cdc_uart, "Hello, world!").unwrap();
 
     let mut led_is_on = false;
     loop {
