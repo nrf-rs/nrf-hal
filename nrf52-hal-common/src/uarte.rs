@@ -12,6 +12,7 @@ use core::fmt;
 use crate::target::{
     uarte0_ns as uarte0,
     UARTE0_NS as UARTE0,
+    UARTE1_NS as UARTE1,
 };
 
 #[cfg(not(feature="9160"))]
@@ -123,7 +124,8 @@ impl<T> Uarte<T> where T: Instance {
             return Err(Error::TxBufferTooLong);
         }
 
-        if !crate::slice_in_ram(tx_buffer){
+        // We can only DMA out of RAM
+        if !crate::slice_in_ram(tx_buffer) {
             return Err(Error::BufferNotInRAM);
         }
 
@@ -133,8 +135,8 @@ impl<T> Uarte<T> where T: Instance {
         compiler_fence(SeqCst);
 
         // Reset the events.
-        self.0.events_endtx.write(|w| w);
-        self.0.events_txstopped.write(|w| w);
+        self.0.events_endtx.reset();
+        self.0.events_txstopped.reset();
 
         // Set up the DMA write
         self.0.txd.ptr.write(|w|
@@ -179,6 +181,12 @@ impl<T> Uarte<T> where T: Instance {
         if txstopped {
             return Err(Error::Transmit);
         }
+
+        // Lower power consumption by disabling the transmitter once we're
+        // finished
+        self.0.tasks_stoptx.write(|w|
+            // `1` is a valid value to write to task registers.
+            unsafe { w.bits(1) });
 
         Ok(())
     }
@@ -384,3 +392,6 @@ pub enum Error {
 pub trait Instance: Deref<Target = uarte0::RegisterBlock> {}
 
 impl Instance for UARTE0 {}
+
+#[cfg(feature="9160")]
+impl Instance for UARTE1 {}
