@@ -89,6 +89,18 @@ where
     where
         Time: Into<Self::Time>,
     {
+        // If the following sequence of events occurs, the COMPARE event will be
+        // set here:
+        // 1. `start` is called.
+        // 2. The timer runs out but `wait` is _not_ called.
+        // 3. `start` is called again
+        //
+        // If that happens, then we need to reset the event here explicitly, as
+        // nothing else this method does will reset the event, and if it's still
+        // active after this method exits, then the next call to `wait` will
+        // return immediately, no matter how much time has actually passed.
+        self.0.events_compare[0].reset();
+
         // Configure timer to trigger EVENTS_COMPARE when given number of cycles
         // is reached.
         self.0.cc[0].write(|w|
