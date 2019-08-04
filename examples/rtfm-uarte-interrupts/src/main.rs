@@ -14,7 +14,7 @@ use hal::{uarte, Uarte};
 use hal::{DMAPool, RXError, UarteRX, UarteTX, DMA_SIZE};
 
 use heapless::{
-    consts::U4,
+    consts::U3,
     pool::singleton::Box,
     pool::singleton::Pool,
     spsc::{Producer, Queue},
@@ -25,14 +25,12 @@ use rtfm::app;
 const NR_PACKAGES: usize = 10;
 const DMA_MEM: usize = DMA_SIZE * NR_PACKAGES + 16;
 
-//not sure about U4
-type TXQSize = U4;
+type TXQSize = U3;
 
 #[app(device = crate::hal::target)]
 const APP: () = {
     static mut RX: UarteRX<UARTE0> = ();
-    //not sure about u4
-    static mut TX: UarteTX<UARTE0, U4> = ();
+    static mut TX: UarteTX<UARTE0, TXQSize> = ();
     static mut PRODUCER: Producer<'static, Box<DMAPool>, TXQSize> = ();
 
     #[init(spawn = [])]
@@ -48,6 +46,7 @@ const APP: () = {
 
         let port0 = p0::Parts::new(c.device.P0);
 
+        //adafruit nrf52 le
         let uarte0 = Uarte::new(
             c.device.UARTE0,
             uarte::Pins {
