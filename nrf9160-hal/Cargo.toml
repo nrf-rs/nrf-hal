@@ -6,10 +6,6 @@ description = "HAL for nRF9160 system-in-package"
 repository = "https://github.com/nrf-rs/nrf52-hal"
 authors = [
     "Jonathan Pallant (42 Technology) <jonathan.pallant@42technology.com>",
-    "James Munns <james@onevariable.com>",
-    "Hanno Braun <hanno@braun-robotics.com>",
-    "John Scarrott <johnps@outlook.com>",
-    "Wez Furlong <wez@wezfurlong.org>",
 ]
 
 categories = ["embedded", "hardware-support", "no-std"]
