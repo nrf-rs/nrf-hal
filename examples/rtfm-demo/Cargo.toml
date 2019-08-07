@@ -5,7 +5,7 @@ authors = ["James Munns <james.munns@ferrous-systems.com>"]
 edition = "2018"
 
 [dependencies]
-cortex-m-rtfm = { git = "https://github.com/japaric/cortex-m-rtfm.git"}
+cortex-m-rtfm = "0.4"
 panic-semihosting = "0.5.1"
 cortex-m-semihosting = "0.3.3"
 
