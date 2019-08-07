@@ -55,6 +55,17 @@ where
         self.0.cc[1].read().bits()
     }
 
+    /// Enables the interrupt for this timer, external NVIC modification
+    ///
+    /// Enables an interrupt that is fired when the timer reaches the value that
+    /// is given as an argument to `start`.
+    pub(crate) fn enable_interrupt_generation(&mut self) {
+        // As of this writing, the timer code only uses
+        // `cc[0]`/`events_compare[0]`. If the code is extended to use other
+        // compare registers, the following needs to be adapted.
+        self.0.intenset.modify(|_, w| w.compare0().set());
+    }
+
     /// Enables the interrupt for this timer
     ///
     /// Enables an interrupt that is fired when the timer reaches the value that
@@ -181,7 +192,6 @@ where
 pub trait Instance: Deref<Target = timer0::RegisterBlock> {
     /// This interrupt associated with this RTC instance
     const INTERRUPT: Interrupt;
-    fn ptr() -> *const timer0::RegisterBlock;
 }
 
 macro_rules! impl_instance {
@@ -189,10 +199,6 @@ macro_rules! impl_instance {
         $(
             impl Instance for $name {
                 const INTERRUPT: Interrupt = Interrupt::$name;
-
-                fn ptr() -> *const timer0::RegisterBlock {
-                    $name::ptr()
-                }
             }
         )*
     }

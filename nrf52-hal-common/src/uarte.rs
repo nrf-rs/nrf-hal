@@ -351,7 +351,7 @@ where
         self,
         rxq: Queue<Box<DMAPool>, U2>,
         txc: Consumer<'static, Box<DMAPool>, S>,
-        timer: Timer<I>,
+        mut timer: Timer<I>,
     ) -> (UarteRX<T, I>, UarteTX<T, S>)
     where
         S: ArrayLength<heapless::pool::singleton::Box<DMAPool>>,
@@ -359,10 +359,11 @@ where
     {
         // This operation is safe due to type-state programming guaranteeing that the Timer is
         // unique within the driver
-        let timer_reg = unsafe { &*I::ptr() };
+        //let timer_reg = unsafe { &*I::ptr() };
 
         // Enable COMPARE0 interrupt
-        timer_reg.intenset.modify(|_, w| w.compare0().set());
+        //timer_reg.intenset.modify(|_, w| w.compare0().set());
+        timer.enable_interrupt_generation();
 
         let mut rx = UarteRX::<T, I>::new(rxq, timer);
         rx.enable_interrupts();
