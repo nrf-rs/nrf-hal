@@ -1,6 +1,5 @@
 [package]
 authors = [
-   "Ruben Paz <me@ruben.io>",
    "Jonathan Pallant <jonathan.pallant@42technology.com>",
 ]
 categories = ["embedded", "no-std"]
