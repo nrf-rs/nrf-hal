@@ -17,7 +17,6 @@ use void::{unreachable, Void};
 #[cfg(any(feature = "52832", feature = "52840"))]
 use crate::target::{TIMER3, TIMER4};
 
-
 /// Interface to a TIMER instance
 ///
 /// Right now, this is a very basic interface. The timer will always be
@@ -178,11 +177,11 @@ where
     }
 }
 
-
 /// Implemented by all `TIMER` instances
 pub trait Instance: Deref<Target = timer0::RegisterBlock> {
     /// This interrupt associated with this RTC instance
     const INTERRUPT: Interrupt;
+    fn ptr() -> *const timer0::RegisterBlock;
 }
 
 macro_rules! impl_instance {
@@ -190,6 +189,10 @@ macro_rules! impl_instance {
         $(
             impl Instance for $name {
                 const INTERRUPT: Interrupt = Interrupt::$name;
+
+                fn ptr() -> *const timer0::RegisterBlock {
+                    $name::ptr()
+                }
             }
         )*
     }

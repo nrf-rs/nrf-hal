@@ -9,7 +9,8 @@ use cortex_m_semihosting::hprintln;
 use nrf52832_hal as hal;
 
 use hal::gpio::{p0, Level};
-use hal::target::{interrupt, UARTE0};
+use hal::target::{interrupt, TIMER0, UARTE0};
+use hal::timer::*;
 use hal::{uarte, Uarte};
 use hal::{DMAPool, RXError, UarteRX, UarteTX, DMA_SIZE};
 
@@ -29,7 +30,7 @@ type TXQSize = U3;
 
 #[app(device = crate::hal::target)]
 const APP: () = {
-    static mut RX: UarteRX<UARTE0> = ();
+    static mut RX: UarteRX<UARTE0, TIMER0> = ();
     static mut TX: UarteTX<UARTE0, TXQSize> = ();
     static mut PRODUCER: Producer<'static, Box<DMAPool>, TXQSize> = ();
 
@@ -59,8 +60,9 @@ const APP: () = {
             uarte::Baudrate::BAUD115200,
         );
 
+        let timer = Timer::new(device.TIMER0);
         let (txp, txc) = TX_RB.split();
-        let (rx, tx) = uarte0.split(Queue::new(), txc);
+        let (rx, tx) = uarte0.split(Queue::new(), txc, timer);
 
         init::LateResources {
             RX: rx,

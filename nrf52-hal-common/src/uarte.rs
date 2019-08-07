@@ -347,15 +347,24 @@ where
     ///
     /// Note: The act of splitting might not be needed on the nRF52 chips, as they map to the same
     /// interrupt in the end. Kept as a split for now, but might be merged in the future.
-    pub fn split<S>(
+    pub fn split<S, I>(
         self,
         rxq: Queue<Box<DMAPool>, U2>,
         txc: Consumer<'static, Box<DMAPool>, S>,
-    ) -> (UarteRX<T>, UarteTX<T, S>)
+        timer: Timer<I>,
+    ) -> (UarteRX<T, I>, UarteTX<T, S>)
     where
         S: ArrayLength<heapless::pool::singleton::Box<DMAPool>>,
+        I: timer::Instance,
     {
-        let mut rx = UarteRX::<T>::new(rxq);
+        // This operation is safe due to type-state programming guaranteeing that the Timer is
+        // unique within the driver
+        let timer_reg = unsafe { &*I::ptr() };
+
+        // Enable COMPARE0 interrupt
+        timer_reg.intenset.modify(|_, w| w.compare0().set());
+
+        let mut rx = UarteRX::<T, I>::new(rxq, timer);
         rx.enable_interrupts();
         rx.prepare_read().unwrap();
         rx.start_read();
@@ -418,8 +427,9 @@ pub const DMA_SIZE: usize = 256;
 pool!(DMAPool: [u8; DMA_SIZE]);
 
 /// UARTE RX part, used in interrupt driven contexts
-pub struct UarteRX<T> {
+pub struct UarteRX<T, I> {
     rxq: Queue<Box<DMAPool>, U2>, // double buffering of DMA chunks
+    timer: Timer<I>,              // Timer for handling timeouts
     _marker: core::marker::PhantomData<T>,
 }
 
@@ -435,14 +445,16 @@ pub enum RXError {
     OOM,
 }
 
-impl<T> UarteRX<T>
+impl<T, I> UarteRX<T, I>
 where
     T: Instance,
+    I: timer::Instance,
 {
     /// Construct new UARTE RX, hidden from users - used internally
-    fn new(rxq: Queue<Box<DMAPool>, U2>) -> Self {
+    fn new(rxq: Queue<Box<DMAPool>, U2>, timer: Timer<I>) -> Self {
         Self {
             rxq,
+            timer,
             _marker: core::marker::PhantomData,
         }
     }
