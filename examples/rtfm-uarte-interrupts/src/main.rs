@@ -60,7 +60,7 @@ const APP: () = {
             uarte::Baudrate::BAUD115200,
         );
 
-        let mut timer = Timer::new(device.TIMER0);
+        let timer = Timer::new(device.TIMER0);
         let (txp, txc) = TX_RB.split();
         let (rx, tx) = uarte0.split(Queue::new(), txc, timer);
 

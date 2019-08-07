@@ -66,6 +66,19 @@ where
         self.0.intenset.modify(|_, w| w.compare0().set());
     }
 
+    /// Clears the interrupt for this timer, external NVIC modification
+    ///
+    /// Enables an interrupt that is fired when the timer reaches the value that
+    /// is given as an argument to `start`.
+    pub(crate) fn clear_interrupt(&mut self) {
+        // As of this writing, the timer code only uses
+        // `cc[0]`/`events_compare[0]`. If the code is extended to use other
+        // compare registers, the following needs to be adapted.
+
+        // Reset the event, otherwise it will always read `1` from now on.
+        self.0.events_compare[0].write(|w| w);
+    }
+
     /// Enables the interrupt for this timer
     ///
     /// Enables an interrupt that is fired when the timer reaches the value that

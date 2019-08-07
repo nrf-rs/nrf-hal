@@ -24,7 +24,10 @@ use crate::target::{
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::prelude::*;
 use crate::target_constants::EASY_DMA_SIZE;
+
 use crate::timer::{self, Timer};
+use embedded_hal::timer::{Cancel, CountDown};
+
 use heapless::{
     consts::*,
     pool,
@@ -466,9 +469,16 @@ where
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };
 
-        uarte
-            .inten
-            .modify(|_, w| w.endrx().set_bit().rxstarted().set_bit());
+        uarte.inten.modify(|_, w| {
+            w.endrx()
+                .set_bit()
+                .rxstarted()
+                .set_bit()
+                .rxto()
+                .set_bit()
+                .rxdrdy()
+                .set_bit()
+        });
     }
 
     /// Start a UARTE read transaction
@@ -510,6 +520,21 @@ where
         }
     }
 
+    /// Timeout handling for the RX driver - Must be called from the corresponding TIMERx Interrupt
+    /// handler/task.
+    pub fn process_timeout(&mut self) {
+        // This operation is safe due to type-state programming guaranteeing that the RX and TX are
+        // unique within the driver
+        let uarte = unsafe { &*T::ptr() };
+
+        self.timer.clear_interrupt();
+
+        // Stop UARTE Receive transaction to generate the Timeout Event
+        uarte.tasks_stoprx.write(|w|
+            // `1` is a valid value to write to task registers.
+            unsafe { w.bits(1) });
+    }
+
     /// Main entry point for the RX driver - Must be called from the corresponding UARTE Interrupt
     /// handler/task.
     ///
@@ -522,6 +547,22 @@ where
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };
 
+        if uarte.events_rxdrdy.read().bits() == 1 {
+            self.timer.cancel().unwrap(); // Never fails
+            self.timer.start(1000_u32); // 1 ms for now
+
+            // Reset the event, otherwise it will always read `1` from now on.
+            uarte.events_rxdrdy.write(|w| w);
+        }
+
+        if uarte.events_rxto.read().bits() == 1 {
+            // Ask UART to flush FIFO to DMA buffer
+            uarte.tasks_flushrx.write(|w| unsafe { w.bits(1) });
+
+            // Reset the event, otherwise it will always read `1` from now on.
+            uarte.events_rxto.write(|w| w);
+        }
+
         // check if dma rx transaction has started
         if uarte.events_rxstarted.read().bits() == 1 {
             // DMA transaction has started
@@ -531,8 +572,11 @@ where
             uarte.events_rxstarted.write(|w| w);
         }
 
-        // check id dma transaction finished
+        // check if dma transaction finished
         if uarte.events_endrx.read().bits() == 1 {
+            // TODO: Add handling for the true number of bytes received
+            self.timer.cancel().unwrap(); // Never fails
+
             // our transaction has finished
             if let Some(ret_b) = self.rxq.dequeue() {
                 // Reset the event, otherwise it will always read `1` from now on.
