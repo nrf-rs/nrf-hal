@@ -55,8 +55,6 @@ where
         self.0.cc[1].read().bits()
     }
 
-    /// Enables the interrupt for this timer, external NVIC modification
-    ///
     /// Enables an interrupt that is fired when the timer reaches the value that
     /// is given as an argument to `start`.
     pub(crate) fn enable_interrupt_generation(&mut self) {

@@ -26,7 +26,7 @@ use crate::prelude::*;
 use crate::target_constants::EASY_DMA_SIZE;
 
 use crate::timer::{self, Timer};
-use embedded_hal::timer::{Cancel, CountDown};
+use embedded_hal::timer::Cancel;
 
 use heapless::{
     consts::*,
@@ -352,23 +352,14 @@ where
     /// interrupt in the end. Kept as a split for now, but might be merged in the future.
     pub fn split<S, I>(
         self,
-        rxq: Queue<Box<DMAPool>, U2>,
         txc: Consumer<'static, Box<DMAPool>, S>,
-        mut timer: Timer<I>,
+        timer: Timer<I>,
     ) -> (UarteRX<T, I>, UarteTX<T, S>)
     where
         S: ArrayLength<heapless::pool::singleton::Box<DMAPool>>,
         I: timer::Instance,
     {
-        // This operation is safe due to type-state programming guaranteeing that the Timer is
-        // unique within the driver
-        //let timer_reg = unsafe { &*I::ptr() };
-
-        // Enable COMPARE0 interrupt
-        //timer_reg.intenset.modify(|_, w| w.compare0().set());
-        timer.enable_interrupt_generation();
-
-        let mut rx = UarteRX::<T, I>::new(rxq, timer);
+        let mut rx = UarteRX::<T, I>::new(timer);
         rx.enable_interrupts();
         rx.prepare_read().unwrap();
         rx.start_read();
@@ -411,8 +402,9 @@ pub const DMA_SIZE: usize = 64;
 pub const DMA_SIZE: usize = 128;
 
 // Currently causes internal OOM, needs fixing
-#[cfg(feature = "DMA_SIZE_256")]
-pub const DMA_SIZE: usize = 256;
+// Maximum DMA size is 255 of the UARTE peripheral, see `MAXCNT` for details
+#[cfg(feature = "DMA_SIZE_255")]
+pub const DMA_SIZE: usize = 255;
 
 // An alternative solution to the above is to define the DMA_SIZE
 // in a separate (default) crate, which can be overridden
@@ -427,8 +419,58 @@ pub const DMA_SIZE: usize = 256;
 //
 // The reason to have a POOL gate is that we don't want the POOL
 // to cause memory OH if not used by the application
+#[derive(Debug)]
+pub struct DMAPoolNode {
+    len: u8,
+    buf: [u8; DMA_SIZE],
+}
 
-pool!(DMAPool: [u8; DMA_SIZE]);
+impl DMAPoolNode {
+    pub fn new() -> Self {
+        Self {
+            len: 0,
+            buf: [0; DMA_SIZE],
+        }
+    }
+
+    pub fn write(&mut self, buf: &[u8]) -> usize {
+        if buf.len() > DMA_SIZE {
+            self.len = DMA_SIZE as u8;
+        } else {
+            self.len = buf.len() as u8;
+        }
+
+        let internal_buffer = &mut self.buf[..self.len as usize];
+        internal_buffer.copy_from_slice(&buf[..self.len as usize]);
+
+        return self.len as usize;
+    }
+
+    pub fn read(&self) -> &[u8] {
+        &self.buf[..self.len as usize]
+    }
+
+    pub fn len(&self) -> usize {
+        self.len as usize
+    }
+
+    fn set_len(&mut self, len: u8) {
+        self.len = len;
+    }
+
+    fn max_len(&self) -> usize {
+        DMA_SIZE
+    }
+
+    fn buffer_address(&self) -> u32 {
+        self.buf.as_ptr() as u32
+    }
+}
+
+pool!(
+    #[allow(non_upper_case_globals)]
+    DMAPool: DMAPoolNode
+);
 
 /// UARTE RX part, used in interrupt driven contexts
 pub struct UarteRX<T, I> {
@@ -455,16 +497,16 @@ where
     I: timer::Instance,
 {
     /// Construct new UARTE RX, hidden from users - used internally
-    fn new(rxq: Queue<Box<DMAPool>, U2>, timer: Timer<I>) -> Self {
+    fn new(timer: Timer<I>) -> Self {
         Self {
-            rxq,
+            rxq: Queue::new(),
             timer,
             _marker: core::marker::PhantomData,
         }
     }
 
     /// Used internally to set up the proper interrupts
-    fn enable_interrupts(&self) {
+    fn enable_interrupts(&mut self) {
         // This operation is safe due to type-state programming guaranteeing that the RX and TX are
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };
@@ -479,6 +521,8 @@ where
                 .rxdrdy()
                 .set_bit()
         });
+
+        self.timer.enable_interrupt_generation();
     }
 
     /// Start a UARTE read transaction
@@ -499,19 +543,23 @@ where
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };
 
-        let b = DMAPool::alloc().ok_or(RXError::OOM)?.freeze();
+        let b = DMAPool::alloc()
+            .ok_or(RXError::OOM)?
+            .init(DMAPoolNode::new()); // TODO: Find a way to not need new, the zeroing of the
+                                       // internal buffer is unnecessary
+
         compiler_fence(SeqCst);
 
         // setup start address
         uarte
             .rxd
             .ptr
-            .write(|w| unsafe { w.ptr().bits(b.as_ptr() as u32) });
+            .write(|w| unsafe { w.ptr().bits(b.buffer_address()) });
         // setup length
         uarte
             .rxd
             .maxcnt
-            .write(|w| unsafe { w.maxcnt().bits(b.len() as _) });
+            .write(|w| unsafe { w.maxcnt().bits(b.max_len() as _) });
 
         if self.rxq.enqueue(b).is_err() {
             panic!("Internal driver error, RX Queue Overflow");
@@ -522,11 +570,12 @@ where
 
     /// Timeout handling for the RX driver - Must be called from the corresponding TIMERx Interrupt
     /// handler/task.
-    pub fn process_timeout(&mut self) {
+    pub fn process_timeout_interrupt(&mut self) {
         // This operation is safe due to type-state programming guaranteeing that the RX and TX are
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };
 
+        // Reset the event, otherwise it will always read `1` from now on.
         self.timer.clear_interrupt();
 
         // Stop UARTE Receive transaction to generate the Timeout Event
@@ -547,16 +596,17 @@ where
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };
 
+        // Handles the byte timeout timer
         if uarte.events_rxdrdy.read().bits() == 1 {
             self.timer.cancel().unwrap(); // Never fails
-            self.timer.start(1000_u32); // 1 ms for now
+            self.timer.start(1000_u32); // 1 ms timeout for now
 
             // Reset the event, otherwise it will always read `1` from now on.
             uarte.events_rxdrdy.write(|w| w);
         }
 
         if uarte.events_rxto.read().bits() == 1 {
-            // Ask UART to flush FIFO to DMA buffer
+            // Tell UARTE to flush FIFO to DMA buffer
             uarte.tasks_flushrx.write(|w| unsafe { w.bits(1) });
 
             // Reset the event, otherwise it will always read `1` from now on.
@@ -574,11 +624,15 @@ where
 
         // check if dma transaction finished
         if uarte.events_endrx.read().bits() == 1 {
-            // TODO: Add handling for the true number of bytes received
             self.timer.cancel().unwrap(); // Never fails
 
             // our transaction has finished
-            if let Some(ret_b) = self.rxq.dequeue() {
+            if let Some(mut ret_b) = self.rxq.dequeue() {
+                // Read the true number of bytes and set the correct length of the packet before
+                // returning it
+                let bytes_read = uarte.rxd.amount.read().bits() as u8;
+                ret_b.set_len(bytes_read);
+
                 // Reset the event, otherwise it will always read `1` from now on.
                 uarte.events_endrx.write(|w| w);
 
@@ -641,7 +695,7 @@ where
         uarte
             .txd
             .ptr
-            .write(|w| unsafe { w.ptr().bits(b.as_ptr() as u32) });
+            .write(|w| unsafe { w.ptr().bits(b.buffer_address()) });
 
         // setup length
         uarte
