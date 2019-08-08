@@ -689,23 +689,27 @@ where
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };
 
-        compiler_fence(SeqCst);
+        if b.len() == 0 {
+            return;
+        } else {
+            compiler_fence(SeqCst);
 
-        // setup start address
-        uarte
-            .txd
-            .ptr
-            .write(|w| unsafe { w.ptr().bits(b.buffer_address()) });
+            // setup start address
+            uarte
+                .txd
+                .ptr
+                .write(|w| unsafe { w.ptr().bits(b.buffer_address()) });
 
-        // setup length
-        uarte
-            .txd
-            .maxcnt
-            .write(|w| unsafe { w.maxcnt().bits(b.len() as _) });
+            // setup length
+            uarte
+                .txd
+                .maxcnt
+                .write(|w| unsafe { w.maxcnt().bits(b.len() as _) });
 
-        // Start UARTE transmit transaction
-        uarte.tasks_starttx.write(|w| unsafe { w.bits(1) });
-        self.current = Some(b); // drops the previous current package
+            // Start UARTE transmit transaction
+            uarte.tasks_starttx.write(|w| unsafe { w.bits(1) });
+            self.current = Some(b); // drops the previous current package
+        }
     }
 
     /// Main entry point for the TX driver - Must be called from the corresponding UARTE Interrupt
