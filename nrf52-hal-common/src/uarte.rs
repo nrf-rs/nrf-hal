@@ -689,9 +689,8 @@ where
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };
 
-        if b.len() == 0 {
-            return;
-        } else {
+        // Only send if the DMA chunk has data, else drop the `Box`
+        if b.len() > 0 {
             compiler_fence(SeqCst);
 
             // setup start address
