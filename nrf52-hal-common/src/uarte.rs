@@ -352,19 +352,19 @@ where
     /// interrupt in the end. Kept as a split for now, but might be merged in the future.
     pub fn split<S, I>(
         self,
-        txc: Consumer<'static, Box<DMAPool>, S>,
+        txc: Consumer<'static, Box<UARTEDMAPool>, S>,
         timer: Timer<I>,
         dma_pool_memory: &'static mut [u8],
     ) -> (UarteRX<T, I>, UarteTX<T, S>)
     where
-        S: ArrayLength<heapless::pool::singleton::Box<DMAPool>>,
+        S: ArrayLength<heapless::pool::singleton::Box<UARTEDMAPool>>,
         I: timer::Instance,
     {
         debug_assert!(
-            dma_pool_memory.len() >= core::mem::size_of::<DMAPoolNode>() * 2,
-            "The memory pool needs at least space for 2 `DMAPoolNode`s"
+            dma_pool_memory.len() >= core::mem::size_of::<UARTEDMAPoolNode>() * 2,
+            "The memory pool needs at least space for 2 `UARTEDMAPoolNode`s"
         );
-        DMAPool::grow(dma_pool_memory);
+        UARTEDMAPool::grow(dma_pool_memory);
 
         let mut rx = UarteRX::<T, I>::new(timer);
         rx.enable_interrupts();
@@ -378,45 +378,45 @@ where
 }
 
 /// DMA block size
-/// Defaults to DMA_SIZE = 16 if not explicitly set
+/// Defaults to UARTE_DMA_SIZE = 16 if not explicitly set
 #[cfg(not(any(
-    feature = "DMA_SIZE_4",
-    feature = "DMA_SIZE_8",
-    feature = "DMA_SIZE_16",
-    feature = "DMA_SIZE_32",
-    feature = "DMA_SIZE_64",
-    feature = "DMA_SIZE_128",
-    feature = "DMA_SIZE_256"
+    feature = "UARTE_DMA_SIZE_4",
+    feature = "UARTE_DMA_SIZE_8",
+    feature = "UARTE_DMA_SIZE_16",
+    feature = "UARTE_DMA_SIZE_32",
+    feature = "UARTE_DMA_SIZE_64",
+    feature = "UARTE_DMA_SIZE_128",
+    feature = "UARTE_DMA_SIZE_256"
 )))]
-pub const DMA_SIZE: usize = 16;
+pub const UARTE_DMA_SIZE: usize = 16;
 
-#[cfg(feature = "DMA_SIZE_4")]
-pub const DMA_SIZE: usize = 4;
+#[cfg(feature = "UARTE_DMA_SIZE_4")]
+pub const UARTE_DMA_SIZE: usize = 4;
 
-#[cfg(feature = "DMA_SIZE_8")]
-pub const DMA_SIZE: usize = 8;
+#[cfg(feature = "UARTE_DMA_SIZE_8")]
+pub const UARTE_DMA_SIZE: usize = 8;
 
-#[cfg(feature = "DMA_SIZE_16")]
-pub const DMA_SIZE: usize = 16;
+#[cfg(feature = "UARTE_DMA_SIZE_16")]
+pub const UARTE_DMA_SIZE: usize = 16;
 
-#[cfg(feature = "DMA_SIZE_32")]
-pub const DMA_SIZE: usize = 32;
+#[cfg(feature = "UARTE_DMA_SIZE_32")]
+pub const UARTE_DMA_SIZE: usize = 32;
 
-#[cfg(feature = "DMA_SIZE_64")]
-pub const DMA_SIZE: usize = 64;
+#[cfg(feature = "UARTE_DMA_SIZE_64")]
+pub const UARTE_DMA_SIZE: usize = 64;
 
-#[cfg(feature = "DMA_SIZE_128")]
-pub const DMA_SIZE: usize = 128;
+#[cfg(feature = "UARTE_DMA_SIZE_128")]
+pub const UARTE_DMA_SIZE: usize = 128;
 
 // Currently causes internal OOM, needs fixing
 // Maximum DMA size is 255 of the UARTE peripheral, see `MAXCNT` for details
-#[cfg(feature = "DMA_SIZE_255")]
-pub const DMA_SIZE: usize = 255;
+#[cfg(feature = "UARTE_DMA_SIZE_255")]
+pub const UARTE_DMA_SIZE: usize = 255;
 
-// An alternative solution to the above is to define the DMA_SIZE
+// An alternative solution to the above is to define the UARTE_DMA_SIZE
 // in a separate (default) crate, which can be overridden
 // by a patch in the user Cargo.toml, pointing to
-// a local crate with the user defined DMA_SIZE constant.
+// a local crate with the user defined UARTE_DMA_SIZE constant.
 // What would you prefer?
 
 // The DMA implementation shuld be hidden behind a feature POOL
@@ -427,22 +427,22 @@ pub const DMA_SIZE: usize = 255;
 // The reason to have a POOL gate is that we don't want the POOL
 // to cause memory OH if not used by the application
 #[derive(Debug)]
-pub struct DMAPoolNode {
+pub struct UARTEDMAPoolNode {
     len: u8,
-    buf: [u8; DMA_SIZE],
+    buf: [u8; UARTE_DMA_SIZE],
 }
 
-impl DMAPoolNode {
+impl UARTEDMAPoolNode {
     pub fn new() -> Self {
         Self {
             len: 0,
-            buf: [0; DMA_SIZE],
+            buf: [0; UARTE_DMA_SIZE],
         }
     }
 
     pub fn write(&mut self, buf: &[u8]) -> usize {
-        if buf.len() > DMA_SIZE {
-            self.len = DMA_SIZE as u8;
+        if buf.len() > UARTE_DMA_SIZE {
+            self.len = UARTE_DMA_SIZE as u8;
         } else {
             self.len = buf.len() as u8;
         }
@@ -466,7 +466,7 @@ impl DMAPoolNode {
     }
 
     fn max_len(&self) -> usize {
-        DMA_SIZE
+        UARTE_DMA_SIZE
     }
 
     fn buffer_address(&self) -> u32 {
@@ -476,13 +476,13 @@ impl DMAPoolNode {
 
 pool!(
     #[allow(non_upper_case_globals)]
-    DMAPool: DMAPoolNode
+    UARTEDMAPool: UARTEDMAPoolNode
 );
 
 /// UARTE RX part, used in interrupt driven contexts
 pub struct UarteRX<T, I> {
-    rxq: Queue<Box<DMAPool>, U2>, // double buffering of DMA chunks
-    timer: Timer<I>,              // Timer for handling timeouts
+    rxq: Queue<Box<UARTEDMAPool>, U2>, // double buffering of DMA chunks
+    timer: Timer<I>,                   // Timer for handling timeouts
     _marker: core::marker::PhantomData<T>,
 }
 
@@ -492,8 +492,8 @@ pub enum RXError {
     /// Out of memory error, global pool is depleted
     ///
     /// Potential causes:
-    /// 1. User code is saving the `Box<DMAPool>` (and not dropping them)
-    /// 2. User code running `mem::forget` on the `Box<DMAPool>`
+    /// 1. User code is saving the `Box<UARTEDMAPool>` (and not dropping them)
+    /// 2. User code running `mem::forget` on the `Box<UARTEDMAPool>`
     /// 3. The pool is too small for the use case
     OOM,
 }
@@ -550,10 +550,10 @@ where
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };
 
-        let b = DMAPool::alloc()
+        let b = UARTEDMAPool::alloc()
             .ok_or(RXError::OOM)?
-            .init(DMAPoolNode::new()); // TODO: Find a way to not need new, the zeroing of the
-                                       // internal buffer is unnecessary
+            .init(UARTEDMAPoolNode::new()); // TODO: Find a way to not need new, the zeroing of the
+                                            // internal buffer is unnecessary
 
         compiler_fence(SeqCst);
 
@@ -595,10 +595,10 @@ where
     /// handler/task.
     ///
     /// Will return:
-    /// 1. `Ok(Some(Box<DMAPool>))` if data was received
+    /// 1. `Ok(Some(Box<UARTEDMAPool>))` if data was received
     /// 2. `Ok(None)` if there was no data, i.e. UARTE interrupt was due to other events
     /// 3. `Err(RXError::OOM)` if the memory pool was depleted, see `RXError` for mitigations
-    pub fn process_interrupt(&mut self) -> Result<Option<Box<DMAPool>>, RXError> {
+    pub fn process_interrupt(&mut self) -> Result<Option<Box<UARTEDMAPool>>, RXError> {
         // This operation is safe due to type-state programming guaranteeing that the RX and TX are
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };
@@ -660,20 +660,20 @@ where
 /// S is the queue length, can be U3, U4 etc.
 pub struct UarteTX<T, S>
 where
-    S: ArrayLength<heapless::pool::singleton::Box<DMAPool>>,
+    S: ArrayLength<heapless::pool::singleton::Box<UARTEDMAPool>>,
 {
-    txc: Consumer<'static, Box<DMAPool>, S>, // chunks to transmit
-    current: Option<Box<DMAPool>>,
+    txc: Consumer<'static, Box<UARTEDMAPool>, S>, // chunks to transmit
+    current: Option<Box<UARTEDMAPool>>,
     _marker: core::marker::PhantomData<T>,
 }
 
 impl<T, S> UarteTX<T, S>
 where
     T: Instance,
-    S: ArrayLength<heapless::pool::singleton::Box<DMAPool>>,
+    S: ArrayLength<heapless::pool::singleton::Box<UARTEDMAPool>>,
 {
     /// Construct new UARTE TX, hidden from users - used internally
-    fn new(txc: Consumer<'static, Box<DMAPool>, S>) -> Self {
+    fn new(txc: Consumer<'static, Box<UARTEDMAPool>, S>) -> Self {
         Self {
             txc,
             current: None,
@@ -691,7 +691,7 @@ where
     }
 
     /// Sets up the UARTE to send DMA chunk
-    fn start_write(&mut self, b: Box<DMAPool>) {
+    fn start_write(&mut self, b: Box<UARTEDMAPool>) {
         // This operation is safe due to type-state programming guaranteeing that the RX and TX are
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };
