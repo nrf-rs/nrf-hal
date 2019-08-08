@@ -5,6 +5,7 @@
 //! - nrf52832: Section 35
 //! - nrf52840: Section 6.34
 use core::fmt;
+use core::mem::MaybeUninit;
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
@@ -426,20 +427,23 @@ pub const UARTE_DMA_SIZE: usize = 255;
 //
 // The reason to have a POOL gate is that we don't want the POOL
 // to cause memory OH if not used by the application
-#[derive(Debug)]
+
+/// Each node in the `UARTEDMAPool` consists of this struct.
 pub struct UARTEDMAPoolNode {
     len: u8,
-    buf: [u8; UARTE_DMA_SIZE],
+    buf: MaybeUninit<[u8; UARTE_DMA_SIZE]>,
 }
 
 impl UARTEDMAPoolNode {
+    /// Creates a new node for the UARTE DMA
     pub fn new() -> Self {
         Self {
             len: 0,
-            buf: [0; UARTE_DMA_SIZE],
+            buf: MaybeUninit::uninit(),
         }
     }
 
+    /// Used to write data into the node, and returns how many bytes were written from `buf`.
     pub fn write(&mut self, buf: &[u8]) -> usize {
         if buf.len() > UARTE_DMA_SIZE {
             self.len = UARTE_DMA_SIZE as u8;
@@ -447,30 +451,41 @@ impl UARTEDMAPoolNode {
             self.len = buf.len() as u8;
         }
 
-        let internal_buffer = &mut self.buf[..self.len as usize];
-        internal_buffer.copy_from_slice(&buf[..self.len as usize]);
+        // Used to write data into the `MaybeUninit`, safe based on the size check above
+        unsafe {
+            core::ptr::copy_nonoverlapping(
+                buf.as_ptr(),
+                self.buf.as_mut_ptr() as *mut _,
+                self.len as usize,
+            );
+        }
 
         return self.len as usize;
     }
 
+    /// Returns a readable slice which maps to the buffers internal data
     pub fn read(&self) -> &[u8] {
-        &self.buf[..self.len as usize]
+        // Safe as it uses the internal length of valid data
+        unsafe { core::slice::from_raw_parts(self.buf.as_ptr() as *const _, self.len as usize) }
     }
 
+    /// Reads how many bytes are available
     pub fn len(&self) -> usize {
         self.len as usize
     }
 
-    fn set_len(&mut self, len: u8) {
+    /// This function is unsafe as it must be used in conjuction with `buffer_address` to write and
+    /// set the correct number of bytes from a DMA transaction
+    unsafe fn set_len_from_dma(&mut self, len: u8) {
         self.len = len;
     }
 
-    fn max_len(&self) -> usize {
-        UARTE_DMA_SIZE
+    unsafe fn buffer_address_for_dma(&self) -> u32 {
+        self.buf.as_ptr() as u32
     }
 
-    fn buffer_address(&self) -> u32 {
-        self.buf.as_ptr() as u32
+    const fn max_len(&self) -> usize {
+        UARTE_DMA_SIZE
     }
 }
 
@@ -479,7 +494,8 @@ pool!(
     UARTEDMAPool: UARTEDMAPoolNode
 );
 
-/// UARTE RX part, used in interrupt driven contexts
+/// UARTE RX driver, used in interrupt driven contexts
+/// `I` is the timer instance
 pub struct UarteRX<T, I> {
     rxq: Queue<Box<UARTEDMAPool>, U2>, // double buffering of DMA chunks
     timer: Timer<I>,                   // Timer for handling timeouts
@@ -550,10 +566,10 @@ where
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };
 
+        // This operation is fast as `UARTEDMAPoolNode::new()` does not zero the internal buffer
         let b = UARTEDMAPool::alloc()
             .ok_or(RXError::OOM)?
-            .init(UARTEDMAPoolNode::new()); // TODO: Find a way to not need new, the zeroing of the
-                                            // internal buffer is unnecessary
+            .init(UARTEDMAPoolNode::new());
 
         compiler_fence(SeqCst);
 
@@ -561,7 +577,7 @@ where
         uarte
             .rxd
             .ptr
-            .write(|w| unsafe { w.ptr().bits(b.buffer_address()) });
+            .write(|w| unsafe { w.ptr().bits(b.buffer_address_for_dma()) });
         // setup length
         uarte
             .rxd
@@ -638,7 +654,11 @@ where
                 // Read the true number of bytes and set the correct length of the packet before
                 // returning it
                 let bytes_read = uarte.rxd.amount.read().bits() as u8;
-                ret_b.set_len(bytes_read);
+                unsafe {
+                    // This operation is safe as `buffer_address_for_dma` has written `bytes_read`
+                    // number of bytes into the node
+                    ret_b.set_len_from_dma(bytes_read);
+                }
 
                 // Reset the event, otherwise it will always read `1` from now on.
                 uarte.events_endrx.write(|w| w);
@@ -656,7 +676,7 @@ where
     }
 }
 
-/// UARTE TX part, used in interrupt driven contexts
+/// UARTE TX driver, used in interrupt driven contexts
 /// S is the queue length, can be U3, U4 etc.
 pub struct UarteTX<T, S>
 where
@@ -704,7 +724,7 @@ where
             uarte
                 .txd
                 .ptr
-                .write(|w| unsafe { w.ptr().bits(b.buffer_address()) });
+                .write(|w| unsafe { w.ptr().bits(b.buffer_address_for_dma()) });
 
             // setup length
             uarte

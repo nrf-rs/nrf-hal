@@ -79,7 +79,7 @@ const APP: () = {
 
         // hprintln!("{:?}", &data).unwrap();
         // just do the buffer dance without copying
-        resources.PRODUCER.enqueue(data).unwrap();
+        let _ = resources.PRODUCER.enqueue(data);
         rtfm::pend(interrupt::UARTE0_UART0);
     }
 
