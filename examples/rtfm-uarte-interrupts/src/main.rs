@@ -9,7 +9,7 @@ use cortex_m_semihosting::hprintln;
 use nrf52832_hal as hal;
 
 use hal::gpio::{p0, Level};
-use hal::target::{interrupt, TIMER0, UARTE0};
+use hal::target::{interrupt, TIMER0 as TIM0, UARTE0};
 use hal::timer::*;
 use hal::{uarte, Uarte};
 use hal::{RXError, UARTEDMAPool, UARTEDMAPoolNode, UarteRX, UarteTX};
@@ -17,7 +17,6 @@ use hal::{RXError, UARTEDMAPool, UARTEDMAPoolNode, UarteRX, UarteTX};
 use heapless::{
     consts::U3,
     pool::singleton::Box,
-    pool::singleton::Pool,
     spsc::{Producer, Queue},
 };
 
@@ -29,7 +28,7 @@ type TXQSize = U3;
 
 #[app(device = crate::hal::target)]
 const APP: () = {
-    static mut RX: UarteRX<UARTE0, TIMER0> = ();
+    static mut RX: UarteRX<UARTE0, TIM0> = ();
     static mut TX: UarteTX<UARTE0, TXQSize> = ();
     static mut PRODUCER: Producer<'static, Box<UARTEDMAPool>, TXQSize> = ();
 
@@ -84,6 +83,11 @@ const APP: () = {
     #[task]
     fn rx_error(err: RXError) {
         hprintln!("rx_error {:?}", err).unwrap();
+    }
+
+    #[interrupt(priority = 2, resources = [RX])]
+    fn TIMER0() {
+        resources.RX.process_timeout_interrupt();
     }
 
     #[interrupt(priority = 2, resources = [RX, TX], spawn = [printer, rx_error])]
