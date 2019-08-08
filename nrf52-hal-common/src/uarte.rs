@@ -606,7 +606,7 @@ where
         // Handles the byte timeout timer
         if uarte.events_rxdrdy.read().bits() == 1 {
             self.timer.cancel().unwrap(); // Never fails
-            self.timer.start(1000_u32); // 1 ms timeout for now
+            self.timer.start(10_000_u32); // 10 ms timeout for now
 
             // Reset the event, otherwise it will always read `1` from now on.
             uarte.events_rxdrdy.write(|w| w);
