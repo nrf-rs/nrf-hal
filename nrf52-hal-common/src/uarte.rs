@@ -354,11 +354,18 @@ where
         self,
         txc: Consumer<'static, Box<DMAPool>, S>,
         timer: Timer<I>,
+        dma_pool_memory: &'static mut [u8],
     ) -> (UarteRX<T, I>, UarteTX<T, S>)
     where
         S: ArrayLength<heapless::pool::singleton::Box<DMAPool>>,
         I: timer::Instance,
     {
+        debug_assert!(
+            dma_pool_memory.len() >= core::mem::size_of::<DMAPoolNode>() * 2,
+            "The memory pool needs at least space for 2 `DMAPoolNode`s"
+        );
+        DMAPool::grow(dma_pool_memory);
+
         let mut rx = UarteRX::<T, I>::new(timer);
         rx.enable_interrupts();
         rx.prepare_read().unwrap();
