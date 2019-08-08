@@ -12,7 +12,7 @@ use hal::gpio::{p0, Level};
 use hal::target::{interrupt, TIMER0, UARTE0};
 use hal::timer::*;
 use hal::{uarte, Uarte};
-use hal::{DMAPool, RXError, UarteRX, UarteTX, DMA_SIZE};
+use hal::{RXError, UARTEDMAPool, UARTEDMAPoolNode, UarteRX, UarteTX};
 
 use heapless::{
     consts::U3,
@@ -24,26 +24,23 @@ use heapless::{
 use rtfm::app;
 
 const NR_PACKAGES: usize = 10;
-const DMA_MEM: usize = DMA_SIZE * NR_PACKAGES + 16;
-
+const DMA_MEM: usize = core::mem::size_of::<UARTEDMAPoolNode>() * NR_PACKAGES;
 type TXQSize = U3;
 
 #[app(device = crate::hal::target)]
 const APP: () = {
     static mut RX: UarteRX<UARTE0, TIMER0> = ();
     static mut TX: UarteTX<UARTE0, TXQSize> = ();
-    static mut PRODUCER: Producer<'static, Box<DMAPool>, TXQSize> = ();
+    static mut PRODUCER: Producer<'static, Box<UARTEDMAPool>, TXQSize> = ();
 
     #[init(spawn = [])]
     fn init() -> init::LateResources {
         // for the actual DMA buffers
         static mut MEMORY: [u8; DMA_MEM] = [0; DMA_MEM];
         // for the producer/consumer of TX
-        static mut TX_RB: Queue<Box<DMAPool>, TXQSize> = Queue(heapless::i::Queue::new());
+        static mut TX_RB: Queue<Box<UARTEDMAPool>, TXQSize> = Queue(heapless::i::Queue::new());
 
         hprintln!("init").unwrap();
-        // move MEMORY to P (the DMA buffer allocator)
-        DMAPool::grow(MEMORY);
 
         let port0 = p0::Parts::new(device.P0);
 
@@ -62,7 +59,7 @@ const APP: () = {
 
         let timer = Timer::new(device.TIMER0);
         let (txp, txc) = TX_RB.split();
-        let (rx, tx) = uarte0.split(Queue::new(), txc, timer);
+        let (rx, tx) = uarte0.split(txc, timer, MEMORY);
 
         init::LateResources {
             RX: rx,
@@ -73,9 +70,9 @@ const APP: () = {
 
     // // we can get Box<P> us being now the owner
     #[task(capacity = 2, resources = [PRODUCER])]
-    fn printer(data: Box<DMAPool>) {
+    fn printer(data: Box<UARTEDMAPool>) {
         // enqueue a test message
-        // let mut b = DMAPool::alloc().unwrap().freeze();
+        // let mut b = UARTEDMAPool::alloc().unwrap().freeze();
         // b.copy_from_slice(&[0, 1, 2, 3]);
 
         // hprintln!("{:?}", &data).unwrap();
