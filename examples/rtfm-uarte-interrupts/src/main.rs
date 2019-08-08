@@ -49,6 +49,9 @@ const APP: () = {
             uarte::Pins {
                 txd: port0.p0_06.into_push_pull_output(Level::High).degrade(),
                 rxd: port0.p0_08.into_floating_input().degrade(),
+                // Use the following for DWM-1001 dev board
+                // txd: port0.p0_05.into_push_pull_output(Level::High).degrade(),
+                // rxd: port0.p0_11.into_floating_input().degrade(),
                 cts: None,
                 rts: None,
             },
