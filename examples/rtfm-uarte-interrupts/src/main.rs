@@ -74,12 +74,16 @@ const APP: () = {
     #[task(capacity = 2, resources = [PRODUCER])]
     fn printer(data: Box<UARTEDMAPool>) {
         // enqueue a test message
-        // let mut b = UARTEDMAPool::alloc().unwrap().freeze();
-        // b.copy_from_slice(&[0, 1, 2, 3]);
-
+        // let mut node = UARTEDMAPoolNode::new();
+        // node.write(&[95, 95, 95, 95]);
+        // let b = UARTEDMAPool::alloc()
+        //     .unwrap()
+        //     .init(node);
+        // resources.PRODUCER.enqueue(b).unwrap();
         // hprintln!("{:?}", &data).unwrap();
+
         // just do the buffer dance without copying
-        let _ = resources.PRODUCER.enqueue(data);
+        resources.PRODUCER.enqueue(data).unwrap();
         rtfm::pend(interrupt::UARTE0_UART0);
     }
 

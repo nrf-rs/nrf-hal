@@ -434,6 +434,12 @@ pub struct UARTEDMAPoolNode {
     buf: MaybeUninit<[u8; UARTE_DMA_SIZE]>,
 }
 
+impl core::fmt::Debug for UARTEDMAPoolNode {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:?}", self.read())
+    }
+}
+
 impl UARTEDMAPoolNode {
     /// Creates a new node for the UARTE DMA
     pub fn new() -> Self {
@@ -584,11 +590,10 @@ where
             .maxcnt
             .write(|w| unsafe { w.maxcnt().bits(b.max_len() as _) });
 
-        if self.rxq.enqueue(b).is_err() {
-            panic!("Internal driver error, RX Queue Overflow");
-        } else {
-            Ok(())
-        }
+        let r = self.rxq.enqueue(b);
+        debug_assert!(r.is_ok(), "Internal driver error, RX Queue Overflow");
+
+        Ok(())
     }
 
     /// Timeout handling for the RX driver - Must be called from the corresponding TIMERx Interrupt
@@ -667,7 +672,7 @@ where
 
                 return Ok(Some(ret_b)); // ok to return, rx started will be caught later
             } else {
-                panic!("Internal driver error, RX Queue Underflow");
+                debug_assert!(false, "Internal driver error, RX Queue Underflow");
             }
         }
 
@@ -751,9 +756,11 @@ where
             match self.txc.dequeue() {
                 None => {
                     // a ENDTX without an started transaction is an error
-                    if self.current.is_none() {
-                        panic!("Internal error, ENDTX without current transaction.")
-                    }
+                    debug_assert!(
+                        self.current.is_some(),
+                        "Internal error, ENDTX without current transaction."
+                    );
+
                     // we don't have any more to send, so drop the current buffer
                     self.current = None;
                 }
