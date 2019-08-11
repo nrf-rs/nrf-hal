@@ -17,12 +17,12 @@ pub use nrf9160_pac as target;
 pub mod clocks;
 pub mod delay;
 pub mod gpio;
-#[cfg(not(feature="9160"))]
+#[cfg(not(feature = "9160"))]
 pub mod rng;
 pub mod rtc;
 pub mod saadc;
 pub mod spim;
-#[cfg(not(feature="9160"))]
+#[cfg(not(feature = "9160"))]
 pub mod temp;
 pub mod time;
 pub mod timer;
@@ -45,7 +45,7 @@ pub mod target_constants {
     pub const SRAM_UPPER: usize = 0x3000_0000;
     pub const FORCE_COPY_BUFFER_SIZE: usize = 255;
 }
-#[cfg(any(feature = "52840", feature="9160"))]
+#[cfg(any(feature = "52840", feature = "9160"))]
 pub mod target_constants {
     // NRF52840 and NRF9160 16 bits 1..0xFFFF
     pub const EASY_DMA_SIZE: usize = 65535;
@@ -84,11 +84,11 @@ impl DmaSlice {
 
 pub use crate::clocks::Clocks;
 pub use crate::delay::Delay;
-#[cfg(not(feature="9160"))]
+#[cfg(not(feature = "9160"))]
 pub use crate::rng::Rng;
 pub use crate::rtc::Rtc;
 pub use crate::saadc::Saadc;
 pub use crate::spim::Spim;
 pub use crate::timer::Timer;
 pub use crate::twim::Twim;
-pub use crate::uarte::{RXError, UARTEDMAPool, UARTEDMAPoolNode, Uarte, UarteRX, UarteTX};
+pub use crate::uarte::{RXError, Uarte, UarteDMAPool, UarteDMAPoolNode, UarteRX, UarteTX};

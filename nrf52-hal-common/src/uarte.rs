@@ -346,19 +346,19 @@ where
     /// interrupt in the end. Kept as a split for now, but might be merged in the future.
     pub fn split<S, I>(
         self,
-        txc: Consumer<'static, Box<UARTEDMAPool>, S>,
+        txc: Consumer<'static, Box<UarteDMAPool>, S>,
         timer: Timer<I>,
         dma_pool_memory: &'static mut [u8],
     ) -> (UarteRX<T, I>, UarteTX<T, S>)
     where
-        S: ArrayLength<heapless::pool::singleton::Box<UARTEDMAPool>>,
+        S: ArrayLength<heapless::pool::singleton::Box<UarteDMAPool>>,
         I: timer::Instance,
     {
         debug_assert!(
-            dma_pool_memory.len() >= core::mem::size_of::<UARTEDMAPoolNode>() * 2,
-            "The memory pool needs at least space for 2 `UARTEDMAPoolNode`s"
+            dma_pool_memory.len() >= core::mem::size_of::<UarteDMAPoolNode>() * 2,
+            "The memory pool needs at least space for 2 `UarteDMAPoolNode`s"
         );
-        UARTEDMAPool::grow(dma_pool_memory);
+        UarteDMAPool::grow(dma_pool_memory);
 
         let mut rx = UarteRX::<T, I>::new(timer);
         rx.enable_interrupts();
@@ -421,19 +421,19 @@ pub const UARTE_DMA_SIZE: usize = 255;
 // The reason to have a POOL gate is that we don't want the POOL
 // to cause memory OH if not used by the application
 
-/// Each node in the `UARTEDMAPool` consists of this struct.
-pub struct UARTEDMAPoolNode {
+/// Each node in the `UarteDMAPool` consists of this struct.
+pub struct UarteDMAPoolNode {
     len: u8,
     buf: MaybeUninit<[u8; UARTE_DMA_SIZE]>,
 }
 
-impl core::fmt::Debug for UARTEDMAPoolNode {
+impl core::fmt::Debug for UarteDMAPoolNode {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{:?}", self.read())
     }
 }
 
-impl UARTEDMAPoolNode {
+impl UarteDMAPoolNode {
     /// Creates a new node for the UARTE DMA
     pub fn new() -> Self {
         Self {
@@ -490,13 +490,13 @@ impl UARTEDMAPoolNode {
 
 pool!(
     #[allow(non_upper_case_globals)]
-    UARTEDMAPool: UARTEDMAPoolNode
+    UarteDMAPool: UarteDMAPoolNode
 );
 
 /// UARTE RX driver, used in interrupt driven contexts
 /// `I` is the timer instance
 pub struct UarteRX<T, I> {
-    rxq: Queue<Box<UARTEDMAPool>, U2>, // double buffering of DMA chunks
+    rxq: Queue<Box<UarteDMAPool>, U2>, // double buffering of DMA chunks
     timer: Timer<I>,                   // Timer for handling timeouts
     _marker: core::marker::PhantomData<T>,
 }
@@ -507,8 +507,8 @@ pub enum RXError {
     /// Out of memory error, global pool is depleted
     ///
     /// Potential causes:
-    /// 1. User code is saving the `Box<UARTEDMAPool>` (and not dropping them)
-    /// 2. User code running `mem::forget` on the `Box<UARTEDMAPool>`
+    /// 1. User code is saving the `Box<UarteDMAPool>` (and not dropping them)
+    /// 2. User code running `mem::forget` on the `Box<UarteDMAPool>`
     /// 3. The pool is too small for the use case
     OOM,
 }
@@ -565,10 +565,10 @@ where
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };
 
-        // This operation is fast as `UARTEDMAPoolNode::new()` does not zero the internal buffer
-        let b = UARTEDMAPool::alloc()
+        // This operation is fast as `UarteDMAPoolNode::new()` does not zero the internal buffer
+        let b = UarteDMAPool::alloc()
             .ok_or(RXError::OOM)?
-            .init(UARTEDMAPoolNode::new());
+            .init(UarteDMAPoolNode::new());
 
         compiler_fence(SeqCst);
 
@@ -609,10 +609,10 @@ where
     /// handler/task.
     ///
     /// Will return:
-    /// 1. `Ok(Some(Box<UARTEDMAPool>))` if data was received
+    /// 1. `Ok(Some(Box<UarteDMAPool>))` if data was received
     /// 2. `Ok(None)` if there was no data, i.e. UARTE interrupt was due to other events
     /// 3. `Err(RXError::OOM)` if the memory pool was depleted, see `RXError` for mitigations
-    pub fn process_interrupt(&mut self) -> Result<Option<Box<UARTEDMAPool>>, RXError> {
+    pub fn process_interrupt(&mut self) -> Result<Option<Box<UarteDMAPool>>, RXError> {
         // This operation is safe due to type-state programming guaranteeing that the RX and TX are
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };
@@ -678,20 +678,20 @@ where
 /// S is the queue length, can be U3, U4 etc.
 pub struct UarteTX<T, S>
 where
-    S: ArrayLength<heapless::pool::singleton::Box<UARTEDMAPool>>,
+    S: ArrayLength<heapless::pool::singleton::Box<UarteDMAPool>>,
 {
-    txc: Consumer<'static, Box<UARTEDMAPool>, S>, // chunks to transmit
-    current: Option<Box<UARTEDMAPool>>,
+    txc: Consumer<'static, Box<UarteDMAPool>, S>, // chunks to transmit
+    current: Option<Box<UarteDMAPool>>,
     _marker: core::marker::PhantomData<T>,
 }
 
 impl<T, S> UarteTX<T, S>
 where
     T: Instance,
-    S: ArrayLength<heapless::pool::singleton::Box<UARTEDMAPool>>,
+    S: ArrayLength<heapless::pool::singleton::Box<UarteDMAPool>>,
 {
     /// Construct new UARTE TX, hidden from users - used internally
-    fn new(txc: Consumer<'static, Box<UARTEDMAPool>, S>) -> Self {
+    fn new(txc: Consumer<'static, Box<UarteDMAPool>, S>) -> Self {
         Self {
             txc,
             current: None,
@@ -709,7 +709,7 @@ where
     }
 
     /// Sets up the UARTE to send DMA chunk
-    fn start_write(&mut self, b: Box<UARTEDMAPool>) {
+    fn start_write(&mut self, b: Box<UarteDMAPool>) {
         // This operation is safe due to type-state programming guaranteeing that the RX and TX are
         // unique within the driver
         let uarte = unsafe { &*T::ptr() };

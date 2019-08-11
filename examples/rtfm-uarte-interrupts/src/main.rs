@@ -12,7 +12,7 @@ use hal::gpio::{p0, Level};
 use hal::target::{interrupt, TIMER0 as TIM0, UARTE0};
 use hal::timer::*;
 use hal::{uarte, Uarte};
-use hal::{RXError, UARTEDMAPool, UARTEDMAPoolNode, UarteRX, UarteTX};
+use hal::{RXError, UarteDMAPool, UarteDMAPoolNode, UarteRX, UarteTX};
 
 use heapless::{
     consts::U3,
@@ -23,21 +23,21 @@ use heapless::{
 use rtfm::app;
 
 const NR_PACKAGES: usize = 10;
-const DMA_MEM: usize = core::mem::size_of::<UARTEDMAPoolNode>() * NR_PACKAGES;
+const DMA_MEM: usize = core::mem::size_of::<UarteDMAPoolNode>() * NR_PACKAGES;
 type TXQSize = U3;
 
 #[app(device = crate::hal::target)]
 const APP: () = {
     static mut RX: UarteRX<UARTE0, TIM0> = ();
     static mut TX: UarteTX<UARTE0, TXQSize> = ();
-    static mut PRODUCER: Producer<'static, Box<UARTEDMAPool>, TXQSize> = ();
+    static mut PRODUCER: Producer<'static, Box<UarteDMAPool>, TXQSize> = ();
 
     #[init(spawn = [])]
     fn init() -> init::LateResources {
         // for the actual DMA buffers
         static mut MEMORY: [u8; DMA_MEM] = [0; DMA_MEM];
         // for the producer/consumer of TX
-        static mut TX_RB: Queue<Box<UARTEDMAPool>, TXQSize> = Queue(heapless::i::Queue::new());
+        static mut TX_RB: Queue<Box<UarteDMAPool>, TXQSize> = Queue(heapless::i::Queue::new());
 
         hprintln!("init").unwrap();
 
@@ -72,11 +72,11 @@ const APP: () = {
 
     // // we can get Box<P> us being now the owner
     #[task(capacity = 2, resources = [PRODUCER])]
-    fn printer(data: Box<UARTEDMAPool>) {
+    fn printer(data: Box<UarteDMAPool>) {
         // enqueue a test message
-        // let mut node = UARTEDMAPoolNode::new();
+        // let mut node = UarteDMAPoolNode::new();
         // node.write(&[95, 95, 95, 95]);
-        // let b = UARTEDMAPool::alloc()
+        // let b = UarteDMAPool::alloc()
         //     .unwrap()
         //     .init(node);
         // resources.PRODUCER.enqueue(b).unwrap();
