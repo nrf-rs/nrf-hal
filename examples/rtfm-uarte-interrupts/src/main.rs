@@ -11,8 +11,13 @@ use nrf52832_hal as hal;
 use hal::gpio::{p0, Level};
 use hal::target::{interrupt, TIMER0 as TIM0, UARTE0};
 use hal::timer::*;
-use hal::{uarte, Uarte};
-use hal::{RXError, UarteDMAPool, UarteDMAPoolNode, UarteRX, UarteTX};
+use hal::{
+    uarte::{
+        self,
+        interrupt_driven::{RXError, UarteDMAPool, UarteDMAPoolNode, UarteRX, UarteTX},
+    },
+    Uarte,
+};
 
 use heapless::{
     consts::U3,

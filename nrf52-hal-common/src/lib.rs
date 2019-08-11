@@ -91,4 +91,4 @@ pub use crate::saadc::Saadc;
 pub use crate::spim::Spim;
 pub use crate::timer::Timer;
 pub use crate::twim::Twim;
-pub use crate::uarte::{RXError, Uarte, UarteDMAPool, UarteDMAPoolNode, UarteRX, UarteTX};
+pub use crate::uarte::Uarte;
