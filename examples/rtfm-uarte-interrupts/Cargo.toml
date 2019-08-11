@@ -19,7 +19,7 @@ optional = true
 version = "0.8.0"
 path = "../../nrf52832-hal"
 optional = true
-features = ["rt", "xxAB-package", "POOL"]
+features = ["rt", "xxAB-package"]
 
 [dependencies.nrf52840-hal]
 version = "0.8.0"

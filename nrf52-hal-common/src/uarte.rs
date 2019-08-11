@@ -413,14 +413,6 @@ pub const UARTE_DMA_SIZE: usize = 255;
 // a local crate with the user defined UARTE_DMA_SIZE constant.
 // What would you prefer?
 
-// The DMA implementation shuld be hidden behind a feature POOL
-// This likely requires a mod {} around the related code
-// or the non-ergonomic repetition of the gate.
-// Is there a better solution?
-//
-// The reason to have a POOL gate is that we don't want the POOL
-// to cause memory OH if not used by the application
-
 /// Each node in the `UarteDMAPool` consists of this struct.
 pub struct UarteDMAPoolNode {
     len: u8,

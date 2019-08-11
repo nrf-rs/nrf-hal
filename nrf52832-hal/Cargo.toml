@@ -42,7 +42,6 @@ doc = []
 rt = ["nrf52832-pac/rt"]
 xxAA-package = []
 xxAB-package = []
-POOL = ["nrf52-hal-common/POOL"]
 UARTE_DMA_SIZE_4 = ["nrf52-hal-common/UARTE_DMA_SIZE_4"]
 UARTE_DMA_SIZE_8 = ["nrf52-hal-common/UARTE_DMA_SIZE_8"]
 UARTE_DMA_SIZE_16 = ["nrf52-hal-common/UARTE_DMA_SIZE_16"]
@@ -54,5 +53,5 @@ UARTE_DMA_SIZE_255 = ["nrf52-hal-common/UARTE_DMA_SIZE_255"]
 
 # Note: We use the xxAB package because it has the least amount of available resources.
 #   However, most users will want to use the xxAA package.
-#   If disabling default features, "POOL" and "DMA_SIZE_XX" should be manually set.
-default = ["rt", "xxAB-package", "POOL"]
+#   If disabling default features, "DMA_SIZE_XX" should be manually set.
+default = ["rt", "xxAB-package"]
