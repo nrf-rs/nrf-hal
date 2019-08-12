@@ -393,7 +393,7 @@ pub mod interrupt_driven {
         feature = "UARTE_DMA_SIZE_32",
         feature = "UARTE_DMA_SIZE_64",
         feature = "UARTE_DMA_SIZE_128",
-        feature = "UARTE_DMA_SIZE_256"
+        feature = "UARTE_DMA_SIZE_255"
     )))]
     pub const UARTE_DMA_SIZE: usize = 16;
 

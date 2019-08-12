@@ -6,7 +6,14 @@ extern crate panic_semihosting;
 
 use cortex_m_semihosting::hprintln;
 
+#[cfg(feature = "52810")]
+use nrf52810_hal as hal;
+
+#[cfg(feature = "52832")]
 use nrf52832_hal as hal;
+
+#[cfg(feature = "52840")]
+use nrf52840_hal as hal;
 
 use hal::gpio::{p0, Level};
 use hal::target::{interrupt, TIMER0 as TIM0, UARTE0};
@@ -48,10 +55,10 @@ const APP: () = {
 
         let port0 = p0::Parts::new(device.P0);
 
-        //adafruit nrf52 le
         let uarte0 = Uarte::new(
             device.UARTE0,
             uarte::Pins {
+                // adafruit-nrf52-bluefruit-le, adafruit_nrf52pro, nRF52-DK, nRF52840-DK
                 txd: port0.p0_06.into_push_pull_output(Level::High).degrade(),
                 rxd: port0.p0_08.into_floating_input().degrade(),
                 // Use the following for DWM-1001 dev board
