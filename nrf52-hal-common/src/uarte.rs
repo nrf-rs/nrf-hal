@@ -8,6 +8,9 @@ use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 use core::fmt;
 
+#[cfg(feature="52840")]
+use crate::target::UARTE1;
+
 #[cfg(feature="9160")]
 use crate::target::{
     uarte0_ns as uarte0,
@@ -393,5 +396,5 @@ pub trait Instance: Deref<Target = uarte0::RegisterBlock> {}
 
 impl Instance for UARTE0 {}
 
-#[cfg(feature="9160")]
+#[cfg(any(feature="52840", feature="9160"))]
 impl Instance for UARTE1 {}
