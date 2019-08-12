@@ -5,6 +5,7 @@ members = [
   "boards/nRF52-DK",
   "boards/nRF52840-DK",
   "boards/nRF9160-DK",
+  "boards/nrf52840-mdk",
   "nrf52810-hal",
   "nrf52832-hal",
   "nrf52840-hal",
