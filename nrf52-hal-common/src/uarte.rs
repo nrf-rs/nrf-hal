@@ -368,6 +368,7 @@ pub mod interrupt_driven {
     use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
     use crate::timer::{self, Timer};
+    use crate::uarte;
     use embedded_hal::timer::{Cancel, CountDown};
 
     use heapless::{
@@ -377,8 +378,6 @@ pub mod interrupt_driven {
         spsc::{Consumer, Queue},
         ArrayLength,
     };
-
-    use crate::uarte;
 
     /// DMA block size
     /// Defaults to UARTE_DMA_SIZE = 16 if not explicitly set
@@ -497,7 +496,7 @@ pub mod interrupt_driven {
             self.buf.as_ptr() as u32
         }
 
-        const fn max_len(&self) -> usize {
+        const fn max_len() -> usize {
             UARTE_DMA_SIZE
         }
     }
@@ -601,7 +600,7 @@ pub mod interrupt_driven {
             uarte
                 .rxd
                 .maxcnt
-                .write(|w| unsafe { w.maxcnt().bits(b.max_len() as _) });
+                .write(|w| unsafe { w.maxcnt().bits(UarteDMAPoolNode::max_len() as _) });
 
             let r = self.rxq.enqueue(b);
             debug_assert!(r.is_ok(), "Internal driver error, RX Queue Overflow");
