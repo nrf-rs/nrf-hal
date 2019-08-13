@@ -335,15 +335,11 @@ where
         self.0
     }
 
-    /// Splits the UARTE into a transmitter and receiver for interrupt driven use
+    /// Splits the UARTE into an interrupt driven transmitter and receiver
     ///
-    /// In needs a `Queue` to place received DMA chunks, and a `Consumer` to place DMA chunks to
-    /// send
-    ///
-    /// Note: The act of splitting might not be needed on the nRF52 chips, as they map to the same
-    /// interrupt in the end. Kept as a split for now, but might be merged in the future.
-    #[cfg(not(feature = "9160"))]
-    pub fn split<S, I>(
+    /// In needs a `Consumer` to place DMA chunks to send, a `Timer` for checking byte timeouts,
+    /// and a `&'static mut [u8]` memory block to use.
+    pub fn into_interrupt_driven<S, I>(
         self,
         txc: Consumer<'static, Box<UarteDMAPool>, S>,
         timer: Timer<I>,
@@ -366,8 +362,8 @@ where
 }
 
 /// An interrupt driven implementation of the UARTE peripheral
-#[cfg(not(feature = "9160"))]
 pub mod interrupt_driven {
+    use core::fmt;
     use core::mem::MaybeUninit;
     use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
@@ -432,13 +428,26 @@ pub mod interrupt_driven {
         buf: MaybeUninit<[u8; UARTE_DMA_SIZE]>,
     }
 
-    impl core::fmt::Debug for UarteDMAPoolNode {
-        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    impl fmt::Debug for UarteDMAPoolNode {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             write!(f, "{:?}", self.read())
         }
     }
 
+    impl fmt::Write for UarteDMAPoolNode {
+        fn write_str(&mut self, s: &str) -> fmt::Result {
+            if s.len() > Self::MAX_SIZE {
+                Err(fmt::Error)
+            } else {
+                self.write_checked(s.as_bytes());
+                Ok(())
+            }
+        }
+    }
+
     impl UarteDMAPoolNode {
+        pub const MAX_SIZE: usize = UARTE_DMA_SIZE;
+
         /// Creates a new node for the UARTE DMA
         pub fn new() -> Self {
             Self {
@@ -448,7 +457,7 @@ pub mod interrupt_driven {
         }
 
         /// Used to write data into the node, and returns how many bytes were written from `buf`.
-        pub fn write(&mut self, buf: &[u8]) -> usize {
+        pub fn write_checked(&mut self, buf: &[u8]) -> usize {
             if buf.len() > UARTE_DMA_SIZE {
                 self.len = UARTE_DMA_SIZE as u8;
             } else {
