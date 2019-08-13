@@ -73,7 +73,7 @@ const APP: () = {
 
         let timer = Timer::new(device.TIMER0);
         let (txp, txc) = TX_RB.split();
-        let (rx, tx) = uarte0.split(txc, timer, MEMORY);
+        let (rx, tx) = uarte0.into_interrupt_driven(txc, timer, MEMORY);
 
         init::LateResources {
             RX: rx,
