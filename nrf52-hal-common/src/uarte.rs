@@ -496,7 +496,7 @@ pub mod interrupt_driven {
             self.buf.as_ptr() as u32
         }
 
-        const fn max_len() -> usize {
+        pub const fn max_len() -> usize {
             UARTE_DMA_SIZE
         }
     }
