@@ -361,11 +361,16 @@ where
     }
 }
 
-/// An interrupt driven implementation of the UARTE peripheral
+/// An interrupt driven implementation of the UARTE peripheral.
+///
+/// ## Example
+///
+/// ```
+///
+/// ```
 pub mod interrupt_driven {
-    use core::fmt;
-    use core::mem::MaybeUninit;
     use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
+    use core::{fmt, mem, ptr, slice};
 
     use crate::timer::{self, Timer};
     use crate::uarte;
@@ -421,10 +426,17 @@ pub mod interrupt_driven {
     // a local crate with the user defined UARTE_DMA_SIZE constant.
     // What would you prefer?
 
+    pool!(
+        /// Pool allocator for the DMA engine running the transfers, where each node in the
+        /// allocator is an `UarteDMAPoolNode`
+        #[allow(non_upper_case_globals)]
+        UarteDMAPool: UarteDMAPoolNode
+    );
+
     /// Each node in the `UarteDMAPool` consists of this struct.
     pub struct UarteDMAPoolNode {
         len: u8,
-        buf: MaybeUninit<[u8; UARTE_DMA_SIZE]>,
+        buf: mem::MaybeUninit<[u8; UARTE_DMA_SIZE]>,
     }
 
     impl fmt::Debug for UarteDMAPoolNode {
@@ -438,34 +450,62 @@ pub mod interrupt_driven {
             if s.len() > Self::MAX_SIZE {
                 Err(fmt::Error)
             } else {
-                self.write_checked(s.as_bytes());
+                self.write_slice(s.as_bytes());
                 Ok(())
             }
         }
     }
 
     impl UarteDMAPoolNode {
+        /// The maximum buffer size the node can hold
         pub const MAX_SIZE: usize = UARTE_DMA_SIZE;
 
         /// Creates a new node for the UARTE DMA
-        pub fn new() -> Self {
+        pub const fn new() -> Self {
             Self {
                 len: 0,
-                buf: MaybeUninit::uninit(),
+                buf: mem::MaybeUninit::uninit(),
+            }
+        }
+
+        /// Gives a `&mut [u8]` slice to write into with the maximum size, the `commit` method
+        /// must then be used to set the actual number of bytes written.
+        ///
+        /// Note that this function internally first zeros the node's buffer.
+        ///
+        /// ## Example
+        ///
+        /// ```
+        ///
+        /// ```
+        pub fn write(&mut self) -> &mut [u8] {
+            // Initialize memory with a safe value
+            self.buf = unsafe { mem::zeroed() };
+            self.len = Self::MAX_SIZE as _; // Set to max so `commit` may shrink it if needed
+
+            unsafe { slice::from_raw_parts_mut(self.buf.as_mut_ptr() as *mut _, Self::MAX_SIZE) }
+        }
+
+        /// Used to shrink the current size of the slice in the node, mostly used in conjunction
+        /// with `write`.
+        pub fn commit(&mut self, shrink_to: usize) {
+            // Only shrinking is allowed to remain safe with the `MaybeUninit`
+            if shrink_to < self.len as _ {
+                self.len = shrink_to as _;
             }
         }
 
         /// Used to write data into the node, and returns how many bytes were written from `buf`.
-        pub fn write_checked(&mut self, buf: &[u8]) -> usize {
-            if buf.len() > UARTE_DMA_SIZE {
-                self.len = UARTE_DMA_SIZE as u8;
+        pub fn write_slice(&mut self, buf: &[u8]) -> usize {
+            if buf.len() > Self::MAX_SIZE {
+                self.len = Self::MAX_SIZE as u8;
             } else {
                 self.len = buf.len() as u8;
             }
 
             // Used to write data into the `MaybeUninit`, safe based on the size check above
             unsafe {
-                core::ptr::copy_nonoverlapping(
+                ptr::copy_nonoverlapping(
                     buf.as_ptr(),
                     self.buf.as_mut_ptr() as *mut _,
                     self.len as usize,
@@ -478,7 +518,7 @@ pub mod interrupt_driven {
         /// Returns a readable slice which maps to the buffers internal data
         pub fn read(&self) -> &[u8] {
             // Safe as it uses the internal length of valid data
-            unsafe { core::slice::from_raw_parts(self.buf.as_ptr() as *const _, self.len as usize) }
+            unsafe { slice::from_raw_parts(self.buf.as_ptr() as *const _, self.len as usize) }
         }
 
         /// Reads how many bytes are available
@@ -497,17 +537,11 @@ pub mod interrupt_driven {
         }
 
         pub const fn max_len() -> usize {
-            UARTE_DMA_SIZE
+            Self::MAX_SIZE
         }
     }
 
-    pool!(
-        #[allow(non_upper_case_globals)]
-        UarteDMAPool: UarteDMAPoolNode
-    );
-
-    /// UARTE RX driver, used in interrupt driven contexts
-    /// `I` is the timer instance
+    /// UARTE RX driver, used in interrupt driven contexts, where `I` is the timer instance.
     pub struct UarteRX<T, I> {
         rxq: Queue<Box<UarteDMAPool>, U2>, // double buffering of DMA chunks
         timer: Timer<I>,                   // Timer for handling timeouts
@@ -693,8 +727,8 @@ pub mod interrupt_driven {
         }
     }
 
-    /// UARTE TX driver, used in interrupt driven contexts
-    /// S is the queue length, can be U3, U4 etc.
+    /// UARTE TX driver, used in interrupt driven contexts, where `S` is the queue length,
+    /// can be `U3`, `U4` etc.
     pub struct UarteTX<T, S>
     where
         S: ArrayLength<heapless::pool::singleton::Box<UarteDMAPool>>,

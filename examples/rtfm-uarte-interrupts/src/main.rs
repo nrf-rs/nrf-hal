@@ -87,7 +87,7 @@ const APP: () = {
     fn printer(data: Box<UarteDMAPool>) {
         // enqueue a test message
         // let mut node = UarteDMAPoolNode::new();
-        // node.write(&[95, 95, 95, 95]);
+        // node.write_slice(&[95, 95, 95, 95]);
         // let b = UarteDMAPool::alloc()
         //     .unwrap()
         //     .init(node);
