@@ -742,7 +742,7 @@ pub mod interrupt_driven {
     #[derive(Debug)]
     pub enum TXStatus {
         /// Status when a TX packet has been sent and another spot is available in the TX queue
-        TransmisionFinished,
+        TransmissionFinished,
     }
 
     impl<T, S> UarteTX<T, S>
@@ -828,7 +828,7 @@ pub mod interrupt_driven {
                 // Reset the event, otherwise it will always read `1` from now on.
                 uarte.events_endtx.write(|w| w);
 
-                Some(TXStatus::TransmisionFinished)
+                Some(TXStatus::TransmissionFinished)
             } else {
                 if self.current.is_none() {
                     match self.txc.dequeue() {
