@@ -738,6 +738,13 @@ pub mod interrupt_driven {
         _marker: core::marker::PhantomData<T>,
     }
 
+    /// Transmission status in interrupt driven context
+    #[derive(Debug)]
+    pub enum TXStatus {
+        /// Status when a TX packet has been sent and another spot is available in the TX queue
+        TransmisionFinished,
+    }
+
     impl<T, S> UarteTX<T, S>
     where
         T: uarte::Instance,
@@ -794,7 +801,7 @@ pub mod interrupt_driven {
 
         /// Main entry point for the TX driver - Must be called from the corresponding UARTE Interrupt
         /// handler/task.
-        pub fn process_interrupt(&mut self) {
+        pub fn process_interrupt(&mut self) -> Option<TXStatus> {
             // This operation is safe due to type-state programming guaranteeing that the RX and TX are
             // unique within the driver
             let uarte = unsafe { &*T::ptr() };
@@ -820,6 +827,8 @@ pub mod interrupt_driven {
 
                 // Reset the event, otherwise it will always read `1` from now on.
                 uarte.events_endtx.write(|w| w);
+
+                Some(TXStatus::TransmisionFinished)
             } else {
                 if self.current.is_none() {
                     match self.txc.dequeue() {
@@ -831,6 +840,8 @@ pub mod interrupt_driven {
                         None => (),
                     }
                 }
+
+                None
             }
         }
     }
