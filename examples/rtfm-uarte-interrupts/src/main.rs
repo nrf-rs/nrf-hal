@@ -33,7 +33,7 @@ use heapless::{
 };
 
 // Needed for the write! example code
-// use core::{fmt::Write, ops::DerefMut};
+// use core::fmt::Write;
 // use heapless::pool::singleton::Pool;
 
 use rtfm::app;
@@ -94,7 +94,7 @@ const APP: () = {
         // enqueue a test message
         // let mut node = UarteDMAPool::alloc().unwrap().init(UarteDMAPoolNode::new());
         // write!(&mut node, "test").unwrap(); // Using the write! trait
-        // node.write_slice(&[95, 95, 95, 95]); // Using raw slice writing
+        // node.write_slice(&b"test"[..]); // Using raw slice writing
         // resources.PRODUCER.enqueue(node).unwrap();
         // hprintln!("{:?}", &data).unwrap();
 
