@@ -377,8 +377,7 @@ pub mod interrupt_driven {
     use embedded_hal::timer::{Cancel, CountDown};
 
     use heapless::{
-        consts::*,
-        pool,
+        consts, pool,
         pool::singleton::{Box, Pool},
         spsc::{Consumer, Queue},
         ArrayLength,
@@ -543,8 +542,8 @@ pub mod interrupt_driven {
 
     /// UARTE RX driver, used in interrupt driven contexts, where `I` is the timer instance.
     pub struct UarteRX<T, I> {
-        rxq: Queue<Box<UarteDMAPool>, U2>, // double buffering of DMA chunks
-        timer: Timer<I>,                   // Timer for handling timeouts
+        rxq: Queue<Box<UarteDMAPool>, consts::U2>, // double buffering of DMA chunks
+        timer: Timer<I>,                           // Timer for handling timeouts
         _marker: core::marker::PhantomData<T>,
     }
 

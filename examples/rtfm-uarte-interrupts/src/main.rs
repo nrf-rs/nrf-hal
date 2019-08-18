@@ -27,16 +27,22 @@ use hal::{
 };
 
 use heapless::{
-    consts::U3,
+    consts,
     pool::singleton::Box,
     spsc::{Producer, Queue},
 };
+
+// Needed for the write! example code
+// use core::{fmt::Write, ops::DerefMut};
+// use heapless::pool::singleton::Pool;
 
 use rtfm::app;
 
 const NR_PACKAGES: usize = 10;
 const DMA_MEM: usize = core::mem::size_of::<UarteDMAPoolNode>() * NR_PACKAGES;
-type TXQSize = U3;
+
+// Using power-of-2 constants is faster (see the crate heapless for details)
+type TXQSize = consts::U4;
 
 #[app(device = crate::hal::target)]
 const APP: () = {
@@ -86,15 +92,13 @@ const APP: () = {
     #[task(capacity = 2, resources = [PRODUCER])]
     fn printer(data: Box<UarteDMAPool>) {
         // enqueue a test message
-        // let mut node = UarteDMAPoolNode::new();
-        // node.write_slice(&[95, 95, 95, 95]);
-        // let b = UarteDMAPool::alloc()
-        //     .unwrap()
-        //     .init(node);
-        // resources.PRODUCER.enqueue(b).unwrap();
+        // let mut node = UarteDMAPool::alloc().unwrap().init(UarteDMAPoolNode::new());
+        // write!(&mut node, "test").unwrap(); // Using the write! trait
+        // node.write_slice(&[95, 95, 95, 95]); // Using raw slice writing
+        // resources.PRODUCER.enqueue(node).unwrap();
         // hprintln!("{:?}", &data).unwrap();
 
-        // just do the buffer dance without copying
+        // Echo the buffer back without any changes or copying
         resources.PRODUCER.enqueue(data).unwrap();
         rtfm::pend(interrupt::UARTE0_UART0);
     }
