@@ -446,7 +446,9 @@ pub mod interrupt_driven {
 
     impl fmt::Write for UarteDMAPoolNode {
         fn write_str(&mut self, s: &str) -> fmt::Result {
-            if s.len() > Self::MAX_SIZE {
+            let free = Self::MAX_SIZE - self.len as usize;
+
+            if s.len() > free {
                 Err(fmt::Error)
             } else {
                 self.write_slice(s.as_bytes());
