@@ -435,7 +435,7 @@ pub mod interrupt_driven {
     /// Each node in the `UarteDMAPool` consists of this struct.
     pub struct UarteDMAPoolNode {
         len: u8,
-        buf: mem::MaybeUninit<[u8; UARTE_DMA_SIZE]>,
+        buf: [mem::MaybeUninit<u8>; UARTE_DMA_SIZE],
     }
 
     impl fmt::Debug for UarteDMAPoolNode {
@@ -463,7 +463,7 @@ pub mod interrupt_driven {
         pub const fn new() -> Self {
             Self {
                 len: 0,
-                buf: mem::MaybeUninit::uninit(),
+                buf: [mem::MaybeUninit::uninit(); UARTE_DMA_SIZE],
             }
         }
 
@@ -495,23 +495,29 @@ pub mod interrupt_driven {
         }
 
         /// Used to write data into the node, and returns how many bytes were written from `buf`.
+        ///
+        /// If the node is already partially filled, this will continue filling the node.
         pub fn write_slice(&mut self, buf: &[u8]) -> usize {
-            if buf.len() > Self::MAX_SIZE {
-                self.len = Self::MAX_SIZE as u8;
-            } else {
-                self.len = buf.len() as u8;
-            }
+            let free = Self::MAX_SIZE - self.len as usize;
+            let new_size = buf.len();
+            let count = if new_size > free { free } else { new_size };
 
             // Used to write data into the `MaybeUninit`, safe based on the size check above
             unsafe {
                 ptr::copy_nonoverlapping(
                     buf.as_ptr(),
-                    self.buf.as_mut_ptr() as *mut _,
-                    self.len as usize,
+                    self.buf.as_mut_ptr().offset(self.len as isize) as *mut u8,
+                    count,
                 );
             }
 
-            return self.len as usize;
+            self.len = self.len + count as u8;
+            return count;
+        }
+
+        /// Clear the node of all data making it empty
+        pub fn clear(&mut self) {
+            self.len = 0;
         }
 
         /// Returns a readable slice which maps to the buffers internal data
