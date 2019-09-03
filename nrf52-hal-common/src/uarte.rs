@@ -29,7 +29,7 @@ use heapless::{
 use interrupt_driven::*;
 
 // Re-export SVD variants to allow user to directly set values
-pub use crate::target::uarte0::{baudrate::BAUDRATEW as Baudrate, config::PARITYW as Parity};
+pub use uarte0::{baudrate::BAUDRATEW as Baudrate, config::PARITYW as Parity};
 
 /// Interface to a UARTE instance
 ///
