@@ -533,8 +533,8 @@ pub mod interrupt_driven {
             self.len as usize
         }
 
-        /// This function is unsafe as it must be used in conjuction with `buffer_address` to write and
-        /// set the correct number of bytes from a DMA transaction
+        /// This function is unsafe as it must be used in conjunction with `buffer_address` to
+        /// write and set the correct number of bytes from a DMA transaction
         unsafe fn set_len_from_dma(&mut self, len: u8) {
             self.len = len;
         }
@@ -589,8 +589,8 @@ pub mod interrupt_driven {
 
         /// Used internally to set up the proper interrupts
         fn enable_interrupts(&mut self) {
-            // This operation is safe due to type-state programming guaranteeing that the RX and TX are
-            // unique within the driver
+            // This operation is safe due to type-state programming guaranteeing that the RX and
+            // TX are unique within the driver
             let uarte = unsafe { &*T::ptr() };
 
             uarte.inten.modify(|_, w| {
@@ -609,8 +609,8 @@ pub mod interrupt_driven {
 
         /// Start a UARTE read transaction
         fn start_read(&mut self) {
-            // This operation is safe due to type-state programming guaranteeing that the RX and TX are
-            // unique within the driver
+            // This operation is safe due to type-state programming guaranteeing that the RX and
+            // TX are unique within the driver
             let uarte = unsafe { &*T::ptr() };
 
             // Start UARTE Receive transaction
@@ -621,8 +621,8 @@ pub mod interrupt_driven {
 
         /// Prepare UARTE read transaction
         fn prepare_read(&mut self) -> Result<(), RXError> {
-            // This operation is safe due to type-state programming guaranteeing that the RX and TX are
-            // unique within the driver
+            // This operation is safe due to type-state programming guaranteeing that the RX and
+            // TX are within the driver
             let uarte = unsafe { &*T::ptr() };
 
             // This operation is fast as `UarteDMAPoolNode::new()` does not zero the internal buffer
@@ -649,11 +649,11 @@ pub mod interrupt_driven {
             Ok(())
         }
 
-        /// Timeout handling for the RX driver - Must be called from the corresponding TIMERx Interrupt
-        /// handler/task.
+        /// Timeout handling for the RX driver - Must be called from the corresponding TIMERx
+        /// Interrupt handler/task.
         pub fn process_timeout_interrupt(&mut self) {
-            // This operation is safe due to type-state programming guaranteeing that the RX and TX are
-            // unique within the driver
+            // This operation is safe due to type-state programming guaranteeing that the RX and
+            // TX are unique within the driver
             let uarte = unsafe { &*T::ptr() };
 
             // Reset the event, otherwise it will always read `1` from now on.
@@ -665,16 +665,16 @@ pub mod interrupt_driven {
             unsafe { w.bits(1) });
         }
 
-        /// Main entry point for the RX driver - Must be called from the corresponding UARTE Interrupt
-        /// handler/task.
+        /// Main entry point for the RX driver - Must be called from the corresponding UARTE
+        /// Interrupt handler/task.
         ///
         /// Will return:
         /// 1. `Ok(Some(Box<UarteDMAPool>))` if data was received
         /// 2. `Ok(None)` if there was no data, i.e. UARTE interrupt was due to other events
         /// 3. `Err(RXError::OOM)` if the memory pool was depleted, see `RXError` for mitigations
         pub fn process_interrupt(&mut self) -> Result<Option<Box<UarteDMAPool>>, RXError> {
-            // This operation is safe due to type-state programming guaranteeing that the RX and TX are
-            // unique within the driver
+            // This operation is safe due to type-state programming guaranteeing that the RX and
+            // TX are unique within the driver
             let uarte = unsafe { &*T::ptr() };
 
             // Handles the byte timeout timer
@@ -709,12 +709,12 @@ pub mod interrupt_driven {
 
                 // our transaction has finished
                 if let Some(mut ret_b) = self.rxq.dequeue() {
-                    // Read the true number of bytes and set the correct length of the packet before
-                    // returning it
+                    // Read the true number of bytes and set the correct length of the packet
+                    // before returning it
                     let bytes_read = uarte.rxd.amount.read().bits() as u8;
                     unsafe {
-                        // This operation is safe as `buffer_address_for_dma` has written `bytes_read`
-                        // number of bytes into the node
+                        // This operation is safe as `buffer_address_for_dma` has written
+                        // `bytes_read` number of bytes into the node
                         ret_b.set_len_from_dma(bytes_read);
                     }
 
@@ -771,8 +771,8 @@ pub mod interrupt_driven {
 
         /// Used internally to set up the proper interrupts
         fn enable_interrupts(&mut self) {
-            // This operation is safe due to type-state programming guaranteeing that the RX and TX are
-            // unique within the driver
+            // This operation is safe due to type-state programming guaranteeing that the RX and
+            // TX are unique within the driver
             let uarte = unsafe { &*T::ptr() };
 
             uarte.inten.modify(|_, w| w.endtx().set_bit());
@@ -780,8 +780,8 @@ pub mod interrupt_driven {
 
         /// Sets up the UARTE to send DMA chunk
         fn start_write(&mut self, b: Box<UarteDMAPool>) {
-            // This operation is safe due to type-state programming guaranteeing that the RX and TX are
-            // unique within the driver
+            // This operation is safe due to type-state programming guaranteeing that the RX and
+            // TX are unique within the driver
             let uarte = unsafe { &*T::ptr() };
 
             // Only send if the DMA chunk has data, else drop the `Box`
@@ -806,11 +806,11 @@ pub mod interrupt_driven {
             }
         }
 
-        /// Main entry point for the TX driver - Must be called from the corresponding UARTE Interrupt
-        /// handler/task.
+        /// Main entry point for the TX driver - Must be called from the corresponding UARTE
+        /// Interrupt handler/task.
         pub fn process_interrupt(&mut self) -> Option<TXStatus> {
-            // This operation is safe due to type-state programming guaranteeing that the RX and TX are
-            // unique within the driver
+            // This operation is safe due to type-state programming guaranteeing that the RX and
+            // TX are unique within the driver
             let uarte = unsafe { &*T::ptr() };
 
             // ENDTX event? (DMA transaction finished)
