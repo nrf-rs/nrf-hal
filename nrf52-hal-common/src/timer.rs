@@ -55,15 +55,6 @@ where
         self.0.cc[1].read().bits()
     }
 
-    /// Enables an interrupt that is fired when the timer reaches the value that
-    /// is given as an argument to `start`.
-    pub(crate) fn enable_interrupt_generation(&mut self) {
-        // As of this writing, the timer code only uses
-        // `cc[0]`/`events_compare[0]`. If the code is extended to use other
-        // compare registers, the following needs to be adapted.
-        self.0.intenset.modify(|_, w| w.compare0().set());
-    }
-
     /// Clears the interrupt for this timer, external NVIC modification
     ///
     /// Enables an interrupt that is fired when the timer reaches the value that

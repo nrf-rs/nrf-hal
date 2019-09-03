@@ -596,7 +596,7 @@ pub mod interrupt_driven {
                     .set_bit()
             });
 
-            self.timer.enable_interrupt_generation();
+            self.timer.enable_interrupt(None);
         }
 
         /// Start a UARTE read transaction
