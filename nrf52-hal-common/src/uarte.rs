@@ -435,7 +435,7 @@ pub mod interrupt_driven {
     /// Each node in the `UarteDMAPool` consists of this struct.
     pub struct UarteDMAPoolNode {
         len: u8,
-        buf: [mem::MaybeUninit<u8>; UARTE_DMA_SIZE],
+        buf: [mem::MaybeUninit<u8>; Self::MAX_SIZE],
     }
 
     impl fmt::Debug for UarteDMAPoolNode {
@@ -463,7 +463,7 @@ pub mod interrupt_driven {
         pub const fn new() -> Self {
             Self {
                 len: 0,
-                buf: [mem::MaybeUninit::uninit(); UARTE_DMA_SIZE],
+                buf: [mem::MaybeUninit::uninit(); Self::MAX_SIZE],
             }
         }
 
@@ -479,7 +479,7 @@ pub mod interrupt_driven {
         /// ```
         pub fn write(&mut self) -> &mut [u8] {
             // Initialize memory with a safe value
-            self.buf = unsafe { mem::zeroed() };
+            self.buf = unsafe { [mem::zeroed(); Self::MAX_SIZE] };
             self.len = Self::MAX_SIZE as _; // Set to max so `commit` may shrink it if needed
 
             unsafe { slice::from_raw_parts_mut(self.buf.as_mut_ptr() as *mut _, Self::MAX_SIZE) }
