@@ -8,8 +8,12 @@ use core::fmt;
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
+
 #[cfg(feature = "9160")]
 use crate::target::{uarte0_ns as uarte0, UARTE0_NS as UARTE0, UARTE1_NS as UARTE1};
+
+#[cfg(feature="52840")]
+use crate::target::UARTE1;
 
 #[cfg(not(feature = "9160"))]
 use crate::target::{uarte0, UARTE0};
@@ -898,7 +902,7 @@ impl Instance for UARTE0 {
     }
 }
 
-#[cfg(feature = "9160")]
+#[cfg(any(feature="52840", feature="9160"))]
 impl Instance for UARTE1 {
     fn ptr() -> *const uarte0::RegisterBlock {
         UARTE1::ptr()
