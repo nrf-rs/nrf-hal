@@ -1,13 +1,13 @@
 #![no_std]
 #![no_main]
 
+extern crate actinius_icarus_bsp as bsp;
 extern crate cortex_m_rt as rt;
 extern crate nb;
-extern crate actinius_icarus_bsp as bsp;
 extern crate panic_semihosting;
 
-use core::fmt::Write;
 use bsp::{hal::Timer, prelude::*, Board};
+use core::fmt::Write;
 use nb::block;
 use rt::entry;
 
