@@ -82,7 +82,11 @@ where
     }
 
     /// Enable the generation of a hardware interrupt from a given stimulus
-    pub fn enable_interrupt(&mut self, int: RtcInterrupt, nvic: &mut NVIC) {
+    ///
+    /// If access to the NVIC is not provided, the interrupt must ALSO be enabled
+    /// there outside of this function (e.g. manually call `nvic.enable`, or through
+    /// the use of RTFM).
+    pub fn enable_interrupt(&mut self, int: RtcInterrupt, nvic: Option<&mut NVIC>) {
         match int {
             RtcInterrupt::Tick => self.periph.intenset.write(|w| w.tick().set()),
             RtcInterrupt::Overflow => self.periph.intenset.write(|w| w.ovrflw().set()),
@@ -91,11 +95,17 @@ where
             RtcInterrupt::Compare2 => self.periph.intenset.write(|w| w.compare2().set()),
             RtcInterrupt::Compare3 => self.periph.intenset.write(|w| w.compare3().set()),
         }
-        nvic.enable(T::INTERRUPT);
+        if let Some(nvic) = nvic {
+            nvic.enable(T::INTERRUPT);
+        }
     }
 
     /// Disable the generation of a hardware interrupt from a given stimulus
-    pub fn disable_interrupt(&mut self, int: RtcInterrupt, nvic: &mut NVIC) {
+    ///
+    /// If access to the NVIC is not provided, the interrupt must ALSO be disabled
+    /// there outside of this function (e.g. manually call `nvic.disable`, or through
+    /// the use of RTFM).
+    pub fn disable_interrupt(&mut self, int: RtcInterrupt, nvic: Option<&mut NVIC>) {
         match int {
             RtcInterrupt::Tick => self.periph.intenclr.write(|w| w.tick().clear()),
             RtcInterrupt::Overflow => self.periph.intenclr.write(|w| w.ovrflw().clear()),
@@ -104,7 +114,9 @@ where
             RtcInterrupt::Compare2 => self.periph.intenclr.write(|w| w.compare2().clear()),
             RtcInterrupt::Compare3 => self.periph.intenclr.write(|w| w.compare3().clear()),
         }
-        nvic.disable(T::INTERRUPT);
+        if let Some(nvic) = nvic {
+            nvic.disable(T::INTERRUPT);
+        }
     }
 
     /// Enable the generation of a hardware event from a given stimulus
