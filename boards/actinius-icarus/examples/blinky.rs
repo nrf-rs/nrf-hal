@@ -21,9 +21,9 @@ fn main() -> ! {
     let mut led_is_on = false;
     loop {
         if led_is_on {
-            board.leds.led_red.disable();
+            board.leds.red.disable();
         } else {
-            board.leds.led_red.enable();
+            board.leds.red.enable();
         }
         timer.start(1_000_000_u32);
         block!(timer.wait()).unwrap();
