@@ -494,9 +494,9 @@ impl Board {
             },
 
             leds: Leds {
-                led_red: Led::new(pins0.p0_10.degrade()),
-                led_green: Led::new(pins0.p0_11.degrade()),
-                led_blue: Led::new(pins0.p0_12.degrade()),
+                red: Led::new(pins0.p0_10.degrade()),
+                green: Led::new(pins0.p0_11.degrade()),
+                blue: Led::new(pins0.p0_12.degrade()),
             },
 
             accel_irq: [
@@ -611,13 +611,13 @@ pub struct Pins {
 /// The LEDs on the Actinius Icarus board
 pub struct Leds {
     /// Red LED
-    pub led_red: Led,
+    pub red: Led,
 
     /// Green LED
-    pub led_green: Led,
+    pub green: Led,
 
     /// Blue LED
-    pub led_blue: Led,
+    pub blue: Led,
 }
 
 /// An Active-low LED
