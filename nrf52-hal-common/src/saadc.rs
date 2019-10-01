@@ -1,12 +1,10 @@
-#[cfg(feature="9160")]
-use crate::target::{SAADC_NS as SAADC, saadc_ns as saadc};
+#[cfg(feature = "9160")]
+use crate::target::{saadc_ns as saadc, SAADC_NS as SAADC};
 
-#[cfg(not(feature="9160"))]
-use crate::target::{SAADC, saadc};
+#[cfg(not(feature = "9160"))]
+use crate::target::{saadc, SAADC};
 
-use crate::{
-    gpio::{Floating, Input},
-};
+use crate::gpio::{Floating, Input};
 use core::{
     hint::unreachable_unchecked,
     sync::atomic::{compiler_fence, Ordering::SeqCst},
@@ -35,13 +33,11 @@ impl Saadc {
             reference,
             gain,
             resistor,
-            time
+            time,
         } = config;
 
         saadc.enable.write(|w| w.enable().enabled());
-        saadc
-            .resolution
-            .write(|w| w.val().variant(resolution));
+        saadc.resolution.write(|w| w.val().variant(resolution));
         saadc
             .oversample
             .write(|w| w.oversample().variant(oversample));
@@ -74,12 +70,12 @@ impl Saadc {
 }
 
 pub struct SaadcConfig {
-    resolution: Resolution,
-    oversample: Oversample,
-    reference: Reference,
-    gain: Gain,
-    resistor: Resistor,
-    time: Time,
+    pub resolution: Resolution,
+    pub oversample: Oversample,
+    pub reference: Reference,
+    pub gain: Gain,
+    pub resistor: Resistor,
+    pub time: Time,
 }
 
 // 0 volts reads as 0, VDD volts reads as u16::MAX
@@ -96,12 +92,12 @@ impl Default for SaadcConfig {
     }
 }
 
-impl<PIN> OneShot<Saadc, u16, PIN> for Saadc
+impl<PIN> OneShot<Saadc, i16, PIN> for Saadc
 where
     PIN: Channel<Saadc, ID = u8>,
 {
     type Error = ();
-    fn read(&mut self, _pin: &mut PIN) -> nb::Result<u16, Self::Error> {
+    fn read(&mut self, _pin: &mut PIN) -> nb::Result<i16, Self::Error> {
         match PIN::channel() {
             0 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input0()),
             1 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input1()),
@@ -116,7 +112,7 @@ where
             _ => unsafe { unreachable_unchecked() },
         }
 
-        let mut val: u16 = 0;
+        let mut val: i16 = 0;
         self.0
             .result
             .ptr
@@ -162,6 +158,19 @@ macro_rules! channel_mappings {
     };
 }
 
+#[cfg(feature = "9160")]
+channel_mappings! {
+    0 => crate::gpio::p0::P0_13<Input<Floating>>,
+    1 => crate::gpio::p0::P0_14<Input<Floating>>,
+    2 => crate::gpio::p0::P0_15<Input<Floating>>,
+    3 => crate::gpio::p0::P0_16<Input<Floating>>,
+    4 => crate::gpio::p0::P0_17<Input<Floating>>,
+    5 => crate::gpio::p0::P0_18<Input<Floating>>,
+    6 => crate::gpio::p0::P0_19<Input<Floating>>,
+    7 => crate::gpio::p0::P0_20<Input<Floating>>
+}
+
+#[cfg(not(feature = "9160"))]
 channel_mappings! {
     0 => crate::gpio::p0::P0_02<Input<Floating>>,
     1 => crate::gpio::p0::P0_03<Input<Floating>>,
