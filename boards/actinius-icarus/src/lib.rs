@@ -48,6 +48,9 @@ pub struct Board {
     /// The SIM select line (low = nano SIM, high/default = eSIM)
     pub sim_select: Pin<Output<PushPull>>,
 
+    /// The battery voltage analog input
+    pub vbat: p0::P0_13<Input<Floating>>,
+
     /// Cortex-M33 Core peripheral: Cache and branch predictor maintenance operations
     pub CBP: pac::CBP,
 
@@ -460,6 +463,7 @@ impl Board {
             cdc_uart,
             pin_uart,
             sim_select: pins0.p0_08.into_push_pull_output(Level::High).degrade(),
+            vbat: pins0.p0_13.into_floating_input(),
             pins: Pins {
                 D0: pins0.p0_00,
                 D1: pins0.p0_01,
@@ -474,6 +478,7 @@ impl Board {
                 // Red LED is on P0_10
                 // Green LED is on P0_11
                 // Blue LED is on P0_12
+                // Battery voltage is on A0 / P0_13
                 A1: pins0.p0_14,
                 A2: pins0.p0_15,
                 A3: pins0.p0_16,
