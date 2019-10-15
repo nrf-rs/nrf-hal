@@ -15,6 +15,8 @@ use adafruit_nrf52pro_bsc::hal::{
 use adafruit_nrf52pro_bsc::nrf52832_pac::{Peripherals};
 use adafruit_nrf52pro_bsc::Pins;
 
+use embedded_hal::digital::v2::OutputPin;
+
 
 #[entry]
 fn main() -> ! {
@@ -28,11 +30,11 @@ fn main() -> ! {
 
     // Alternately flash the red and blue leds
     loop {
-        led1.set_low();
-        led2.set_high();
+        led1.set_low().unwrap();
+        led2.set_high().unwrap();
         delay(&mut timer, 250_000); // 250ms
-        led1.set_high();
-        led2.set_low();
+        led1.set_high().unwrap();
+        led2.set_low().unwrap();
         delay(&mut timer, 1_000_000); // 1s
     }
 }
@@ -42,5 +44,5 @@ where
     T: timer::Instance,
 {
     timer.start(cycles);
-    block!(timer.wait());
+    block!(timer.wait()).unwrap();
 }

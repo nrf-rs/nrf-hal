@@ -6,10 +6,11 @@ pub mod prelude {
 
 use nrf52832_hal::{
     gpio::{p0, Floating, Input, Level, Output, Pin, PushPull},
-    prelude::*,
     target::{self as pac, CorePeripherals, Peripherals},
     uarte, Uarte,
 };
+
+use embedded_hal::digital::v2::OutputPin;
 
 #[allow(non_snake_case)]
 pub struct Board {
@@ -378,11 +379,11 @@ impl Led {
     }
 
     pub fn enable(&mut self) {
-        self.0.set_high();
+        self.0.set_high().unwrap();
     }
 
     pub fn disable(&mut self) {
-        self.0.set_low();
+        self.0.set_low().unwrap();
     }
 }
 

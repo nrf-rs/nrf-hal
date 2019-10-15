@@ -14,6 +14,7 @@ cortex-m = "0.6.0"
 cortex-m-rt = "0.6.7"
 panic-halt = "0.2.0"
 nrf52832-hal = { version = "0.8.0", path = "../../nrf52832-hal" }
+embedded-hal = "0.2.3"
 
 [dev-dependencies]
 nb = "0.1.1"

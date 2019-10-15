@@ -19,7 +19,7 @@ use core::iter::repeat_with;
 use crate::target::{SPIM1, SPIM2};
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
-use crate::prelude::*;
+use embedded_hal::digital::v2::OutputPin;
 use crate::target_constants::{EASY_DMA_SIZE, FORCE_COPY_BUFFER_SIZE};
 use crate::{slice_in_ram, DmaSlice};
 
@@ -250,7 +250,7 @@ where
     ) -> Result<(), Error> {
         ram_slice_check(buffer)?;
 
-        chip_select.set_low();
+        chip_select.set_low().unwrap();
 
         // Don't return early, as we must reset the CS pin
         let res = buffer.chunks(EASY_DMA_SIZE).try_for_each(|chunk| {
@@ -260,7 +260,7 @@ where
             )
         });
 
-        chip_select.set_high();
+        chip_select.set_high().unwrap();
 
         res
     }
@@ -288,14 +288,14 @@ where
         let txi = tx_buffer.chunks(EASY_DMA_SIZE);
         let rxi = rx_buffer.chunks_mut(EASY_DMA_SIZE);
 
-        chip_select.set_low();
+        chip_select.set_low().unwrap();
 
         // Don't return early, as we must reset the CS pin
         let res = txi.zip(rxi).try_for_each(|(t, r)| {
             self.do_spi_dma_transfer(DmaSlice::from_slice(t), DmaSlice::from_slice(r))
         });
 
-        chip_select.set_high();
+        chip_select.set_high().unwrap();
 
         res
     }
@@ -335,7 +335,7 @@ where
             .map(|c| Some(c))
             .chain(repeat_with(|| None));
 
-        chip_select.set_low();
+        chip_select.set_low().unwrap();
 
         // We then chain the iterators together, and once BOTH are feeding
         // back Nones, then we are done sending and receiving
@@ -357,7 +357,7 @@ where
                 self.do_spi_dma_transfer(t, r)
             });
 
-        chip_select.set_high();
+        chip_select.set_high().unwrap();
 
         res
     }

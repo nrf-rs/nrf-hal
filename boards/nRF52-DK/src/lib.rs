@@ -14,7 +14,6 @@ pub mod prelude {
 }
 
 use nrf52832_hal::{
-    prelude::*,
     gpio::{
         p0,
         Pin,
@@ -37,6 +36,8 @@ use nrf52832_hal::{
         Baudrate as UartBaudrate,
     },
 };
+
+use embedded_hal::digital::v2::OutputPin;
 
 /// Provides access to all features of the nRF52-DK board
 #[allow(non_snake_case)]
@@ -483,12 +484,12 @@ impl Led {
 
     /// Enable the LED
     pub fn enable(&mut self) {
-        self.0.set_low()
+        self.0.set_low().unwrap()
     }
 
     /// Disable the LED
     pub fn disable(&mut self) {
-        self.0.set_high()
+        self.0.set_high().unwrap()
     }
 }
 

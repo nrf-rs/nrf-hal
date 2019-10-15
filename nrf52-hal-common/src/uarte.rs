@@ -8,6 +8,8 @@ use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 use core::fmt;
 
+use embedded_hal::digital::v2::OutputPin;
+
 #[cfg(feature="52840")]
 use crate::target::UARTE1;
 
@@ -61,7 +63,7 @@ impl<T> Uarte<T> where T: Instance {
             let w = w.port().bit(pins.rxd.port);
             w.connect().connected()
         });
-        pins.txd.set_high();
+        pins.txd.set_high().unwrap();
         uarte.psel.txd.write(|w| {
             let w = unsafe { w.pin().bits(pins.txd.pin) };
             #[cfg(feature = "52840")]

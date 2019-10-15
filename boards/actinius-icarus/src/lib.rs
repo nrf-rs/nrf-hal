@@ -18,9 +18,10 @@ pub mod prelude {
 use hal::{
     gpio::{p0, Floating, Input, Level, Output, Pin, PullUp, PushPull},
     pac::{CorePeripherals, Peripherals},
-    prelude::*,
     uarte::{self, Baudrate as UartBaudrate, Parity as UartParity, Uarte},
 };
+
+use embedded_hal::digital::v2::{InputPin, OutputPin};
 
 pub use hal::pac;
 
@@ -630,12 +631,12 @@ impl Led {
 
     /// Enable the LED
     pub fn enable(&mut self) {
-        self.0.set_low()
+        self.0.set_low().unwrap()
     }
 
     /// Disable the LED
     pub fn disable(&mut self) {
-        self.0.set_high()
+        self.0.set_high().unwrap()
     }
 }
 
@@ -648,6 +649,6 @@ impl Button {
     }
 
     pub fn is_active(&self) -> bool {
-        self.0.is_low()
+        self.0.is_low().unwrap()
     }
 }
