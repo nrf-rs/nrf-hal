@@ -9,7 +9,7 @@ extern crate panic_halt;
 use embedded_hal::blocking::spi::*;
 
 use cortex_m_rt::entry;
-use embedded_hal::digital::OutputPin;
+use embedded_hal::digital::v2::OutputPin;
 use nrf52832_hal::gpio;
 use nrf52832_hal::gpio::p0::*;
 use nrf52832_hal::gpio::Level;
@@ -73,20 +73,20 @@ fn main() -> ! {
                 tests_ok &= test_vec1[i] == readbuf[i];
             }
             if !tests_ok {
-                led1.set_low();
+                led1.set_low().unwrap();
             } else {
                 const ORC: u8 = 0;
                 for i in test_vec1.len()..readbuf.len() {
                     if ORC != readbuf[i] {
                         tests_ok = false;
-                        led1.set_low();
+                        led1.set_low().unwrap();
                     }
                 }
             }
         }
         Err(_) => {
             tests_ok = false;
-            led1.set_low();
+            led1.set_low().unwrap();
         }
     }
 
@@ -97,7 +97,7 @@ fn main() -> ! {
         Ok(_) => {}
         Err(_) => {
             tests_ok = false;
-            led2.set_low()
+            led2.set_low().unwrap()
         }
     }
 
@@ -107,21 +107,21 @@ fn main() -> ! {
             for i in 0..test_vec2.len() {
                 if test_vec2[i] != reference_data[i] {
                     tests_ok = false;
-                    led3.set_low();
+                    led3.set_low().unwrap();
                 }
             }
         }
         Err(_) => {
             tests_ok = false;
-            led4.set_low();
+            led4.set_low().unwrap();
         }
     }
 
     if tests_ok {
-        led1.set_low();
-        led2.set_low();
-        led3.set_low();
-        led4.set_low();
+        led1.set_low().unwrap();
+        led2.set_low().unwrap();
+        led3.set_low().unwrap();
+        led4.set_low().unwrap();
     }
 
     loop {}

@@ -95,8 +95,8 @@ where
             RtcInterrupt::Compare2 => self.periph.intenset.write(|w| w.compare2().set()),
             RtcInterrupt::Compare3 => self.periph.intenset.write(|w| w.compare3().set()),
         }
-        if let Some(nvic) = nvic {
-            nvic.enable(T::INTERRUPT);
+        if let Some(_nvic) = nvic {
+            unsafe { NVIC::unmask(T::INTERRUPT) };
         }
     }
 
@@ -114,8 +114,8 @@ where
             RtcInterrupt::Compare2 => self.periph.intenclr.write(|w| w.compare2().clear()),
             RtcInterrupt::Compare3 => self.periph.intenclr.write(|w| w.compare3().clear()),
         }
-        if let Some(nvic) = nvic {
-            nvic.disable(T::INTERRUPT);
+        if let Some(_nvic) = nvic {
+            NVIC::mask(T::INTERRUPT);
         }
     }
 

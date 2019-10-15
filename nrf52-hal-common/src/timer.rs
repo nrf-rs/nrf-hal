@@ -119,8 +119,8 @@ where
         // compare registers, the following needs to be adapted.
         self.0.intenset.modify(|_, w| w.compare0().set());
 
-        if let Some(nvic) = nvic {
-            nvic.enable(T::INTERRUPT);
+        if let Some(_nvic) = nvic {
+            unsafe { NVIC::unmask(T::INTERRUPT) };
         }
     }
 
@@ -138,8 +138,8 @@ where
         // compare registers, the following needs to be adapted.
         self.0.intenclr.modify(|_, w| w.compare0().clear());
 
-        if let Some(nvic) = nvic {
-            nvic.disable(T::INTERRUPT);
+        if let Some(_nvic) = nvic {
+            NVIC::mask(T::INTERRUPT);
         }
     }
 
