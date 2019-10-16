@@ -17,6 +17,11 @@ use void::{unreachable, Void};
 #[cfg(any(feature = "52832", feature = "52840"))]
 use crate::target::{TIMER3, TIMER4};
 
+use core::marker::PhantomData;
+
+pub struct OneShotTimer;
+pub struct PeriodicTimer;
+
 
 /// Interface to a TIMER instance
 ///
@@ -25,15 +30,13 @@ use crate::target::{TIMER3, TIMER4};
 ///
 /// CC[0] is used for the current/most-recent delay period and CC[1] is used
 /// to grab the current value of the counter at a given instant.
-pub struct Timer<T>(T);
+pub struct Timer<T, U>(T, PhantomData<U>);
 
-impl<T> Timer<T>
+impl<T> Timer<T, OneShotTimer>
 where
     T: Instance,
 {
-    pub const TICKS_PER_SECOND: u32 = 1_000_000;
-
-    pub fn new(timer: T) -> Self {
+    pub fn new(timer: T) -> Timer<T, OneShotTimer> {
         timer
             .shorts
             .write(|w| w.compare0_clear().enabled().compare0_stop().enabled());
@@ -42,8 +45,46 @@ where
         );
         timer.bitmode.write(|w| w.bitmode()._32bit());
 
-        Timer(timer)
+        Timer::<T, OneShotTimer>(timer, PhantomData)
     }
+
+    pub fn into_periodic(self) -> Timer<T, PeriodicTimer> {
+        self.0
+            .shorts
+            .write(|w| w.compare0_clear().enabled().compare0_stop().disabled());
+        Timer::<T, PeriodicTimer>(self.free(), PhantomData)
+    }
+}
+
+impl<T> Timer<T, PeriodicTimer>
+where
+    T: Instance,
+{
+    pub fn new_periodic(timer: T) -> Timer<T, PeriodicTimer> {
+        timer
+            .shorts
+            .write(|w| w.compare0_clear().enabled().compare0_stop().disabled());
+        timer.prescaler.write(
+            |w| unsafe { w.prescaler().bits(4) }, // 1 MHz
+        );
+        timer.bitmode.write(|w| w.bitmode()._32bit());
+
+        Timer::<T, PeriodicTimer>(timer, PhantomData)
+    }
+
+    pub fn into_oneshot(self) -> Timer<T, OneShotTimer> {
+        self.0
+            .shorts
+            .write(|w| w.compare0_clear().enabled().compare0_stop().enabled());
+        Timer::<T, OneShotTimer>(self.free(), PhantomData)
+    }
+}
+
+impl<T, U> Timer<T, U>
+where
+    T: Instance,
+{
+    pub const TICKS_PER_SECOND: u32 = 1_000_000;
 
     /// Return the raw interface to the underlying timer peripheral
     pub fn free(self) -> T {
@@ -103,7 +144,7 @@ where
     }
 }
 
-impl<T> timer::CountDown for Timer<T>
+impl<T, U> timer::CountDown for Timer<T, U>
 where
     T: Instance,
 {
@@ -164,7 +205,7 @@ where
     }
 }
 
-impl<T> timer::Cancel for Timer<T>
+impl<T, U> timer::Cancel for Timer<T, U>
 where
     T: Instance,
 {
@@ -177,6 +218,11 @@ where
         Ok(())
     }
 }
+
+impl<T> timer::Periodic for Timer<T, PeriodicTimer>
+where
+    T: Instance,
+{}
 
 
 /// Implemented by all `TIMER` instances
