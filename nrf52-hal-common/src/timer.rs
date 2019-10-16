@@ -19,8 +19,8 @@ use crate::target::{TIMER3, TIMER4};
 
 use core::marker::PhantomData;
 
-pub struct OneShotTimer;
-pub struct PeriodicTimer;
+pub struct OneShot;
+pub struct Periodic;
 
 
 /// Interface to a TIMER instance
@@ -30,13 +30,17 @@ pub struct PeriodicTimer;
 ///
 /// CC[0] is used for the current/most-recent delay period and CC[1] is used
 /// to grab the current value of the counter at a given instant.
-pub struct Timer<T, U>(T, PhantomData<U>);
+pub struct BaseTimer<T, U>(T, PhantomData<U>);
 
-impl<T> Timer<T, OneShotTimer>
+pub type Timer<T> = BaseTimer<T, OneShot>;
+pub type PeriodicTimer<T> = BaseTimer<T, Periodic>;
+pub type OneShotTimer<T> = BaseTimer<T, OneShot>;
+
+impl<T> OneShotTimer<T>
 where
     T: Instance,
 {
-    pub fn new(timer: T) -> Timer<T, OneShotTimer> {
+    pub fn new(timer: T) -> OneShotTimer<T> {
         timer
             .shorts
             .write(|w| w.compare0_clear().enabled().compare0_stop().enabled());
@@ -45,22 +49,23 @@ where
         );
         timer.bitmode.write(|w| w.bitmode()._32bit());
 
-        Timer::<T, OneShotTimer>(timer, PhantomData)
+        BaseTimer::<T, OneShot>(timer, PhantomData)
     }
 
-    pub fn into_periodic(self) -> Timer<T, PeriodicTimer> {
+    pub fn into_periodic(self) -> PeriodicTimer<T> {
         self.0
             .shorts
             .write(|w| w.compare0_clear().enabled().compare0_stop().disabled());
-        Timer::<T, PeriodicTimer>(self.free(), PhantomData)
+
+        BaseTimer::<T, Periodic>(self.free(), PhantomData)
     }
 }
 
-impl<T> Timer<T, PeriodicTimer>
+impl<T> PeriodicTimer<T>
 where
     T: Instance,
 {
-    pub fn new_periodic(timer: T) -> Timer<T, PeriodicTimer> {
+    pub fn new_periodic(timer: T) -> PeriodicTimer<T> {
         timer
             .shorts
             .write(|w| w.compare0_clear().enabled().compare0_stop().disabled());
@@ -69,18 +74,19 @@ where
         );
         timer.bitmode.write(|w| w.bitmode()._32bit());
 
-        Timer::<T, PeriodicTimer>(timer, PhantomData)
+        BaseTimer::<T, Periodic>(timer, PhantomData)
     }
 
-    pub fn into_oneshot(self) -> Timer<T, OneShotTimer> {
+    pub fn into_oneshot(self) -> OneShotTimer<T> {
         self.0
             .shorts
             .write(|w| w.compare0_clear().enabled().compare0_stop().enabled());
-        Timer::<T, OneShotTimer>(self.free(), PhantomData)
+
+        BaseTimer::<T, OneShot>(self.free(), PhantomData)
     }
 }
 
-impl<T, U> Timer<T, U>
+impl<T, U> BaseTimer<T, U>
 where
     T: Instance,
 {
@@ -144,7 +150,7 @@ where
     }
 }
 
-impl<T, U> timer::CountDown for Timer<T, U>
+impl<T, U> timer::CountDown for BaseTimer<T, U>
 where
     T: Instance,
 {
@@ -205,7 +211,7 @@ where
     }
 }
 
-impl<T, U> timer::Cancel for Timer<T, U>
+impl<T, U> timer::Cancel for BaseTimer<T, U>
 where
     T: Instance,
 {
@@ -219,7 +225,7 @@ where
     }
 }
 
-impl<T> timer::Periodic for Timer<T, PeriodicTimer>
+impl<T> timer::Periodic for PeriodicTimer<T>
 where
     T: Instance,
 {}
