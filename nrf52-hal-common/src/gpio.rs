@@ -63,6 +63,7 @@ use crate::target::P0;
 use crate::target::{ P1 };
 
 use crate::hal::digital::v2::{OutputPin, StatefulOutputPin, InputPin};
+use void::Void;
 
 impl<MODE> Pin<MODE> {
     /// Convert the pin to be a floating input
@@ -220,7 +221,7 @@ impl<MODE> Pin<MODE> {
 }
 
 impl<MODE> InputPin for Pin<Input<MODE>> {
-    type Error = ();
+    type Error = Void;
 
     fn is_high(&self) -> Result<bool, Self::Error> {
         self.is_low().map(|v| !v)
@@ -239,7 +240,7 @@ impl<MODE> InputPin for Pin<Input<MODE>> {
 }
 
 impl<MODE> OutputPin for Pin<Output<MODE>> {
-    type Error = ();
+    type Error = Void;
 
     /// Set the output as high
     fn set_high(&mut self) -> Result<(), Self::Error> {
@@ -356,7 +357,7 @@ macro_rules! gpio {
 
             use crate::target;
             use crate::hal::digital::v2::{OutputPin, StatefulOutputPin, InputPin};
-            use core::convert::Infallible;
+            use void::Void;
 
 
 
@@ -508,7 +509,7 @@ macro_rules! gpio {
                 }
 
                 impl<MODE> InputPin for $PXi<Input<MODE>> {
-                    type Error = Infallible;
+                    type Error = Void;
 
                     fn is_high(&self) -> Result<bool, Self::Error> {
                         self.is_low().map(|v| !v)
@@ -520,7 +521,7 @@ macro_rules! gpio {
                 }
 
                 impl<MODE> OutputPin for $PXi<Output<MODE>> {
-                    type Error = Infallible;
+                    type Error = Void;
 
                     /// Set the output as high
                     fn set_high(&mut self) -> Result<(), Self::Error> {
