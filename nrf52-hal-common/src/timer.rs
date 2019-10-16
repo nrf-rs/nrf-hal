@@ -65,7 +65,7 @@ impl<T> PeriodicTimer<T>
 where
     T: Instance,
 {
-    pub fn new_periodic(timer: T) -> PeriodicTimer<T> {
+    pub fn new(timer: T) -> PeriodicTimer<T> {
         timer
             .shorts
             .write(|w| w.compare0_clear().enabled().compare0_stop().disabled());
