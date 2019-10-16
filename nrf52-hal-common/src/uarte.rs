@@ -33,7 +33,7 @@ use crate::gpio::{
     Input,
     Floating,
 };
-use crate::timer::{self, Timer, OneShotTimer};
+use crate::timer::{self, Timer};
 
 // Re-export SVD variants to allow user to directly set values
 pub use uarte0::{
@@ -236,7 +236,7 @@ impl<T> Uarte<T> where T: Instance {
     pub fn read_timeout<I>(
         &mut self,
         rx_buffer: &mut [u8],
-        timer: &mut Timer<I, OneShotTimer>,
+        timer: &mut Timer<I>,
         cycles: u32
     ) -> Result<(), Error> where I: timer::Instance
     {
