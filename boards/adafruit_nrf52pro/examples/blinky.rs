@@ -15,9 +15,6 @@ use adafruit_nrf52pro_bsc::hal::{
 use adafruit_nrf52pro_bsc::nrf52832_pac::{Peripherals};
 use adafruit_nrf52pro_bsc::Pins;
 
-use embedded_hal::digital::v2::OutputPin;
-
-
 #[entry]
 fn main() -> ! {
     let p = Peripherals::take().unwrap();

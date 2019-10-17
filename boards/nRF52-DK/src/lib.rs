@@ -37,7 +37,7 @@ use nrf52832_hal::{
     },
 };
 
-use nrf52832_hal::hal::digital::v2::OutputPin;
+use nrf52832_hal::prelude::OutputPin;
 
 /// Provides access to all features of the nRF52-DK board
 #[allow(non_snake_case)]
