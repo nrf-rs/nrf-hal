@@ -1,6 +1,6 @@
 #![no_std]
 
-use embedded_hal as hal;
+pub use embedded_hal as hal;
 pub use nrf9160_pac as pac;
 pub use nrf52_hal_common::*;
 

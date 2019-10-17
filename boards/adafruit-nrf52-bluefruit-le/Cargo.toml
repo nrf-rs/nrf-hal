@@ -10,7 +10,6 @@ edition = "2018"
 
 [dependencies]
 nrf52832-hal = { path = "../../nrf52832-hal" }
-embedded-hal = "0.2.3"
 
 [dev-dependencies]
 cortex-m-rt = "0.6.8"
