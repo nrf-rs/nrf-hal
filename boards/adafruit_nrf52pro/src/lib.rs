@@ -2,6 +2,7 @@
 pub use nrf52832_hal as hal;
 use crate::hal::gpio::{p0, Floating, Input};
 pub use crate::hal::nrf52832_pac;
+pub use nrf52832_hal::hal as embedded_hal;
 
 /// Maps the pins to the names printed on the device
 pub struct Pins {

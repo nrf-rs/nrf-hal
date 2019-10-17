@@ -10,7 +10,7 @@ use nrf52832_hal::{
     uarte, Uarte,
 };
 
-use embedded_hal::digital::v2::OutputPin;
+use nrf52832_hal::hal::digital::v2::OutputPin;
 
 #[allow(non_snake_case)]
 pub struct Board {
