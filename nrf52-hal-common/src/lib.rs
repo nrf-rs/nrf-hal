@@ -1,6 +1,6 @@
 #![no_std]
 
-pub use embedded_hal as hal;
+use embedded_hal as hal;
 
 #[cfg(feature = "52810")]
 pub use nrf52810_pac as target;
@@ -31,6 +31,7 @@ pub mod uarte;
 
 pub mod prelude {
     pub use crate::hal::prelude::*;
+    pub use crate::hal::digital::v2::*;
 
     pub use crate::time::U32Ext;
 }

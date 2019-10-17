@@ -21,7 +21,7 @@ use hal::{
     uarte::{self, Baudrate as UartBaudrate, Parity as UartParity, Uarte},
 };
 
-use nrf9160_hal::hal::digital::v2::{InputPin, OutputPin};
+use hal::prelude::{OutputPin, InputPin};
 
 pub use hal::pac;
 
