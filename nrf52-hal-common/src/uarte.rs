@@ -12,6 +12,8 @@ use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 #[cfg(feature = "9160")]
 use crate::target::{uarte0_ns as uarte0, UARTE0_NS as UARTE0, UARTE1_NS as UARTE1};
 
+use embedded_hal::digital::v2::OutputPin;
+
 #[cfg(feature="52840")]
 use crate::target::UARTE1;
 
@@ -57,7 +59,7 @@ where
             let w = w.port().bit(pins.rxd.port);
             w.connect().connected()
         });
-        pins.txd.set_high();
+        pins.txd.set_high().unwrap();
         uarte.psel.txd.write(|w| {
             let w = unsafe { w.pin().bits(pins.txd.pin) };
             #[cfg(feature = "52840")]

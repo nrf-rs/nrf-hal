@@ -17,6 +17,11 @@ use void::{unreachable, Void};
 #[cfg(any(feature = "52832", feature = "52840"))]
 use crate::target::{TIMER3, TIMER4};
 
+use core::marker::PhantomData;
+
+pub struct OneShot;
+pub struct Periodic;
+
 /// Interface to a TIMER instance
 ///
 /// Right now, this is a very basic interface. The timer will always be
@@ -24,15 +29,13 @@ use crate::target::{TIMER3, TIMER4};
 ///
 /// CC[0] is used for the current/most-recent delay period and CC[1] is used
 /// to grab the current value of the counter at a given instant.
-pub struct Timer<T>(T);
+pub struct Timer<T, U = OneShot>(T, PhantomData<U>);
 
-impl<T> Timer<T>
-where
+impl<T> Timer<T, OneShot>
+where 
     T: Instance,
 {
-    pub const TICKS_PER_SECOND: u32 = 1_000_000;
-
-    pub fn new(timer: T) -> Self {
+    pub fn one_shot(timer: T) -> Timer<T, OneShot> {
         timer
             .shorts
             .write(|w| w.compare0_clear().enabled().compare0_stop().enabled());
@@ -41,7 +44,53 @@ where
         );
         timer.bitmode.write(|w| w.bitmode()._32bit());
 
-        Timer(timer)
+        Timer::<T, OneShot>(timer, PhantomData)
+    }
+
+    pub fn new(timer: T) -> Timer<T, OneShot> {
+        Timer::<T, OneShot>::one_shot(timer)
+    }
+
+}
+
+impl<T> Timer<T, Periodic>
+where
+    T: Instance,
+{
+    pub fn periodic(timer: T) -> Timer<T, Periodic> {
+        timer
+            .shorts
+            .write(|w| w.compare0_clear().enabled().compare0_stop().disabled());
+        timer.prescaler.write(
+            |w| unsafe { w.prescaler().bits(4) }, // 1 MHz
+        );
+        timer.bitmode.write(|w| w.bitmode()._32bit());
+
+        Timer::<T, Periodic>(timer, PhantomData)
+    }
+
+}
+
+impl<T, U> Timer<T, U>
+where
+    T: Instance,
+{
+    pub const TICKS_PER_SECOND: u32 = 1_000_000;
+
+    pub fn into_periodic(self) -> Timer<T, Periodic> {
+        self.0
+            .shorts
+            .write(|w| w.compare0_clear().enabled().compare0_stop().disabled());
+
+        Timer::<T, Periodic>(self.free(), PhantomData)
+    }
+
+    pub fn into_oneshot(self) -> Timer<T, OneShot> {
+        self.0
+            .shorts
+            .write(|w| w.compare0_clear().enabled().compare0_stop().enabled());
+
+        Timer::<T, OneShot>(self.free(), PhantomData)
     }
 
     /// Return the raw interface to the underlying timer peripheral
@@ -82,8 +131,8 @@ where
         // compare registers, the following needs to be adapted.
         self.0.intenset.modify(|_, w| w.compare0().set());
 
-        if let Some(nvic) = nvic {
-            nvic.enable(T::INTERRUPT);
+        if let Some(_nvic) = nvic {
+            unsafe { NVIC::unmask(T::INTERRUPT) };
         }
     }
 
@@ -101,8 +150,8 @@ where
         // compare registers, the following needs to be adapted.
         self.0.intenclr.modify(|_, w| w.compare0().clear());
 
-        if let Some(nvic) = nvic {
-            nvic.disable(T::INTERRUPT);
+        if let Some(_nvic) = nvic {
+            NVIC::mask(T::INTERRUPT);
         }
     }
 
@@ -115,7 +164,7 @@ where
     }
 }
 
-impl<T> timer::CountDown for Timer<T>
+impl<T, U> timer::CountDown for Timer<T, U>
 where
     T: Instance,
 {
@@ -176,7 +225,7 @@ where
     }
 }
 
-impl<T> timer::Cancel for Timer<T>
+impl<T, U> timer::Cancel for Timer<T, U>
 where
     T: Instance,
 {
@@ -189,6 +238,12 @@ where
         Ok(())
     }
 }
+
+impl<T> timer::Periodic for Timer<T, Periodic>
+where
+    T: Instance,
+{}
+
 
 /// Implemented by all `TIMER` instances
 pub trait Instance: Deref<Target = timer0::RegisterBlock> {

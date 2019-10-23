@@ -62,7 +62,8 @@ use crate::target::P0;
 #[cfg(feature = "52840")]
 use crate::target::{ P1 };
 
-use crate::hal::digital::{OutputPin, StatefulOutputPin, InputPin};
+use crate::hal::digital::v2::{OutputPin, StatefulOutputPin, InputPin};
+use void::Void;
 
 impl<MODE> Pin<MODE> {
     /// Convert the pin to be a floating input
@@ -151,8 +152,8 @@ impl<MODE> Pin<MODE> {
         };
 
         match initial_output {
-            Level::Low  => pin.set_low(),
-            Level::High => pin.set_high(),
+            Level::Low  => pin.set_low().unwrap(),
+            Level::High => pin.set_high().unwrap(),
         }
 
         unsafe {
@@ -192,8 +193,8 @@ impl<MODE> Pin<MODE> {
         };
 
         match initial_output {
-            Level::Low  => pin.set_low(),
-            Level::High => pin.set_high(),
+            Level::Low  => pin.set_low().unwrap(),
+            Level::High => pin.set_high().unwrap(),
         }
 
         // This is safe, as we restrict our access to the dedicated
@@ -220,25 +221,29 @@ impl<MODE> Pin<MODE> {
 }
 
 impl<MODE> InputPin for Pin<Input<MODE>> {
-    fn is_high(&self) -> bool {
-        !self.is_low()
+    type Error = Void;
+
+    fn is_high(&self) -> Result<bool, Self::Error> {
+        self.is_low().map(|v| !v)
     }
 
-    fn is_low(&self) -> bool {
-        unsafe { (
+    fn is_low(&self) -> Result<bool, Self::Error> {
+        Ok(unsafe { (
             (*{
                 #[cfg(not(feature = "52840"))]
                 { P0::ptr() }
                 #[cfg(feature = "52840")]
                 { if !self.port { P0::ptr() } else { P1::ptr() } }
             }).in_.read().bits() & (1 << self.pin)
-        ) == 0 }
+        ) == 0 })
     }
 }
 
 impl<MODE> OutputPin for Pin<Output<MODE>> {
+    type Error = Void;
+
     /// Set the output as high
-    fn set_high(&mut self) {
+    fn set_high(&mut self) -> Result<(), Self::Error> {
         // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
         // TODO - I wish I could do something like `.pins$i()`...
         unsafe {
@@ -249,10 +254,11 @@ impl<MODE> OutputPin for Pin<Output<MODE>> {
                 { if !self.port { P0::ptr() } else { P1::ptr() } }
             }).outset.write(|w| w.bits(1u32 << self.pin));
         }
+        Ok(())
     }
 
     /// Set the output as low
-    fn set_low(&mut self) {
+    fn set_low(&mut self) -> Result<(), Self::Error> {
         // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
         // TODO - I wish I could do something like `.pins$i()`...
         unsafe {
@@ -263,27 +269,28 @@ impl<MODE> OutputPin for Pin<Output<MODE>> {
                 { if !self.port { P0::ptr() } else { P1::ptr() } }
             }).outclr.write(|w| w.bits(1u32 << self.pin));
         }
+        Ok(())
     }
 }
 
 impl<MODE> StatefulOutputPin for Pin<Output<MODE>> {
     /// Is the output pin set as high?
-    fn is_set_high(&self) -> bool {
-        !self.is_set_low()
+    fn is_set_high(&self) -> Result<bool, Self::Error> {
+        self.is_set_low().map(|v| !v)
     }
 
     /// Is the output pin set as low?
-    fn is_set_low(&self) -> bool {
+    fn is_set_low(&self) -> Result<bool, Self::Error> {
         // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
         // TODO - I wish I could do something like `.pins$i()`...
-        unsafe { (
+        Ok(unsafe { (
             (*{
                 #[cfg(not(feature = "52840"))]
                 { P0::ptr() }
                 #[cfg(feature = "52840")]
                 { if !self.port { P0::ptr() } else { P1::ptr() } }
             }).out.read().bits() & (1 << self.pin)
-        ) == 0 }
+        ) == 0 })
     }
 }
 
@@ -349,7 +356,8 @@ macro_rules! gpio {
             };
 
             use crate::target;
-            use crate::hal::digital::{OutputPin, StatefulOutputPin, InputPin};
+            use crate::hal::digital::v2::{OutputPin, StatefulOutputPin, InputPin};
+            use void::Void;
 
 
 
@@ -438,8 +446,8 @@ macro_rules! gpio {
                         };
 
                         match initial_output {
-                            Level::Low  => pin.set_low(),
-                            Level::High => pin.set_high(),
+                            Level::Low  => pin.set_low().unwrap(),
+                            Level::High => pin.set_high().unwrap(),
                         }
 
                         unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
@@ -468,8 +476,8 @@ macro_rules! gpio {
                         };
 
                         match initial_output {
-                            Level::Low  => pin.set_low(),
-                            Level::High => pin.set_high(),
+                            Level::Low  => pin.set_low().unwrap(),
+                            Level::High => pin.set_high().unwrap(),
                         }
 
                         // This is safe, as we restrict our access to the
@@ -501,42 +509,48 @@ macro_rules! gpio {
                 }
 
                 impl<MODE> InputPin for $PXi<Input<MODE>> {
-                    fn is_high(&self) -> bool {
-                        !self.is_low()
+                    type Error = Void;
+
+                    fn is_high(&self) -> Result<bool, Self::Error> {
+                        self.is_low().map(|v| !v)
                     }
 
-                    fn is_low(&self) -> bool {
-                        unsafe { ((*$PX::ptr()).in_.read().bits() & (1 << $i)) == 0 }
+                    fn is_low(&self) -> Result<bool, Self::Error> {
+                        Ok(unsafe { ((*$PX::ptr()).in_.read().bits() & (1 << $i)) == 0 })
                     }
                 }
 
                 impl<MODE> OutputPin for $PXi<Output<MODE>> {
+                    type Error = Void;
+
                     /// Set the output as high
-                    fn set_high(&mut self) {
+                    fn set_high(&mut self) -> Result<(), Self::Error> {
                         // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
                         // TODO - I wish I could do something like `.pins$i()`...
                         unsafe { (*$PX::ptr()).outset.write(|w| w.bits(1u32 << $i)); }
+                        Ok(())
                     }
 
                     /// Set the output as low
-                    fn set_low(&mut self) {
+                    fn set_low(&mut self) -> Result<(), Self::Error> {
                         // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
                         // TODO - I wish I could do something like `.pins$i()`...
                         unsafe { (*$PX::ptr()).outclr.write(|w| w.bits(1u32 << $i)); }
+                        Ok(())
                     }
                 }
 
                 impl<MODE> StatefulOutputPin for $PXi<Output<MODE>> {
                     /// Is the output pin set as high?
-                    fn is_set_high(&self) -> bool {
-                        !self.is_set_low()
+                    fn is_set_high(&self) -> Result<bool, Self::Error> {
+                        self.is_set_low().map(|v| !v)
                     }
 
                     /// Is the output pin set as low?
-                    fn is_set_low(&self) -> bool {
+                    fn is_set_low(&self) -> Result<bool, Self::Error> {
                         // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
                         // TODO - I wish I could do something like `.pins$i()`...
-                        unsafe { ((*$PX::ptr()).out.read().bits() & (1 << $i)) == 0 }
+                        Ok(unsafe { ((*$PX::ptr()).out.read().bits() & (1 << $i)) == 0 })
                     }
                 }
             )+
