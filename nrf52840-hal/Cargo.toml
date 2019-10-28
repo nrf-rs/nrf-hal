@@ -43,4 +43,13 @@ version = "0.2.1"
 doc = []
 rt = ["nrf52840-pac/rt"]
 default = ["rt"]
+UARTE_DMA_SIZE_4 = ["nrf52-hal-common/UARTE_DMA_SIZE_4"]
+UARTE_DMA_SIZE_8 = ["nrf52-hal-common/UARTE_DMA_SIZE_8"]
+UARTE_DMA_SIZE_16 = ["nrf52-hal-common/UARTE_DMA_SIZE_16"]
+UARTE_DMA_SIZE_32 = ["nrf52-hal-common/UARTE_DMA_SIZE_32"]
+UARTE_DMA_SIZE_64 = ["nrf52-hal-common/UARTE_DMA_SIZE_64"]
+UARTE_DMA_SIZE_128 = ["nrf52-hal-common/UARTE_DMA_SIZE_128"]
+UARTE_DMA_SIZE_255 = ["nrf52-hal-common/UARTE_DMA_SIZE_255"]
+
+
 

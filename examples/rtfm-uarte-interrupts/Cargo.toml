@@ -1,28 +1,33 @@
 [package]
-name = "rtfm-demo"
+name = "rtfm-uarte-interrupts"
 version = "0.1.0"
-authors = ["James Munns <james.munns@ferrous-systems.com>"]
+authors = ["Per Lindgren <per.lindgren@ltu.se>",
+           "Emil Fresk <emil.fresk@gmail.com>"]
 edition = "2018"
 
 [dependencies]
 cortex-m-rtfm = "0.4"
 panic-semihosting = "0.5.1"
 cortex-m-semihosting = "0.3.3"
+heapless = ">= 0.5.0"
 
 [dependencies.nrf52810-hal]
 version = "0.8.0"
 path = "../../nrf52810-hal"
 optional = true
+features = ["UARTE_DMA_SIZE_16"]
 
 [dependencies.nrf52832-hal]
 version = "0.8.0"
 path = "../../nrf52832-hal"
 optional = true
+features = ["xxAB-package", "UARTE_DMA_SIZE_16"]
 
 [dependencies.nrf52840-hal]
 version = "0.8.0"
 path = "../../nrf52840-hal"
 optional = true
+features = ["UARTE_DMA_SIZE_16"]
 
 [features]
 52810 = ["nrf52810-hal"]

@@ -22,7 +22,6 @@ use core::marker::PhantomData;
 pub struct OneShot;
 pub struct Periodic;
 
-
 /// Interface to a TIMER instance
 ///
 /// Right now, this is a very basic interface. The timer will always be
@@ -103,6 +102,19 @@ where
     pub fn read(&self) -> u32 {
         self.0.tasks_capture[1].write(|w| unsafe { w.bits(1) });
         self.0.cc[1].read().bits()
+    }
+
+    /// Clears the interrupt for this timer, external NVIC modification
+    ///
+    /// Enables an interrupt that is fired when the timer reaches the value that
+    /// is given as an argument to `start`.
+    pub(crate) fn clear_interrupt(&mut self) {
+        // As of this writing, the timer code only uses
+        // `cc[0]`/`events_compare[0]`. If the code is extended to use other
+        // compare registers, the following needs to be adapted.
+
+        // Reset the event, otherwise it will always read `1` from now on.
+        self.0.events_compare[0].write(|w| w);
     }
 
     /// Enables the interrupt for this timer
