@@ -8,11 +8,11 @@ use nb::block;
 use panic_semihosting;
 
 use adafruit_nrf52pro_bsc::hal::{
-    prelude::*,
     gpio::{p0, Level},
+    prelude::*,
     timer::{self, Timer},
 };
-use adafruit_nrf52pro_bsc::nrf52832_pac::{Peripherals};
+use adafruit_nrf52pro_bsc::nrf52832_pac::Peripherals;
 use adafruit_nrf52pro_bsc::Pins;
 
 #[entry]

@@ -21,7 +21,7 @@ use hal::{
     uarte::{self, Baudrate as UartBaudrate, Parity as UartParity, Uarte},
 };
 
-use hal::prelude::{OutputPin, InputPin};
+use hal::prelude::{InputPin, OutputPin};
 
 pub use hal::pac;
 

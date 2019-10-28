@@ -1,10 +1,10 @@
 //! Delays
 use cast::u32;
-use cortex_m::peripheral::SYST;
 use cortex_m::peripheral::syst::SystClkSource;
+use cortex_m::peripheral::SYST;
 
-use crate::hal::blocking::delay::{DelayMs, DelayUs};
 use crate::clocks::HFCLK_FREQ;
+use crate::hal::blocking::delay::{DelayMs, DelayUs};
 
 /// System timer (SysTick) as a delay provider
 pub struct Delay {
@@ -46,7 +46,7 @@ impl DelayMs<u8> for Delay {
 impl DelayUs<u32> for Delay {
     fn delay_us(&mut self, us: u32) {
         // The SysTick Reload Value register supports values between 1 and 0x00FFFFFF.
-        const MAX_RVR: u32 =  0x00FF_FFFF;
+        const MAX_RVR: u32 = 0x00FF_FFFF;
 
         let mut total_rvr = us * (HFCLK_FREQ / 1_000_000);
 

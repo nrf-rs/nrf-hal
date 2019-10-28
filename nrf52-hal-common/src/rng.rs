@@ -2,11 +2,9 @@
 //!
 //! See nRF52832 product specification, chapter 26.
 
-
 use rand_core::{CryptoRng, RngCore};
 
 use crate::target::RNG;
-
 
 /// Interface to the RNG peripheral
 ///
@@ -47,32 +45,28 @@ impl Rng {
     pub fn random_u16(&mut self) -> u16 {
         let mut buf = [0; 2];
         self.random(&mut buf);
-        buf[0] as u16 |
-            (buf[1] as u16) << 8
+        buf[0] as u16 | (buf[1] as u16) << 8
     }
 
     /// Return a random `u32`
     pub fn random_u32(&mut self) -> u32 {
         let mut buf = [0; 4];
         self.random(&mut buf);
-        buf[0] as u32 |
-            (buf[1] as u32) <<  8 |
-            (buf[2] as u32) << 16 |
-            (buf[3] as u32) << 24
+        buf[0] as u32 | (buf[1] as u32) << 8 | (buf[2] as u32) << 16 | (buf[3] as u32) << 24
     }
 
     /// Return a random `u64`
     pub fn random_u64(&mut self) -> u64 {
         let mut buf = [0; 8];
         self.random(&mut buf);
-        buf[0] as u64 |
-            (buf[1] as u64) <<  8 |
-            (buf[2] as u64) << 16 |
-            (buf[3] as u64) << 24 |
-            (buf[4] as u64) << 32 |
-            (buf[5] as u64) << 40 |
-            (buf[6] as u64) << 48 |
-            (buf[7] as u64) << 56
+        buf[0] as u64
+            | (buf[1] as u64) << 8
+            | (buf[2] as u64) << 16
+            | (buf[3] as u64) << 24
+            | (buf[4] as u64) << 32
+            | (buf[5] as u64) << 40
+            | (buf[6] as u64) << 48
+            | (buf[7] as u64) << 56
     }
 }
 

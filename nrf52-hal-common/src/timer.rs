@@ -4,10 +4,13 @@
 
 use core::ops::Deref;
 
-#[cfg(feature="9160")]
-use crate::target::{timer0_ns as timer0, Interrupt, NVIC, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1, TIMER2_NS as TIMER2};
+#[cfg(feature = "9160")]
+use crate::target::{
+    timer0_ns as timer0, Interrupt, NVIC, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1,
+    TIMER2_NS as TIMER2,
+};
 
-#[cfg(not(feature="9160"))]
+#[cfg(not(feature = "9160"))]
 use crate::target::{timer0, Interrupt, NVIC, TIMER0, TIMER1, TIMER2};
 
 use embedded_hal::{prelude::*, timer};
@@ -22,7 +25,6 @@ use core::marker::PhantomData;
 pub struct OneShot;
 pub struct Periodic;
 
-
 /// Interface to a TIMER instance
 ///
 /// Right now, this is a very basic interface. The timer will always be
@@ -33,7 +35,7 @@ pub struct Periodic;
 pub struct Timer<T, U = OneShot>(T, PhantomData<U>);
 
 impl<T> Timer<T, OneShot>
-where 
+where
     T: Instance,
 {
     pub fn one_shot(timer: T) -> Timer<T, OneShot> {
@@ -51,7 +53,6 @@ where
     pub fn new(timer: T) -> Timer<T, OneShot> {
         Timer::<T, OneShot>::one_shot(timer)
     }
-
 }
 
 impl<T> Timer<T, Periodic>
@@ -69,7 +70,6 @@ where
 
         Timer::<T, Periodic>(timer, PhantomData)
     }
-
 }
 
 impl<T, U> Timer<T, U>
@@ -227,11 +227,7 @@ where
     }
 }
 
-impl<T> timer::Periodic for Timer<T, Periodic>
-where
-    T: Instance,
-{}
-
+impl<T> timer::Periodic for Timer<T, Periodic> where T: Instance {}
 
 /// Implemented by all `TIMER` instances
 pub trait Instance: Deref<Target = timer0::RegisterBlock> {
