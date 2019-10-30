@@ -83,16 +83,11 @@ impl<MODE> Pin<MODE> {
             .pin_cnf[self.pin as usize]
         }
         .write(|w| {
-            w.dir()
-                .input()
-                .input()
-                .connect()
-                .pull()
-                .disabled()
-                .drive()
-                .s0s1()
-                .sense()
-                .disabled()
+            w.dir().input();
+            w.input().connect();
+            w.pull().disabled();
+            w.drive().s0s1();
+            w.sense().disabled();
         });
 
         Pin {
@@ -121,16 +116,11 @@ impl<MODE> Pin<MODE> {
             .pin_cnf[self.pin as usize]
         }
         .write(|w| {
-            w.dir()
-                .input()
-                .input()
-                .connect()
-                .pull()
-                .pullup()
-                .drive()
-                .s0s1()
-                .sense()
-                .disabled()
+            w.dir().input();
+            w.input().connect();
+            w.pull().pullup();
+            w.drive().s0s1();
+            w.sense().disabled();
         });
 
         Pin {
@@ -159,16 +149,11 @@ impl<MODE> Pin<MODE> {
             .pin_cnf[self.pin as usize]
         }
         .write(|w| {
-            w.dir()
-                .input()
-                .input()
-                .connect()
-                .pull()
-                .pulldown()
-                .drive()
-                .s0s1()
-                .sense()
-                .disabled()
+            w.dir().input();
+            w.input().connect();
+            w.pull().pulldown();
+            w.drive().s0s1();
+            w.sense().disabled();
         });
 
         Pin {
@@ -211,16 +196,11 @@ impl<MODE> Pin<MODE> {
             .pin_cnf[self.pin as usize]
         }
         .write(|w| {
-            w.dir()
-                .output()
-                .input()
-                .connect() // AJM - hack for SPI
-                .pull()
-                .disabled()
-                .drive()
-                .s0s1()
-                .sense()
-                .disabled()
+            w.dir().output();
+            w.input().connect(); // AJM - hack for SPI
+            w.pull().disabled();
+            w.drive().s0s1();
+            w.sense().disabled();
         });
 
         pin
@@ -267,16 +247,11 @@ impl<MODE> Pin<MODE> {
             .pin_cnf[self.pin as usize]
         };
         pin_cnf.write(|w| {
-            w.dir()
-                .output()
-                .input()
-                .disconnect()
-                .pull()
-                .disabled()
-                .drive()
-                .variant(config.variant())
-                .sense()
-                .disabled()
+            w.dir().output();
+            w.input().disconnect();
+            w.pull().disabled();
+            w.drive().variant(config.variant());
+            w.sense().disabled();
         });
 
         pin
@@ -500,11 +475,11 @@ macro_rules! gpio {
                     /// Convert the pin to be a floating input
                     pub fn into_floating_input(self) -> $PXi<Input<Floating>> {
                         unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
-                            w.dir().input()
-                             .input().connect()
-                             .pull().disabled()
-                             .drive().s0s1()
-                             .sense().disabled()
+                            w.dir().input();
+                            w.input().connect();
+                            w.pull().disabled();
+                            w.drive().s0s1();
+                            w.sense().disabled();
                         });
 
                         $PXi {
@@ -513,11 +488,11 @@ macro_rules! gpio {
                     }
                     pub fn into_pulldown_input(self) -> $PXi<Input<PullDown>> {
                         unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
-                            w.dir().input()
-                             .input().connect()
-                             .pull().pulldown()
-                             .drive().s0s1()
-                             .sense().disabled()
+                            w.dir().input();
+                            w.input().connect();
+                            w.pull().pulldown();
+                            w.drive().s0s1();
+                            w.sense().disabled();
                         });
 
                         $PXi {
@@ -526,11 +501,11 @@ macro_rules! gpio {
                     }
                     pub fn into_pullup_input(self) -> $PXi<Input<PullUp>> {
                         unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
-                            w.dir().input()
-                             .input().connect()
-                             .pull().pullup()
-                             .drive().s0s1()
-                             .sense().disabled()
+                            w.dir().input();
+                            w.input().connect();
+                            w.pull().pullup();
+                            w.drive().s0s1();
+                            w.sense().disabled();
                         });
 
                         $PXi {
@@ -552,11 +527,11 @@ macro_rules! gpio {
                         }
 
                         unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
-                            w.dir().output()
-                             .input().disconnect()
-                             .pull().disabled()
-                             .drive().s0s1()
-                             .sense().disabled()
+                            w.dir().output();
+                            w.input().disconnect();
+                            w.pull().disabled();
+                            w.drive().s0s1();
+                            w.sense().disabled();
                         });
 
                         pin
@@ -587,12 +562,11 @@ macro_rules! gpio {
                             &(*$PX::ptr()).pin_cnf[$i]
                         };
                         pin_cnf.write(|w| {
-                            w
-                                .dir().output()
-                                .input().disconnect()
-                                .pull().disabled()
-                                .drive().variant(config.variant())
-                                .sense().disabled()
+                            w.dir().output();
+                            w.input().disconnect();
+                            w.pull().disabled();
+                            w.drive().variant(config.variant());
+                            w.sense().disabled();
                         });
 
                         pin

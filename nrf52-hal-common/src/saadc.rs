@@ -44,20 +44,13 @@ impl Saadc {
         saadc.samplerate.write(|w| w.mode().task());
 
         saadc.ch[0].config.write(|w| {
-            w.refsel()
-                .variant(reference)
-                .gain()
-                .variant(gain)
-                .tacq()
-                .variant(time)
-                .mode()
-                .se()
-                .resp()
-                .variant(resistor)
-                .resn()
-                .bypass()
-                .burst()
-                .enabled()
+            w.refsel().variant(reference);
+            w.gain().variant(gain);
+            w.tacq().variant(time);
+            w.mode().se();
+            w.resp().variant(resistor);
+            w.resn().bypass();
+            w.burst().enabled();
         });
         saadc.ch[0].pseln.write(|w| w.pseln().nc());
 

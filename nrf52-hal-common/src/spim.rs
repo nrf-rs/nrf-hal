@@ -125,13 +125,21 @@ where
         spim.config.write(|w| {
             // Can't match on `mode` due to embedded-hal, see https://github.com/rust-embedded/embedded-hal/pull/126
             if mode == MODE_0 {
-                w.order().msb_first().cpol().active_high().cpha().leading()
+                w.order().msb_first();
+                w.cpol().active_high();
+                w.cpha().leading();
             } else if mode == MODE_1 {
-                w.order().msb_first().cpol().active_high().cpha().trailing()
+                w.order().msb_first();
+                w.cpol().active_high();
+                w.cpha().trailing();
             } else if mode == MODE_2 {
-                w.order().msb_first().cpol().active_low().cpha().leading()
+                w.order().msb_first();
+                w.cpol().active_low();
+                w.cpha().leading();
             } else {
-                w.order().msb_first().cpol().active_low().cpha().trailing()
+                w.order().msb_first();
+                w.cpol().active_low();
+                w.cpha().trailing();
             }
         });
 
