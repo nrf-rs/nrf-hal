@@ -15,7 +15,6 @@ use nrf52840_dk_bsp::{
     Board,
 };
 
-
 #[entry]
 fn main() -> ! {
     let mut nrf52 = Board::take().unwrap();

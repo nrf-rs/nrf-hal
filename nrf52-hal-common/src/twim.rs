@@ -7,33 +7,20 @@
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
-#[cfg(feature="9160")]
-use crate::target::{
-    twim0_ns as twim0,
-    P0_NS as P0,
-    TWIM0_NS as TWIM0,
-};
+#[cfg(feature = "9160")]
+use crate::target::{twim0_ns as twim0, P0_NS as P0, TWIM0_NS as TWIM0};
 
-#[cfg(not(feature="9160"))]
-use crate::target::{
-    twim0,
-    P0,
-    TWIM0,
-};
+#[cfg(not(feature = "9160"))]
+use crate::target::{twim0, P0, TWIM0};
 
 #[cfg(any(feature = "52832", feature = "52840"))]
 use crate::target::TWIM1;
 
-use crate::gpio::{
-    Pin,
-    Floating,
-    Input,
-};
+use crate::gpio::{Floating, Input, Pin};
 
 use crate::target_constants::EASY_DMA_SIZE;
 
 pub use twim0::frequency::FREQUENCYW as Frequency;
-
 
 /// Interface to a TWIM instance
 ///
@@ -46,7 +33,10 @@ pub use twim0::frequency::FREQUENCYW as Frequency;
 /// section 6.1.2 for nRF52840).
 pub struct Twim<T>(T);
 
-impl<T> Twim<T> where T: Instance {
+impl<T> Twim<T>
+where
+    T: Instance,
+{
     pub fn new(twim: T, pins: Pins, frequency: Frequency) -> Self {
         // The TWIM peripheral requires the pins to be in a mode that is not
         // exposed through the GPIO API, and might it might not make sense to
@@ -57,14 +47,18 @@ impl<T> Twim<T> where T: Instance {
         // safe, as we own the pins now and have exclusive access to their
         // registers.
         for &pin in &[pins.scl.pin, pins.sda.pin] {
-            unsafe { &*P0::ptr() }.pin_cnf[pin as usize].write(|w|
-                w
-                    .dir().input()
-                    .input().connect()
-                    .pull().pullup()
-                    .drive().s0d1()
-                    .sense().disabled()
-            );
+            unsafe { &*P0::ptr() }.pin_cnf[pin as usize].write(|w| {
+                w.dir()
+                    .input()
+                    .input()
+                    .connect()
+                    .pull()
+                    .pullup()
+                    .drive()
+                    .s0d1()
+                    .sense()
+                    .disabled()
+            });
         }
 
         // Select pins
@@ -82,13 +76,10 @@ impl<T> Twim<T> where T: Instance {
         });
 
         // Enable TWIM instance
-        twim.enable.write(|w|
-            w.enable().enabled()
-        );
+        twim.enable.write(|w| w.enable().enabled());
 
         // Configure frequency
         twim.frequency.write(|w| w.frequency().variant(frequency));
-
 
         Twim(twim)
     }
@@ -97,13 +88,7 @@ impl<T> Twim<T> where T: Instance {
     ///
     /// The buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
-    pub fn write(&mut self,
-        address: u8,
-        buffer:  &[u8],
-    )
-        -> Result<(), Error>
-    {
-
+    pub fn write(&mut self, address: u8, buffer: &[u8]) -> Result<(), Error> {
         if buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
@@ -113,7 +98,9 @@ impl<T> Twim<T> where T: Instance {
         // before any DMA action has started
         compiler_fence(SeqCst);
 
-        self.0.address.write(|w| unsafe { w.address().bits(address) });
+        self.0
+            .address
+            .write(|w| unsafe { w.address().bits(address) });
 
         // Set up the DMA write
         self.0.txd.ptr.write(|w|
@@ -123,8 +110,7 @@ impl<T> Twim<T> where T: Instance {
             //
             // The PTR field is a full 32 bits wide and accepts the full range
             // of values.
-            unsafe { w.ptr().bits(buffer.as_ptr() as u32) }
-        );
+            unsafe { w.ptr().bits(buffer.as_ptr() as u32) });
         self.0.txd.maxcnt.write(|w|
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
@@ -132,14 +118,12 @@ impl<T> Twim<T> where T: Instance {
             //
             // The MAXCNT field is 8 bits wide and accepts the full range of
             // values.
-            unsafe { w.maxcnt().bits(buffer.len() as _) }
-        );
+            unsafe { w.maxcnt().bits(buffer.len() as _) });
 
         // Start write operation
         self.0.tasks_starttx.write(|w|
             // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) }
-        );
+            unsafe { w.bits(1) });
 
         // Wait until write operation is about to end
         while self.0.events_lasttx.read().bits() == 0 {}
@@ -148,8 +132,7 @@ impl<T> Twim<T> where T: Instance {
         // Stop read operation
         self.0.tasks_stop.write(|w|
             // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) }
-        );
+            unsafe { w.bits(1) });
 
         // Wait until write operation has ended
         while self.0.events_stopped.read().bits() == 0 {}
@@ -171,12 +154,7 @@ impl<T> Twim<T> where T: Instance {
     ///
     /// The buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
-    pub fn read(&mut self,
-        address: u8,
-        buffer:  &mut [u8],
-    )
-        -> Result<(), Error>
-    {
+    pub fn read(&mut self, address: u8, buffer: &mut [u8]) -> Result<(), Error> {
         if buffer.len() > EASY_DMA_SIZE {
             return Err(Error::RxBufferTooLong);
         }
@@ -186,7 +164,9 @@ impl<T> Twim<T> where T: Instance {
         // before any DMA action has started
         compiler_fence(SeqCst);
 
-        self.0.address.write(|w| unsafe { w.address().bits(address) });
+        self.0
+            .address
+            .write(|w| unsafe { w.address().bits(address) });
 
         // Set up the DMA read
         self.0.rxd.ptr.write(|w|
@@ -196,8 +176,7 @@ impl<T> Twim<T> where T: Instance {
             //
             // The PTR field is a full 32 bits wide and accepts the full range
             // of values.
-            unsafe { w.ptr().bits(buffer.as_mut_ptr() as u32) }
-        );
+            unsafe { w.ptr().bits(buffer.as_mut_ptr() as u32) });
         self.0.rxd.maxcnt.write(|w|
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
@@ -208,14 +187,12 @@ impl<T> Twim<T> where T: Instance {
             // type than a u8, so we use a `_` cast rather than a `u8` cast.
             // The MAXCNT field is thus at least 8 bits wide and accepts the
             // full range of values that fit in a `u8`.
-            unsafe { w.maxcnt().bits(buffer.len() as _) }
-        );
+            unsafe { w.maxcnt().bits(buffer.len() as _) });
 
         // Start read operation
         self.0.tasks_startrx.write(|w|
             // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) }
-        );
+            unsafe { w.bits(1) });
 
         // Wait until read operation is about to end
         while self.0.events_lastrx.read().bits() == 0 {}
@@ -224,8 +201,7 @@ impl<T> Twim<T> where T: Instance {
         // Stop read operation
         self.0.tasks_stop.write(|w|
             // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) }
-        );
+            unsafe { w.bits(1) });
 
         // Wait until read operation has ended
         while self.0.events_stopped.read().bits() == 0 {}
@@ -247,13 +223,12 @@ impl<T> Twim<T> where T: Instance {
     /// triggering a stop condition between the two
     ///
     /// The buffer must have a length of at most 255 bytes.
-    pub fn write_then_read(&mut self,
+    pub fn write_then_read(
+        &mut self,
         address: u8,
-        wr_buffer:  &[u8],
+        wr_buffer: &[u8],
         rd_buffer: &mut [u8],
-    )
-        -> Result<(), Error>
-    {
+    ) -> Result<(), Error> {
         if wr_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
@@ -267,7 +242,9 @@ impl<T> Twim<T> where T: Instance {
         // before any DMA action has started
         compiler_fence(SeqCst);
 
-        self.0.address.write(|w| unsafe { w.address().bits(address) });
+        self.0
+            .address
+            .write(|w| unsafe { w.address().bits(address) });
 
         // Set up the DMA write
         self.0.txd.ptr.write(|w|
@@ -277,8 +254,7 @@ impl<T> Twim<T> where T: Instance {
             //
             // The PTR field is a full 32 bits wide and accepts the full range
             // of values.
-            unsafe { w.ptr().bits(wr_buffer.as_ptr() as u32) }
-        );
+            unsafe { w.ptr().bits(wr_buffer.as_ptr() as u32) });
         self.0.txd.maxcnt.write(|w|
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
@@ -286,8 +262,7 @@ impl<T> Twim<T> where T: Instance {
             //
             // The MAXCNT field is 8 bits wide and accepts the full range of
             // values.
-            unsafe { w.maxcnt().bits(wr_buffer.len() as _) }
-        );
+            unsafe { w.maxcnt().bits(wr_buffer.len() as _) });
 
         // Set up the DMA read
         self.0.rxd.ptr.write(|w|
@@ -297,8 +272,7 @@ impl<T> Twim<T> where T: Instance {
             //
             // The PTR field is a full 32 bits wide and accepts the full range
             // of values.
-            unsafe { w.ptr().bits(rd_buffer.as_mut_ptr() as u32) }
-        );
+            unsafe { w.ptr().bits(rd_buffer.as_mut_ptr() as u32) });
         self.0.rxd.maxcnt.write(|w|
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
@@ -309,20 +283,17 @@ impl<T> Twim<T> where T: Instance {
             // type than a u8, so we use a `_` cast rather than a `u8` cast.
             // The MAXCNT field is thus at least 8 bits wide and accepts the
             // full range of values that fit in a `u8`.
-            unsafe { w.maxcnt().bits(rd_buffer.len() as _) }
-        );
+            unsafe { w.maxcnt().bits(rd_buffer.len() as _) });
 
         // Immediately start RX after TX, then stop
-        self.0.shorts.modify(|_r, w|
-            w.lasttx_startrx().enabled()
-             .lastrx_stop().enabled()
-        );
+        self.0
+            .shorts
+            .modify(|_r, w| w.lasttx_startrx().enabled().lastrx_stop().enabled());
 
         // Start write operation
         self.0.tasks_starttx.write(|w|
             // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) }
-        );
+            unsafe { w.bits(1) });
 
         // Wait until total operation has ended
         while self.0.events_stopped.read().bits() == 0 {}
@@ -338,7 +309,7 @@ impl<T> Twim<T> where T: Instance {
         compiler_fence(SeqCst);
 
         let bad_write = self.0.txd.amount.read().bits() != wr_buffer.len() as u32;
-        let bad_read  = self.0.rxd.amount.read().bits() != rd_buffer.len() as u32;
+        let bad_read = self.0.rxd.amount.read().bits() != rd_buffer.len() as u32;
 
         if bad_write {
             return Err(Error::Transmit);
@@ -359,7 +330,10 @@ impl<T> Twim<T> where T: Instance {
 
 /// Implementation of embedded_hal::blocking::i2c Traits
 
-impl<T> embedded_hal::blocking::i2c::Write for Twim<T> where T: Instance {
+impl<T> embedded_hal::blocking::i2c::Write for Twim<T>
+where
+    T: Instance,
+{
     type Error = Error;
 
     fn write<'w>(&mut self, addr: u8, bytes: &'w [u8]) -> Result<(), Error> {
@@ -367,7 +341,10 @@ impl<T> embedded_hal::blocking::i2c::Write for Twim<T> where T: Instance {
     }
 }
 
-impl<T> embedded_hal::blocking::i2c::Read for Twim<T> where T: Instance {
+impl<T> embedded_hal::blocking::i2c::Read for Twim<T>
+where
+    T: Instance,
+{
     type Error = Error;
 
     fn read<'w>(&mut self, addr: u8, bytes: &'w mut [u8]) -> Result<(), Error> {
@@ -375,10 +352,18 @@ impl<T> embedded_hal::blocking::i2c::Read for Twim<T> where T: Instance {
     }
 }
 
-impl<T> embedded_hal::blocking::i2c::WriteRead for Twim<T> where T: Instance {
+impl<T> embedded_hal::blocking::i2c::WriteRead for Twim<T>
+where
+    T: Instance,
+{
     type Error = Error;
 
-    fn write_read<'w>(&mut self, addr: u8, bytes:&'w[u8], buffer: &'w mut [u8]) -> Result<(), Error> {
+    fn write_read<'w>(
+        &mut self,
+        addr: u8,
+        bytes: &'w [u8],
+        buffer: &'w mut [u8],
+    ) -> Result<(), Error> {
         self.write_then_read(addr, bytes, buffer)
     }
 }
@@ -394,7 +379,6 @@ pub struct Pins {
     pub sda: Pin<Input<Floating>>,
 }
 
-
 #[derive(Debug)]
 pub enum Error {
     TxBufferTooLong,
@@ -403,9 +387,8 @@ pub enum Error {
     Receive,
 }
 
-
 /// Implemented by all TWIM instances
-pub trait Instance: Deref<Target=twim0::RegisterBlock> {}
+pub trait Instance: Deref<Target = twim0::RegisterBlock> {}
 
 impl Instance for TWIM0 {}
 

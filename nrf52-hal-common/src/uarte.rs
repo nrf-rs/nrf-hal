@@ -4,45 +4,28 @@
 //!
 //! - nrf52832: Section 35
 //! - nrf52840: Section 6.34
+use core::fmt;
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
-use core::fmt;
 
 use embedded_hal::digital::v2::OutputPin;
 
-#[cfg(feature="52840")]
+#[cfg(feature = "52840")]
 use crate::target::UARTE1;
 
-#[cfg(feature="9160")]
-use crate::target::{
-    uarte0_ns as uarte0,
-    UARTE0_NS as UARTE0,
-    UARTE1_NS as UARTE1,
-};
+#[cfg(feature = "9160")]
+use crate::target::{uarte0_ns as uarte0, UARTE0_NS as UARTE0, UARTE1_NS as UARTE1};
 
-#[cfg(not(feature="9160"))]
-use crate::target::{
-    uarte0,
-    UARTE0,
-};
+#[cfg(not(feature = "9160"))]
+use crate::target::{uarte0, UARTE0};
 
-use crate::target_constants::EASY_DMA_SIZE;
+use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::prelude::*;
-use crate::gpio::{
-    Pin,
-    Output,
-    PushPull,
-    Input,
-    Floating,
-};
+use crate::target_constants::EASY_DMA_SIZE;
 use crate::timer::{self, Timer};
 
 // Re-export SVD variants to allow user to directly set values
-pub use uarte0::{
-    baudrate::BAUDRATEW as Baudrate,
-    config::PARITYW as Parity,
-};
-
+pub use uarte0::{baudrate::BAUDRATEW as Baudrate, config::PARITYW as Parity};
 
 /// Interface to a UARTE instance
 ///
@@ -54,7 +37,10 @@ pub use uarte0::{
 ///     - nrf52840: Section 6.1.2
 pub struct Uarte<T>(T);
 
-impl<T> Uarte<T> where T: Instance {
+impl<T> Uarte<T>
+where
+    T: Instance,
+{
     pub fn new(uarte: T, mut pins: Pins, parity: Parity, baudrate: Baudrate) -> Self {
         // Select pins
         uarte.psel.rxd.write(|w| {
@@ -95,21 +81,16 @@ impl<T> Uarte<T> where T: Instance {
         });
 
         // Enable UARTE instance
-        uarte.enable.write(|w|
-            w.enable().enabled()
-        );
+        uarte.enable.write(|w| w.enable().enabled());
 
         // Configure
         let hardware_flow_control = pins.rts.is_some() && pins.cts.is_some();
-        uarte.config.write(|w|
-            w.hwfc().bit(hardware_flow_control)
-             .parity().variant(parity)
-        );
+        uarte
+            .config
+            .write(|w| w.hwfc().bit(hardware_flow_control).parity().variant(parity));
 
         // Configure frequency
-        uarte.baudrate.write(|w|
-            w.baudrate().variant(baudrate)
-        );
+        uarte.baudrate.write(|w| w.baudrate().variant(baudrate));
 
         Uarte(uarte)
     }
@@ -120,11 +101,7 @@ impl<T> Uarte<T> where T: Instance {
     ///
     /// The buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
-    pub fn write(&mut self,
-        tx_buffer  : &[u8],
-    )
-        -> Result<(), Error>
-    {
+    pub fn write(&mut self, tx_buffer: &[u8]) -> Result<(), Error> {
         if tx_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
@@ -151,8 +128,7 @@ impl<T> Uarte<T> where T: Instance {
             //
             // The PTR field is a full 32 bits wide and accepts the full range
             // of values.
-            unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) }
-        );
+            unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) });
         self.0.txd.maxcnt.write(|w|
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
@@ -202,11 +178,7 @@ impl<T> Uarte<T> where T: Instance {
     /// until the buffer is full.
     ///
     /// The buffer must have a length of at most 255 bytes
-    pub fn read(&mut self,
-        rx_buffer  : &mut [u8],
-    )
-        -> Result<(), Error>
-    {
+    pub fn read(&mut self, rx_buffer: &mut [u8]) -> Result<(), Error> {
         self.start_read(rx_buffer)?;
 
         // Wait for transmission to end
@@ -239,8 +211,10 @@ impl<T> Uarte<T> where T: Instance {
         &mut self,
         rx_buffer: &mut [u8],
         timer: &mut Timer<I>,
-        cycles: u32
-    ) -> Result<(), Error> where I: timer::Instance
+        cycles: u32,
+    ) -> Result<(), Error>
+    where
+        I: timer::Instance,
     {
         // Start the read
         self.start_read(rx_buffer)?;
@@ -303,8 +277,7 @@ impl<T> Uarte<T> where T: Instance {
             //
             // The PTR field is a full 32 bits wide and accepts the full range
             // of values.
-            unsafe { w.ptr().bits(rx_buffer.as_ptr() as u32) }
-        );
+            unsafe { w.ptr().bits(rx_buffer.as_ptr() as u32) });
         self.0.rxd.maxcnt.write(|w|
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
@@ -336,8 +309,7 @@ impl<T> Uarte<T> where T: Instance {
     /// Stop an unfinished UART read transaction and flush FIFO to DMA buffer
     fn cancel_read(&mut self) {
         // Stop reception
-        self.0.tasks_stoprx.write(|w|
-            unsafe { w.bits(1) });
+        self.0.tasks_stoprx.write(|w| unsafe { w.bits(1) });
 
         // Wait for the reception to have stopped
         while self.0.events_rxto.read().bits() == 0 {}
@@ -346,8 +318,7 @@ impl<T> Uarte<T> where T: Instance {
         self.0.events_rxto.write(|w| w);
 
         // Ask UART to flush FIFO to DMA buffer
-        self.0.tasks_flushrx.write(|w|
-            unsafe { w.bits(1) });
+        self.0.tasks_flushrx.write(|w| unsafe { w.bits(1) });
 
         // Wait for the flush to complete.
         while self.0.events_endrx.read().bits() == 0 {}
@@ -361,7 +332,10 @@ impl<T> Uarte<T> where T: Instance {
     }
 }
 
-impl<T> fmt::Write for Uarte<T> where T: Instance {
+impl<T> fmt::Write for Uarte<T>
+where
+    T: Instance,
+{
     fn write_str(&mut self, s: &str) -> fmt::Result {
         // Copy all data into an on-stack buffer so we never try to EasyDMA from
         // flash
@@ -382,7 +356,6 @@ pub struct Pins {
     pub rts: Option<Pin<Output<PushPull>>>,
 }
 
-
 #[derive(Debug)]
 pub enum Error {
     TxBufferTooLong,
@@ -393,10 +366,9 @@ pub enum Error {
     BufferNotInRAM,
 }
 
-
 pub trait Instance: Deref<Target = uarte0::RegisterBlock> {}
 
 impl Instance for UARTE0 {}
 
-#[cfg(any(feature="52840", feature="9160"))]
+#[cfg(any(feature = "52840", feature = "9160"))]
 impl Instance for UARTE1 {}

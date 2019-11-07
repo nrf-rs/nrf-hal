@@ -1,10 +1,10 @@
 //! Configuration and control of the High and Low Frequency Clock
 //! sources
 
-#[cfg(feature="9160")]
+#[cfg(feature = "9160")]
 use crate::target::CLOCK_NS as CLOCK;
 
-#[cfg(not(feature="9160"))]
+#[cfg(not(feature = "9160"))]
 use crate::target::CLOCK;
 
 // ZST Type States

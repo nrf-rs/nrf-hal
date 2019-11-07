@@ -12,18 +12,17 @@ use ssd1306::Builder;
 
 #[cfg(feature = "52832")]
 use nrf52832_hal::{
-    nrf52832_pac as pac,
     gpio::*,
+    nrf52832_pac as pac,
     twim::{self, Twim},
 };
 
 #[cfg(feature = "52840")]
 use nrf52840_hal::{
-    nrf52840_pac as pac,
     gpio::*,
+    nrf52840_pac as pac,
     twim::{self, Twim},
 };
-
 
 /// TWI write example code using an SSD1306 OLED display:
 /// https://cdn-shop.adafruit.com/datasheets/SSD1306.pdf

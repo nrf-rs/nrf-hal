@@ -1,9 +1,9 @@
 //! Temperature sensor interface.
 
+use crate::target::TEMP;
 use fpa::I30F2;
 use nb;
 use void::Void;
-use crate::target::TEMP;
 
 /// Integrated temperature sensor.
 pub struct Temp(TEMP);

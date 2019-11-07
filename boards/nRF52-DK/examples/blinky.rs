@@ -2,13 +2,13 @@
 #![no_main]
 
 extern crate cortex_m_rt as rt;
-extern crate panic_semihosting;
-extern crate nrf52_dk_bsp as dk;
 extern crate nb;
+extern crate nrf52_dk_bsp as dk;
+extern crate panic_semihosting;
 
-use dk::{ Board, prelude::*, nrf52832_hal::Timer };
-use rt::entry;
+use dk::{nrf52832_hal::Timer, prelude::*, Board};
 use nb::block;
+use rt::entry;
 
 #[entry]
 fn main() -> ! {

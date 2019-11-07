@@ -4,14 +4,14 @@
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
-#[cfg(feature="9160")]
-use crate::target::{spim0_ns as spim0, SPIM0_NS as SPIM0 };
+#[cfg(feature = "9160")]
+use crate::target::{spim0_ns as spim0, SPIM0_NS as SPIM0};
 
-#[cfg(not(feature="9160"))]
+#[cfg(not(feature = "9160"))]
 use crate::target::{spim0, SPIM0};
 
-pub use spim0::frequency::FREQUENCYW as Frequency;
 pub use embedded_hal::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};
+pub use spim0::frequency::FREQUENCYW as Frequency;
 
 use core::iter::repeat_with;
 
@@ -19,10 +19,9 @@ use core::iter::repeat_with;
 use crate::target::{SPIM1, SPIM2};
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
-use embedded_hal::digital::v2::OutputPin;
 use crate::target_constants::{EASY_DMA_SIZE, FORCE_COPY_BUFFER_SIZE};
 use crate::{slice_in_ram, DmaSlice};
-
+use embedded_hal::digital::v2::OutputPin;
 
 /// Interface to a SPIM instance
 ///
@@ -43,10 +42,7 @@ where
         ram_slice_check(words)?;
 
         words.chunks(EASY_DMA_SIZE).try_for_each(|chunk| {
-            self.do_spi_dma_transfer(
-                DmaSlice::from_slice(chunk),
-                DmaSlice::from_slice(chunk),
-            )
+            self.do_spi_dma_transfer(DmaSlice::from_slice(chunk), DmaSlice::from_slice(chunk))
         })?;
 
         Ok(words)
@@ -91,10 +87,7 @@ where
         let mut buf = [0u8; FORCE_COPY_BUFFER_SIZE];
         buf[..chunk.len()].copy_from_slice(chunk);
 
-        self.do_spi_dma_transfer(
-            DmaSlice::from_slice(&buf[..chunk.len()]),
-            DmaSlice::null(),
-        )
+        self.do_spi_dma_transfer(DmaSlice::from_slice(&buf[..chunk.len()]), DmaSlice::null())
     }
 
     pub fn new(spim: T, pins: Pins, frequency: Frequency, mode: Mode, orc: u8) -> Self {
@@ -132,14 +125,23 @@ where
         spim.config.write(|w| {
             // Can't match on `mode` due to embedded-hal, see https://github.com/rust-embedded/embedded-hal/pull/126
             if mode == MODE_0 {
-                w.order().msb_first().cpol().active_high().cpha().leading()
+                w.order().msb_first();
+                w.cpol().active_high();
+                w.cpha().leading();
             } else if mode == MODE_1 {
-                w.order().msb_first().cpol().active_high().cpha().trailing()
+                w.order().msb_first();
+                w.cpol().active_high();
+                w.cpha().trailing();
             } else if mode == MODE_2 {
-                w.order().msb_first().cpol().active_low().cpha().leading()
+                w.order().msb_first();
+                w.cpol().active_low();
+                w.cpha().leading();
             } else {
-                w.order().msb_first().cpol().active_low().cpha().trailing()
+                w.order().msb_first();
+                w.cpol().active_low();
+                w.cpha().trailing();
             }
+            w
         });
 
         // Configure frequency
@@ -155,22 +157,14 @@ where
     }
 
     /// Internal helper function to setup and execute SPIM DMA transfer
-    fn do_spi_dma_transfer(
-        &mut self,
-        tx: DmaSlice,
-        rx: DmaSlice,
-    ) -> Result<(), Error> {
-
+    fn do_spi_dma_transfer(&mut self, tx: DmaSlice, rx: DmaSlice) -> Result<(), Error> {
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
         // before any DMA action has started
         compiler_fence(SeqCst);
 
         // Set up the DMA write
-        self.0
-            .txd
-            .ptr
-            .write(|w| unsafe { w.ptr().bits(tx.ptr) });
+        self.0.txd.ptr.write(|w| unsafe { w.ptr().bits(tx.ptr) });
 
         self.0.txd.maxcnt.write(|w|
             // Note that that nrf52840 maxcnt is a wider
@@ -254,10 +248,7 @@ where
 
         // Don't return early, as we must reset the CS pin
         let res = buffer.chunks(EASY_DMA_SIZE).try_for_each(|chunk| {
-            self.do_spi_dma_transfer(
-                DmaSlice::from_slice(chunk),
-                DmaSlice::from_slice(chunk),
-            )
+            self.do_spi_dma_transfer(DmaSlice::from_slice(chunk), DmaSlice::from_slice(chunk))
         });
 
         chip_select.set_high().unwrap();
@@ -341,7 +332,8 @@ where
         // back Nones, then we are done sending and receiving
         //
         // Don't return early, as we must reset the CS pin
-        let res = txi.zip(rxi)
+        let res = txi
+            .zip(rxi)
             .take_while(|(t, r)| t.is_some() && r.is_some())
             // We also turn the slices into either a DmaSlice (if there was data), or a null
             // DmaSlice (if there is no data)
@@ -353,9 +345,7 @@ where
                         .unwrap_or_else(|| DmaSlice::null()),
                 )
             })
-            .try_for_each(|(t, r)| {
-                self.do_spi_dma_transfer(t, r)
-            });
+            .try_for_each(|(t, r)| self.do_spi_dma_transfer(t, r));
 
         chip_select.set_high().unwrap();
 
@@ -413,7 +403,6 @@ fn ram_slice_check(slice: &[u8]) -> Result<(), Error> {
         Err(Error::DMABufferNotInDataMemory)
     }
 }
-
 
 /// Implemented by all SPIM instances
 pub trait Instance: Deref<Target = spim0::RegisterBlock> {}

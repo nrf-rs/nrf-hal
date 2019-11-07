@@ -21,7 +21,6 @@ pub struct Output<MODE> {
     _mode: PhantomData<MODE>,
 }
 
-
 /// Push pull output (type state)
 pub struct PushPull;
 /// Open drain output (type state)
@@ -32,13 +31,11 @@ pub struct OpenDrain;
 //     _mode: PhantomData<MODE>,
 // }
 
-
 /// Represents a digital input or output level
 pub enum Level {
     Low,
     High,
 }
-
 
 // ===============================================================
 // Implement Generic Pins for this port, which allows you to use
@@ -53,16 +50,16 @@ pub struct Pin<MODE> {
     _mode: PhantomData<MODE>,
 }
 
-#[cfg(feature="9160")]
+#[cfg(feature = "9160")]
 use crate::target::P0_NS as P0;
 
-#[cfg(not(feature="9160"))]
+#[cfg(not(feature = "9160"))]
 use crate::target::P0;
 
 #[cfg(feature = "52840")]
-use crate::target::{ P1 };
+use crate::target::P1;
 
-use crate::hal::digital::v2::{OutputPin, StatefulOutputPin, InputPin};
+use crate::hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
 use void::Void;
 
 impl<MODE> Pin<MODE> {
@@ -71,105 +68,143 @@ impl<MODE> Pin<MODE> {
         unsafe {
             &(*{
                 #[cfg(not(feature = "52840"))]
-                { P0::ptr() }
+                {
+                    P0::ptr()
+                }
                 #[cfg(feature = "52840")]
-                { if !self.port { P0::ptr() } else { P1::ptr() } }
-            }).pin_cnf[self.pin as usize]
+                {
+                    if !self.port {
+                        P0::ptr()
+                    } else {
+                        P1::ptr()
+                    }
+                }
+            })
+            .pin_cnf[self.pin as usize]
         }
         .write(|w| {
-            w.dir().input()
-                .input().connect()
-                .pull().disabled()
-                .drive().s0s1()
-                .sense().disabled()
+            w.dir().input();
+            w.input().connect();
+            w.pull().disabled();
+            w.drive().s0s1();
+            w.sense().disabled();
+            w
         });
 
         Pin {
             _mode: PhantomData,
             #[cfg(feature = "52840")]
             port: self.port,
-            pin: self.pin
+            pin: self.pin,
         }
     }
     pub fn into_pullup_input(self) -> Pin<Input<PullUp>> {
         unsafe {
             &(*{
                 #[cfg(not(feature = "52840"))]
-                { P0::ptr() }
+                {
+                    P0::ptr()
+                }
                 #[cfg(feature = "52840")]
-                { if !self.port { P0::ptr() } else { P1::ptr() } }
-            }).pin_cnf[self.pin as usize]
+                {
+                    if !self.port {
+                        P0::ptr()
+                    } else {
+                        P1::ptr()
+                    }
+                }
+            })
+            .pin_cnf[self.pin as usize]
         }
         .write(|w| {
-            w.dir().input()
-                .input().connect()
-                .pull().pullup()
-                .drive().s0s1()
-                .sense().disabled()
+            w.dir().input();
+            w.input().connect();
+            w.pull().pullup();
+            w.drive().s0s1();
+            w.sense().disabled();
+            w
         });
 
         Pin {
             _mode: PhantomData,
             #[cfg(feature = "52840")]
             port: self.port,
-            pin: self.pin
+            pin: self.pin,
         }
     }
     pub fn into_pulldown_input(self) -> Pin<Input<PullDown>> {
         unsafe {
             &(*{
                 #[cfg(not(feature = "52840"))]
-                { P0::ptr() }
+                {
+                    P0::ptr()
+                }
                 #[cfg(feature = "52840")]
-                { if !self.port { P0::ptr() } else { P1::ptr() } }
-            }).pin_cnf[self.pin as usize]
+                {
+                    if !self.port {
+                        P0::ptr()
+                    } else {
+                        P1::ptr()
+                    }
+                }
+            })
+            .pin_cnf[self.pin as usize]
         }
         .write(|w| {
-            w.dir().input()
-                .input().connect()
-                .pull().pulldown()
-                .drive().s0s1()
-                .sense().disabled()
+            w.dir().input();
+            w.input().connect();
+            w.pull().pulldown();
+            w.drive().s0s1();
+            w.sense().disabled();
+            w
         });
 
         Pin {
             _mode: PhantomData,
             #[cfg(feature = "52840")]
             port: self.port,
-            pin: self.pin
+            pin: self.pin,
         }
     }
 
     /// Convert the pin to be a push-pull output with normal drive
-    pub fn into_push_pull_output(self, initial_output: Level)
-        -> Pin<Output<PushPull>>
-    {
+    pub fn into_push_pull_output(self, initial_output: Level) -> Pin<Output<PushPull>> {
         let mut pin = Pin {
             _mode: PhantomData,
             #[cfg(feature = "52840")]
             port: self.port,
-            pin: self.pin
+            pin: self.pin,
         };
 
         match initial_output {
-            Level::Low  => pin.set_low().unwrap(),
+            Level::Low => pin.set_low().unwrap(),
             Level::High => pin.set_high().unwrap(),
         }
 
         unsafe {
             &(*{
                 #[cfg(not(feature = "52840"))]
-                { P0::ptr() }
+                {
+                    P0::ptr()
+                }
                 #[cfg(feature = "52840")]
-                { if !self.port { P0::ptr() } else { P1::ptr() } }
-            }).pin_cnf[self.pin as usize]
+                {
+                    if !self.port {
+                        P0::ptr()
+                    } else {
+                        P1::ptr()
+                    }
+                }
+            })
+            .pin_cnf[self.pin as usize]
         }
         .write(|w| {
-            w.dir().output()
-                .input().connect() // AJM - hack for SPI
-                .pull().disabled()
-                .drive().s0s1()
-                .sense().disabled()
+            w.dir().output();
+            w.input().connect(); // AJM - hack for SPI
+            w.pull().disabled();
+            w.drive().s0s1();
+            w.sense().disabled();
+            w
         });
 
         pin
@@ -179,21 +214,20 @@ impl<MODE> Pin<MODE> {
     ///
     /// This method currently does not support configuring an
     /// internal pull-up or pull-down resistor.
-    pub fn into_open_drain_output(self,
-        config:         OpenDrainConfig,
+    pub fn into_open_drain_output(
+        self,
+        config: OpenDrainConfig,
         initial_output: Level,
-    )
-        -> Pin<Output<OpenDrain>>
-    {
+    ) -> Pin<Output<OpenDrain>> {
         let mut pin = Pin {
             _mode: PhantomData,
             #[cfg(feature = "52840")]
             port: self.port,
-            pin: self.pin
+            pin: self.pin,
         };
 
         match initial_output {
-            Level::Low  => pin.set_low().unwrap(),
+            Level::Low => pin.set_low().unwrap(),
             Level::High => pin.set_high().unwrap(),
         }
 
@@ -202,18 +236,27 @@ impl<MODE> Pin<MODE> {
         let pin_cnf = unsafe {
             &(*{
                 #[cfg(not(feature = "52840"))]
-                { P0::ptr() }
+                {
+                    P0::ptr()
+                }
                 #[cfg(feature = "52840")]
-                { if !self.port { P0::ptr() } else { P1::ptr() } }
-            }).pin_cnf[self.pin as usize]
+                {
+                    if !self.port {
+                        P0::ptr()
+                    } else {
+                        P1::ptr()
+                    }
+                }
+            })
+            .pin_cnf[self.pin as usize]
         };
         pin_cnf.write(|w| {
+            w.dir().output();
+            w.input().disconnect();
+            w.pull().disabled();
+            w.drive().variant(config.variant());
+            w.sense().disabled();
             w
-                .dir().output()
-                .input().disconnect()
-                .pull().disabled()
-                .drive().variant(config.variant())
-                .sense().disabled()
         });
 
         pin
@@ -228,14 +271,27 @@ impl<MODE> InputPin for Pin<Input<MODE>> {
     }
 
     fn is_low(&self) -> Result<bool, Self::Error> {
-        Ok(unsafe { (
-            (*{
+        Ok(unsafe {
+            ((*{
                 #[cfg(not(feature = "52840"))]
-                { P0::ptr() }
+                {
+                    P0::ptr()
+                }
                 #[cfg(feature = "52840")]
-                { if !self.port { P0::ptr() } else { P1::ptr() } }
-            }).in_.read().bits() & (1 << self.pin)
-        ) == 0 })
+                {
+                    if !self.port {
+                        P0::ptr()
+                    } else {
+                        P1::ptr()
+                    }
+                }
+            })
+            .in_
+            .read()
+            .bits()
+                & (1 << self.pin))
+                == 0
+        })
     }
 }
 
@@ -249,10 +305,20 @@ impl<MODE> OutputPin for Pin<Output<MODE>> {
         unsafe {
             (*{
                 #[cfg(not(feature = "52840"))]
-                { P0::ptr() }
+                {
+                    P0::ptr()
+                }
                 #[cfg(feature = "52840")]
-                { if !self.port { P0::ptr() } else { P1::ptr() } }
-            }).outset.write(|w| w.bits(1u32 << self.pin));
+                {
+                    if !self.port {
+                        P0::ptr()
+                    } else {
+                        P1::ptr()
+                    }
+                }
+            })
+            .outset
+            .write(|w| w.bits(1u32 << self.pin));
         }
         Ok(())
     }
@@ -264,10 +330,20 @@ impl<MODE> OutputPin for Pin<Output<MODE>> {
         unsafe {
             (*{
                 #[cfg(not(feature = "52840"))]
-                { P0::ptr() }
+                {
+                    P0::ptr()
+                }
                 #[cfg(feature = "52840")]
-                { if !self.port { P0::ptr() } else { P1::ptr() } }
-            }).outclr.write(|w| w.bits(1u32 << self.pin));
+                {
+                    if !self.port {
+                        P0::ptr()
+                    } else {
+                        P1::ptr()
+                    }
+                }
+            })
+            .outclr
+            .write(|w| w.bits(1u32 << self.pin));
         }
         Ok(())
     }
@@ -283,14 +359,27 @@ impl<MODE> StatefulOutputPin for Pin<Output<MODE>> {
     fn is_set_low(&self) -> Result<bool, Self::Error> {
         // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
         // TODO - I wish I could do something like `.pins$i()`...
-        Ok(unsafe { (
-            (*{
+        Ok(unsafe {
+            ((*{
                 #[cfg(not(feature = "52840"))]
-                { P0::ptr() }
+                {
+                    P0::ptr()
+                }
                 #[cfg(feature = "52840")]
-                { if !self.port { P0::ptr() } else { P1::ptr() } }
-            }).out.read().bits() & (1 << self.pin)
-        ) == 0 })
+                {
+                    if !self.port {
+                        P0::ptr()
+                    } else {
+                        P1::ptr()
+                    }
+                }
+            })
+            .out
+            .read()
+            .bits()
+                & (1 << self.pin))
+                == 0
+        })
     }
 }
 
@@ -302,28 +391,20 @@ pub enum OpenDrainConfig {
     HighDrive0Disconnect1,
 }
 
-#[cfg(feature="9160")]
-use crate::target::p0_ns::{
-    pin_cnf,
-    PIN_CNF,
-};
+#[cfg(feature = "9160")]
+use crate::target::p0_ns::{pin_cnf, PIN_CNF};
 
-#[cfg(not(feature="9160"))]
-use crate::target::p0::{
-    pin_cnf,
-    PIN_CNF,
-};
-
-
+#[cfg(not(feature = "9160"))]
+use crate::target::p0::{pin_cnf, PIN_CNF};
 
 impl OpenDrainConfig {
     fn variant(self) -> pin_cnf::DRIVEW {
         use self::OpenDrainConfig::*;
 
         match self {
-            Disconnect0Standard1  => pin_cnf::DRIVEW::D0S1,
+            Disconnect0Standard1 => pin_cnf::DRIVEW::D0S1,
             Disconnect0HighDrive1 => pin_cnf::DRIVEW::D0H1,
-            Standard0Disconnect1  => pin_cnf::DRIVEW::S0D1,
+            Standard0Disconnect1 => pin_cnf::DRIVEW::S0D1,
             HighDrive0Disconnect1 => pin_cnf::DRIVEW::H0D1,
         }
     }
@@ -399,11 +480,12 @@ macro_rules! gpio {
                     /// Convert the pin to be a floating input
                     pub fn into_floating_input(self) -> $PXi<Input<Floating>> {
                         unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
-                            w.dir().input()
-                             .input().connect()
-                             .pull().disabled()
-                             .drive().s0s1()
-                             .sense().disabled()
+                            w.dir().input();
+                            w.input().connect();
+                            w.pull().disabled();
+                            w.drive().s0s1();
+                            w.sense().disabled();
+                            w
                         });
 
                         $PXi {
@@ -412,11 +494,12 @@ macro_rules! gpio {
                     }
                     pub fn into_pulldown_input(self) -> $PXi<Input<PullDown>> {
                         unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
-                            w.dir().input()
-                             .input().connect()
-                             .pull().pulldown()
-                             .drive().s0s1()
-                             .sense().disabled()
+                            w.dir().input();
+                            w.input().connect();
+                            w.pull().pulldown();
+                            w.drive().s0s1();
+                            w.sense().disabled();
+                            w
                         });
 
                         $PXi {
@@ -425,11 +508,12 @@ macro_rules! gpio {
                     }
                     pub fn into_pullup_input(self) -> $PXi<Input<PullUp>> {
                         unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
-                            w.dir().input()
-                             .input().connect()
-                             .pull().pullup()
-                             .drive().s0s1()
-                             .sense().disabled()
+                            w.dir().input();
+                            w.input().connect();
+                            w.pull().pullup();
+                            w.drive().s0s1();
+                            w.sense().disabled();
+                            w
                         });
 
                         $PXi {
@@ -451,11 +535,12 @@ macro_rules! gpio {
                         }
 
                         unsafe { &(*$PX::ptr()).pin_cnf[$i] }.write(|w| {
-                            w.dir().output()
-                             .input().disconnect()
-                             .pull().disabled()
-                             .drive().s0s1()
-                             .sense().disabled()
+                            w.dir().output();
+                            w.input().disconnect();
+                            w.pull().disabled();
+                            w.drive().s0s1();
+                            w.sense().disabled();
+                            w
                         });
 
                         pin
@@ -486,12 +571,12 @@ macro_rules! gpio {
                             &(*$PX::ptr()).pin_cnf[$i]
                         };
                         pin_cnf.write(|w| {
+                            w.dir().output();
+                            w.input().disconnect();
+                            w.pull().disabled();
+                            w.drive().variant(config.variant());
+                            w.sense().disabled();
                             w
-                                .dir().output()
-                                .input().disconnect()
-                                .pull().disabled()
-                                .drive().variant(config.variant())
-                                .sense().disabled()
                         });
 
                         pin

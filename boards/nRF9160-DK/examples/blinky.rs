@@ -6,8 +6,8 @@ extern crate nb;
 extern crate nrf9160_dk_bsp as bsp;
 extern crate panic_semihosting;
 
-use core::fmt::Write;
 use bsp::{hal::Timer, prelude::*, Board};
+use core::fmt::Write;
 use nb::block;
 use rt::entry;
 

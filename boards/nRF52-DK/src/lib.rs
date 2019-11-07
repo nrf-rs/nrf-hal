@@ -14,27 +14,9 @@ pub mod prelude {
 }
 
 use nrf52832_hal::{
-    gpio::{
-        p0,
-        Pin,
-        Floating,
-        Input,
-        Output,
-        PushPull,
-        PullUp,
-        Level,
-    },
-    nrf52832_pac::{
-        self as nrf52,
-        CorePeripherals,
-        Peripherals,
-    },
-    uarte::{
-        self,
-        Uarte,
-        Parity as UartParity,
-        Baudrate as UartBaudrate,
-    },
+    gpio::{p0, Floating, Input, Level, Output, Pin, PullUp, PushPull},
+    nrf52832_pac::{self as nrf52, CorePeripherals, Peripherals},
+    uarte::{self, Baudrate as UartBaudrate, Parity as UartParity, Uarte},
 };
 
 use nrf52832_hal::prelude::OutputPin;
@@ -270,10 +252,7 @@ impl Board {
     /// This method will return an instance of `nRF52DK` the first time it is
     /// called. It will return only `None` on subsequent calls.
     pub fn take() -> Option<Self> {
-        Some(Self::new(
-            CorePeripherals::take()?,
-            Peripherals::take()?,
-        ))
+        Some(Self::new(CorePeripherals::take()?, Peripherals::take()?))
     }
 
     /// Steal the peripherals
@@ -289,10 +268,7 @@ impl Board {
     ///
     /// Always use `nRF52DK::take`, unless you really know what you're doing.
     pub unsafe fn steal() -> Self {
-        Self::new(
-            CorePeripherals::steal(),
-            Peripherals::steal(),
-        )
+        Self::new(CorePeripherals::steal(), Peripherals::steal())
     }
 
     fn new(cp: CorePeripherals, p: Peripherals) -> Self {
@@ -302,15 +278,15 @@ impl Board {
         // It features HWFC but does not have to use it.
         // It can transmit a flexible baudrate of up to 1Mbps.
         let cdc_uart = Uarte::new(
-                p.UARTE0,
-                uarte::Pins {
+            p.UARTE0,
+            uarte::Pins {
                 txd: pins0.p0_06.into_push_pull_output(Level::High).degrade(),
                 rxd: pins0.p0_08.into_floating_input().degrade(),
                 cts: Some(pins0.p0_07.into_floating_input().degrade()),
                 rts: Some(pins0.p0_05.into_push_pull_output(Level::High).degrade()),
             },
             UartParity::EXCLUDED,
-            UartBaudrate::BAUD115200
+            UartBaudrate::BAUD115200,
         );
 
         Board {
@@ -318,22 +294,22 @@ impl Board {
 
             pins: Pins {
                 _RESET: pins0.p0_21,
-                P0_02 : pins0.p0_02,
-                P0_03 : pins0.p0_03,
-                P0_04 : pins0.p0_04,
-                P0_11 : pins0.p0_11,
-                P0_12 : pins0.p0_12,
-                P0_24 : pins0.p0_24,
-                P0_25 : pins0.p0_25,
-                P0_28 : pins0.p0_28,
-                P0_29 : pins0.p0_29,
-                P0_30 : pins0.p0_30,
-                P0_31 : pins0.p0_31,
+                P0_02: pins0.p0_02,
+                P0_03: pins0.p0_03,
+                P0_04: pins0.p0_04,
+                P0_11: pins0.p0_11,
+                P0_12: pins0.p0_12,
+                P0_24: pins0.p0_24,
+                P0_25: pins0.p0_25,
+                P0_28: pins0.p0_28,
+                P0_29: pins0.p0_29,
+                P0_30: pins0.p0_30,
+                P0_31: pins0.p0_31,
 
-                P0_22 : pins0.p0_22,
-                P0_23 : pins0.p0_23,
-                P0_26 : pins0.p0_26,
-                P0_27 : pins0.p0_27,
+                P0_22: pins0.p0_22,
+                P0_23: pins0.p0_23,
+                P0_26: pins0.p0_26,
+                P0_27: pins0.p0_27,
             },
 
             leds: Leds {
@@ -356,87 +332,86 @@ impl Board {
             },
 
             // Core peripherals
-            CBP  : cp.CBP,
+            CBP: cp.CBP,
             CPUID: cp.CPUID,
-            DCB  : cp.DCB,
-            DWT  : cp.DWT,
-            FPB  : cp.FPB,
-            FPU  : cp.FPU,
-            ITM  : cp.ITM,
-            MPU  : cp.MPU,
-            NVIC : cp.NVIC,
-            SCB  : cp.SCB,
-            SYST : cp.SYST,
-            TPIU : cp.TPIU,
+            DCB: cp.DCB,
+            DWT: cp.DWT,
+            FPB: cp.FPB,
+            FPU: cp.FPU,
+            ITM: cp.ITM,
+            MPU: cp.MPU,
+            NVIC: cp.NVIC,
+            SCB: cp.SCB,
+            SYST: cp.SYST,
+            TPIU: cp.TPIU,
 
             // nRF52 peripherals
-            FICR  : p.FICR,
-            UICR  : p.UICR,
-            POWER : p.POWER,
-            CLOCK : p.CLOCK,
-            RADIO : p.RADIO,
+            FICR: p.FICR,
+            UICR: p.UICR,
+            POWER: p.POWER,
+            CLOCK: p.CLOCK,
+            RADIO: p.RADIO,
 
-            UART0 : p.UART0,
-            SPIM0 : p.SPIM0,
-            SPIS0 : p.SPIS0,
-            TWIM0 : p.TWIM0,
-            TWIS0 : p.TWIS0,
-            SPI0  : p.SPI0,
-            TWI0  : p.TWI0,
-            SPIM1 : p.SPIM1,
-            SPIS1 : p.SPIS1,
-            TWIS1 : p.TWIS1,
-            SPI1  : p.SPI1,
-            TWI1  : p.TWI1,
-            NFCT  : p.NFCT,
+            UART0: p.UART0,
+            SPIM0: p.SPIM0,
+            SPIS0: p.SPIS0,
+            TWIM0: p.TWIM0,
+            TWIS0: p.TWIS0,
+            SPI0: p.SPI0,
+            TWI0: p.TWI0,
+            SPIM1: p.SPIM1,
+            SPIS1: p.SPIS1,
+            TWIS1: p.TWIS1,
+            SPI1: p.SPI1,
+            TWI1: p.TWI1,
+            NFCT: p.NFCT,
             GPIOTE: p.GPIOTE,
-            SAADC : p.SAADC,
+            SAADC: p.SAADC,
             TIMER0: p.TIMER0,
             TIMER1: p.TIMER1,
             TIMER2: p.TIMER2,
-            RTC0  : p.RTC0,
-            TEMP  : p.TEMP,
-            RNG   : p.RNG,
-            ECB   : p.ECB,
-            CCM   : p.CCM,
-            AAR   : p.AAR,
-            WDT   : p.WDT,
-            RTC1  : p.RTC1,
-            QDEC  : p.QDEC,
-            COMP  : p.COMP,
+            RTC0: p.RTC0,
+            TEMP: p.TEMP,
+            RNG: p.RNG,
+            ECB: p.ECB,
+            CCM: p.CCM,
+            AAR: p.AAR,
+            WDT: p.WDT,
+            RTC1: p.RTC1,
+            QDEC: p.QDEC,
+            COMP: p.COMP,
             LPCOMP: p.LPCOMP,
-            SWI0  : p.SWI0,
-            EGU0  : p.EGU0,
-            SWI1  : p.SWI1,
-            EGU1  : p.EGU1,
-            SWI2  : p.SWI2,
-            EGU2  : p.EGU2,
-            SWI3  : p.SWI3,
-            EGU3  : p.EGU3,
-            SWI4  : p.SWI4,
-            EGU4  : p.EGU4,
-            SWI5  : p.SWI5,
-            EGU5  : p.EGU5,
+            SWI0: p.SWI0,
+            EGU0: p.EGU0,
+            SWI1: p.SWI1,
+            EGU1: p.EGU1,
+            SWI2: p.SWI2,
+            EGU2: p.EGU2,
+            SWI3: p.SWI3,
+            EGU3: p.EGU3,
+            SWI4: p.SWI4,
+            EGU4: p.EGU4,
+            SWI5: p.SWI5,
+            EGU5: p.EGU5,
             TIMER3: p.TIMER3,
             TIMER4: p.TIMER4,
-            PWM0  : p.PWM0,
-            PDM   : p.PDM,
-            NVMC  : p.NVMC,
-            PPI   : p.PPI,
-            MWU   : p.MWU,
-            PWM1  : p.PWM1,
-            PWM2  : p.PWM2,
-            RTC2  : p.RTC2,
-            I2S   : p.I2S,
+            PWM0: p.PWM0,
+            PDM: p.PDM,
+            NVMC: p.NVMC,
+            PPI: p.PPI,
+            MWU: p.MWU,
+            PWM1: p.PWM1,
+            PWM2: p.PWM2,
+            RTC2: p.RTC2,
+            I2S: p.I2S,
         }
     }
 }
 
-
 /// The nRF52 pins that are available on the nRF52DK
 #[allow(non_snake_case)]
 pub struct Pins {
-    _RESET   : p0::P0_21<Input<Floating>>,
+    _RESET: p0::P0_21<Input<Floating>>,
 
     pub P0_03: p0::P0_03<Input<Floating>>,
     pub P0_04: p0::P0_04<Input<Floating>>,
@@ -457,7 +432,6 @@ pub struct Pins {
     pub P0_26: p0::P0_26<Input<Floating>>,
     pub P0_27: p0::P0_27<Input<Floating>>,
 }
-
 
 /// The LEDs on the nRF52-DK board
 pub struct Leds {

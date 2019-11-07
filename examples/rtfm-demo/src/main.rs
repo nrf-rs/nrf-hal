@@ -16,7 +16,6 @@ use nrf52832_hal as hal;
 #[cfg(feature = "52840")]
 use nrf52840_hal as hal;
 
-
 #[app(device = crate::hal::target)]
 const APP: () = {
     #[init]

@@ -2,14 +2,13 @@
 
 use core::ops::Deref;
 
-
-#[cfg(feature="9160")]
+#[cfg(feature = "9160")]
 use crate::target::{rtc0_ns as rtc0, Interrupt, NVIC, RTC0_NS as RTC0, RTC1_NS as RTC1};
 
-#[cfg(not(feature="9160"))]
+#[cfg(not(feature = "9160"))]
 use crate::target::{rtc0, Interrupt, NVIC, RTC0, RTC1};
 
-#[cfg(any(feature = "52840", feature="52832"))]
+#[cfg(any(feature = "52840", feature = "52832"))]
 use crate::target::RTC2;
 
 // Zero Size Type State structs
@@ -235,7 +234,6 @@ where
     }
 }
 
-
 /// Implemented by all RTC instances
 pub trait Instance: Deref<Target = rtc0::RegisterBlock> {
     /// This interrupt associated with this RTC instance
@@ -254,5 +252,5 @@ macro_rules! impl_instance {
 
 impl_instance!(RTC0, RTC1,);
 
-#[cfg(any(feature = "52840", feature="52832"))]
+#[cfg(any(feature = "52840", feature = "52832"))]
 impl_instance!(RTC2,);
