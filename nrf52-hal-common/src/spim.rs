@@ -141,6 +141,7 @@ where
                 w.cpol().active_low();
                 w.cpha().trailing();
             }
+            w
         });
 
         // Configure frequency

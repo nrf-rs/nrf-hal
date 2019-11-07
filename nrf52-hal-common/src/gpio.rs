@@ -88,6 +88,7 @@ impl<MODE> Pin<MODE> {
             w.pull().disabled();
             w.drive().s0s1();
             w.sense().disabled();
+            w
         });
 
         Pin {
@@ -121,6 +122,7 @@ impl<MODE> Pin<MODE> {
             w.pull().pullup();
             w.drive().s0s1();
             w.sense().disabled();
+            w
         });
 
         Pin {
@@ -154,6 +156,7 @@ impl<MODE> Pin<MODE> {
             w.pull().pulldown();
             w.drive().s0s1();
             w.sense().disabled();
+            w
         });
 
         Pin {
@@ -201,6 +204,7 @@ impl<MODE> Pin<MODE> {
             w.pull().disabled();
             w.drive().s0s1();
             w.sense().disabled();
+            w
         });
 
         pin
@@ -252,6 +256,7 @@ impl<MODE> Pin<MODE> {
             w.pull().disabled();
             w.drive().variant(config.variant());
             w.sense().disabled();
+            w
         });
 
         pin
@@ -480,6 +485,7 @@ macro_rules! gpio {
                             w.pull().disabled();
                             w.drive().s0s1();
                             w.sense().disabled();
+                            w
                         });
 
                         $PXi {
@@ -493,6 +499,7 @@ macro_rules! gpio {
                             w.pull().pulldown();
                             w.drive().s0s1();
                             w.sense().disabled();
+                            w
                         });
 
                         $PXi {
@@ -506,6 +513,7 @@ macro_rules! gpio {
                             w.pull().pullup();
                             w.drive().s0s1();
                             w.sense().disabled();
+                            w
                         });
 
                         $PXi {
@@ -532,6 +540,7 @@ macro_rules! gpio {
                             w.pull().disabled();
                             w.drive().s0s1();
                             w.sense().disabled();
+                            w
                         });
 
                         pin
@@ -567,6 +576,7 @@ macro_rules! gpio {
                             w.pull().disabled();
                             w.drive().variant(config.variant());
                             w.sense().disabled();
+                            w
                         });
 
                         pin

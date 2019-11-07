@@ -51,6 +51,7 @@ impl Saadc {
             w.resp().variant(resistor);
             w.resn().bypass();
             w.burst().enabled();
+            w
         });
         saadc.ch[0].pseln.write(|w| w.pseln().nc());
 
