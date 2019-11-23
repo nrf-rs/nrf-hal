@@ -20,7 +20,7 @@ use crate::target::{SPIM1, SPIM2};
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::target_constants::{EASY_DMA_SIZE, FORCE_COPY_BUFFER_SIZE};
-use crate::{slice_in_ram, DmaSlice};
+use crate::{slice_in_ram, slice_in_ram_or, DmaSlice};
 use embedded_hal::digital::v2::OutputPin;
 
 /// Interface to a SPIM instance
@@ -39,7 +39,7 @@ where
 
     fn transfer<'w>(&mut self, words: &'w mut [u8]) -> Result<&'w [u8], Error> {
         // If the slice isn't in RAM, we can't write back to it at all
-        ram_slice_check(words)?;
+        slice_in_ram_or(words, Error::DMABufferNotInDataMemory)?;
 
         words.chunks(EASY_DMA_SIZE).try_for_each(|chunk| {
             self.do_spi_dma_transfer(DmaSlice::from_slice(chunk), DmaSlice::from_slice(chunk))
@@ -242,7 +242,7 @@ where
         chip_select: &mut Pin<Output<PushPull>>,
         buffer: &mut [u8],
     ) -> Result<(), Error> {
-        ram_slice_check(buffer)?;
+        slice_in_ram_or(buffer, Error::DMABufferNotInDataMemory)?;
 
         chip_select.set_low().unwrap();
 
@@ -273,8 +273,9 @@ where
         tx_buffer: &[u8],
         rx_buffer: &mut [u8],
     ) -> Result<(), Error> {
-        ram_slice_check(tx_buffer)?;
-        ram_slice_check(rx_buffer)?;
+        // NOTE: RAM slice check for `rx_buffer` is not necessary, as a mutable
+        // slice can only be built from data located in RAM
+        slice_in_ram_or(tx_buffer, Error::DMABufferNotInDataMemory)?;
 
         let txi = tx_buffer.chunks(EASY_DMA_SIZE);
         let rxi = rx_buffer.chunks_mut(EASY_DMA_SIZE);
@@ -310,8 +311,10 @@ where
         tx_buffer: &[u8],
         rx_buffer: &mut [u8],
     ) -> Result<(), Error> {
-        ram_slice_check(tx_buffer)?;
-        ram_slice_check(rx_buffer)?;
+        // NOTE: RAM slice check for `rx_buffer` is not necessary, as a mutable
+        // slice can only be built from data located in RAM
+        slice_in_ram_or(tx_buffer, Error::DMABufferNotInDataMemory)?;
+
         // For the tx and rx, we want to return Some(chunk)
         // as long as there is data to send. We then chain a repeat to
         // the end so once all chunks have been exhausted, we will keep
@@ -362,7 +365,7 @@ where
         chip_select: &mut Pin<Output<PushPull>>,
         tx_buffer: &[u8],
     ) -> Result<(), Error> {
-        ram_slice_check(tx_buffer)?;
+        slice_in_ram_or(tx_buffer, Error::DMABufferNotInDataMemory)?;
         self.transfer_split_uneven(chip_select, tx_buffer, &mut [0u8; 0])
     }
 
@@ -394,14 +397,6 @@ pub enum Error {
     DMABufferNotInDataMemory,
     Transmit,
     Receive,
-}
-
-fn ram_slice_check(slice: &[u8]) -> Result<(), Error> {
-    if slice_in_ram(slice) {
-        Ok(())
-    } else {
-        Err(Error::DMABufferNotInDataMemory)
-    }
 }
 
 /// Implemented by all SPIM instances

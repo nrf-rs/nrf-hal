@@ -16,9 +16,11 @@ use crate::target::{twim0, P0, TWIM0};
 #[cfg(any(feature = "52832", feature = "52840"))]
 use crate::target::TWIM1;
 
-use crate::gpio::{Floating, Input, Pin};
-
-use crate::target_constants::EASY_DMA_SIZE;
+use crate::{
+    gpio::{Floating, Input, Pin},
+    target_constants::EASY_DMA_SIZE,
+    slice_in_ram_or,
+};
 
 pub use twim0::frequency::FREQUENCYW as Frequency;
 
@@ -89,6 +91,8 @@ where
     /// The buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
     pub fn write(&mut self, address: u8, buffer: &[u8]) -> Result<(), Error> {
+        slice_in_ram_or(buffer, Error::DMABufferNotInDataMemory)?;
+
         if buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
@@ -155,6 +159,9 @@ where
     /// The buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
     pub fn read(&mut self, address: u8, buffer: &mut [u8]) -> Result<(), Error> {
+        // NOTE: RAM slice check is not necessary, as a mutable slice can only be
+        // built from data located in RAM
+
         if buffer.len() > EASY_DMA_SIZE {
             return Err(Error::RxBufferTooLong);
         }
@@ -229,6 +236,10 @@ where
         wr_buffer: &[u8],
         rd_buffer: &mut [u8],
     ) -> Result<(), Error> {
+        // NOTE: RAM slice check for `rd_buffer` is not necessary, as a mutable
+        // slice can only be built from data located in RAM
+        slice_in_ram_or(wr_buffer, Error::DMABufferNotInDataMemory)?;
+
         if wr_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
@@ -385,6 +396,7 @@ pub enum Error {
     RxBufferTooLong,
     Transmit,
     Receive,
+    DMABufferNotInDataMemory,
 }
 
 /// Implemented by all TWIM instances
