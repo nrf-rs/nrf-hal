@@ -62,6 +62,16 @@ pub(crate) fn slice_in_ram(slice: &[u8]) -> bool {
     ptr >= target_constants::SRAM_LOWER && (ptr + slice.len()) < target_constants::SRAM_UPPER
 }
 
+/// Return an error if slice is not in RAM
+pub(crate) fn slice_in_ram_or<T>(slice: &[u8], err: T) -> Result<(), T> {
+    if slice_in_ram(slice) {
+        Ok(())
+    } else {
+        Err(err)
+    }
+}
+
+
 /// A handy structure for converting rust slices into ptr and len pairs
 /// for use with EasyDMA. Care must be taken to make sure mutability
 /// guarantees are respected

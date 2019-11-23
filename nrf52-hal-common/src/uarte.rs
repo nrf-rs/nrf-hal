@@ -23,6 +23,7 @@ use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::prelude::*;
 use crate::target_constants::EASY_DMA_SIZE;
 use crate::timer::{self, Timer};
+use crate::slice_in_ram_or;
 
 // Re-export SVD variants to allow user to directly set values
 pub use uarte0::{baudrate::BAUDRATEW as Baudrate, config::PARITYW as Parity};
@@ -107,9 +108,7 @@ where
         }
 
         // We can only DMA out of RAM
-        if !crate::slice_in_ram(tx_buffer) {
-            return Err(Error::BufferNotInRAM);
-        }
+        slice_in_ram_or(tx_buffer, Error::BufferNotInRAM)?;
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
@@ -263,6 +262,9 @@ where
         if rx_buffer.len() > u8::max_value() as usize {
             return Err(Error::TxBufferTooLong);
         }
+
+        // NOTE: RAM slice check is not necessary, as a mutable slice can only be
+        // built from data located in RAM
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
