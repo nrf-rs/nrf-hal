@@ -110,16 +110,16 @@ where
     /// Enables an interrupt that is fired when the timer reaches the value that
     /// is given as an argument to `start`.
     ///
-    /// If access to the NVIC is not provided, the interrupt must ALSO be enabled
-    /// there outside of this function (e.g. manually call `nvic.enable`, or through
+    /// If `unmask_in_nvic` is not selected, the interrupt must ALSO be enabled
+    /// there outside of this function (e.g. manually call `NVIC::unmask`, or through
     /// the use of RTFM).
-    pub fn enable_interrupt(&mut self, nvic: Option<&mut NVIC>) {
+    pub fn enable_interrupt(&mut self, unmask_in_nvic: bool) {
         // As of this writing, the timer code only uses
         // `cc[0]`/`events_compare[0]`. If the code is extended to use other
         // compare registers, the following needs to be adapted.
         self.0.intenset.modify(|_, w| w.compare0().set());
 
-        if let Some(_nvic) = nvic {
+        if unmask_in_nvic {
             unsafe { NVIC::unmask(T::INTERRUPT) };
         }
     }
@@ -129,16 +129,16 @@ where
     /// Disables an interrupt that is fired when the timer reaches the value
     /// that is given as an argument to `start`.
     ///
-    /// If access to the NVIC is not provided, the interrupt must ALSO be disabled
-    /// there outside of this function (e.g. manually call `nvic.disable`, or through
+    /// If `mask_in_nvic` is not selected, the interrupt must ALSO be disabled
+    /// there outside of this function (e.g. manually call `NVIC::mask`, or through
     /// the use of RTFM).
-    pub fn disable_interrupt(&mut self, nvic: Option<&mut NVIC>) {
+    pub fn disable_interrupt(&mut self, mask_in_nvic: bool) {
         // As of this writing, the timer code only uses
         // `cc[0]`/`events_compare[0]`. If the code is extended to use other
         // compare registers, the following needs to be adapted.
         self.0.intenclr.modify(|_, w| w.compare0().clear());
 
-        if let Some(_nvic) = nvic {
+        if mask_in_nvic {
             NVIC::mask(T::INTERRUPT);
         }
     }
