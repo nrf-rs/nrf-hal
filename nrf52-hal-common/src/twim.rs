@@ -18,8 +18,8 @@ use crate::target::TWIM1;
 
 use crate::{
     gpio::{Floating, Input, Pin},
-    target_constants::EASY_DMA_SIZE,
     slice_in_ram_or,
+    target_constants::EASY_DMA_SIZE,
 };
 
 pub use twim0::frequency::FREQUENCYW as Frequency;

@@ -21,9 +21,9 @@ use crate::target::{uarte0, UARTE0};
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::prelude::*;
+use crate::slice_in_ram_or;
 use crate::target_constants::EASY_DMA_SIZE;
 use crate::timer::{self, Timer};
-use crate::slice_in_ram_or;
 
 // Re-export SVD variants to allow user to directly set values
 pub use uarte0::{baudrate::BAUDRATEW as Baudrate, config::PARITYW as Parity};

@@ -71,7 +71,6 @@ pub(crate) fn slice_in_ram_or<T>(slice: &[u8], err: T) -> Result<(), T> {
     }
 }
 
-
 /// A handy structure for converting rust slices into ptr and len pairs
 /// for use with EasyDMA. Care must be taken to make sure mutability
 /// guarantees are respected
