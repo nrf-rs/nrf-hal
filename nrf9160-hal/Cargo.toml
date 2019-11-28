@@ -16,7 +16,7 @@ edition = "2018"
 [dependencies]
 cortex-m = "0.6"
 nb = "0.1.1"
-nrf9160-pac = { package = "nrf91", version="0.1.1" }
+nrf9160-pac = { package = "nrf91", version="0.2" }
 
 [dependencies.void]
 default-features = false

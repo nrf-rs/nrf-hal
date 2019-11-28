@@ -32,19 +32,19 @@ version = "0.2.2"
 
 [dependencies.nrf52810-pac]
 optional = true
-version = "0.8.0"
+version = "0.9.0"
 
 [dependencies.nrf52832-pac]
 optional = true
-version = "0.8.0"
+version = "0.9.0"
 
 [dependencies.nrf52840-pac]
 optional = true
-version = "0.8.0"
+version = "0.9.0"
 
 [dependencies.nrf9160-pac]
 optional = true
-version = "0.1.1"
+version = "0.2.0"
 package = "nrf91"
 
 [dependencies.embedded-hal]
