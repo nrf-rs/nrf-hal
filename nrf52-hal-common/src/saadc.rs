@@ -1,8 +1,10 @@
-#[cfg(feature = "9160")]
-use crate::target::{saadc_ns as saadc, SAADC_NS as SAADC};
-
-#[cfg(not(feature = "9160"))]
-use crate::target::{saadc, SAADC};
+cfg_if::cfg_if! {
+    if #[cfg(any(feature = "9160", feature = "5340-app"))] {
+        use crate::target::{saadc_ns as saadc, SAADC_NS as SAADC};
+    } else {
+        use crate::target::{saadc, SAADC};
+    }
+}
 
 use crate::gpio::{Floating, Input};
 use core::{
@@ -152,26 +154,39 @@ macro_rules! channel_mappings {
     };
 }
 
-#[cfg(feature = "9160")]
-channel_mappings! {
-    0 => crate::gpio::p0::P0_13<Input<Floating>>,
-    1 => crate::gpio::p0::P0_14<Input<Floating>>,
-    2 => crate::gpio::p0::P0_15<Input<Floating>>,
-    3 => crate::gpio::p0::P0_16<Input<Floating>>,
-    4 => crate::gpio::p0::P0_17<Input<Floating>>,
-    5 => crate::gpio::p0::P0_18<Input<Floating>>,
-    6 => crate::gpio::p0::P0_19<Input<Floating>>,
-    7 => crate::gpio::p0::P0_20<Input<Floating>>
-}
-
-#[cfg(not(feature = "9160"))]
-channel_mappings! {
-    0 => crate::gpio::p0::P0_02<Input<Floating>>,
-    1 => crate::gpio::p0::P0_03<Input<Floating>>,
-    2 => crate::gpio::p0::P0_04<Input<Floating>>,
-    3 => crate::gpio::p0::P0_05<Input<Floating>>,
-    4 => crate::gpio::p0::P0_28<Input<Floating>>,
-    5 => crate::gpio::p0::P0_29<Input<Floating>>,
-    6 => crate::gpio::p0::P0_30<Input<Floating>>,
-    7 => crate::gpio::p0::P0_31<Input<Floating>>
+cfg_if::cfg_if! {
+    if #[cfg(feature = "9160")] {
+        channel_mappings! {
+            0 => crate::gpio::p0::P0_13<Input<Floating>>,
+            1 => crate::gpio::p0::P0_14<Input<Floating>>,
+            2 => crate::gpio::p0::P0_15<Input<Floating>>,
+            3 => crate::gpio::p0::P0_16<Input<Floating>>,
+            4 => crate::gpio::p0::P0_17<Input<Floating>>,
+            5 => crate::gpio::p0::P0_18<Input<Floating>>,
+            6 => crate::gpio::p0::P0_19<Input<Floating>>,
+            7 => crate::gpio::p0::P0_20<Input<Floating>>
+        }
+    } else if #[cfg(any(feature = "5340-app", feature = "5340-net"))] {
+        channel_mappings! {
+            0 => crate::gpio::p0::P0_04<Input<Floating>>,
+            1 => crate::gpio::p0::P0_05<Input<Floating>>,
+            2 => crate::gpio::p0::P0_06<Input<Floating>>,
+            3 => crate::gpio::p0::P0_07<Input<Floating>>,
+            4 => crate::gpio::p0::P0_25<Input<Floating>>,
+            5 => crate::gpio::p0::P0_26<Input<Floating>>,
+            6 => crate::gpio::p0::P0_27<Input<Floating>>,
+            7 => crate::gpio::p0::P0_28<Input<Floating>>
+        }
+    } else {
+        channel_mappings! {
+            0 => crate::gpio::p0::P0_02<Input<Floating>>,
+            1 => crate::gpio::p0::P0_03<Input<Floating>>,
+            2 => crate::gpio::p0::P0_04<Input<Floating>>,
+            3 => crate::gpio::p0::P0_05<Input<Floating>>,
+            4 => crate::gpio::p0::P0_28<Input<Floating>>,
+            5 => crate::gpio::p0::P0_29<Input<Floating>>,
+            6 => crate::gpio::p0::P0_30<Input<Floating>>,
+            7 => crate::gpio::p0::P0_31<Input<Floating>>
+        }
+    }
 }

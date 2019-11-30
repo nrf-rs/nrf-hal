@@ -7,14 +7,22 @@
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
-#[cfg(feature = "9160")]
-use crate::target::{twim0_ns as twim0, P0_NS as P0, TWIM0_NS as TWIM0};
+// Import TWIM0
+cfg_if::cfg_if! {
+    if #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))] {
+        use crate::target::{twim0_ns as twim0, P0_NS as P0, TWIM0_NS as TWIM0};
+    } else {
+        use crate::target::{twim0, P0, TWIM0};
+    }
+}
 
-#[cfg(not(feature = "9160"))]
-use crate::target::{twim0, P0, TWIM0};
-
-#[cfg(any(feature = "52832", feature = "52840"))]
-use crate::target::TWIM1;
+cfg_if::cfg_if! {
+    if #[cfg(any(feature = "52832", feature = "52840"))] {
+        use crate::target::TWIM1;
+    } else if #[cfg(feature = "5340-app")] {
+        use crate::target::TWIM1_NS as TWIM1;
+    }
+}
 
 use crate::{
     gpio::{Floating, Input, Pin},
@@ -66,13 +74,13 @@ where
         // Select pins
         twim.psel.scl.write(|w| {
             let w = unsafe { w.pin().bits(pins.scl.pin) };
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
             let w = w.port().bit(pins.scl.port);
             w.connect().connected()
         });
         twim.psel.sda.write(|w| {
             let w = unsafe { w.pin().bits(pins.sda.pin) };
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
             let w = w.port().bit(pins.sda.port);
             w.connect().connected()
         });
@@ -404,5 +412,5 @@ pub trait Instance: Deref<Target = twim0::RegisterBlock> {}
 
 impl Instance for TWIM0 {}
 
-#[cfg(any(feature = "52832", feature = "52840"))]
+#[cfg(any(feature = "52832", feature = "52840", feature = "5340-app"))]
 impl Instance for TWIM1 {}

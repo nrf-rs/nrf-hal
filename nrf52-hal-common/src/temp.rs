@@ -1,6 +1,13 @@
 //! Temperature sensor interface.
 
-use crate::target::TEMP;
+cfg_if::cfg_if! {
+    if #[cfg(feature = "5340-net")] {
+        use crate::target::TEMP_NS as TEMP;
+    } else {
+        use crate::target::TEMP;
+    }
+}
+
 use fpa::I30F2;
 use nb;
 use void::Void;

@@ -11,18 +11,25 @@ pub use nrf52832_pac as target;
 #[cfg(feature = "52840")]
 pub use nrf52840_pac as target;
 
+#[cfg(feature = "5340-app")]
+pub use nrf5340_app_pac as target;
+
+#[cfg(feature = "5340-net")]
+pub use nrf5340_net_pac as target;
+
 #[cfg(feature = "9160")]
 pub use nrf9160_pac as target;
 
 pub mod clocks;
 pub mod delay;
 pub mod gpio;
-#[cfg(not(feature = "9160"))]
+#[cfg(not(any(feature = "9160", feature = "5340-app")))]
 pub mod rng;
 pub mod rtc;
+#[cfg(not(feature = "5340-net"))]
 pub mod saadc;
 pub mod spim;
-#[cfg(not(feature = "9160"))]
+#[cfg(not(any(feature = "9160", feature = "5340-app")))]
 pub mod temp;
 pub mod time;
 pub mod timer;
@@ -49,6 +56,15 @@ pub mod target_constants {
 #[cfg(any(feature = "52840", feature = "9160"))]
 pub mod target_constants {
     // NRF52840 and NRF9160 16 bits 1..0xFFFF
+    pub const EASY_DMA_SIZE: usize = 65535;
+    // Limits for Easy DMA - it can only read from data ram
+    pub const SRAM_LOWER: usize = 0x2000_0000;
+    pub const SRAM_UPPER: usize = 0x3000_0000;
+    pub const FORCE_COPY_BUFFER_SIZE: usize = 1024;
+}
+#[cfg(any(feature = "5340-app", feature = "5340-net"))]
+pub mod target_constants {
+    /// `MAXCNT` registers allow up to `2^14` 32-bit words, which is 65535 bytes.
     pub const EASY_DMA_SIZE: usize = 65535;
     // Limits for Easy DMA - it can only read from data ram
     pub const SRAM_LOWER: usize = 0x2000_0000;
@@ -94,7 +110,7 @@ impl DmaSlice {
 
 pub use crate::clocks::Clocks;
 pub use crate::delay::Delay;
-#[cfg(not(feature = "9160"))]
+#[cfg(not(any(feature = "9160", feature = "5340-app")))]
 pub use crate::rng::Rng;
 pub use crate::rtc::Rtc;
 pub use crate::saadc::Saadc;

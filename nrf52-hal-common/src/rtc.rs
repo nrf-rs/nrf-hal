@@ -2,11 +2,15 @@
 
 use core::ops::Deref;
 
-#[cfg(feature = "9160")]
-use crate::target::{rtc0_ns as rtc0, Interrupt, NVIC, RTC0_NS as RTC0, RTC1_NS as RTC1};
+use crate::target::NVIC;
 
-#[cfg(not(feature = "9160"))]
-use crate::target::{rtc0, Interrupt, NVIC, RTC0, RTC1};
+cfg_if::cfg_if! {
+    if #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))] {
+        use crate::target::{rtc0_ns as rtc0, Interrupt, RTC0_NS as RTC0, RTC1_NS as RTC1};
+    } else {
+        use crate::target::{rtc0, Interrupt, RTC0, RTC1};
+    }
+}
 
 #[cfg(any(feature = "52840", feature = "52832"))]
 use crate::target::RTC2;

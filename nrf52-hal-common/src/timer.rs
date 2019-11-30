@@ -4,14 +4,18 @@
 
 use core::ops::Deref;
 
-#[cfg(feature = "9160")]
-use crate::target::{
-    timer0_ns as timer0, Interrupt, NVIC, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1,
-    TIMER2_NS as TIMER2,
-};
+use crate::target::{Interrupt, NVIC};
 
-#[cfg(not(feature = "9160"))]
-use crate::target::{timer0, Interrupt, NVIC, TIMER0, TIMER1, TIMER2};
+cfg_if::cfg_if! {
+    if #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))] {
+        use crate::target::{
+            timer0_ns as timer0, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1,
+            TIMER2_NS as TIMER2,
+        };
+    } else {
+        use crate::target::{timer0, TIMER0, TIMER1, TIMER2};
+    }
+}
 
 use embedded_hal::{prelude::*, timer};
 use nb::{self, block};

@@ -4,24 +4,32 @@
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
-#[cfg(feature = "9160")]
-use crate::target::{spim0_ns as spim0, SPIM0_NS as SPIM0};
+// Import SPIM0
+cfg_if::cfg_if! {
+    if #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))] {
+        use crate::target::{spim0_ns as spim0, SPIM0_NS as SPIM0};
+    } else {
+        use crate::target::{spim0, SPIM0};
+    }
+}
 
-#[cfg(not(feature = "9160"))]
-use crate::target::{spim0, SPIM0};
-
-pub use embedded_hal::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};
-pub use spim0::frequency::FREQUENCY_A as Frequency;
-
-use core::iter::repeat_with;
-
-#[cfg(any(feature = "52832", feature = "52840"))]
-use crate::target::{SPIM1, SPIM2};
+// Import SPIM1/2
+cfg_if::cfg_if! {
+    if #[cfg(any(feature = "52832", feature = "52840"))] {
+        use crate::target::{SPIM1, SPIM2};
+    } else if #[cfg(feature = "5340-app")] {
+        use crate::target::{SPIM1_NS as SPIM1, SPIM2_NS as SPIM2};
+    }
+}
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::target_constants::{EASY_DMA_SIZE, FORCE_COPY_BUFFER_SIZE};
 use crate::{slice_in_ram, slice_in_ram_or, DmaSlice};
 use embedded_hal::digital::v2::OutputPin;
+use core::iter::repeat_with;
+
+pub use embedded_hal::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};
+pub use spim0::frequency::FREQUENCY_A as Frequency;
 
 /// Interface to a SPIM instance
 ///
@@ -94,7 +102,7 @@ where
         // Select pins
         spim.psel.sck.write(|w| {
             let w = unsafe { w.pin().bits(pins.sck.pin) };
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
             let w = w.port().bit(pins.sck.port);
             w.connect().connected()
         });
@@ -102,7 +110,7 @@ where
         match pins.mosi {
             Some(mosi) => spim.psel.mosi.write(|w| {
                 let w = unsafe { w.pin().bits(mosi.pin) };
-                #[cfg(feature = "52840")]
+                #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
                 let w = w.port().bit(mosi.port);
                 w.connect().connected()
             }),
@@ -111,7 +119,7 @@ where
         match pins.miso {
             Some(miso) => spim.psel.miso.write(|w| {
                 let w = unsafe { w.pin().bits(miso.pin) };
-                #[cfg(feature = "52840")]
+                #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
                 let w = w.port().bit(miso.port);
                 w.connect().connected()
             }),
@@ -404,8 +412,8 @@ pub trait Instance: Deref<Target = spim0::RegisterBlock> {}
 
 impl Instance for SPIM0 {}
 
-#[cfg(any(feature = "52832", feature = "52840"))]
+#[cfg(any(feature = "52832", feature = "52840", feature = "5340-app"))]
 impl Instance for SPIM1 {}
 
-#[cfg(any(feature = "52832", feature = "52840"))]
+#[cfg(any(feature = "52832", feature = "52840", feature = "5340-app"))]
 impl Instance for SPIM2 {}

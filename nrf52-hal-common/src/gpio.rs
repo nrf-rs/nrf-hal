@@ -2,7 +2,28 @@
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
 
+use crate::hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
+use void::Void;
 use core::marker::PhantomData;
+use cfg_if::cfg_if;
+
+cfg_if! {
+    if #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))] {
+        use crate::target::P0_NS as P0;
+        use crate::target::p0_ns::{pin_cnf, PIN_CNF, RegisterBlock};
+    } else {
+        use crate::target::P0;
+        use crate::target::p0::{pin_cnf, PIN_CNF, RegisterBlock};
+    }
+}
+
+cfg_if! {
+    if #[cfg(any(feature = "5340-app", feature = "5340-net"))] {
+        use crate::target::P1_NS as P1;
+    } else if #[cfg(feature = "52840")] {
+        use crate::target::P1;
+    }
+}
 
 /// Input mode (type state)
 pub struct Input<MODE> {
@@ -45,44 +66,37 @@ pub enum Level {
 /// Generic $PX pin
 pub struct Pin<MODE> {
     pub pin: u8,
-    #[cfg(feature = "52840")]
+    #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
     pub port: bool,
     _mode: PhantomData<MODE>,
 }
 
-#[cfg(feature = "9160")]
-use crate::target::P0_NS as P0;
-
-#[cfg(not(feature = "9160"))]
-use crate::target::P0;
-
-#[cfg(feature = "52840")]
-use crate::target::P1;
-
-use crate::hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
-use void::Void;
-
 impl<MODE> Pin<MODE> {
+    fn reg_block(&self) -> *const RegisterBlock {
+        cfg_if! {
+            if #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))] {
+                if !self.port {
+                    P0::ptr()
+                } else {
+                    P1::ptr()
+                }
+            } else {
+                P0::ptr()
+            }
+        }
+    }
+
+    fn pin_cnf(&self) -> &PIN_CNF {
+        // This is safe, as we restrict our access to the dedicated
+        // register for this pin.
+        unsafe {
+            &(*self.reg_block()).pin_cnf[self.pin as usize]
+        }
+    }
+
     /// Convert the pin to be a floating input
     pub fn into_floating_input(self) -> Pin<Input<Floating>> {
-        unsafe {
-            &(*{
-                #[cfg(not(feature = "52840"))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(feature = "52840")]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .pin_cnf[self.pin as usize]
-        }
-        .write(|w| {
+        self.pin_cnf().write(|w| {
             w.dir().input();
             w.input().connect();
             w.pull().disabled();
@@ -93,30 +107,13 @@ impl<MODE> Pin<MODE> {
 
         Pin {
             _mode: PhantomData,
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
             port: self.port,
             pin: self.pin,
         }
     }
     pub fn into_pullup_input(self) -> Pin<Input<PullUp>> {
-        unsafe {
-            &(*{
-                #[cfg(not(feature = "52840"))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(feature = "52840")]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .pin_cnf[self.pin as usize]
-        }
-        .write(|w| {
+        self.pin_cnf().write(|w| {
             w.dir().input();
             w.input().connect();
             w.pull().pullup();
@@ -127,30 +124,13 @@ impl<MODE> Pin<MODE> {
 
         Pin {
             _mode: PhantomData,
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
             port: self.port,
             pin: self.pin,
         }
     }
     pub fn into_pulldown_input(self) -> Pin<Input<PullDown>> {
-        unsafe {
-            &(*{
-                #[cfg(not(feature = "52840"))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(feature = "52840")]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .pin_cnf[self.pin as usize]
-        }
-        .write(|w| {
+        self.pin_cnf().write(|w| {
             w.dir().input();
             w.input().connect();
             w.pull().pulldown();
@@ -161,7 +141,7 @@ impl<MODE> Pin<MODE> {
 
         Pin {
             _mode: PhantomData,
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
             port: self.port,
             pin: self.pin,
         }
@@ -171,7 +151,7 @@ impl<MODE> Pin<MODE> {
     pub fn into_push_pull_output(self, initial_output: Level) -> Pin<Output<PushPull>> {
         let mut pin = Pin {
             _mode: PhantomData,
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
             port: self.port,
             pin: self.pin,
         };
@@ -181,24 +161,7 @@ impl<MODE> Pin<MODE> {
             Level::High => pin.set_high().unwrap(),
         }
 
-        unsafe {
-            &(*{
-                #[cfg(not(feature = "52840"))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(feature = "52840")]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .pin_cnf[self.pin as usize]
-        }
-        .write(|w| {
+        self.pin_cnf().write(|w| {
             w.dir().output();
             w.input().connect(); // AJM - hack for SPI
             w.pull().disabled();
@@ -221,7 +184,7 @@ impl<MODE> Pin<MODE> {
     ) -> Pin<Output<OpenDrain>> {
         let mut pin = Pin {
             _mode: PhantomData,
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
             port: self.port,
             pin: self.pin,
         };
@@ -231,26 +194,7 @@ impl<MODE> Pin<MODE> {
             Level::High => pin.set_high().unwrap(),
         }
 
-        // This is safe, as we restrict our access to the dedicated
-        // register for this pin.
-        let pin_cnf = unsafe {
-            &(*{
-                #[cfg(not(feature = "52840"))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(feature = "52840")]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .pin_cnf[self.pin as usize]
-        };
-        pin_cnf.write(|w| {
+        self.pin_cnf().write(|w| {
             w.dir().output();
             w.input().disconnect();
             w.pull().disabled();
@@ -271,27 +215,13 @@ impl<MODE> InputPin for Pin<Input<MODE>> {
     }
 
     fn is_low(&self) -> Result<bool, Self::Error> {
-        Ok(unsafe {
-            ((*{
-                #[cfg(not(feature = "52840"))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(feature = "52840")]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .in_
-            .read()
-            .bits()
-                & (1 << self.pin))
-                == 0
-        })
+        let bits = unsafe {
+            (*self.reg_block())
+                .in_
+                .read()
+                .bits()
+        };
+        Ok(bits & (1 << self.pin) == 0)
     }
 }
 
@@ -303,22 +233,9 @@ impl<MODE> OutputPin for Pin<Output<MODE>> {
         // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
         // TODO - I wish I could do something like `.pins$i()`...
         unsafe {
-            (*{
-                #[cfg(not(feature = "52840"))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(feature = "52840")]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .outset
-            .write(|w| w.bits(1u32 << self.pin));
+            (*self.reg_block())
+                .outset
+                .write(|w| w.bits(1u32 << self.pin));
         }
         Ok(())
     }
@@ -328,22 +245,9 @@ impl<MODE> OutputPin for Pin<Output<MODE>> {
         // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
         // TODO - I wish I could do something like `.pins$i()`...
         unsafe {
-            (*{
-                #[cfg(not(feature = "52840"))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(feature = "52840")]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .outclr
-            .write(|w| w.bits(1u32 << self.pin));
+            (*self.reg_block())
+                .outclr
+                .write(|w| w.bits(1u32 << self.pin));
         }
         Ok(())
     }
@@ -359,27 +263,13 @@ impl<MODE> StatefulOutputPin for Pin<Output<MODE>> {
     fn is_set_low(&self) -> Result<bool, Self::Error> {
         // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
         // TODO - I wish I could do something like `.pins$i()`...
-        Ok(unsafe {
-            ((*{
-                #[cfg(not(feature = "52840"))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(feature = "52840")]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .out
-            .read()
-            .bits()
-                & (1 << self.pin))
-                == 0
-        })
+        let bits = unsafe {
+            (*self.reg_block())
+                .out
+                .read()
+                .bits()
+        };
+        Ok(bits & (1 << self.pin) == 0)
     }
 }
 
@@ -390,12 +280,6 @@ pub enum OpenDrainConfig {
     Standard0Disconnect1,
     HighDrive0Disconnect1,
 }
-
-#[cfg(feature = "9160")]
-use crate::target::p0_ns::{pin_cnf, PIN_CNF};
-
-#[cfg(not(feature = "9160"))]
-use crate::target::p0::{pin_cnf, PIN_CNF};
 
 impl OpenDrainConfig {
     fn variant(self) -> pin_cnf::DRIVE_A {
@@ -586,7 +470,7 @@ macro_rules! gpio {
                     pub fn degrade(self) -> Pin<MODE> {
                         Pin {
                             _mode: PhantomData,
-                            #[cfg(feature = "52840")]
+                            #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
                             port: $port_value,
                             pin: $i
                         }
@@ -686,7 +570,7 @@ gpio!(P0, p0, p0, false, [
 
 // The p1 types are present in the p0 module generated from the
 // svd, but we want to export them in a p1 module from this crate.
-#[cfg(feature = "52840")]
+#[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
 gpio!(P1, p0, p1, true, [
     P1_00: (p1_00,  0, Input<Floating>),
     P1_01: (p1_01,  1, Input<Floating>),

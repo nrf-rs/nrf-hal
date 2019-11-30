@@ -10,14 +10,21 @@ use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
 use embedded_hal::digital::v2::OutputPin;
 
-#[cfg(feature = "52840")]
-use crate::target::UARTE1;
+cfg_if::cfg_if! {
+    if #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))] {
+        use crate::target::{uarte0_ns as uarte0, UARTE0_NS as UARTE0};
+    } else {
+        use crate::target::{uarte0, UARTE0};
+    }
+}
 
-#[cfg(feature = "9160")]
-use crate::target::{uarte0_ns as uarte0, UARTE0_NS as UARTE0, UARTE1_NS as UARTE1};
-
-#[cfg(not(feature = "9160"))]
-use crate::target::{uarte0, UARTE0};
+cfg_if::cfg_if! {
+    if #[cfg(any(feature = "9160", feature = "5340-app"))] {
+        use crate::target::UARTE1_NS as UARTE1;
+    } else if #[cfg(feature = "52840")] {
+        use crate::target::UARTE1;
+    }
+}
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::prelude::*;
@@ -46,14 +53,14 @@ where
         // Select pins
         uarte.psel.rxd.write(|w| {
             let w = unsafe { w.pin().bits(pins.rxd.pin) };
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
             let w = w.port().bit(pins.rxd.port);
             w.connect().connected()
         });
         pins.txd.set_high().unwrap();
         uarte.psel.txd.write(|w| {
             let w = unsafe { w.pin().bits(pins.txd.pin) };
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
             let w = w.port().bit(pins.txd.port);
             w.connect().connected()
         });
@@ -62,7 +69,7 @@ where
         uarte.psel.cts.write(|w| {
             if let Some(ref pin) = pins.cts {
                 let w = unsafe { w.pin().bits(pin.pin) };
-                #[cfg(feature = "52840")]
+                #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
                 let w = w.port().bit(pin.port);
                 w.connect().connected()
             } else {
@@ -73,7 +80,7 @@ where
         uarte.psel.rts.write(|w| {
             if let Some(ref pin) = pins.rts {
                 let w = unsafe { w.pin().bits(pin.pin) };
-                #[cfg(feature = "52840")]
+                #[cfg(any(feature = "52840", feature = "5340-app", feature = "5340-net"))]
                 let w = w.port().bit(pin.port);
                 w.connect().connected()
             } else {
@@ -372,5 +379,5 @@ pub trait Instance: Deref<Target = uarte0::RegisterBlock> {}
 
 impl Instance for UARTE0 {}
 
-#[cfg(any(feature = "52840", feature = "9160"))]
+#[cfg(any(feature = "52840", feature = "9160", feature = "5340-app"))]
 impl Instance for UARTE1 {}
