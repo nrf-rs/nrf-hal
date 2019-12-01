@@ -3,9 +3,9 @@
 #![allow(non_camel_case_types)]
 
 use crate::hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
-use void::Void;
-use core::marker::PhantomData;
 use cfg_if::cfg_if;
+use core::marker::PhantomData;
+use void::Void;
 
 cfg_if! {
     if #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))] {
@@ -89,9 +89,7 @@ impl<MODE> Pin<MODE> {
     fn pin_cnf(&self) -> &PIN_CNF {
         // This is safe, as we restrict our access to the dedicated
         // register for this pin.
-        unsafe {
-            &(*self.reg_block()).pin_cnf[self.pin as usize]
-        }
+        unsafe { &(*self.reg_block()).pin_cnf[self.pin as usize] }
     }
 
     /// Convert the pin to be a floating input
@@ -215,12 +213,7 @@ impl<MODE> InputPin for Pin<Input<MODE>> {
     }
 
     fn is_low(&self) -> Result<bool, Self::Error> {
-        let bits = unsafe {
-            (*self.reg_block())
-                .in_
-                .read()
-                .bits()
-        };
+        let bits = unsafe { (*self.reg_block()).in_.read().bits() };
         Ok(bits & (1 << self.pin) == 0)
     }
 }
@@ -263,12 +256,7 @@ impl<MODE> StatefulOutputPin for Pin<Output<MODE>> {
     fn is_set_low(&self) -> Result<bool, Self::Error> {
         // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
         // TODO - I wish I could do something like `.pins$i()`...
-        let bits = unsafe {
-            (*self.reg_block())
-                .out
-                .read()
-                .bits()
-        };
+        let bits = unsafe { (*self.reg_block()).out.read().bits() };
         Ok(bits & (1 << self.pin) == 0)
     }
 }

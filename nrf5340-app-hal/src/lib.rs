@@ -1,8 +1,8 @@
 #![no_std]
 
 use embedded_hal as hal;
-pub use nrf5340_app_pac;
 pub use nrf52_hal_common::*;
+pub use nrf5340_app_pac;
 
 pub mod prelude {
     pub use crate::hal::prelude::*;
