@@ -119,6 +119,7 @@ pub use crate::delay::Delay;
 #[cfg(not(any(feature = "9160", feature = "5340-app")))]
 pub use crate::rng::Rng;
 pub use crate::rtc::Rtc;
+#[cfg(not(feature = "5340-net"))]
 pub use crate::saadc::Saadc;
 pub use crate::spim::Spim;
 pub use crate::timer::Timer;
