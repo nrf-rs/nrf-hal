@@ -10,6 +10,7 @@ members = [
   "nrf52832-hal",
   "nrf52840-hal",
   "nrf5340-app-hal",
+  "nrf5340-net-hal",
   "nrf9160-hal",
   "examples/rtfm-demo",
   "examples/spi-demo",
