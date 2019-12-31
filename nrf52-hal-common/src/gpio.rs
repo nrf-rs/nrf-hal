@@ -8,9 +8,12 @@ use core::marker::PhantomData;
 use void::Void;
 
 cfg_if! {
-    if #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))] {
+    if #[cfg(any(feature = "9160", feature = "5340-net"))] {
         use crate::target::P0_NS as P0;
         use crate::target::p0_ns::{pin_cnf, PIN_CNF, RegisterBlock};
+    } else if #[cfg(feature = "5340-app")] {
+        use crate::target::P0_S as P0;
+        use crate::target::p0_ns::{pin_cnf::{self, MCUSEL_A}, PIN_CNF, RegisterBlock};
     } else {
         use crate::target::P0;
         use crate::target::p0::{pin_cnf, PIN_CNF, RegisterBlock};
@@ -18,7 +21,9 @@ cfg_if! {
 }
 
 cfg_if! {
-    if #[cfg(any(feature = "5340-app", feature = "5340-net"))] {
+    if #[cfg(feature = "5340-app")] {
+        use crate::target::P1_S as P1;
+    } else if #[cfg(feature = "5340-net")] {
         use crate::target::P1_NS as P1;
     } else if #[cfg(feature = "52840")] {
         use crate::target::P1;
@@ -202,6 +207,14 @@ impl<MODE> Pin<MODE> {
         });
 
         pin
+    }
+
+    /// Consumes the pin and hands it over to the Network core.
+    ///
+    /// *Note*: This function is only available on the nRF5340 Application core.
+    #[cfg(feature = "5340-app")]
+    pub fn into_network(self) {
+        self.pin_cnf().modify(|_, w| w.mcusel().variant(MCUSEL_A::NETWORKMCU));
     }
 }
 
@@ -452,6 +465,17 @@ macro_rules! gpio {
                         });
 
                         pin
+                    }
+
+                    /// Consumes the pin and hands it over to the Network core.
+                    ///
+                    /// *Note*: This function is only available on the nRF5340 Application core.
+                    #[cfg(feature = "5340-app")]
+                    pub fn into_network(self) {
+                        let pin_cnf = unsafe {
+                            &(*$PX::ptr()).pin_cnf[$i]
+                        };
+                        pin_cnf.modify(|_, w| w.mcusel().variant(super::MCUSEL_A::NETWORKMCU));
                     }
 
                     /// Degrade to a generic pin struct, which can be used with peripherals

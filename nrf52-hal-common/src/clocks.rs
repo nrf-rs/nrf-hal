@@ -2,8 +2,10 @@
 //! sources
 
 cfg_if::cfg_if! {
-    if #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))] {
+    if #[cfg(any(feature = "9160", feature = "5340-net"))] {
         use crate::target::CLOCK_NS as CLOCK;
+    } else if #[cfg(feature = "5340-app")] {
+        use crate::target::CLOCK_S as CLOCK;
     } else {
         use crate::target::CLOCK;
     }
