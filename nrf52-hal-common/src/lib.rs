@@ -33,6 +33,8 @@ pub mod rtc;
 #[cfg(not(feature = "5340-net"))]
 pub mod saadc;
 pub mod spim;
+#[cfg(feature = "5340-app")]
+pub mod spu;
 #[cfg(not(any(feature = "9160", feature = "5340-app")))]
 pub mod temp;
 pub mod time;
