@@ -23,6 +23,8 @@ pub use nrf9160_pac as target;
 pub mod clocks;
 pub mod delay;
 pub mod gpio;
+#[cfg(any(feature = "5340-app", feature = "5340-net"))]
+pub mod mutex;
 #[cfg(not(any(feature = "9160", feature = "5340-app")))]
 pub mod rng;
 pub mod rtc;
@@ -39,6 +41,8 @@ pub mod uarte;
 pub mod prelude {
     pub use crate::hal::digital::v2::*;
     pub use crate::hal::prelude::*;
+    #[cfg(any(feature = "5340-app", feature = "5340-net"))]
+    pub use crate::mutex::MutexExt;
 
     pub use crate::time::U32Ext;
 }
