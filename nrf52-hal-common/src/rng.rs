@@ -5,7 +5,7 @@
 use rand_core::{CryptoRng, RngCore};
 
 cfg_if::cfg_if! {
-    if #[cfg(feature = "5340-app")] {
+    if #[cfg(feature = "5340-net")] {
         use crate::target::RNG_NS as RNG;
     } else {
         use crate::target::RNG;
