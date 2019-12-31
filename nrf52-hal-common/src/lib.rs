@@ -25,6 +25,8 @@ pub mod delay;
 pub mod gpio;
 #[cfg(any(feature = "5340-app", feature = "5340-net"))]
 pub mod mutex;
+#[cfg(feature = "5340-app")]
+pub mod reset;
 #[cfg(not(any(feature = "9160", feature = "5340-app")))]
 pub mod rng;
 pub mod rtc;
