@@ -214,7 +214,8 @@ impl<MODE> Pin<MODE> {
     /// *Note*: This function is only available on the nRF5340 Application core.
     #[cfg(feature = "5340-app")]
     pub fn into_network(self) {
-        self.pin_cnf().modify(|_, w| w.mcusel().variant(MCUSEL_A::NETWORKMCU));
+        self.pin_cnf()
+            .modify(|_, w| w.mcusel().variant(MCUSEL_A::NETWORKMCU));
     }
 }
 
