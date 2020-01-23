@@ -5,25 +5,32 @@
 use core::marker::PhantomData;
 
 /// Input mode (type state)
+#[derive(Debug)]
 pub struct Input<MODE> {
     _mode: PhantomData<MODE>,
 }
 
 /// Floating input (type state)
+#[derive(Debug)]
 pub struct Floating;
 /// Pulled down input (type state)
+#[derive(Debug)]
 pub struct PullDown;
 /// Pulled up input (type state)
+#[derive(Debug)]
 pub struct PullUp;
 
 /// Output mode (type state)
+#[derive(Debug)]
 pub struct Output<MODE> {
     _mode: PhantomData<MODE>,
 }
 
 /// Push pull output (type state)
+#[derive(Debug)]
 pub struct PushPull;
 /// Open drain output (type state)
+#[derive(Debug)]
 pub struct OpenDrain;
 
 // /// Alternate function
@@ -43,6 +50,7 @@ pub enum Level {
 // across all of the possible pins
 // ===============================================================
 /// Generic $PX pin
+#[derive(Debug)]
 pub struct Pin<MODE> {
     pub pin: u8,
     #[cfg(feature = "52840")]

@@ -13,8 +13,6 @@ use crate::target::{spim0, SPIM0};
 pub use embedded_hal::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};
 pub use spim0::frequency::FREQUENCYW as Frequency;
 
-use core::iter::repeat_with;
-
 #[cfg(any(feature = "52832", feature = "52840"))]
 use crate::target::{SPIM1, SPIM2};
 
@@ -29,7 +27,66 @@ use embedded_hal::digital::v2::OutputPin;
 /// - The SPIM instances share the same address space with instances of SPIS,
 ///   SPI, TWIM, TWIS, and TWI. You need to make sure that conflicting instances
 ///   are disabled before using `Spim`. See product specification, section 15.2.
+#[derive(Debug)]
 pub struct Spim<T>(T);
+
+/// An ongoing transfer that was initiated by a call to `.transfer_polling()`.
+///
+/// This transfer must be polled to completion.  Failing to poll it until completed might leave the
+/// peripheral in an inconsistent state.
+#[derive(Debug)]
+#[must_use = "This transfer must be polled to completion.  Failing to poll it until completed might leave the peripheral in an inconsistent state."]
+pub struct SpiTransfer<'a, T> {
+    state: TransferState<'a, T>,
+    chip_select: &'a mut Pin<Output<PushPull>>,
+    chunks: core::slice::ChunksMut<'a, u8>,
+}
+
+/// An ongoing transfer that was initiated by a call to `.transfer_even_polling()`.
+///
+/// This transfer must be polled to completion.  Failing to poll it until completed might leave the
+/// peripheral in an inconsistent state.
+#[derive(Debug)]
+#[must_use = "This transfer must be polled to completion.  Failing to poll it until completed might leave the peripheral in an inconsistent state."]
+pub struct SpiEvenTransfer<'a, T> {
+    state: TransferState<'a, T>,
+    chip_select: &'a mut Pin<Output<PushPull>>,
+    chunks: core::iter::Zip<core::slice::Chunks<'a, u8>, core::slice::ChunksMut<'a, u8>>,
+}
+
+/// An ongoing transfer that was initiated by a call to `.transfer_uneven_polling()`.
+///
+/// This transfer must be polled to completion.  Failing to poll it until completed might leave the
+/// peripheral in an inconsistent state.
+#[derive(Debug)]
+#[must_use = "This transfer must be polled to completion.  Failing to poll it until completed might leave the peripheral in an inconsistent state."]
+pub struct SpiUnevenTransfer<'a, T> {
+    state: TransferState<'a, T>,
+    chip_select: &'a mut Pin<Output<PushPull>>,
+    chunks_tx: core::slice::Chunks<'a, u8>,
+    chunks_rx: core::slice::ChunksMut<'a, u8>,
+}
+
+/// The state of a more advanced transfer.
+#[derive(Debug)]
+enum TransferState<'a, T> {
+    /// The spim is idle and awaiting the next chunk, no transfer is happening.
+    Idle(&'a mut T),
+    /// The spim is currently performing the specified transfer.
+    Ongoing(SpiSingleTransfer<'a, T>),
+    /// The spim transfer misbehaved, errored or panicked in a way that it cannot be completed.
+    Inconsistent,
+    /// The spim is done, and a new transfer can be started.
+    Done,
+}
+
+/// An internal structure corresponding to a single in-progress EasyDMA transfer
+#[derive(Debug)]
+struct SpiSingleTransfer<'a, T> {
+    spim: &'a mut T,
+    tx_len: u32,
+    rx_len: u32,
+}
 
 impl<T> embedded_hal::blocking::spi::Transfer<u8> for Spim<T>
 where
@@ -75,6 +132,7 @@ where
         words.chunks(chunk_sz).try_for_each(|c| step(self, c))
     }
 }
+
 impl<T> Spim<T>
 where
     T: Instance,
@@ -158,61 +216,12 @@ where
 
     /// Internal helper function to setup and execute SPIM DMA transfer
     fn do_spi_dma_transfer(&mut self, tx: DmaSlice, rx: DmaSlice) -> Result<(), Error> {
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started
-        compiler_fence(SeqCst);
+        let mut transfer = SpiSingleTransfer::new(&mut self.0, tx, rx);
 
-        // Set up the DMA write
-        self.0.txd.ptr.write(|w| unsafe { w.ptr().bits(tx.ptr) });
-
-        self.0.txd.maxcnt.write(|w|
-            // Note that that nrf52840 maxcnt is a wider
-            // type than a u8, so we use a `_` cast rather than a `u8` cast.
-            // The MAXCNT field is thus at least 8 bits wide and accepts the full
-            // range of values that fit in a `u8`.
-            unsafe { w.maxcnt().bits(tx.len as _ ) });
-
-        // Set up the DMA read
-        self.0.rxd.ptr.write(|w|
-            // This is safe for the same reasons that writing to TXD.PTR is
-            // safe. Please refer to the explanation there.
-            unsafe { w.ptr().bits(rx.ptr) });
-        self.0.rxd.maxcnt.write(|w|
-            // This is safe for the same reasons that writing to TXD.MAXCNT is
-            // safe. Please refer to the explanation there.
-            unsafe { w.maxcnt().bits(rx.len as _) });
-
-        // Start SPI transaction
-        self.0.tasks_start.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) });
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed
-        compiler_fence(SeqCst);
-
-        // Wait for END event
-        //
-        // This event is triggered once both transmitting and receiving are
-        // done.
-        while self.0.events_end.read().bits() == 0 {}
-
-        // Reset the event, otherwise it will always read `1` from now on.
-        self.0.events_end.write(|w| w);
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed
-        compiler_fence(SeqCst);
-
-        if self.0.txd.amount.read().bits() != tx.len {
-            return Err(Error::Transmit);
+        while !transfer.poll_complete()? {
+            core::sync::atomic::spin_loop_hint();
         }
-        if self.0.rxd.amount.read().bits() != rx.len {
-            return Err(Error::Receive);
-        }
+
         Ok(())
     }
 
@@ -242,18 +251,34 @@ where
         chip_select: &mut Pin<Output<PushPull>>,
         buffer: &mut [u8],
     ) -> Result<(), Error> {
-        slice_in_ram_or(buffer, Error::DMABufferNotInDataMemory)?;
+        let mut transfer = SpiTransfer::new(&mut self.0, chip_select, buffer)?;
 
-        chip_select.set_low().unwrap();
+        while !transfer.poll_complete()? {
+            core::sync::atomic::spin_loop_hint();
+        }
 
-        // Don't return early, as we must reset the CS pin
-        let res = buffer.chunks(EASY_DMA_SIZE).try_for_each(|chunk| {
-            self.do_spi_dma_transfer(DmaSlice::from_slice(chunk), DmaSlice::from_slice(chunk))
-        });
+        Ok(())
+    }
 
-        chip_select.set_high().unwrap();
-
-        res
+    /// Read and write from a SPI slave, using a single buffer.
+    ///
+    /// This is an async polling version of `transfer()`.  You need to call
+    /// `.poll_complete()` on the returned object until it returns `true`.  A
+    /// good time to do that would be after receiving a SPI interrupt, for
+    /// example.
+    ///
+    /// This method implements a complete read transaction, which consists of
+    /// the master transmitting what it wishes to read, and the slave responding
+    /// with the requested data.
+    ///
+    /// Uses the provided chip select pin to initiate the transaction. Transmits
+    /// all bytes in `buffer`, then receives an equal number of bytes.
+    pub fn transfer_polling<'a>(
+        &'a mut self,
+        chip_select: &'a mut Pin<Output<PushPull>>,
+        buffer: &'a mut [u8],
+    ) -> Result<SpiTransfer<'a, T>, Error> {
+        SpiTransfer::new(&mut self.0, chip_select, buffer)
     }
 
     /// Read and write from a SPI slave, using separate read and write buffers
@@ -273,23 +298,38 @@ where
         tx_buffer: &[u8],
         rx_buffer: &mut [u8],
     ) -> Result<(), Error> {
-        // NOTE: RAM slice check for `rx_buffer` is not necessary, as a mutable
-        // slice can only be built from data located in RAM
-        slice_in_ram_or(tx_buffer, Error::DMABufferNotInDataMemory)?;
+        let mut transfer = SpiEvenTransfer::new(&mut self.0, chip_select, tx_buffer, rx_buffer)?;
 
-        let txi = tx_buffer.chunks(EASY_DMA_SIZE);
-        let rxi = rx_buffer.chunks_mut(EASY_DMA_SIZE);
+        while !transfer.poll_complete()? {
+            core::sync::atomic::spin_loop_hint();
+        }
 
-        chip_select.set_low().unwrap();
+        Ok(())
+    }
 
-        // Don't return early, as we must reset the CS pin
-        let res = txi.zip(rxi).try_for_each(|(t, r)| {
-            self.do_spi_dma_transfer(DmaSlice::from_slice(t), DmaSlice::from_slice(r))
-        });
-
-        chip_select.set_high().unwrap();
-
-        res
+    /// Read and write from a SPI slave, using separate read and write buffers
+    ///
+    /// This is an async polling version of `transfer_split_even()`.  You need to
+    /// call `.poll_complete()` on the returned object until it returns `true`.
+    /// A good time to do that would be after receiving a SPI interrupt, for
+    /// example.
+    ///
+    /// This method implements a complete read transaction, which consists of
+    /// the master transmitting what it wishes to read, and the slave responding
+    /// with the requested data.
+    ///
+    /// Uses the provided chip select pin to initiate the transaction. Transmits
+    /// all bytes in `tx_buffer`, then receives bytes until `rx_buffer` is full.
+    ///
+    /// If `tx_buffer.len() != rx_buffer.len()`, the transaction will stop at the
+    /// smaller of either buffer.
+    pub fn transfer_split_even_polling<'a>(
+        &'a mut self,
+        chip_select: &'a mut Pin<Output<PushPull>>,
+        tx_buffer: &'a [u8],
+        rx_buffer: &'a mut [u8],
+    ) -> Result<SpiEvenTransfer<'a, T>, Error> {
+        SpiEvenTransfer::new(&mut self.0, chip_select, tx_buffer, rx_buffer)
     }
 
     /// Read and write from a SPI slave, using separate read and write buffers
@@ -311,48 +351,40 @@ where
         tx_buffer: &[u8],
         rx_buffer: &mut [u8],
     ) -> Result<(), Error> {
-        // NOTE: RAM slice check for `rx_buffer` is not necessary, as a mutable
-        // slice can only be built from data located in RAM
-        slice_in_ram_or(tx_buffer, Error::DMABufferNotInDataMemory)?;
+        let mut transfer = SpiUnevenTransfer::new(&mut self.0, chip_select, tx_buffer, rx_buffer)?;
 
-        // For the tx and rx, we want to return Some(chunk)
-        // as long as there is data to send. We then chain a repeat to
-        // the end so once all chunks have been exhausted, we will keep
-        // getting Nones out of the iterators
-        let txi = tx_buffer
-            .chunks(EASY_DMA_SIZE)
-            .map(|c| Some(c))
-            .chain(repeat_with(|| None));
+        while !transfer.poll_complete()? {
+            core::sync::atomic::spin_loop_hint();
+        }
 
-        let rxi = rx_buffer
-            .chunks_mut(EASY_DMA_SIZE)
-            .map(|c| Some(c))
-            .chain(repeat_with(|| None));
+        Ok(())
+    }
 
-        chip_select.set_low().unwrap();
-
-        // We then chain the iterators together, and once BOTH are feeding
-        // back Nones, then we are done sending and receiving
-        //
-        // Don't return early, as we must reset the CS pin
-        let res = txi
-            .zip(rxi)
-            .take_while(|(t, r)| t.is_some() && r.is_some())
-            // We also turn the slices into either a DmaSlice (if there was data), or a null
-            // DmaSlice (if there is no data)
-            .map(|(t, r)| {
-                (
-                    t.map(|t| DmaSlice::from_slice(t))
-                        .unwrap_or_else(|| DmaSlice::null()),
-                    r.map(|r| DmaSlice::from_slice(r))
-                        .unwrap_or_else(|| DmaSlice::null()),
-                )
-            })
-            .try_for_each(|(t, r)| self.do_spi_dma_transfer(t, r));
-
-        chip_select.set_high().unwrap();
-
-        res
+    /// Read and write from a SPI slave, using separate read and write buffers
+    ///
+    /// This is an async polling version of `transfer_split_uneven()`.  You need to
+    /// call `.poll_complete()` on the returned object until it returns `true`.
+    /// A good time to do that would be after receiving a SPI interrupt, for
+    /// example.
+    ///
+    /// This method implements a complete read transaction, which consists of
+    /// the master transmitting what it wishes to read, and the slave responding
+    /// with the requested data.
+    ///
+    /// Uses the provided chip select pin to initiate the transaction. Transmits
+    /// all bytes in `tx_buffer`, then receives bytes until `rx_buffer` is full.
+    ///
+    /// This method is more complicated than the other `transfer` methods because
+    /// it is allowed to perform transactions where `tx_buffer.len() != rx_buffer.len()`.
+    /// If this occurs, extra incoming bytes will be discarded, OR extra outgoing bytes
+    /// will be filled with the `orc` value.
+    pub fn transfer_split_uneven_polling<'a>(
+        &'a mut self,
+        chip_select: &'a mut Pin<Output<PushPull>>,
+        tx_buffer: &'a [u8],
+        rx_buffer: &'a mut [u8],
+    ) -> Result<SpiUnevenTransfer<'a, T>, Error> {
+        SpiUnevenTransfer::new(&mut self.0, chip_select, tx_buffer, rx_buffer)
     }
 
     /// Write to an SPI slave
@@ -372,6 +404,261 @@ where
     /// Return the raw interface to the underlying SPIM peripheral
     pub fn free(self) -> T {
         self.0
+    }
+}
+
+impl<'a, T> SpiTransfer<'a, T>
+where
+    T: Instance,
+{
+    pub fn new(
+        spim: &'a mut T,
+        chip_select: &'a mut Pin<Output<PushPull>>,
+        buffer: &'a mut [u8],
+    ) -> Result<Self, Error> {
+        slice_in_ram_or(buffer, Error::DMABufferNotInDataMemory)?;
+
+        let chunks = buffer.chunks_mut(EASY_DMA_SIZE);
+
+        chip_select.set_low().unwrap();
+
+        let state = TransferState::new(spim);
+
+        Ok(Self {
+            state,
+            chip_select,
+            chunks,
+        })
+    }
+
+    pub fn poll_complete(&mut self) -> Result<bool, Error> {
+        let chunks = &mut self.chunks;
+        self.state.advance(|| {
+            chunks
+                .next()
+                .map(|chunk| (DmaSlice::from_slice(chunk), DmaSlice::from_slice(chunk)))
+        })
+    }
+}
+
+impl<'a, T> Drop for SpiTransfer<'a, T> {
+    fn drop(&mut self) {
+        self.chip_select.set_high().unwrap();
+    }
+}
+
+impl<'a, T> SpiEvenTransfer<'a, T>
+where
+    T: Instance,
+{
+    pub fn new(
+        spim: &'a mut T,
+        chip_select: &'a mut Pin<Output<PushPull>>,
+        tx_buffer: &'a [u8],
+        rx_buffer: &'a mut [u8],
+    ) -> Result<Self, Error> {
+        // NOTE: RAM slice check for `rx_buffer` is not necessary, as a mutable
+        // slice can only be built from data located in RAM
+        slice_in_ram_or(tx_buffer, Error::DMABufferNotInDataMemory)?;
+
+        let txi = tx_buffer.chunks(EASY_DMA_SIZE);
+        let rxi = rx_buffer.chunks_mut(EASY_DMA_SIZE);
+        let chunks = txi.zip(rxi);
+
+        chip_select.set_low().unwrap();
+
+        let state = TransferState::new(spim);
+
+        Ok(Self {
+            state,
+            chip_select,
+            chunks,
+        })
+    }
+
+    pub fn poll_complete(&mut self) -> Result<bool, Error> {
+        let chunks = &mut self.chunks;
+        self.state.advance(|| {
+            chunks
+                .next()
+                .map(|(tx, rx)| (DmaSlice::from_slice(tx), DmaSlice::from_slice(rx)))
+        })
+    }
+}
+
+impl<'a, T> Drop for SpiEvenTransfer<'a, T> {
+    fn drop(&mut self) {
+        self.chip_select.set_high().unwrap();
+    }
+}
+
+impl<'a, T> SpiUnevenTransfer<'a, T>
+where
+    T: Instance,
+{
+    pub fn new(
+        spim: &'a mut T,
+        chip_select: &'a mut Pin<Output<PushPull>>,
+        tx_buffer: &'a [u8],
+        rx_buffer: &'a mut [u8],
+    ) -> Result<Self, Error> {
+        // NOTE: RAM slice check for `rx_buffer` is not necessary, as a mutable
+        // slice can only be built from data located in RAM
+        slice_in_ram_or(tx_buffer, Error::DMABufferNotInDataMemory)?;
+
+        let chunks_tx = tx_buffer.chunks(EASY_DMA_SIZE);
+        let chunks_rx = rx_buffer.chunks_mut(EASY_DMA_SIZE);
+
+        chip_select.set_low().unwrap();
+
+        let state = TransferState::new(spim);
+
+        Ok(Self {
+            state,
+            chip_select,
+            chunks_tx,
+            chunks_rx,
+        })
+    }
+
+    pub fn poll_complete(&mut self) -> Result<bool, Error> {
+        let chunks_tx = &mut self.chunks_tx;
+        let chunks_rx = &mut self.chunks_rx;
+        self.state
+            .advance(|| match (chunks_tx.next(), chunks_rx.next()) {
+                (None, None) => None,
+                (tx, rx) => Some((
+                    tx.map(|tx| DmaSlice::from_slice(tx))
+                        .unwrap_or(DmaSlice::null()),
+                    rx.map(|rx| DmaSlice::from_slice(rx))
+                        .unwrap_or(DmaSlice::null()),
+                )),
+            })
+    }
+}
+
+impl<'a, T> Drop for SpiUnevenTransfer<'a, T> {
+    fn drop(&mut self) {
+        self.chip_select.set_high().unwrap();
+    }
+}
+
+impl<'a, T> TransferState<'a, T>
+where
+    T: Instance,
+{
+    fn new(spim: &'a mut T) -> Self {
+        TransferState::Idle(spim)
+    }
+
+    fn advance(
+        &mut self,
+        mut next_chunk: impl FnMut() -> Option<(DmaSlice, DmaSlice)>,
+    ) -> Result<bool, Error> {
+        loop {
+            match core::mem::replace(self, TransferState::Inconsistent) {
+                TransferState::Idle(spim) => match next_chunk() {
+                    Some((tx, rx)) => {
+                        let transfer = SpiSingleTransfer::new(spim, tx, rx);
+                        *self = TransferState::Ongoing(transfer);
+                        return Ok(false);
+                    }
+                    None => *self = TransferState::Done,
+                },
+                TransferState::Ongoing(mut transfer) => {
+                    if transfer.poll_complete()? {
+                        *self = TransferState::Idle(transfer.spim)
+                    } else {
+                        *self = TransferState::Ongoing(transfer);
+                        return Ok(false);
+                    }
+                }
+                TransferState::Done => {
+                    *self = TransferState::Done;
+                    return Ok(true);
+                }
+                TransferState::Inconsistent => return Err(Error::InconsistentState),
+            }
+        }
+    }
+}
+
+impl<'a, T> SpiSingleTransfer<'a, T>
+where
+    T: Instance,
+{
+    fn new(spim: &'a mut T, tx: DmaSlice, rx: DmaSlice) -> Self {
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // before any DMA action has started
+        compiler_fence(SeqCst);
+
+        // Set up the DMA write
+        spim.txd.ptr.write(|w| unsafe { w.ptr().bits(tx.ptr) });
+
+        spim.txd.maxcnt.write(|w|
+            // Note that that nrf52840 maxcnt is a wider
+            // type than a u8, so we use a `_` cast rather than a `u8` cast.
+            // The MAXCNT field is thus at least 8 bits wide and accepts the full
+            // range of values that fit in a `u8`.
+            unsafe { w.maxcnt().bits(tx.len as _) });
+
+        // Set up the DMA read
+        spim.rxd.ptr.write(|w|
+            // This is safe for the same reasons that writing to TXD.PTR is
+            // safe. Please refer to the explanation there.
+            unsafe { w.ptr().bits(rx.ptr) });
+        spim.rxd.maxcnt.write(|w|
+            // This is safe for the same reasons that writing to TXD.MAXCNT is
+            // safe. Please refer to the explanation there.
+            unsafe { w.maxcnt().bits(rx.len as _) });
+
+        // Start SPI transaction
+        spim.tasks_start.write(|w|
+            // `1` is a valid value to write to task registers.
+            unsafe { w.bits(1) });
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // after all possible DMA actions have completed
+        compiler_fence(SeqCst);
+
+        let tx_len = tx.len;
+        let rx_len = rx.len;
+
+        SpiSingleTransfer {
+            spim,
+            tx_len,
+            rx_len,
+        }
+    }
+
+    fn poll_complete(&mut self) -> Result<bool, Error> {
+        // Check for END event
+        //
+        // This event is triggered once both transmitting and receiving are
+        // done.
+        if self.spim.events_end.read().bits() == 0 {
+            // Reset the event, otherwise it will always read `1` from now on.
+            self.spim.events_end.write(|w| w);
+
+            // Conservative compiler fence to prevent optimizations that do not
+            // take in to account actions by DMA. The fence has been placed here,
+            // after all possible DMA actions have completed
+            compiler_fence(SeqCst);
+
+            if self.spim.txd.amount.read().bits() != self.tx_len {
+                return Err(Error::Transmit);
+            }
+
+            if self.spim.rxd.amount.read().bits() != self.rx_len {
+                return Err(Error::Receive);
+            }
+
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
@@ -397,6 +684,8 @@ pub enum Error {
     DMABufferNotInDataMemory,
     Transmit,
     Receive,
+    /// The peripheral is in an inconsistent state, because of encountering an error mid-transfer.
+    InconsistentState,
 }
 
 /// Implemented by all SPIM instances
