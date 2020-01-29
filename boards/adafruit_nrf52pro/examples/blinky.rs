@@ -12,7 +12,7 @@ use adafruit_nrf52pro_bsc::hal::{
     prelude::*,
     timer::{self, Timer},
 };
-use adafruit_nrf52pro_bsc::nrf52832_pac::Peripherals;
+use adafruit_nrf52pro_bsc::pac::Peripherals;
 use adafruit_nrf52pro_bsc::Pins;
 
 #[entry]

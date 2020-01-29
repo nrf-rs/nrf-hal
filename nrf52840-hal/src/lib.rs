@@ -1,7 +1,7 @@
 #![no_std]
 
 use embedded_hal as hal;
-pub use nrf52840_pac;
+pub use nrf52840_pac as pac;
 pub use nrf52_hal_common::*;
 
 pub mod prelude {
