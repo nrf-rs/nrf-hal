@@ -1,6 +1,6 @@
 #![no_std]
 use crate::hal::gpio::{p0, Floating, Input};
-pub use crate::hal::nrf52832_pac;
+pub use crate::hal::pac;
 pub use nrf52832_hal as hal;
 
 /// Maps the pins to the names printed on the device
