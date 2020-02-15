@@ -671,7 +671,7 @@ pub enum Error {
     DMABufferNotInDataMemory,
     Transmit,
     Receive,
-    /// The peripheral is in an inconsistent state, because of encountering an error mid-transfer.
+    /// The peripheral is in an inconsistent state, because it encountered an error mid-transfer.
     InconsistentState,
 }
 
