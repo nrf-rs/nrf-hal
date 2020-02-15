@@ -359,6 +359,7 @@ where
     T: Instance,
 {
     fn new(spim: &'a mut T, chip_select: &'a mut Pin<Output<PushPull>>) -> Self {
+        chip_select.set_low().unwrap();
         Self { spim, chip_select }
     }
 
