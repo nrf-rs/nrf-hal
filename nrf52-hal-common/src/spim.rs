@@ -2,6 +2,7 @@
 //!
 //! See product specification, chapter 31.
 use core::iter;
+use core::mem;
 use core::ops::Deref;
 use core::slice;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
@@ -550,7 +551,7 @@ impl TransferState {
         T: Instance,
     {
         loop {
-            match core::mem::replace(self, TransferState::Inconsistent) {
+            match mem::replace(self, TransferState::Inconsistent) {
                 TransferState::Done => match next_chunk() {
                     Some((tx, rx)) => {
                         let transfer = SpiSingleTransfer::new(spim, tx, rx);
