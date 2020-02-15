@@ -5,7 +5,7 @@ use core::iter;
 use core::mem;
 use core::ops::Deref;
 use core::slice;
-use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
+use core::sync::atomic::{compiler_fence, spin_loop_hint, Ordering::SeqCst};
 
 #[cfg(feature = "9160")]
 use crate::target::{spim0_ns as spim0, SPIM0_NS as SPIM0};
@@ -226,7 +226,7 @@ where
         let mut transfer = SpiSingleTransfer::new(&mut self.0, tx, rx);
 
         while !transfer.poll_complete(&mut self.0)? {
-            core::sync::atomic::spin_loop_hint();
+            spin_loop_hint();
         }
 
         Ok(())
@@ -272,7 +272,7 @@ where
         let mut transfer = tx.transfer_polling(buffer)?;
 
         while !transfer.poll_complete()? {
-            core::sync::atomic::spin_loop_hint();
+            spin_loop_hint();
         }
 
         Ok(())
@@ -299,7 +299,7 @@ where
         let mut transfer = tx.transfer_split_even_polling(tx_buffer, rx_buffer)?;
 
         while !transfer.poll_complete()? {
-            core::sync::atomic::spin_loop_hint();
+            spin_loop_hint();
         }
 
         Ok(())
@@ -328,7 +328,7 @@ where
         let mut transfer = tx.transfer_split_uneven_polling(tx_buffer, rx_buffer)?;
 
         while !transfer.poll_complete()? {
-            core::sync::atomic::spin_loop_hint();
+            spin_loop_hint();
         }
 
         Ok(())
