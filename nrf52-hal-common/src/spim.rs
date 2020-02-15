@@ -1,7 +1,9 @@
 //! HAL interface to the SPIM peripheral
 //!
 //! See product specification, chapter 31.
+use core::iter;
 use core::ops::Deref;
+use core::slice;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
 #[cfg(feature = "9160")]
@@ -46,7 +48,7 @@ pub struct SpiTransaction<'a, T> {
 pub struct SpiTransfer<'a, T> {
     spim: &'a mut T,
     state: TransferState,
-    chunks: core::slice::ChunksMut<'a, u8>,
+    chunks: slice::ChunksMut<'a, u8>,
 }
 
 /// An ongoing transfer that was initiated by a call to `.transfer_even_polling()`.
@@ -58,7 +60,7 @@ pub struct SpiTransfer<'a, T> {
 pub struct SpiEvenTransfer<'a, T> {
     spim: &'a mut T,
     state: TransferState,
-    chunks: core::iter::Zip<core::slice::Chunks<'a, u8>, core::slice::ChunksMut<'a, u8>>,
+    chunks: iter::Zip<slice::Chunks<'a, u8>, slice::ChunksMut<'a, u8>>,
 }
 
 /// An ongoing transfer that was initiated by a call to `.transfer_uneven_polling()`.
@@ -70,8 +72,8 @@ pub struct SpiEvenTransfer<'a, T> {
 pub struct SpiUnevenTransfer<'a, T> {
     spim: &'a mut T,
     state: TransferState,
-    chunks_tx: core::slice::Chunks<'a, u8>,
-    chunks_rx: core::slice::ChunksMut<'a, u8>,
+    chunks_tx: slice::Chunks<'a, u8>,
+    chunks_rx: slice::ChunksMut<'a, u8>,
 }
 
 /// The state of a more advanced transfer.
