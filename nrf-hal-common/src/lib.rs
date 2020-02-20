@@ -79,6 +79,8 @@ pub mod uarte;
 #[cfg(not(feature = "9160"))]
 pub mod uicr;
 pub mod wdt;
+#[cfg(feature = "52840")]
+pub mod usbd;
 
 pub mod prelude {
     pub use crate::hal::digital::v2::*;

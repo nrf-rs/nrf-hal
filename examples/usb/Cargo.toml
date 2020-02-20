@@ -1,0 +1,18 @@
+[package]
+name = "usb"
+version = "0.1.0"
+authors = ["Jonas Schievink <jonasschievink@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+cortex-m = "0.6.2"
+cortex-m-rt = "0.6.12"
+cortex-m-semihosting = "0.3.5"
+panic-semihosting = "0.5.3"
+nrf52840-pac = "0.8.0"
+usb-device = "0.2.5"
+usbd-serial = "0.1.0"
+
+[dependencies.nrf52840-hal]
+version = "0.8.0"
+path = "../../nrf52840-hal"
