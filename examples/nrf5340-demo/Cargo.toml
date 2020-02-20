@@ -1,0 +1,28 @@
+[package]
+name = "nrf5340-demo"
+version = "0.1.0"
+authors = ["Jonas Schievink <jonasschievink@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+cortex-m = "0.6.1"
+cortex-m-rt = "0.6.11"
+cortex-m-semihosting = "0.3.5"
+panic-semihosting = "0.5.3"
+
+[dependencies.embedded-hal]
+version = "0.2"
+
+[dependencies.nrf5340-app-hal]
+version = "0.0.0"
+path = "../../nrf5340-app-hal"
+optional = true
+
+[dependencies.nrf5340-net-hal]
+version = "0.0.0"
+path = "../../nrf5340-net-hal"
+optional = true
+
+[features]
+app = ["nrf5340-app-hal"]
+net = ["nrf5340-net-hal"]
