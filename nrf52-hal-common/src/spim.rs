@@ -270,14 +270,9 @@ where
         chip_select: &mut Pin<Output<PushPull>>,
         buffer: &mut [u8],
     ) -> Result<(), Error> {
-        let mut tx = self.transaction(chip_select);
-        let mut transfer = tx.transfer_polling(buffer)?;
-
-        while !transfer.poll_complete()? {
-            spin_loop_hint();
-        }
-
-        Ok(())
+        self.transaction(chip_select)
+            .transfer_polling(buffer)?
+            .block_until_complete()
     }
 
     /// Read and write from a SPI slave, using separate read and write buffers
@@ -297,14 +292,9 @@ where
         tx_buffer: &[u8],
         rx_buffer: &mut [u8],
     ) -> Result<(), Error> {
-        let mut tx = self.transaction(chip_select);
-        let mut transfer = tx.transfer_split_even_polling(tx_buffer, rx_buffer)?;
-
-        while !transfer.poll_complete()? {
-            spin_loop_hint();
-        }
-
-        Ok(())
+        self.transaction(chip_select)
+            .transfer_split_even_polling(tx_buffer, rx_buffer)?
+            .block_until_complete()
     }
 
     /// Read and write from a SPI slave, using separate read and write buffers
@@ -326,14 +316,9 @@ where
         tx_buffer: &[u8],
         rx_buffer: &mut [u8],
     ) -> Result<(), Error> {
-        let mut tx = self.transaction(chip_select);
-        let mut transfer = tx.transfer_split_uneven_polling(tx_buffer, rx_buffer)?;
-
-        while !transfer.poll_complete()? {
-            spin_loop_hint();
-        }
-
-        Ok(())
+        self.transaction(chip_select)
+            .transfer_split_uneven_polling(tx_buffer, rx_buffer)?
+            .block_until_complete()
     }
 
     /// Write to an SPI slave
@@ -460,6 +445,11 @@ where
         })
     }
 
+    pub fn block_until_complete(&mut self) -> Result<(), Error> {
+        while !self.poll_complete()? {}
+        Ok(())
+    }
+
     pub fn poll_complete(&mut self) -> Result<bool, Error> {
         let chunks = &mut self.chunks;
         self.state.advance(self.spim, || {
@@ -492,6 +482,11 @@ where
         })
     }
 
+    pub fn block_until_complete(&mut self) -> Result<(), Error> {
+        while !self.poll_complete()? {}
+        Ok(())
+    }
+
     pub fn poll_complete(&mut self) -> Result<bool, Error> {
         let chunks = &mut self.chunks;
         self.state.advance(self.spim, || {
@@ -522,6 +517,11 @@ where
             chunks_tx,
             chunks_rx,
         })
+    }
+
+    pub fn block_until_complete(&mut self) -> Result<(), Error> {
+        while !self.poll_complete()? {}
+        Ok(())
     }
 
     pub fn poll_complete(&mut self) -> Result<bool, Error> {
