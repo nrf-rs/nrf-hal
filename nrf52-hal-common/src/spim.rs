@@ -443,7 +443,7 @@ where
         })
     }
 
-    pub fn block_until_complete(&mut self) -> Result<(), Error> {
+    pub fn block_until_complete(mut self) -> Result<(), Error> {
         while !self.poll_complete()? {}
         Ok(())
     }
@@ -480,7 +480,7 @@ where
         })
     }
 
-    pub fn block_until_complete(&mut self) -> Result<(), Error> {
+    pub fn block_until_complete(mut self) -> Result<(), Error> {
         while !self.poll_complete()? {}
         Ok(())
     }
@@ -517,7 +517,7 @@ where
         })
     }
 
-    pub fn block_until_complete(&mut self) -> Result<(), Error> {
+    pub fn block_until_complete(mut self) -> Result<(), Error> {
         while !self.poll_complete()? {}
         Ok(())
     }
