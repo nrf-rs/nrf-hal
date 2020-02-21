@@ -40,7 +40,7 @@ pub struct SpiTransaction<'a, T> {
     spim: &'a mut T,
 }
 
-/// An ongoing transfer that was initiated by a call to `.transfer_polling()`.
+/// An ongoing transfer that was initiated by a call to `SpiTransaction::transfer_polling()`.
 ///
 /// This transfer must be polled to completion.  Failing to poll it until completed might leave the
 /// peripheral in an inconsistent state.
@@ -52,7 +52,8 @@ pub struct SpiTransfer<'a, T> {
     chunks: slice::ChunksMut<'a, u8>,
 }
 
-/// An ongoing transfer that was initiated by a call to `.transfer_even_polling()`.
+/// An ongoing transfer that was initiated by a call to
+/// `SpiTransaction::transfer_split_even_polling()`.
 ///
 /// This transfer must be polled to completion.  Failing to poll it until completed might leave the
 /// peripheral in an inconsistent state.
@@ -64,7 +65,8 @@ pub struct SpiEvenTransfer<'a, T> {
     chunks: iter::Zip<slice::Chunks<'a, u8>, slice::ChunksMut<'a, u8>>,
 }
 
-/// An ongoing transfer that was initiated by a call to `.transfer_uneven_polling()`.
+/// An ongoing transfer that was initiated by a call to
+/// `SpiTransaction::transfer_split_uneven_polling()`.
 ///
 /// This transfer must be polled to completion.  Failing to poll it until completed might leave the
 /// peripheral in an inconsistent state.
