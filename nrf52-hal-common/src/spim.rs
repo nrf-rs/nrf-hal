@@ -5,7 +5,7 @@ use core::iter;
 use core::mem;
 use core::ops::Deref;
 use core::slice;
-use core::sync::atomic::{compiler_fence, spin_loop_hint, Ordering::SeqCst};
+use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
 #[cfg(feature = "9160")]
 use crate::target::{spim0_ns as spim0, SPIM0_NS as SPIM0};
@@ -227,9 +227,7 @@ where
     fn do_spi_dma_transfer(&mut self, tx: DmaSlice, rx: DmaSlice) -> Result<(), Error> {
         let mut transfer = SpiSingleTransfer::new(&mut self.0, tx, rx);
 
-        while !transfer.poll_complete(&mut self.0)? {
-            spin_loop_hint();
-        }
+        while !transfer.poll_complete(&mut self.0)? {}
 
         Ok(())
     }
