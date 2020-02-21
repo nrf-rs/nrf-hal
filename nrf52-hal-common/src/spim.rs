@@ -307,7 +307,7 @@ where
     /// This method is more complicated than the other `transfer` methods because
     /// it is allowed to perform transactions where `tx_buffer.len() != rx_buffer.len()`.
     /// If this occurs, extra incoming bytes will be discarded, OR extra outgoing bytes
-    /// will be filled with the `orc` value.
+    /// will be filled with the `orc` value supplied in `new()`.
     pub fn transfer_split_uneven(
         &mut self,
         chip_select: &mut Pin<Output<PushPull>>,
@@ -350,10 +350,10 @@ where
 
     /// Read and write from a SPI slave, using a single buffer.
     ///
-    /// This is an async polling version of `transfer()`.  You need to call
-    /// `.poll_complete()` on the returned object until it returns `true`.  A
-    /// good time to do that would be after receiving a SPI interrupt, for
-    /// example.
+    /// This is an async polling version of `Spim::transfer()`.  You need to call
+    /// `.poll_complete()` or `.block_until_complete()` on the returned object
+    /// until it returns `true`.  A good time to do that would be after receiving a SPI
+    /// interrupt, for example.
     ///
     /// This method implements a complete read transaction, which consists of
     /// the master transmitting what it wishes to read, and the slave responding
@@ -370,10 +370,10 @@ where
 
     /// Read and write from a SPI slave, using separate read and write buffers
     ///
-    /// This is an async polling version of `transfer_split_even()`.  You need to
-    /// call `.poll_complete()` on the returned object until it returns `true`.
-    /// A good time to do that would be after receiving a SPI interrupt, for
-    /// example.
+    /// This is an async polling version of `Spim::transfer_split_even()`.  You need to
+    /// call `.poll_complete()` or `.block_until_complete()` on the returned object
+    /// until it returns `true`.  A good time to do that would be after receiving a SPI
+    /// interrupt, for example.
     ///
     /// This method implements a complete read transaction, which consists of
     /// the master transmitting what it wishes to read, and the slave responding
@@ -394,10 +394,10 @@ where
 
     /// Read and write from a SPI slave, using separate read and write buffers
     ///
-    /// This is an async polling version of `transfer_split_uneven()`.  You need to
-    /// call `.poll_complete()` on the returned object until it returns `true`.
-    /// A good time to do that would be after receiving a SPI interrupt, for
-    /// example.
+    /// This is an async polling version of `Spim::transfer_split_uneven()`.  You need to
+    /// call `.poll_complete()` or `.block_until_complete()` on the returned object
+    /// until it returns `true`.  A good time to do that would be after receiving a SPI
+    /// interrupt, for example.
     ///
     /// This method implements a complete read transaction, which consists of
     /// the master transmitting what it wishes to read, and the slave responding
@@ -409,7 +409,7 @@ where
     /// This method is more complicated than the other `transfer` methods because
     /// it is allowed to perform transactions where `tx_buffer.len() != rx_buffer.len()`.
     /// If this occurs, extra incoming bytes will be discarded, OR extra outgoing bytes
-    /// will be filled with the `orc` value.
+    /// will be filled with the `orc` value supplied in `Spim::new()`.
     pub fn transfer_split_uneven_polling<'b>(
         &'b mut self,
         tx_buffer: &'b [u8],
