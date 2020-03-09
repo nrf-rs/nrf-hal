@@ -13,6 +13,7 @@ members = [
   "examples/rtfm-demo",
   "examples/spi-demo",
   "examples/twi-ssd1306",
+  "examples/usb",
 ]
 
 [profile.dev]
@@ -26,3 +27,6 @@ debug = true
 lto = true
 opt-level = "s"
 
+[patch.crates-io.usb-device]
+git = "https://github.com/jonas-schievink/usb-device.git"
+branch = "inhibit-setaddr-resp"
