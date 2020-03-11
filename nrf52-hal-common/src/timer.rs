@@ -17,8 +17,9 @@ use embedded_hal::{prelude::*, timer};
 use nb::{self, block};
 use void::{unreachable, Void};
 
-#[cfg(any(feature = "52832", feature = "52840"))]
-use crate::target::{TIMER3, TIMER4};
+// TODO: TIMER3 and TIMER4 are now timer3::RegisterBlock incompatible with timer0::RegisterBlock
+// #[cfg(any(feature = "52832", feature = "52840"))]
+// use crate::target::{timer3, TIMER3, TIMER4};
 
 use core::marker::PhantomData;
 
@@ -229,7 +230,7 @@ where
 
 impl<T> timer::Periodic for Timer<T, Periodic> where T: Instance {}
 
-/// Implemented by all `TIMER` instances
+/// Implemented by all `timer0::TIMER` instances
 pub trait Instance: Deref<Target = timer0::RegisterBlock> {
     /// This interrupt associated with this RTC instance
     const INTERRUPT: Interrupt;
@@ -247,5 +248,6 @@ macro_rules! impl_instance {
 
 impl_instance!(TIMER0, TIMER1, TIMER2,);
 
-#[cfg(any(feature = "52832", feature = "52840"))]
-impl_instance!(TIMER3, TIMER4,);
+// TODO: TIMER3 and TIMER4 are now timer3::RegisterBlock incompatible with timer0::RegisterBlock
+// #[cfg(any(feature = "52832", feature = "52840"))]
+// impl_instance!(TIMER3, TIMER4,);
