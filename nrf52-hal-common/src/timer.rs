@@ -4,8 +4,7 @@
 
 #[cfg(feature = "9160")]
 use crate::target::{
-    timer0_ns as timer0, Interrupt, NVIC, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1,
-    TIMER2_NS as TIMER2,
+    Interrupt, NVIC, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1, TIMER2_NS as TIMER2,
 };
 
 #[cfg(not(feature = "9160"))]
