@@ -192,7 +192,8 @@ pub trait Instance {
     const INTERRUPT: Interrupt;
 
     fn timer_start<Time>(&self, cycles: Time)
-    where Time: Into<u32>;
+    where
+        Time: Into<u32>;
 
     fn timer_reset_event(&self);
 
@@ -236,53 +237,53 @@ macro_rules! impl_instance {
                     // active after this method exits, then the next call to `wait` will
                     // return immediately, no matter how much time has actually passed.
                     self.events_compare[0].reset();
-            
+
                     // Configure timer to trigger EVENTS_COMPARE when given number of cycles
                     // is reached.
                     self.cc[0].write(|w|
                         // The timer mode was set to 32 bits above, so all possible values
                         // of `cycles` are valid.
                         unsafe { w.cc().bits(cycles.into()) });
-            
+
                     // Clear the counter value
                     self.tasks_clear.write(|w| unsafe { w.bits(1) });
-            
+
                     // Start the timer
                     self.tasks_start.write(|w| unsafe { w.bits(1) });
                 }
-            
+
                 fn timer_reset_event(&self) {
                     self.events_compare[0].write(|w| w);
                 }
-            
+
                 fn timer_cancel(&self) {
                     self.tasks_stop.write(|w| unsafe { w.bits(1) });
                     self.timer_reset_event();
                 }
-            
+
                 fn timer_running(&self) -> bool {
                     self.events_compare[0].read().bits() == 0
                 }
-            
+
                 fn read_counter(&self) -> u32 {
                     self.tasks_capture[1].write(|w| unsafe { w.bits(1) });
                     self.cc[1].read().bits()
                 }
-            
+
                 fn disable_interrupt(&self) {
                     self.intenclr.modify(|_, w| w.compare0().clear());
                 }
-            
+
                 fn enable_interrupt(&self) {
                     self.intenset.modify(|_, w| w.compare0().set());
                 }
-            
+
                 fn set_shorts_periodic(&self) {
                     self
                     .shorts
                     .write(|w| w.compare0_clear().enabled().compare0_stop().disabled());
                 }
-            
+
                 fn set_shorts_oneshot(&self) {
                     self
                     .shorts
