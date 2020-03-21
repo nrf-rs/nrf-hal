@@ -4,11 +4,11 @@
 
 #[cfg(feature = "9160")]
 use crate::target::{
-    Interrupt, NVIC, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1, TIMER2_NS as TIMER2,
+    Interrupt, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1, TIMER2_NS as TIMER2,
 };
 
 #[cfg(not(feature = "9160"))]
-use crate::target::{Interrupt, NVIC, TIMER0, TIMER1, TIMER2};
+use crate::target::{Interrupt, TIMER0, TIMER1, TIMER2};
 
 use embedded_hal::{prelude::*, timer};
 use nb::{self, block};
@@ -90,18 +90,13 @@ where
     /// Enables an interrupt that is fired when the timer reaches the value that
     /// is given as an argument to `start`.
     ///
-    /// If access to the NVIC is not provided, the interrupt must ALSO be enabled
-    /// there outside of this function (e.g. manually call `nvic.enable`, or through
-    /// the use of RTFM).
-    pub fn enable_interrupt(&mut self, nvic: Option<&mut NVIC>) {
+    /// Note that the interrupt also has to be unmasked in the NVIC, or the
+    /// handler won't get called.
+    pub fn enable_interrupt(&mut self) {
         // As of this writing, the timer code only uses
         // `cc[0]`/`events_compare[0]`. If the code is extended to use other
         // compare registers, the following needs to be adapted.
         self.0.enable_interrupt();
-
-        if let Some(_nvic) = nvic {
-            unsafe { NVIC::unmask(T::INTERRUPT) };
-        }
     }
 
     /// Disables the interrupt for this timer
@@ -109,18 +104,13 @@ where
     /// Disables an interrupt that is fired when the timer reaches the value
     /// that is given as an argument to `start`.
     ///
-    /// If access to the NVIC is not provided, the interrupt must ALSO be disabled
-    /// there outside of this function (e.g. manually call `nvic.disable`, or through
-    /// the use of RTFM).
-    pub fn disable_interrupt(&mut self, nvic: Option<&mut NVIC>) {
+    /// Note that the interrupt also has to be unmasked in the NVIC, or the
+    /// handler won't get called.
+    pub fn disable_interrupt(&mut self) {
         // As of this writing, the timer code only uses
         // `cc[0]`/`events_compare[0]`. If the code is extended to use other
         // compare registers, the following needs to be adapted.
         self.0.disable_interrupt();
-
-        if let Some(_nvic) = nvic {
-            NVIC::mask(T::INTERRUPT);
-        }
     }
 
     pub fn delay(&mut self, cycles: u32) {
