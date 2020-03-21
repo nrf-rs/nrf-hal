@@ -3,17 +3,27 @@
 
 use panic_semihosting as _;
 
+use cortex_m::peripheral::SCB;
 use cortex_m_rt::entry;
 use cortex_m_semihosting::hprintln;
-use nrf52840_hal::usb::Usb;
-use nrf52840_pac::Peripherals;
+use nrf52840_hal::gpio::{p0, p1, Level};
+use nrf52840_hal::prelude::*;
+use nrf52840_hal::timer::{OneShot, Timer};
+use nrf52840_hal::usbd::Usbd;
+use nrf52840_pac::{interrupt, Peripherals, TIMER0};
 use usb_device::device::{UsbDeviceBuilder, UsbDeviceState, UsbVidPid};
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
+
+#[interrupt]
+fn TIMER0() {
+    SCB::sys_reset();
+}
 
 #[entry]
 fn main() -> ! {
     static mut EP_BUF: [u8; 256] = [0; 256];
 
+    let core = cortex_m::Peripherals::take().unwrap();
     let periph = Peripherals::take().unwrap();
     while !periph
         .POWER
@@ -23,7 +33,22 @@ fn main() -> ! {
         .is_vbus_present()
     {}
 
-    let usb_bus = Usb::new_alloc(periph.USBD, EP_BUF);
+    let mut nvic = core.NVIC;
+    let mut timer = Timer::one_shot(periph.TIMER0);
+    let usbd = periph.USBD;
+    let p0 = p0::Parts::new(periph.P0);
+    let p1 = p1::Parts::new(periph.P1);
+
+    let mut led = p0.p0_23.into_push_pull_output(Level::High);
+    let btn = p1.p1_00.into_pullup_input();
+    while btn.is_high().unwrap() {}
+
+    timer.enable_interrupt(Some(&mut nvic));
+    timer.start(Timer::<TIMER0, OneShot>::TICKS_PER_SECOND * 3);
+
+    led.set_low().unwrap();
+
+    let usb_bus = Usbd::new_alloc(usbd, EP_BUF);
     let mut serial = SerialPort::new(&usb_bus);
 
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x16c0, 0x27dd))

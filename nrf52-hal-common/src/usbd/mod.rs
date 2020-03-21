@@ -6,6 +6,8 @@
 //!   * Different events are used to initiate transfers.
 //!   * No notification when the status stage is ACK'd.
 
+mod errata;
+
 use crate::target::USBD;
 use core::sync::atomic::{compiler_fence, Ordering};
 use core::{cell::Cell, mem, ptr, slice};
@@ -15,6 +17,14 @@ use usb_device::{
     endpoint::{EndpointAddress, EndpointType},
     UsbDirection, UsbError,
 };
+
+fn dma_start() {
+    compiler_fence(Ordering::Release);
+}
+
+fn dma_end() {
+    compiler_fence(Ordering::Acquire);
+}
 
 struct Buffers {
     // Ptr and size is stored separately to save space
@@ -39,13 +49,8 @@ impl Buffers {
 
 unsafe impl Sync for Buffers {}
 
-/// Writes `val` to `addr`. Used to apply Errata workarounds.
-unsafe fn poke(addr: u32, val: u32) {
-    *(addr as *mut u32) = val;
-}
-
 /// USB device implementation.
-pub struct Usb {
+pub struct Usbd {
     periph: Mutex<USBD>,
     unalloc_buffers: &'static mut [u8],
     bufs: Buffers,
@@ -62,7 +67,7 @@ pub struct Usb {
     in_bufs_in_use: Mutex<Cell<u16>>,
 }
 
-impl Usb {
+impl Usbd {
     /// Creates a new USB bus, taking ownership of the raw peripheral.
     ///
     /// # Parameters
@@ -156,7 +161,7 @@ impl Usb {
     }
 }
 
-impl UsbBus for Usb {
+impl UsbBus for Usbd {
     fn alloc_ep(
         &mut self,
         ep_dir: UsbDirection,
@@ -253,12 +258,7 @@ impl UsbBus for Usb {
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
 
-            // Work around Erratum 187 on chip revision 1.
-            unsafe {
-                poke(0x4006EC00, 0x00009375);
-                poke(0x4006ED14, 0x00000003);
-                poke(0x4006EC00, 0x00009375);
-            }
+            errata::pre_enable();
 
             regs.enable.write(|w| w.enable().enabled());
 
@@ -266,11 +266,7 @@ impl UsbBus for Usb {
             while !regs.eventcause.read().ready().is_ready() {}
             regs.eventcause.write(|w| w.ready().set_bit()); // Write 1 to clear.
 
-            unsafe {
-                poke(0x4006EC00, 0x00009375);
-                poke(0x4006ED14, 0x00000000);
-                poke(0x4006EC00, 0x00009375);
-            }
+            errata::post_enable();
 
             // Enable the USB pullup, allowing enumeration.
             regs.usbpullup.write(|w| w.connect().enabled());
@@ -419,7 +415,7 @@ impl UsbBus for Usb {
             }
 
             // Kick off device -> host transmission. This starts DMA, so a compiler fence is needed.
-            compiler_fence(Ordering::AcqRel);
+            dma_start();
             regs.tasks_startepin[i].write(|w| w.tasks_startepin().set_bit());
 
             Ok(buf.len())
@@ -486,7 +482,7 @@ impl UsbBus for Usb {
             // Done copying. Now we need to allow the EP to receive the next packet (ie. clear NAK).
             // This is done by writing anything to `SIZE.EPOUT[i]`.
             // Safety note: This effectively starts DMA, so we need a corresponding barrier.
-            compiler_fence(Ordering::AcqRel);
+            dma_start();
             regs.size.epout[i].reset();
 
             Ok(usize::from(len))
@@ -528,9 +524,14 @@ impl UsbBus for Usb {
 
     #[inline]
     fn resume(&self) {
-        // This is called when the *host* wakes us up. We don't need to do anything in this case,
-        // the peripheral handles it for us. Device-initiated remote wakeup is also supported by it,
-        // but we don't expose that for now.
+        interrupt::free(|cs| {
+            let regs = self.periph.borrow(cs);
+
+            errata::pre_wakeup();
+
+            regs.lowpower.write(|w| w.lowpower().force_normal());
+            
+        });
     }
 
     fn poll(&self) -> PollResult {
@@ -558,24 +559,26 @@ impl UsbBus for Usb {
             let mut in_complete = 0;
             let mut out_complete = 0;
             for i in 0..=7 {
-                if i == 0 && false {
+                if i == 0 {
                     if regs
                         .events_ep0datadone
                         .read()
                         .events_ep0datadone()
                         .bit_is_set()
                     {
+                        dma_end();
+
                         // Clear event, since we must only report this once.
                         regs.events_ep0datadone.reset();
                         in_complete |= 1 << i;
 
                         // The associated buffer is free again.
                         in_bufs_in_use.set(in_bufs_in_use.get() & !(1 << i));
-
-                        unimplemented!();
                     }
                 } else {
                     if regs.events_endepin[i].read().events_endepin().bit_is_set() {
+                        dma_end();
+
                         // Clear event, since we must only report this once.
                         regs.events_endepin[i].reset();
                         in_complete |= 1 << i;

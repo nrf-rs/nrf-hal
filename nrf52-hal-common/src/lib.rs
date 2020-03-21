@@ -29,7 +29,7 @@ pub mod timer;
 pub mod twim;
 pub mod uarte;
 #[cfg(feature = "52840")]
-pub mod usb;
+pub mod usbd;
 
 pub mod prelude {
     pub use crate::hal::digital::v2::*;
