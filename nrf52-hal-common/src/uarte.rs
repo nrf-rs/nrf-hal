@@ -26,7 +26,7 @@ use crate::target_constants::EASY_DMA_SIZE;
 use crate::timer::{self, Timer};
 
 // Re-export SVD variants to allow user to directly set values
-pub use uarte0::{baudrate::BAUDRATEW as Baudrate, config::PARITYW as Parity};
+pub use uarte0::{baudrate::BAUDRATE_A as Baudrate, config::PARITY_A as Parity};
 
 /// Interface to a UARTE instance
 ///
