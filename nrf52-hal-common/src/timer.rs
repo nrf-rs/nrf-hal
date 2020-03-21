@@ -3,9 +3,7 @@
 //! See product specification, chapter 24.
 
 #[cfg(feature = "9160")]
-use crate::target::{
-    Interrupt, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1, TIMER2_NS as TIMER2,
-};
+use crate::target::{Interrupt, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1, TIMER2_NS as TIMER2};
 
 #[cfg(not(feature = "9160"))]
 use crate::target::{Interrupt, TIMER0, TIMER1, TIMER2};
