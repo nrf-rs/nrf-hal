@@ -2,6 +2,11 @@ use crate::target::{uicr, NVMC, UICR};
 
 use core::ops::Deref;
 
+/// Interface to a UICR instance
+///
+/// This is a very basic interface that comes with the following limitations:
+/// - Only `customer` registers are usable for storing and loading of data
+/// - Erase must be performed in order to write bits with value `1` over `0`
 pub struct Uicr<T>(T);
 
 impl<T> Uicr<T>
@@ -12,6 +17,9 @@ where
         Self(uicr)
     }
 
+    /// Erase the UICR registers. UICR registers can only be set to `0` bits, additional
+    /// overrides back to `1` can only be performed by erasing the UICR registers.
+    /// - Sets all registers to 0xFFFFu32
     pub fn erase(&mut self, nvmc: &mut NVMC) {
         assert!(nvmc.config.read().wen().is_wen() == false); // write + erase is forbidden!
 
@@ -20,6 +28,8 @@ where
         nvmc.config.reset()
     }
 
+    /// Store a slice of `&[u32]` values to the customer registers with given offset
+    /// - offset + slice length must be less than 32
     pub fn store_customer(&mut self, nvmc: &mut NVMC, offset: usize, values: &[u32]) {
         assert!(values.len() + offset <= self.0.customer.len()); // ensure we fit
         assert!(nvmc.config.read().wen().is_een() == false); // write + erase is forbidden!
@@ -31,6 +41,9 @@ where
         nvmc.config.reset()
     }
 
+    /// Load a slice of `&[u32]` values to the customer registers from given offset
+    /// - offset + slice length must be less than 32
+    /// - returns the loaded slice
     pub fn load_customer<'a>(&mut self, offset: usize, values: &'a mut [u32]) -> &'a [u32] {
         let range = offset..offset + values.len();
         for (i, reg_i) in range.enumerate() {
