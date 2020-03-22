@@ -13,8 +13,14 @@ impl<T> Uicr<T>
 where
     T: Instance,
 {
+    /// Construct a new `Uicr` from `pac::UICR`
     pub fn new(uicr: T) -> Self {
         Self(uicr)
+    }
+
+    /// Release the `pac::UICR` instance back
+    pub fn free(self) -> T {
+        self.0
     }
 
     /// Erase the UICR registers. UICR registers can only be set to `0` bits, additional
