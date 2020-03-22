@@ -48,6 +48,8 @@ impl Uicr {
     /// - offset + slice length must be less than 32
     /// - returns the loaded slice
     pub fn load_customer<'a>(&mut self, offset: usize, values: &'a mut [u32]) -> &'a [u32] {
+        assert!(values.len() + offset <= self.0.customer.len()); // ensure we fit
+
         let range = offset..offset + values.len();
         for (i, reg_i) in range.enumerate() {
             values[i] = self.0.customer[reg_i].read().customer().bits()
