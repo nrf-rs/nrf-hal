@@ -31,6 +31,8 @@ impl Uicr {
 
     /// Store a slice of `&[u32]` values to the customer registers with given offset
     /// - offset + slice length must be less than 32
+    /// - initial value after erase is 0xFFFF_FFFFu32
+    /// - UICR registers can only be set to `0` bits, additional overrides back to `1` can only be performed by erasing the UICR registers
     pub fn store_customer(&mut self, nvmc: &mut NVMC, offset: usize, values: &[u32]) {
         assert!(values.len() + offset <= self.0.customer.len()); // ensure we fit
         assert!(nvmc.config.read().wen().is_een() == false); // write + erase is forbidden!
