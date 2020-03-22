@@ -10,11 +10,11 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-cortex-m = "0.6.0"
-cortex-m-rt = "0.6.7"
+cortex-m = "0.6.2"
+cortex-m-rt = "0.6.12"
 panic-halt = "0.2.0"
-nrf52832-hal = { version = "0.8.0", path = "../../nrf52832-hal" }
+nrf52832-hal = { version = "0.9.0", path = "../../nrf52832-hal" }
 
 [dev-dependencies]
-nb = "0.1.1"
-panic-semihosting = "0.5.1"
+nb = "0.1.2"
+panic-semihosting = "0.5.3"

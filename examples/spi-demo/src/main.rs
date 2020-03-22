@@ -23,7 +23,7 @@ use nrf52832_hal::spim::Spim;
 /// one or more Led will remain off.
 #[entry]
 fn main() -> ! {
-    let p = nrf52832_hal::nrf52832_pac::Peripherals::take().unwrap();
+    let p = nrf52832_hal::pac::Peripherals::take().unwrap();
     let port0 = p0::Parts::new(p.P0);
 
     let cs: P0_21<gpio::Output<PushPull>> = port0.p0_21.into_push_pull_output(Level::Low);

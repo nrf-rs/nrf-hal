@@ -12,9 +12,9 @@ use core::{
 use embedded_hal::adc::{Channel, OneShot};
 
 pub use saadc::{
-    ch::config::{GAINW as Gain, REFSELW as Reference, RESPW as Resistor, TACQW as Time},
-    oversample::OVERSAMPLEW as Oversample,
-    resolution::VALW as Resolution,
+    ch::config::{GAIN_A as Gain, REFSEL_A as Reference, RESP_A as Resistor, TACQ_A as Time},
+    oversample::OVERSAMPLE_A as Oversample,
+    resolution::VAL_A as Resolution,
 };
 
 // Only 1 channel is allowed right now, a discussion needs to be had as to how

@@ -15,7 +15,7 @@ pub mod prelude {
 
 use nrf52832_hal::{
     gpio::{p0, Floating, Input, Level, Output, Pin, PullUp, PushPull},
-    nrf52832_pac::{self as nrf52, CorePeripherals, Peripherals},
+    pac::{self as nrf52, CorePeripherals, Peripherals},
     uarte::{self, Baudrate as UartBaudrate, Parity as UartParity, Uarte},
 };
 

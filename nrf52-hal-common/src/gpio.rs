@@ -406,14 +406,14 @@ use crate::target::p0_ns::{pin_cnf, PIN_CNF};
 use crate::target::p0::{pin_cnf, PIN_CNF};
 
 impl OpenDrainConfig {
-    fn variant(self) -> pin_cnf::DRIVEW {
+    fn variant(self) -> pin_cnf::DRIVE_A {
         use self::OpenDrainConfig::*;
 
         match self {
-            Disconnect0Standard1 => pin_cnf::DRIVEW::D0S1,
-            Disconnect0HighDrive1 => pin_cnf::DRIVEW::D0H1,
-            Standard0Disconnect1 => pin_cnf::DRIVEW::S0D1,
-            HighDrive0Disconnect1 => pin_cnf::DRIVEW::H0D1,
+            Disconnect0Standard1 => pin_cnf::DRIVE_A::D0S1,
+            Disconnect0HighDrive1 => pin_cnf::DRIVE_A::D0H1,
+            Standard0Disconnect1 => pin_cnf::DRIVE_A::S0D1,
+            HighDrive0Disconnect1 => pin_cnf::DRIVE_A::H0D1,
         }
     }
 }
