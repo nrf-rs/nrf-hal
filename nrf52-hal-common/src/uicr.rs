@@ -1,25 +1,20 @@
-use crate::target::{uicr, NVMC, UICR};
-
-use core::ops::Deref;
+use crate::target::{NVMC, UICR};
 
 /// Interface to a UICR instance
 ///
 /// This is a very basic interface that comes with the following limitations:
 /// - Only `customer` registers are usable for storing and loading of data
 /// - Erase must be performed in order to write bits with value `1` over `0`
-pub struct Uicr<T>(T);
+pub struct Uicr(UICR);
 
-impl<T> Uicr<T>
-where
-    T: Instance,
-{
+impl Uicr {
     /// Construct a new `Uicr` from `pac::UICR`
-    pub fn new(uicr: T) -> Self {
+    pub fn new(uicr: UICR) -> Self {
         Self(uicr)
     }
 
     /// Release the `pac::UICR` instance back
-    pub fn free(self) -> T {
+    pub fn free(self) -> UICR {
         self.0
     }
 
@@ -59,7 +54,3 @@ where
         values
     }
 }
-
-pub trait Instance: Deref<Target = uicr::RegisterBlock> {}
-
-impl Instance for UICR {}
