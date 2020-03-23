@@ -1,3 +1,10 @@
+//! HAL interface to the UICR core component
+//!
+//! See product specification:
+//!
+//! - nrf52810: Section 4.5
+//! - nrf52832: Section 14
+//! - nrf52840: Section 4.5
 use crate::target::{NVMC, UICR};
 
 /// Interface to a UICR instance
