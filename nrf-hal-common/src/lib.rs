@@ -17,13 +17,14 @@ pub use nrf52840_pac as target;
 #[cfg(feature = "9160")]
 pub use nrf9160_pac as target;
 
+#[cfg(feature = "51")]
+pub mod adc;
 pub mod clocks;
 #[cfg(not(feature = "51"))]
 pub mod delay;
 pub mod gpio;
 #[cfg(not(feature = "9160"))]
 pub mod rng;
-#[cfg(not(feature = "51"))]
 pub mod rtc;
 #[cfg(not(feature = "51"))]
 pub mod saadc;
@@ -114,14 +115,21 @@ pub use crate::clocks::Clocks;
 pub use crate::delay::Delay;
 #[cfg(not(feature = "9160"))]
 pub use crate::rng::Rng;
-#[cfg(not(feature = "51"))]
 pub use crate::rtc::Rtc;
+pub use crate::timer::Timer;
+
+#[cfg(feature = "51")]
+pub use crate::adc::Adc;
 #[cfg(not(feature = "51"))]
 pub use crate::saadc::Saadc;
+
 #[cfg(not(feature = "51"))]
 pub use crate::spim::Spim;
-pub use crate::timer::Timer;
+
 #[cfg(not(feature = "51"))]
 pub use crate::twim::Twim;
+
+#[cfg(feature = "51")]
+pub use crate::uart::Uart;
 #[cfg(not(feature = "51"))]
 pub use crate::uarte::Uarte;
