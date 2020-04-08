@@ -9,6 +9,8 @@ authors = [
     "Hanno Braun <hanno@braun-robotics.com>",
     "John Scarrott <johnps@outlook.com>",
     "Wez Furlong <wez@wezfurlong.org>",
+    "Daniel Egger <daniel@eggers-club.de>",
+    "Ferdia McKeogh <ferdia@mckeogh.tech>"
 ]
 
 categories = ["embedded", "hardware-support", "no-std"]
@@ -29,6 +31,11 @@ version = "1.0.2"
 [dependencies.cast]
 default-features = false
 version = "0.2.3"
+
+[dependencies.nrf51]
+optional = true
+version = "0.9.0"
+git = "https://github.com/chocol4te/nrf51"
 
 [dependencies.nrf52810-pac]
 optional = true
@@ -52,7 +59,8 @@ version = "0.2.3"
 
 [features]
 doc = []
-default = ["52832"]
+default = ["51"]
+51 = ["nrf51"]
 52810 = ["nrf52810-pac"]
 52832 = ["nrf52832-pac"]
 52840 = ["nrf52840-pac"]

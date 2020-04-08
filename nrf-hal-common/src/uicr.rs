@@ -46,6 +46,10 @@ impl Uicr {
 
         nvmc.config.write(|w| w.wen().wen());
         for (i, value) in values.iter().enumerate() {
+            #[cfg(feature = "51")]
+            self.0.customer[offset + i].write(|w| unsafe { w.bits(*value) });
+
+            #[cfg(not(feature = "51"))]
             self.0.customer[offset + i].write(|w| unsafe { w.customer().bits(*value) });
         }
         nvmc.config.reset()
@@ -59,7 +63,15 @@ impl Uicr {
 
         let range = offset..offset + values.len();
         for (i, reg_i) in range.enumerate() {
-            values[i] = self.0.customer[reg_i].read().customer().bits()
+            #[cfg(feature = "51")]
+            {
+                values[i] = self.0.customer[reg_i].read().bits()
+            }
+
+            #[cfg(not(feature = "51"))]
+            {
+                values[i] = self.0.customer[reg_i].read().customer().bits()
+            }
         }
 
         values

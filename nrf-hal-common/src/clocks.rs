@@ -121,7 +121,43 @@ impl<H, L> Clocks<H, L, LfOscStarted> {
 
 impl<H, L> Clocks<H, L, LfOscStopped> {
     /// Use the internal RC Oscillator for the low frequency clock source
-    #[cfg(not(feature = "9160"))]
+    #[cfg(feature = "51")]
+    pub fn set_lfclk_src_rc(self) -> Clocks<H, Internal, LfOscStopped> {
+        self.periph.lfclksrc.write(|w| w.src().rc());
+        Clocks {
+            hfclk: self.hfclk,
+            lfclk: Internal,
+            lfstat: self.lfstat,
+            periph: self.periph,
+        }
+    }
+
+    /// Generate the Low Frequency clock from the high frequency clock source
+    #[cfg(feature = "51")]
+    pub fn set_lfclk_src_synth(self) -> Clocks<H, LfOscSynthesized, LfOscStopped> {
+        self.periph.lfclksrc.write(|w| w.src().synth());
+        Clocks {
+            hfclk: self.hfclk,
+            lfclk: LfOscSynthesized,
+            lfstat: self.lfstat,
+            periph: self.periph,
+        }
+    }
+
+    /// Use an external crystal to drive the low frequency clock
+    #[cfg(feature = "51")]
+    pub fn set_lfclk_src_external(self) -> Clocks<H, ExternalOscillator, LfOscStopped> {
+        self.periph.lfclksrc.write(move |w| w.src().xtal());
+        Clocks {
+            hfclk: self.hfclk,
+            lfclk: ExternalOscillator,
+            lfstat: self.lfstat,
+            periph: self.periph,
+        }
+    }
+
+    /// Use the internal RC Oscillator for the low frequency clock source
+    #[cfg(not(any(feature = "9160", feature = "51")))]
     pub fn set_lfclk_src_rc(self) -> Clocks<H, Internal, LfOscStopped> {
         self.periph
             .lfclksrc
@@ -135,7 +171,7 @@ impl<H, L> Clocks<H, L, LfOscStopped> {
     }
 
     /// Generate the Low Frequency clock from the high frequency clock source
-    #[cfg(not(feature = "9160"))]
+    #[cfg(not(any(feature = "9160", feature = "51")))]
     pub fn set_lfclk_src_synth(self) -> Clocks<H, LfOscSynthesized, LfOscStopped> {
         self.periph
             .lfclksrc
@@ -149,7 +185,7 @@ impl<H, L> Clocks<H, L, LfOscStopped> {
     }
 
     /// Use an external crystal to drive the low frequency clock
-    #[cfg(not(feature = "9160"))]
+    #[cfg(not(any(feature = "9160", feature = "51")))]
     pub fn set_lfclk_src_external(
         self,
         cfg: LfOscConfiguration,

@@ -227,10 +227,14 @@ macro_rules! impl_instance {
 
                     // Configure timer to trigger EVENTS_COMPARE when given number of cycles
                     // is reached.
+                    #[cfg(not(feature = "51"))]
                     self.cc[0].write(|w|
                         // The timer mode was set to 32 bits above, so all possible values
                         // of `cycles` are valid.
                         unsafe { w.cc().bits(cycles.into()) });
+
+                    #[cfg(feature = "51")]
+                    self.cc[0].write(|w| unsafe { w.bits(cycles.into())} );
 
                     // Clear the counter value
                     self.tasks_clear.write(|w| unsafe { w.bits(1) });

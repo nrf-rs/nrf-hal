@@ -50,10 +50,13 @@ pub struct Pin<MODE> {
     _mode: PhantomData<MODE>,
 }
 
+#[cfg(feature = "51")]
+use crate::target::GPIO as P0;
+
 #[cfg(feature = "9160")]
 use crate::target::P0_NS as P0;
 
-#[cfg(not(feature = "9160"))]
+#[cfg(not(any(feature = "9160", feature = "51")))]
 use crate::target::P0;
 
 #[cfg(feature = "52840")]
@@ -391,10 +394,13 @@ pub enum OpenDrainConfig {
     HighDrive0Disconnect1,
 }
 
+#[cfg(feature = "51")]
+use crate::target::gpio::{pin_cnf, PIN_CNF};
+
 #[cfg(feature = "9160")]
 use crate::target::p0_ns::{pin_cnf, PIN_CNF};
 
-#[cfg(not(feature = "9160"))]
+#[cfg(not(any(feature = "9160", feature = "51")))]
 use crate::target::p0::{pin_cnf, PIN_CNF};
 
 impl OpenDrainConfig {
