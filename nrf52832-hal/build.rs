@@ -4,27 +4,38 @@ use std::io::Write;
 use std::path::PathBuf;
 
 fn main() {
-    // Put the linker script somewhere the linker can find it
-    let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
+    if let Some((flash, mem)) = memory_sizes() {
+        let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
 
-    let linker = match (
+        let mut file = File::create(out.join("memory.x")).unwrap();
+
+        write!(
+            file,
+            r#"MEMORY
+{{
+FLASH : ORIGIN = 0x00000000, LENGTH = {}
+RAM : ORIGIN = 0x20000000, LENGTH = {}
+}}
+"#,
+            flash, mem
+        )
+        .unwrap();
+
+        println!("cargo:rustc-link-search={}", out.display());
+    }
+
+    println!("cargo:rerun-if-changed=build.rs");
+}
+
+fn memory_sizes() -> Option<(&'static str, &'static str)> {
+    match (
         cfg!(feature = "xxAA-package"),
         cfg!(feature = "xxAB-package"),
     ) {
-        (false, false) | (true, true) => {
-            panic!("\n\nMust select exactly one package for linker script generation!\nChoices: 'xxAA-package' or 'xxAB-package'\n\n");
-        }
-        (true, false) => include_bytes!("memory_xxAA.x"),
-        (false, true) => include_bytes!("memory_xxAB.x"),
-    };
-
-    File::create(out.join("memory.x"))
-        .unwrap()
-        .write_all(linker)
-        .unwrap();
-    println!("cargo:rustc-link-search={}", out.display());
-
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=memory_xxAA.x");
-    println!("cargo:rerun-if-changed=memory_xxAB.x");
+        // Allow users to provide their own memory.x by disabling both features
+        (false, false) => None,
+        (true, false) => Some(("512K", "64K")),
+        (false, true) => Some(("256K", "32K")),
+        _ => panic!("Multiple memory configuration features specified"),
+    }
 }
