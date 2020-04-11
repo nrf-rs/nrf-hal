@@ -1,4 +1,4 @@
-# `nrf52-hal`
+# `nrf-hal`
 
 > [HAL] for the nRF52 and nRF91 family of microcontrollers
 

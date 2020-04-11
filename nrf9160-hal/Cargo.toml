@@ -3,7 +3,7 @@ name = "nrf9160-hal"
 version = "0.2.0"
 description = "HAL for nRF9160 system-in-package"
 
-repository = "https://github.com/nrf-rs/nrf52-hal"
+repository = "https://github.com/nrf-rs/nrf-hal"
 authors = [
     "Jonathan Pallant (42 Technology) <jonathan.pallant@42technology.com>",
 ]
@@ -26,8 +26,8 @@ version = "1.0.2"
 default-features = false
 version = "0.2.3"
 
-[dependencies.nrf52-hal-common]
-path = "../nrf52-hal-common"
+[dependencies.nrf-hal-common]
+path = "../nrf-hal-common"
 default-features = false
 features = ["9160"]
 version = "0.9.0"

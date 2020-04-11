@@ -443,7 +443,7 @@ macro_rules! gpio {
 
 
             // ===============================================================
-            // This chunk allows you to obtain an nrf52-hal gpio from the
+            // This chunk allows you to obtain an nrf-hal gpio from the
             // upstream nrf52 gpio definitions by defining a trait
             // ===============================================================
             /// GPIO parts
@@ -467,7 +467,7 @@ macro_rules! gpio {
             }
 
             // ===============================================================
-            // Implement each of the typed pins usable through the nrf52-hal
+            // Implement each of the typed pins usable through the nrf-hal
             // defined interface
             // ===============================================================
             $(
