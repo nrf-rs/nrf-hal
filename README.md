@@ -4,7 +4,7 @@
 
 [HAL]: https://crates.io/crates/embedded-hal
 
-Travis Status: [![Build Status](https://travis-ci.org/nrf-rs/nrf-hal.svg?branch=master)](https://travis-ci.org/nrf-rs/nrf-hal)
+[![Build Status](https://travis-ci.org/nrf-rs/nrf-hal.svg?branch=master)](https://travis-ci.org/nrf-rs/nrf-hal)
 
 ## Crates
 
