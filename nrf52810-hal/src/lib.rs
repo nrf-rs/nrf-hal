@@ -1,12 +1,12 @@
 #![no_std]
 
 use embedded_hal as hal;
-pub use nrf52810_pac;
-pub use nrf52_hal_common::*;
+pub use nrf52810_pac as pac;
+pub use nrf_hal_common::*;
 
 pub mod prelude {
     pub use crate::hal::prelude::*;
-    pub use nrf52_hal_common::prelude::*;
+    pub use nrf_hal_common::prelude::*;
 
     pub use crate::time::U32Ext;
 }

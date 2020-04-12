@@ -13,14 +13,14 @@ use ssd1306::Builder;
 #[cfg(feature = "52832")]
 use nrf52832_hal::{
     gpio::*,
-    nrf52832_pac as pac,
+    pac,
     twim::{self, Twim},
 };
 
 #[cfg(feature = "52840")]
 use nrf52840_hal::{
     gpio::*,
-    nrf52840_pac as pac,
+    pac,
     twim::{self, Twim},
 };
 

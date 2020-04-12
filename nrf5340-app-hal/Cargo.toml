@@ -2,7 +2,7 @@
 name = "nrf5340-app-hal"
 version = "0.0.0"
 description = "HAL for the nRF5340 application core"
-repository = "https://github.com/nrf-rs/nrf52-hal"
+repository = "https://github.com/nrf-rs/nrf-hal"
 authors = ["Jonas Schievink <jonasschievink@gmail.com>"]
 categories = ["embedded", "hardware-support", "no-std"]
 keywords = ["arm", "cortex-m", "nrf53", "hal", "nrf5340"]
@@ -22,11 +22,11 @@ version = "1.0.2"
 default-features = false
 version = "0.2.2"
 
-[dependencies.nrf52-hal-common]
-path = "../nrf52-hal-common"
+[dependencies.nrf-hal-common]
+path = "../nrf-hal-common"
 default-features = false
 features = ["5340-app"]
-version = "0.8.0"
+version = "0.9.0"
 
 [dependencies.embedded-hal]
 features = ["unproven"]

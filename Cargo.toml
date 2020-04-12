@@ -29,9 +29,8 @@ debug = true
 lto = true
 opt-level = "s"
 
-
-[patch.crates-io]
-nrf52810-pac = { git = "https://github.com/JJJollyjim/nrf52810-pac.git" }
-nrf52832-pac = { git = "https://github.com/nrf-rs/nrf52832-pac.git" }
-nrf52840-pac = { git = "https://github.com/JJJollyjim/nrf52840-pac.git" }
-nrf91 = { git = "https://github.com/JJJollyjim/nrf91-rs.git" }
+# [patch.crates-io]
+# nrf52810-pac = { git = "https://github.com/JJJollyjim/nrf52810-pac.git" }
+# nrf52832-pac = { git = "https://github.com/nrf-rs/nrf52832-pac.git" }
+# nrf52840-pac = { git = "https://github.com/JJJollyjim/nrf52840-pac.git" }
+# nrf91 = { git = "https://github.com/JJJollyjim/nrf91-rs.git" }

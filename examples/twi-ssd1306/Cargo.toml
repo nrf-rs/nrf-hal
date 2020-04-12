@@ -8,22 +8,22 @@ authors = [
 edition = "2018"
 
 [dependencies]
-cortex-m-rt = "0.6.5"
-ssd1306 = "0.2.4"
+cortex-m-rt = "0.6.12"
+ssd1306 = "0.2.6"
 embedded-graphics = "0.4.7"
-panic-semihosting = "0.5.1"
+panic-semihosting = "0.5.3"
 
 [dependencies.embedded-hal]
 features = ["unproven"]
 version = "0.2"
 
 [dependencies.nrf52832-hal]
-version = "0.8.0"
+version = "0.9.0"
 path = "../../nrf52832-hal"
 optional = true
 
 [dependencies.nrf52840-hal]
-version = "0.8.0"
+version = "0.9.0"
 path = "../../nrf52840-hal"
 optional = true
 

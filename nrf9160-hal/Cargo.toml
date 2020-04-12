@@ -1,9 +1,9 @@
 [package]
 name = "nrf9160-hal"
-version = "0.1.0"
+version = "0.2.0"
 description = "HAL for nRF9160 system-in-package"
 
-repository = "https://github.com/nrf-rs/nrf52-hal"
+repository = "https://github.com/nrf-rs/nrf-hal"
 authors = [
     "Jonathan Pallant (42 Technology) <jonathan.pallant@42technology.com>",
 ]
@@ -15,8 +15,8 @@ edition = "2018"
 
 [dependencies]
 cortex-m = "0.6"
-nb = "0.1.1"
-nrf9160-pac = { package = "nrf91", version="0.2" }
+nb = "0.1.2"
+nrf9160-pac = "0.2.0"
 
 [dependencies.void]
 default-features = false
@@ -24,17 +24,17 @@ version = "1.0.2"
 
 [dependencies.cast]
 default-features = false
-version = "0.2.2"
+version = "0.2.3"
 
-[dependencies.nrf52-hal-common]
-path = "../nrf52-hal-common"
+[dependencies.nrf-hal-common]
+path = "../nrf-hal-common"
 default-features = false
 features = ["9160"]
-version = "0.8.0"
+version = "0.9.0"
 
 [dependencies.embedded-hal]
 features = ["unproven"]
-version = "0.2.1"
+version = "0.2.3"
 
 [features]
 doc = []

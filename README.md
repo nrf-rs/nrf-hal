@@ -1,6 +1,6 @@
-# `nrf52-hal`
+# `nrf-hal`
 
-> [HAL] for the nRF52 family of microcontrollers
+> [HAL] for the nRF52 and nRF91 family of microcontrollers
 
 [HAL]: https://crates.io/crates/embedded-hal
 
@@ -9,12 +9,14 @@
 * [`nrf52810-hal`](https://docs.rs/nrf52810-hal)
 * [`nrf52832-hal`](https://docs.rs/nrf52832-hal)
 * [`nrf52840-hal`](https://docs.rs/nrf52840-hal)
+* [`nrf9160-hal`](https://docs.rs/nrf9160-hal)
 
-## Resources on the nRF52 devices
+## Resources on the nRF52/nRF91 devices
 
 - [nRF52840 Reference Manual](http://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.0.pdf)
 - [nRF52832 Reference Manual](http://infocenter.nordicsemi.com/pdf/nRF52832_PS_v1.4.pdf)
 - [nRF52810 Reference Manual](http://infocenter.nordicsemi.com/pdf/nRF52810_PS_v1.2.pdf)
+- [nRF9160 Reference Manual](http://infocenter.nordicsemi.com/pdf/nRF9160_PS_v1.1.pdf)
 
 ## License
 

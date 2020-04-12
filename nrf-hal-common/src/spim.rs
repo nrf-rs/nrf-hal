@@ -15,10 +15,10 @@ cfg_if::cfg_if! {
 
 // Import SPIM1/2
 cfg_if::cfg_if! {
-    if #[cfg(any(feature = "52832", feature = "52840"))] {
-        use crate::target::{SPIM1, SPIM2};
-    } else if #[cfg(feature = "5340-app")] {
+    if #[cfg(feature = "5340-app")] {
         use crate::target::{SPIM1_NS as SPIM1, SPIM2_NS as SPIM2};
+    } else if #[cfg(any(feature = "52832", feature = "52840"))] {
+        use crate::target::{SPIM1, SPIM2};
     }
 }
 

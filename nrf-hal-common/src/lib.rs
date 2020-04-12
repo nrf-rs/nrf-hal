@@ -42,6 +42,9 @@ pub mod timer;
 pub mod twim;
 pub mod uarte;
 
+#[cfg(not(feature = "9160"))]
+pub mod uicr;
+
 pub mod prelude {
     pub use crate::hal::digital::v2::*;
     pub use crate::hal::prelude::*;

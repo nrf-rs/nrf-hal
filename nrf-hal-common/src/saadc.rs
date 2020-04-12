@@ -21,7 +21,7 @@ pub use saadc::{
 
 // Only 1 channel is allowed right now, a discussion needs to be had as to how
 // multiple channels should work (See "scan mode" in the datasheet)
-// Issue: https://github.com/nrf-rs/nrf52-hal/issues/82
+// Issue: https://github.com/nrf-rs/nrf-hal/issues/82
 
 pub struct Saadc(SAADC);
 

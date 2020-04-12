@@ -12,10 +12,10 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-cortex-m = "0.6.0"
-cortex-m-rt = "0.6.10"
+cortex-m = "0.6.2"
+cortex-m-rt = "0.6.11"
 panic-halt = "0.2.0"
-nrf9160-hal = { version = "0.1.0", path = "../../nrf9160-hal" }
+nrf9160-hal = { version = "0.2.0", path = "../../nrf9160-hal" }
 
 [dev-dependencies]
 nb = "0.1.1"

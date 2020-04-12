@@ -1,9 +1,9 @@
 [package]
 name = "nrf52832-hal"
-version = "0.8.1"
+version = "0.9.0"
 description = "HAL for nRF52832 microcontrollers"
 
-repository = "https://github.com/nrf-rs/nrf52-hal"
+repository = "https://github.com/nrf-rs/nrf-hal"
 authors = [
     "James Munns <james@onevariable.com>",
     "Hanno Braun <hanno@braun-robotics.com>"
@@ -25,17 +25,17 @@ version = "1.0.2"
 
 [dependencies.cast]
 default-features = false
-version = "0.2.2"
+version = "0.2.3"
 
-[dependencies.nrf52-hal-common]
-path = "../nrf52-hal-common"
+[dependencies.nrf-hal-common]
+path = "../nrf-hal-common"
 default-features = false
 features = ["52832"]
-version = "0.8.0"
+version = "0.9.0"
 
 [dependencies.embedded-hal]
 features = ["unproven"]
-version = "0.2.1"
+version = "0.2.3"
 
 [features]
 doc = []
@@ -46,4 +46,3 @@ xxAB-package = []
 # Note: We use the xxAB package because it has the least amount of available resources.
 #   However, most users will want to use the xxAA package.
 default = ["rt", "xxAB-package"]
-
