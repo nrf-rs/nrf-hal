@@ -4,14 +4,19 @@
 
 [HAL]: https://crates.io/crates/embedded-hal
 
-## Documentation
+[![Build Status](https://travis-ci.org/nrf-rs/nrf-hal.svg?branch=master)](https://travis-ci.org/nrf-rs/nrf-hal)
 
-* [`nrf52810-hal`](https://docs.rs/nrf52810-hal)
-* [`nrf52832-hal`](https://docs.rs/nrf52832-hal)
-* [`nrf52840-hal`](https://docs.rs/nrf52840-hal)
-* [`nrf9160-hal`](https://docs.rs/nrf9160-hal)
+## Crates
 
-## Resources on the nRF52/nRF91 devices
+Support for each Nordic chip in this repository is in its own crate, with its
+own version number. Currently this repository supports:
+
+* [`nrf52810-hal`](./nrf52810-hal) [![docs.rs](https://docs.rs/nrf52810-hal/badge.svg)](https://docs.rs/nrf52810-hal) [![crates.io](https://img.shields.io/crates/d/nrf52810-hal.svg)](https://crates.io/crates/nrf52810-hal)
+* [`nrf52832-hal`](./nrf52832-hal) [![docs.rs](https://docs.rs/nrf52832-hal/badge.svg)](https://docs.rs/nrf52832-hal) [![crates.io](https://img.shields.io/crates/d/nrf52832-hal.svg)](https://crates.io/crates/nrf52832-hal)
+* [`nrf52840-hal`](./nrf52840-hal) [![docs.rs](https://docs.rs/nrf52840-hal/badge.svg)](https://docs.rs/nrf52840-hal) [![crates.io](https://img.shields.io/crates/d/nrf52840-hal.svg)](https://crates.io/crates/nrf52840-hal)
+* [`nrf9160-hal`](./nrf9160-hal) [![docs.rs](https://docs.rs/nrf9160-hal/badge.svg)](https://docs.rs/nrf9160-hal) [![crates.io](https://img.shields.io/crates/d/nrf9160-hal.svg)](https://crates.io/crates/nrf9160-hal)
+
+## Device Reference Manuals from Nordic
 
 - [nRF52840 Reference Manual](http://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.0.pdf)
 - [nRF52832 Reference Manual](http://infocenter.nordicsemi.com/pdf/nRF52832_PS_v1.4.pdf)
@@ -28,7 +33,7 @@ Licensed under either of
 
 at your option.
 
-### Contribution
+## Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
