@@ -34,6 +34,8 @@ pub mod spim;
 pub mod temp;
 pub mod time;
 pub mod timer;
+#[cfg(feature = "51")]
+pub mod twi;
 #[cfg(not(feature = "51"))]
 pub mod twim;
 #[cfg(feature = "51")]
@@ -126,6 +128,8 @@ pub use crate::saadc::Saadc;
 #[cfg(not(feature = "51"))]
 pub use crate::spim::Spim;
 
+#[cfg(feature = "51")]
+pub use crate::twi::Twi;
 #[cfg(not(feature = "51"))]
 pub use crate::twim::Twim;
 
