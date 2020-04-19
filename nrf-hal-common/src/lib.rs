@@ -28,6 +28,8 @@ pub mod rng;
 pub mod rtc;
 #[cfg(not(feature = "51"))]
 pub mod saadc;
+#[cfg(feature = "51")]
+pub mod spi;
 #[cfg(not(feature = "51"))]
 pub mod spim;
 #[cfg(not(feature = "9160"))]
@@ -125,6 +127,8 @@ pub use crate::adc::Adc;
 #[cfg(not(feature = "51"))]
 pub use crate::saadc::Saadc;
 
+#[cfg(feature = "51")]
+pub use crate::spi::Spi;
 #[cfg(not(feature = "51"))]
 pub use crate::spim::Spim;
 
