@@ -35,7 +35,6 @@ version = "0.2.3"
 [dependencies.nrf51]
 optional = true
 version = "0.9.0"
-git = "https://github.com/chocol4te/nrf51"
 
 [dependencies.nrf52810-pac]
 optional = true
@@ -59,7 +58,6 @@ version = "0.2.3"
 
 [features]
 doc = []
-default = ["51"]
 51 = ["nrf51"]
 52810 = ["nrf52810-pac"]
 52832 = ["nrf52832-pac"]
