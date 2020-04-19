@@ -4,7 +4,7 @@ use core::ops::Deref;
 
 use crate::{
     gpio::{Floating, Input, Pin},
-    target::{twi0, GPIO, TWI1},
+    target::{twi0, GPIO, TWI0, TWI1},
 };
 
 pub use twi0::frequency::FREQUENCY_A as Frequency;
@@ -299,5 +299,7 @@ pub enum Error {
 
 /// Implemented by all TWIM instances
 pub trait Instance: Deref<Target = twi0::RegisterBlock> {}
+
+impl Instance for TWI0 {}
 
 impl Instance for TWI1 {}

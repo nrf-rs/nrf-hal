@@ -1,4 +1,4 @@
-//! # API for the Analog to Digital converter
+//! API for the Analog to Digital converter
 
 use embedded_hal::adc::{Channel, OneShot};
 
