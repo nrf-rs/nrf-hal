@@ -22,6 +22,7 @@ pub mod adc;
 pub mod clocks;
 #[cfg(not(feature = "51"))]
 pub mod delay;
+pub mod delay_timer;
 pub mod gpio;
 #[cfg(not(feature = "9160"))]
 pub mod rng;
@@ -117,6 +118,8 @@ impl DmaSlice {
 pub use crate::clocks::Clocks;
 #[cfg(not(feature = "51"))]
 pub use crate::delay::Delay;
+#[cfg(feature = "51")]
+pub use crate::delay_timer::Delay;
 #[cfg(not(feature = "9160"))]
 pub use crate::rng::Rng;
 pub use crate::rtc::Rtc;
