@@ -8,7 +8,12 @@ use crate::target::{Interrupt, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1, TIMER2_
 #[cfg(not(feature = "9160"))]
 use crate::target::{Interrupt, TIMER0, TIMER1, TIMER2};
 
-use embedded_hal::{prelude::*, timer};
+use cast::u32;
+use embedded_hal::{
+    blocking::delay::{DelayMs, DelayUs},
+    prelude::*,
+    timer,
+};
 use nb::{self, block};
 use void::{unreachable, Void};
 
@@ -173,6 +178,60 @@ where
 
 impl<T> timer::Periodic for Timer<T, Periodic> where T: Instance {}
 
+impl<T, U> DelayMs<u32> for Timer<T, U>
+where
+    T: Instance,
+{
+    fn delay_ms(&mut self, ms: u32) {
+        self.delay_us(ms * 1_000);
+    }
+}
+
+impl<T, U> DelayMs<u16> for Timer<T, U>
+where
+    T: Instance,
+{
+    fn delay_ms(&mut self, ms: u16) {
+        self.delay_ms(u32(ms));
+    }
+}
+
+impl<T, U> DelayMs<u8> for Timer<T, U>
+where
+    T: Instance,
+{
+    fn delay_ms(&mut self, ms: u8) {
+        self.delay_ms(u32(ms));
+    }
+}
+
+impl<T, U> DelayUs<u32> for Timer<T, U>
+where
+    T: Instance,
+{
+    fn delay_us(&mut self, us: u32) {
+        self.delay(us);
+    }
+}
+
+impl<T, U> DelayUs<u16> for Timer<T, U>
+where
+    T: Instance,
+{
+    fn delay_us(&mut self, us: u16) {
+        self.delay_us(u32(us))
+    }
+}
+
+impl<T, U> DelayUs<u8> for Timer<T, U>
+where
+    T: Instance,
+{
+    fn delay_us(&mut self, us: u8) {
+        self.delay_us(u32(us))
+    }
+}
+
 /// Implemented by all `timer0::TIMER` instances
 pub trait Instance {
     /// This interrupt associated with this RTC instance
@@ -227,10 +286,14 @@ macro_rules! impl_instance {
 
                     // Configure timer to trigger EVENTS_COMPARE when given number of cycles
                     // is reached.
+                    #[cfg(not(feature = "51"))]
                     self.cc[0].write(|w|
                         // The timer mode was set to 32 bits above, so all possible values
                         // of `cycles` are valid.
                         unsafe { w.cc().bits(cycles.into()) });
+
+                    #[cfg(feature = "51")]
+                    self.cc[0].write(|w| unsafe { w.bits(cycles.into())} );
 
                     // Clear the counter value
                     self.tasks_clear.write(|w| unsafe { w.bits(1) });

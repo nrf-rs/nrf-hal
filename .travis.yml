@@ -4,7 +4,7 @@ rust:
   - beta
   - nightly
 install:
-  - rustup target add thumbv7em-none-eabi thumbv7em-none-eabihf thumbv8m.main-none-eabi
+  - rustup target add thumbv6m-none-eabi thumbv7em-none-eabi thumbv7em-none-eabihf thumbv8m.main-none-eabi
   - rustup component add rustfmt
 script:
   - scripts/build.sh

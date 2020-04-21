@@ -2,6 +2,9 @@
 
 use embedded_hal as hal;
 
+#[cfg(feature = "51")]
+pub use nrf51 as target;
+
 #[cfg(feature = "52810")]
 pub use nrf52810_pac as target;
 
@@ -14,21 +17,33 @@ pub use nrf52840_pac as target;
 #[cfg(feature = "9160")]
 pub use nrf9160_pac as target;
 
+#[cfg(feature = "51")]
+pub mod adc;
 pub mod clocks;
+#[cfg(not(feature = "51"))]
 pub mod delay;
 pub mod gpio;
 #[cfg(not(feature = "9160"))]
 pub mod rng;
 pub mod rtc;
+#[cfg(not(feature = "51"))]
 pub mod saadc;
+#[cfg(feature = "51")]
+pub mod spi;
+#[cfg(not(feature = "51"))]
 pub mod spim;
 #[cfg(not(feature = "9160"))]
 pub mod temp;
 pub mod time;
 pub mod timer;
+#[cfg(feature = "51")]
+pub mod twi;
+#[cfg(not(feature = "51"))]
 pub mod twim;
+#[cfg(feature = "51")]
+pub mod uart;
+#[cfg(not(feature = "51"))]
 pub mod uarte;
-
 #[cfg(not(feature = "9160"))]
 pub mod uicr;
 
@@ -60,12 +75,14 @@ pub mod target_constants {
 }
 
 /// Does this slice reside entirely within RAM?
+#[cfg(not(feature = "51"))]
 pub(crate) fn slice_in_ram(slice: &[u8]) -> bool {
     let ptr = slice.as_ptr() as usize;
     ptr >= target_constants::SRAM_LOWER && (ptr + slice.len()) < target_constants::SRAM_UPPER
 }
 
 /// Return an error if slice is not in RAM
+#[cfg(not(feature = "51"))]
 pub(crate) fn slice_in_ram_or<T>(slice: &[u8], err: T) -> Result<(), T> {
     if slice_in_ram(slice) {
         Ok(())
@@ -77,11 +94,13 @@ pub(crate) fn slice_in_ram_or<T>(slice: &[u8], err: T) -> Result<(), T> {
 /// A handy structure for converting rust slices into ptr and len pairs
 /// for use with EasyDMA. Care must be taken to make sure mutability
 /// guarantees are respected
+#[cfg(not(feature = "51"))]
 pub(crate) struct DmaSlice {
     ptr: u32,
     len: u32,
 }
 
+#[cfg(not(feature = "51"))]
 impl DmaSlice {
     pub fn null() -> Self {
         Self { ptr: 0, len: 0 }
@@ -96,12 +115,29 @@ impl DmaSlice {
 }
 
 pub use crate::clocks::Clocks;
+#[cfg(not(feature = "51"))]
 pub use crate::delay::Delay;
 #[cfg(not(feature = "9160"))]
 pub use crate::rng::Rng;
 pub use crate::rtc::Rtc;
-pub use crate::saadc::Saadc;
-pub use crate::spim::Spim;
 pub use crate::timer::Timer;
+
+#[cfg(feature = "51")]
+pub use crate::adc::Adc;
+#[cfg(not(feature = "51"))]
+pub use crate::saadc::Saadc;
+
+#[cfg(feature = "51")]
+pub use crate::spi::Spi;
+#[cfg(not(feature = "51"))]
+pub use crate::spim::Spim;
+
+#[cfg(feature = "51")]
+pub use crate::twi::Twi;
+#[cfg(not(feature = "51"))]
 pub use crate::twim::Twim;
+
+#[cfg(feature = "51")]
+pub use crate::uart::Uart;
+#[cfg(not(feature = "51"))]
 pub use crate::uarte::Uarte;

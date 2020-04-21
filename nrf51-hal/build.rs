@@ -31,11 +31,13 @@ fn memory_sizes() -> Option<(&'static str, &'static str)> {
     match (
         cfg!(feature = "xxAA-package"),
         cfg!(feature = "xxAB-package"),
+        cfg!(feature = "xxAC-package"),
     ) {
-        // Allow users to provide their own memory.x by disabling both features
-        (false, false) => None,
-        (true, false) => Some(("512K", "64K")),
-        (false, true) => Some(("256K", "32K")),
+        // Allow users to provide their own memory.x by disabling all features
+        (false, false, false) => None,
+        (true, false, false) => Some(("256K", "16K")),
+        (false, true, false) => Some(("128K", "16K")),
+        (false, false, true) => Some(("256K", "32K")),
         _ => panic!("Multiple memory configuration features specified"),
     }
 }

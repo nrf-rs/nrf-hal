@@ -1,3 +1,5 @@
+//! HAL interface to the SAADC peripheral
+
 #[cfg(feature = "9160")]
 use crate::target::{saadc_ns as saadc, SAADC_NS as SAADC};
 
