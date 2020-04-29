@@ -1,6 +1,6 @@
 [package]
 name = "nrf52832-hal"
-version = "0.9.0"
+version = "0.10.0"
 description = "HAL for nRF52832 microcontrollers"
 
 repository = "https://github.com/nrf-rs/nrf-hal"
@@ -31,7 +31,7 @@ version = "0.2.3"
 path = "../nrf-hal-common"
 default-features = false
 features = ["52832"]
-version = "0.9.0"
+version = "0.10.0"
 
 [dependencies.embedded-hal]
 features = ["unproven"]
