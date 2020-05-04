@@ -1,11 +1,11 @@
 /// Writes `val` to `addr`. Used to apply Errata workarounds.
 unsafe fn poke(addr: u32, val: u32) {
-    *(addr as *mut u32) = val;
+    (addr as *mut u32).write_volatile(val);
 }
 
 /// Reads 32 bits from `addr`.
 unsafe fn peek(addr: u32) -> u32 {
-    *(addr as *mut u32)
+    (addr as *mut u32).read_volatile()
 }
 
 pub fn pre_enable() {
