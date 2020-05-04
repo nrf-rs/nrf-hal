@@ -95,11 +95,29 @@ impl Usbd {
         unsafe { &*USBD::ptr() }.usbaddr.read().addr().bits()
     }
 
-    fn alloc_ep_buf(&mut self, size: u16) -> usb_device::Result<&'static mut [u8]> {
-        assert!(size <= 64);
+    fn alloc_ep_buf(
+        &mut self,
+        ep_type: EndpointType,
+        mut size: u16,
+    ) -> usb_device::Result<&'static mut [u8]> {
         if self.unalloc_buffers.len() < usize::from(size) {
             Err(UsbError::EndpointMemoryOverflow)
         } else {
+            if ep_type == EndpointType::Bulk || ep_type == EndpointType::Interrupt {
+                // datasheet: buffer must be 4-byte aligned and its size must be a multiple of 4
+                let rem = self.unalloc_buffers.as_mut_ptr() as usize % 4;
+                if rem != 0 {
+                    let (_padding, remaining) =
+                        mem::replace(&mut self.unalloc_buffers, &mut []).split_at_mut(4 - rem);
+                    self.unalloc_buffers = remaining;
+                }
+
+                let rem = size % 4;
+                if rem != 0 {
+                    size = size + 4 - rem;
+                }
+            }
+            assert!(size <= 64);
             let (alloc, remaining) =
                 mem::replace(&mut self.unalloc_buffers, &mut []).split_at_mut(size.into());
             self.unalloc_buffers = remaining;
@@ -183,7 +201,7 @@ impl UsbBus for Usbd {
 
         // Endpoint directions are allocated individually.
 
-        let buf = self.alloc_ep_buf(max_packet_size)?;
+        let buf = self.alloc_ep_buf(ep_type, max_packet_size)?;
 
         if false {
             unimplemented!(
