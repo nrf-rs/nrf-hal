@@ -351,11 +351,25 @@ impl UsbBus for Usbd {
                 }
             }
 
+            // XXX this is not spec compliant; the endpoints should only be enabled after the device
+            // has been put in the Configured state. However, usb-device provides no hook to do that
             // TODO: Merge `used_{in,out}` with `iso_{in,out}_used` so ISO is enabled here as well.
             // Make the enabled endpoints respond to traffic.
             unsafe {
                 regs.epinen.write(|w| w.bits(self.used_in.into()));
                 regs.epouten.write(|w| w.bits(self.used_out.into()));
+            }
+
+            for i in 1..8 {
+                let out_enabled = self.used_out & (1 << i) != 0;
+
+                // when first enabled, bulk/interrupt OUT endpoints will *not* receive data (the
+                // peripheral will NAK all incoming packets) until we write a zero to the SIZE
+                // register (see figure 203 of the 52840 manual). To avoid that we write a 0 to the
+                // SIZE register
+                if out_enabled {
+                    regs.size.epout[i].reset();
+                }
             }
         });
     }
@@ -501,10 +515,27 @@ impl UsbBus for Usbd {
                 return Err(UsbError::WouldBlock);
             }
 
+            // the above check indicates the DMA transfer is complete
+            dma_end();
+
             regs.events_endepout[i].reset();
 
+            let epout = [
+                &regs.epout0,
+                &regs.epout1,
+                &regs.epout2,
+                &regs.epout3,
+                &regs.epout4,
+                &regs.epout5,
+                &regs.epout6,
+                &regs.epout7,
+            ];
+
             // How much was transferred?
-            let len = regs.size.epout[i].read().size().bits();
+            // as soon as the DMA transfer is over the peripheral will start receiving new packets
+            // and may overwrite the SIZE register so read the MAXCNT register, which contains the
+            // SIZE of the last OUT packet, instead
+            let len = epout[i].maxcnt.read().maxcnt().bits();
 
             if usize::from(len) > buf.len() {
                 return Err(UsbError::BufferOverflow);
@@ -520,17 +551,17 @@ impl UsbBus for Usbd {
             let slice = unsafe { slice::from_raw_parts(ptr, usize::from(len)) };
             buf[..usize::from(len)].copy_from_slice(slice);
 
-            // Done copying. Now we need to allow the EP to receive the next packet (ie. clear NAK).
-            // This is done by writing anything to `SIZE.EPOUT[i]`.
-            // Safety note: This effectively starts DMA, so we need a corresponding barrier.
-            dma_start();
-            regs.size.epout[i].reset();
-
             Ok(usize::from(len))
         })
     }
 
     fn set_stalled(&self, ep_addr: EndpointAddress, stalled: bool) {
+        semidap::trace!(
+            "Usbd::set_stalled(index={}, stalled={})",
+            ep_addr.index() as u8,
+            stalled as u8
+        );
+
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
 
@@ -626,6 +657,33 @@ impl UsbBus for Usbd {
 
                         // The associated buffer is free again.
                         in_bufs_in_use.set(in_bufs_in_use.get() & !(1 << i));
+                    }
+
+                    // (see figure 203 of 52840-PS )
+                    // OUT endpoints are buffered; incoming packets will first be copied
+                    // into the peripheral's internal memory (not visible to us). That event is
+                    // reported as an EPDATA event that updates the EPDATASTATUS register
+                    // what we must do at that stage is start a DMA transfer from that hidden
+                    // memory to RAM. we start that transfer right here
+                    let offset = 16 + i;
+                    if regs.epdatastatus.read().bits() & (1 << offset) != 0 {
+                        // MAXCNT must match SIZE
+                        let size = regs.size.epout[i].read().bits();
+                        let epout = [
+                            &regs.epout0,
+                            &regs.epout1,
+                            &regs.epout2,
+                            &regs.epout3,
+                            &regs.epout4,
+                            &regs.epout5,
+                            &regs.epout6,
+                            &regs.epout7,
+                        ];
+                        epout[i].maxcnt.write(|w| unsafe { w.bits(size) });
+                        dma_start();
+                        regs.tasks_startepout[i].write(|w| w.tasks_startepout().set_bit());
+                        // clear flag so we don't start the DMA transfer more than once
+                        regs.epdatastatus.write(|w| unsafe { w.bits(1 << offset) });
                     }
                 }
 
