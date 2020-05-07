@@ -10,6 +10,7 @@ use nrf52840_hal::gpio::{p0, p1, Level};
 use nrf52840_hal::prelude::*;
 use nrf52840_hal::timer::{OneShot, Timer};
 use nrf52840_hal::usbd::Usbd;
+use nrf52840_hal::clocks::Clocks;
 use nrf52840_pac::{interrupt, Peripherals, TIMER0};
 use usb_device::device::{UsbDeviceBuilder, UsbDeviceState, UsbVidPid};
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
@@ -21,7 +22,7 @@ fn TIMER0() {
 
 #[entry]
 fn main() -> ! {
-    static mut EP_BUF: [u8; 256] = [0; 256];
+    static mut EP_BUF: [u8; 512] = [0; 512];
 
     let core = cortex_m::Peripherals::take().unwrap();
     let periph = Peripherals::take().unwrap();
@@ -32,6 +33,18 @@ fn main() -> ! {
         .vbusdetect()
         .is_vbus_present()
     {}
+
+    // wait until USB 3.3V supply is stable
+    while !periph
+        .POWER
+        .events_usbpwrrdy
+        .read()
+        .events_usbpwrrdy()
+        .bit_is_clear()
+    {}
+
+    let clocks = Clocks::new(periph.CLOCK);
+    let clocks = clocks.enable_ext_hfosc();
 
     let mut nvic = core.NVIC;
     let mut timer = Timer::one_shot(periph.TIMER0);
@@ -48,12 +61,13 @@ fn main() -> ! {
 
     led.set_low().unwrap();
 
-    let usb_bus = Usbd::new_alloc(usbd, EP_BUF);
+    let usb_bus = Usbd::new_alloc(usbd, EP_BUF, &clocks);
     let mut serial = SerialPort::new(&usb_bus);
 
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x16c0, 0x27dd))
         .product("nRF52840 Serial Port Demo")
         .device_class(USB_CLASS_CDC)
+        .max_packet_size_0(64) // (makes control transfers 8x faster)
         .build();
 
     hprintln!("<start>").ok();
