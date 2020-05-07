@@ -567,12 +567,6 @@ impl UsbBus for Usbd<'_> {
     }
 
     fn set_stalled(&self, ep_addr: EndpointAddress, stalled: bool) {
-        semidap::trace!(
-            "Usbd::set_stalled(index={}, stalled={})",
-            ep_addr.index() as u8,
-            stalled as u8
-        );
-
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
 
