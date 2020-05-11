@@ -192,6 +192,8 @@ impl<'c> Radio<'c> {
 
     /// Recevies one radio packet and copies its contents into the given `packet` buffer
     pub fn recv(&mut self, packet: &mut Packet) {
+        // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
+
         // go to the RXIDLE state
         self.enable_rx();
 
@@ -216,6 +218,8 @@ impl<'c> Radio<'c> {
 
     /// Sends the given `data` as a single radio packet
     pub fn send(&mut self, packet: &Packet) {
+        // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
+
         // go to the RXIDLE state
         self.enable_rx();
 
@@ -395,6 +399,12 @@ enum Event {
 }
 
 /// An IEEE 802.15.4 packet
+///
+/// This `Packet` is closest to the PPDU (PHY Protocol Data Unit) defined in the IEEE spec. The API
+/// lets users modify the payload of the PPDU via the `deref` and `copy_from_slice` methods. End
+/// users should write a MPDU (MAC protocol data unit) in the PPDU payload to be IEEE compliant.
+///
+/// See figure 119 in the Product Specification of the nRF52840 for more details
 pub struct Packet {
     buffer: [u8; Self::SIZE],
 }
@@ -409,7 +419,10 @@ impl Packet {
     /// The maximum length of a packet
     pub const MAX_LEN: u8 = 127;
 
-    /// Returns an empty packe
+    /// Returns an empty packet (length = 0)
+    // XXX I believe that be making this not `const` it is not possible to place a `Packet` in
+    // `.rodata` (modulo `#[link_section]` shenanigans) thus it is not necessary to check the
+    // address of packet in `Radio.{send,recv}` (EasyDMA can only operate on RAM addresses)
     pub fn new() -> Self {
         Self {
             buffer: [0; Self::SIZE],
@@ -436,6 +449,19 @@ impl Packet {
     pub fn set_len(&mut self, len: u8) {
         let len = cmp::min(len, Self::MAX_LEN);
         self.buffer[Self::PHY_HDR] = len;
+    }
+
+    /// Returns the LQI (Link Quality Indicator) of the received packet
+    ///
+    /// Note that the LQI is stored in the `Packet`'s internal buffer by the hardware so the value
+    /// returned by this method is only valid after a `Radio.recv` operation. Operations that
+    /// modify the `Packet`, like `copy_from_slice` or `set_len`+`deref_mut`, will overwrite the
+    /// stored LQI value.
+    ///
+    /// Also note that the hardware will *not* compute a LQI for packets smaller than 3 bytes so
+    /// this method will return a junk value for those packets.
+    pub fn lqi(&self) -> u8 {
+        self.buffer[1 /* PHY_HDR */ + self.len() as usize /* data */]
     }
 }
 
