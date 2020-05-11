@@ -99,11 +99,11 @@ impl<'c> Radio<'c> {
                     .plen()
                     ._32bit_zero() // 32-bit zero preamble
                     .crcinc()
-                    .exclude() // no CRC
+                    .include() // LENGTH field includes CRC (2 bytes)
                     .cilen()
                     .bits(0) // no code indicator
                     .lflen()
-                    .bits(8) // length = 8 bits
+                    .bits(8) // length = 8 bits (but highest bit is reserved and must be `0`)
                     .s0len()
                     .clear_bit() // no S0
                     .s1len()
@@ -112,7 +112,7 @@ impl<'c> Radio<'c> {
 
             radio.radio.pcnf1.write(|w| {
                 w.maxlen()
-                    .bits(1 /* PHY_HDR */ + Packet::MAX_LEN) // LQI is not transmitted
+                    .bits(Packet::MAX_LEN + 2 /* CRC */) // payload length
                     .statlen()
                     .bits(0) // no static length
                     .balen()
@@ -120,7 +120,7 @@ impl<'c> Radio<'c> {
                     .endian()
                     .clear_bit() // little endian
                     .whiteen()
-                    .clear_bit() // no data whitenining
+                    .clear_bit() // no data whitening
             });
 
             // CRC configuration required by the IEEE spec: x**16 + x**12 + x**5 + 1
@@ -191,7 +191,11 @@ impl<'c> Radio<'c> {
     }
 
     /// Recevies one radio packet and copies its contents into the given `packet` buffer
-    pub fn recv(&mut self, packet: &mut Packet) {
+    ///
+    /// This methods returns the `Ok` variant if the CRC included the packet was successfully
+    /// validated by the hardware; otherwise it returns the `Err` variant. In either case, `packet`
+    /// will be updated with the received packet's data
+    pub fn recv(&mut self, packet: &mut Packet) -> Result<(), ()> {
         // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
 
         // go to the RXIDLE state
@@ -213,7 +217,11 @@ impl<'c> Radio<'c> {
         self.wait_for_event(Event::End);
         dma_end_fence();
 
-        // the CRC is checked by the hardware; nothing else to do
+        if self.radio.crcstatus.read().crcstatus().bit_is_set() {
+            Ok(())
+        } else {
+            Err(())
+        }
     }
 
     /// Sends the given `data` as a single radio packet
@@ -402,7 +410,11 @@ enum Event {
 ///
 /// This `Packet` is closest to the PPDU (PHY Protocol Data Unit) defined in the IEEE spec. The API
 /// lets users modify the payload of the PPDU via the `deref` and `copy_from_slice` methods. End
-/// users should write a MPDU (MAC protocol data unit) in the PPDU payload to be IEEE compliant.
+/// users should write a MPDU (MAC protocol data unit), starting with a MAC header (MHDR), in the
+/// PPDU payload to be IEEE compliant.
+///
+/// Note that the MAC level CRC, AKA the FCS (Frame Control Sequence), is fully computed in hardware
+/// so it doesn't need to be included in the packet's payload
 ///
 /// See figure 119 in the Product Specification of the nRF52840 for more details
 pub struct Packet {
@@ -413,20 +425,22 @@ pub struct Packet {
 impl Packet {
     const PHY_HDR: usize = 0;
     const DATA: RangeFrom<usize> = 1..;
-    // TODO add API to extract the LQI (Link Quality Indicator)
+    const CRC: u8 = 2; // size of the CRC, which is *never* copied to / from RAM
     const SIZE: usize = 1 /* PHY_HDR */ + Self::MAX_LEN as usize + 1 /* LQI */;
 
-    /// The maximum length of a packet
-    pub const MAX_LEN: u8 = 127;
+    /// The maximum length of the packet's payload
+    pub const MAX_LEN: u8 = 125;
 
     /// Returns an empty packet (length = 0)
     // XXX I believe that be making this not `const` it is not possible to place a `Packet` in
     // `.rodata` (modulo `#[link_section]` shenanigans) thus it is not necessary to check the
     // address of packet in `Radio.{send,recv}` (EasyDMA can only operate on RAM addresses)
     pub fn new() -> Self {
-        Self {
+        let mut packet = Self {
             buffer: [0; Self::SIZE],
-        }
+        };
+        packet.set_len(0);
+        packet
     }
 
     /// Fills the packet with given `src` data
@@ -435,20 +449,20 @@ impl Packet {
     pub fn copy_from_slice(&mut self, src: &[u8]) {
         let len = cmp::min(src.len(), Self::MAX_LEN as usize) as u8;
         self.buffer[Self::DATA][..len as usize].copy_from_slice(src);
-        self.buffer[Self::PHY_HDR] = len;
+        self.set_len(len);
     }
 
-    /// Returns the size of this packet
+    /// Returns the size of this packet's payload
     pub fn len(&self) -> u8 {
-        self.buffer[Self::PHY_HDR]
+        self.buffer[Self::PHY_HDR] - Self::CRC
     }
 
-    /// Changes the `len` of the packet
+    /// Changes the size of the packet's payload
     ///
-    /// NOTE `len` will be truncated to `MAX_PACKET_SIZE` bytes
+    /// NOTE `len` will be truncated to `MAX_LEN` bytes
     pub fn set_len(&mut self, len: u8) {
         let len = cmp::min(len, Self::MAX_LEN);
-        self.buffer[Self::PHY_HDR] = len;
+        self.buffer[Self::PHY_HDR] = len + Self::CRC;
     }
 
     /// Returns the LQI (Link Quality Indicator) of the received packet
