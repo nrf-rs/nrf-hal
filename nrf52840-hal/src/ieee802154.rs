@@ -25,6 +25,9 @@ pub const DEFAULT_CHANNEL: Channel = Channel::_20;
 /// Default TX power = 0 dBm
 pub const DEFAULT_TXPOWER: i8 = 0;
 
+/// Default Start of Frame Delimiter = `0xA7` (IEEE compliant)
+pub const DEFAULT_SFD: u8 = 0xA7;
+
 // TODO expose the other variants in `pac::CCAMODE_A`
 /// Clear Channel Assessment method
 pub enum Cca {
@@ -136,8 +139,9 @@ impl<'c> Radio<'c> {
         }
 
         // set default settings
-        radio.set_channel(DEFAULT_CHANNEL);
         radio.set_cca(DEFAULT_CCA);
+        radio.set_channel(DEFAULT_CHANNEL);
+        radio.set_sfd(DEFAULT_SFD);
         radio.set_txpower(DEFAULT_TXPOWER);
 
         radio
@@ -162,6 +166,14 @@ impl<'c> Radio<'c> {
         match cca {
             Cca::CarrierSense => self.radio.ccactrl.write(|w| w.ccamode().carrier_mode()),
         }
+    }
+
+    /// Changes the Start of Frame Delimiter
+    pub fn set_sfd(&mut self, sfd: u8) {
+        // FIXME don't completely turn off the radio; RXIDLE or TXIDLE are probably OK
+        self.disable();
+
+        self.radio.sfd.write(|w| unsafe { w.sfd().bits(sfd) });
     }
 
     /// Changes the TX power
