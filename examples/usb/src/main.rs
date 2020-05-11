@@ -24,7 +24,6 @@ fn TIMER0() {
 fn main() -> ! {
     static mut EP_BUF: [u8; 512] = [0; 512];
 
-    let core = cortex_m::Peripherals::take().unwrap();
     let periph = Peripherals::take().unwrap();
     while !periph
         .POWER
@@ -46,7 +45,6 @@ fn main() -> ! {
     let clocks = Clocks::new(periph.CLOCK);
     let clocks = clocks.enable_ext_hfosc();
 
-    let mut nvic = core.NVIC;
     let mut timer = Timer::one_shot(periph.TIMER0);
     let usbd = periph.USBD;
     let p0 = p0::Parts::new(periph.P0);
@@ -56,7 +54,7 @@ fn main() -> ! {
     let btn = p1.p1_00.into_pullup_input();
     while btn.is_high().unwrap() {}
 
-    timer.enable_interrupt(Some(&mut nvic));
+    timer.enable_interrupt();
     timer.start(Timer::<TIMER0, OneShot>::TICKS_PER_SECOND * 3);
 
     led.set_low().unwrap();
