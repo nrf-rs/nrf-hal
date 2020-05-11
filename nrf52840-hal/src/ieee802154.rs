@@ -9,6 +9,7 @@ use core::{
 use crate::clocks::{Clocks, ExternalOscillator};
 use crate::pac::{generic::Variant, radio::state::STATE_A, RADIO};
 
+/// IEEE 802.15.4 radio
 pub struct Radio<'c> {
     radio: RADIO,
     // used to freeze `Clocks`
@@ -18,8 +19,11 @@ pub struct Radio<'c> {
 /// Default Clear Channel Assessment method = Carrier sense
 pub const DEFAULT_CCA: Cca = Cca::CarrierSense;
 
-/// Default radio channel = Channel 20 (2_450 MHz)
+/// Default radio channel = Channel 20 (`2_450` MHz)
 pub const DEFAULT_CHANNEL: Channel = Channel::_20;
+
+/// Default TX power = 0 dBm
+pub const DEFAULT_TXPOWER: i8 = 0;
 
 // TODO expose the other variants in `pac::CCAMODE_A`
 /// Clear Channel Assessment method
@@ -70,7 +74,10 @@ pub enum Channel {
 impl<'c> Radio<'c> {
     /// Initializes the radio for IEEE 802.15.4 operation
     pub fn init<L, LSTAT>(radio: RADIO, _clocks: &'c Clocks<ExternalOscillator, L, LSTAT>) -> Self {
-        let mut radio = Self { radio, _clocks: &() };
+        let mut radio = Self {
+            radio,
+            _clocks: &(),
+        };
 
         // go to a known state
         radio.disable();
@@ -131,6 +138,7 @@ impl<'c> Radio<'c> {
         // set default settings
         radio.set_channel(DEFAULT_CHANNEL);
         radio.set_cca(DEFAULT_CCA);
+        radio.set_txpower(DEFAULT_TXPOWER);
 
         radio
     }
@@ -154,6 +162,20 @@ impl<'c> Radio<'c> {
         match cca {
             Cca::CarrierSense => self.radio.ccactrl.write(|w| w.ccamode().carrier_mode()),
         }
+    }
+
+    /// Changes the TX power
+    ///
+    /// `power` is in dBm and will be clamped to the range `-40 ..= +8`
+    pub fn set_txpower(&mut self, power: i8) {
+        let power = cmp::max(cmp::min(power, 8), -40);
+
+        // FIXME don't completely turn off the radio; RXIDLE or TXIDLE are probably OK
+        self.disable();
+
+        self.radio
+            .txpower
+            .write(|w| unsafe { w.txpower().bits(power as u8) });
     }
 
     /// Recevies one radio packet and copies its contents into the given `packet` buffer
