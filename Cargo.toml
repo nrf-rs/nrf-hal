@@ -24,6 +24,3 @@ opt-level = "s"
 [patch.crates-io.usb-device]
 git = "https://github.com/jonas-schievink/usb-device.git"
 branch = "inhibit-setaddr-resp"
-
-[patch.crates-io.panic-semihosting]
-path = "../panic-semihosting"
