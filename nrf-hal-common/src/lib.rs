@@ -25,6 +25,8 @@ pub mod adc;
 pub mod clocks;
 #[cfg(not(feature = "51"))]
 pub mod delay;
+#[cfg(not(feature = "9160"))]
+pub mod ecb;
 pub mod gpio;
 #[cfg(not(feature = "9160"))]
 pub mod rng;

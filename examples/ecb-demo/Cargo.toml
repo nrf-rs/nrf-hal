@@ -1,0 +1,26 @@
+[package]
+name = "ecb-demo"
+version = "0.0.1"
+edition = "2018"
+authors = [ "Thales Fragoso <thales.fragosoz@gmail.com>"]
+
+[dependencies]
+cortex-m = "0.6.2"
+cortex-m-rt = "0.6.12"
+rtt-target = {version = "0.2.0", features = ["cortex-m"] }
+
+nrf52810-hal = { path = "../../nrf52810-hal", features = ["rt"], optional = true }
+nrf52832-hal = { path = "../../nrf52832-hal", features = ["rt"], optional = true }
+nrf52840-hal = { path = "../../nrf52840-hal", features = ["rt"], optional = true }
+nrf51-hal = { path = "../../nrf51-hal", features = ["rt"], optional = true}
+
+[[bin]]
+name = "ecb-demo"
+doc = false
+test = false
+
+[features]
+51 = ["nrf51-hal"]
+52810 = ["nrf52810-hal"]
+52832 = ["nrf52832-hal"]
+52840 = ["nrf52840-hal"]
