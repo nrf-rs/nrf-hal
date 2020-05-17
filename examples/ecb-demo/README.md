@@ -1,6 +1,6 @@
 # AES electronic codebook mode encryption demo
 
-Chose the microcontroller with one of the following features:
+Choose the microcontroller with one of the following features:
 - 51
 - 52810
 - 52832
@@ -13,7 +13,7 @@ This demo uses the [rtt-target](https://crates.io/crates/rtt-target) crate for c
 If using `cargo-embed`, just run
 
 ```console
-$ cargo embed --release --features=52832
+$ cargo embed --release --features=52832 --target=thumbv7em-none-eabihf
 ```
 
-Replace `52832` with the correct feature for your microcontroller.
+Replace `52832` and `thumbv7em-none-eabihf` with the correct feature and target for your microcontroller.
