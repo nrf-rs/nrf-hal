@@ -3,7 +3,7 @@
 
 extern crate cortex_m_rt as rt;
 extern crate nb;
-extern crate panic_semihosting;
+extern crate panic_halt;
 extern crate thingy91_bsp as bsp;
 
 use bsp::{hal::Timer, prelude::*, Board};

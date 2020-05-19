@@ -19,4 +19,3 @@ nrf9160-hal = { version = "0.10.0", path = "../../nrf9160-hal" }
 
 [dev-dependencies]
 nb = "0.1.2"
-panic-semihosting = "0.5.3"
