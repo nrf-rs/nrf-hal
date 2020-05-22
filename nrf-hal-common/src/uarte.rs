@@ -10,7 +10,7 @@ use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
 use embedded_hal::digital::v2::OutputPin;
 
-#[cfg(feature = "52840")]
+#[cfg(any(feature = "52833", feature = "52840"))]
 use crate::target::UARTE1;
 
 #[cfg(feature = "9160")]
@@ -46,14 +46,14 @@ where
         // Select pins
         uarte.psel.rxd.write(|w| {
             let w = unsafe { w.pin().bits(pins.rxd.pin) };
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52833", feature = "52840"))]
             let w = w.port().bit(pins.rxd.port);
             w.connect().connected()
         });
         pins.txd.set_high().unwrap();
         uarte.psel.txd.write(|w| {
             let w = unsafe { w.pin().bits(pins.txd.pin) };
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52833", feature = "52840"))]
             let w = w.port().bit(pins.txd.port);
             w.connect().connected()
         });
@@ -62,7 +62,7 @@ where
         uarte.psel.cts.write(|w| {
             if let Some(ref pin) = pins.cts {
                 let w = unsafe { w.pin().bits(pin.pin) };
-                #[cfg(feature = "52840")]
+                #[cfg(any(feature = "52833", feature = "52840"))]
                 let w = w.port().bit(pin.port);
                 w.connect().connected()
             } else {
@@ -73,7 +73,7 @@ where
         uarte.psel.rts.write(|w| {
             if let Some(ref pin) = pins.rts {
                 let w = unsafe { w.pin().bits(pin.pin) };
-                #[cfg(feature = "52840")]
+                #[cfg(any(feature = "52833", feature = "52840"))]
                 let w = w.port().bit(pin.port);
                 w.connect().connected()
             } else {
@@ -372,5 +372,5 @@ pub trait Instance: Deref<Target = uarte0::RegisterBlock> {}
 
 impl Instance for UARTE0 {}
 
-#[cfg(any(feature = "52840", feature = "9160"))]
+#[cfg(any(feature = "52833", feature = "52840", feature = "9160"))]
 impl Instance for UARTE1 {}

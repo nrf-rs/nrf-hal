@@ -15,7 +15,7 @@ pub use spim0::frequency::FREQUENCY_A as Frequency;
 
 use core::iter::repeat_with;
 
-#[cfg(any(feature = "52832", feature = "52840"))]
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::target::{SPIM1, SPIM2};
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
@@ -94,7 +94,7 @@ where
         // Select pins
         spim.psel.sck.write(|w| {
             let w = unsafe { w.pin().bits(pins.sck.pin) };
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52843", feature = "52840"))]
             let w = w.port().bit(pins.sck.port);
             w.connect().connected()
         });
@@ -102,7 +102,7 @@ where
         match pins.mosi {
             Some(mosi) => spim.psel.mosi.write(|w| {
                 let w = unsafe { w.pin().bits(mosi.pin) };
-                #[cfg(feature = "52840")]
+                #[cfg(any(feature = "52843", feature = "52840"))]
                 let w = w.port().bit(mosi.port);
                 w.connect().connected()
             }),
@@ -111,7 +111,7 @@ where
         match pins.miso {
             Some(miso) => spim.psel.miso.write(|w| {
                 let w = unsafe { w.pin().bits(miso.pin) };
-                #[cfg(feature = "52840")]
+                #[cfg(any(feature = "52843", feature = "52840"))]
                 let w = w.port().bit(miso.port);
                 w.connect().connected()
             }),
@@ -404,8 +404,8 @@ pub trait Instance: Deref<Target = spim0::RegisterBlock> {}
 
 impl Instance for SPIM0 {}
 
-#[cfg(any(feature = "52832", feature = "52840"))]
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 impl Instance for SPIM1 {}
 
-#[cfg(any(feature = "52832", feature = "52840"))]
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 impl Instance for SPIM2 {}
