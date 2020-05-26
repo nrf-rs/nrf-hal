@@ -21,10 +21,10 @@ jobs:
     - name: Install Arm targets
       run: >
         rustup target add
-          thumbv6m-none-eabi
-          thumbv7em-none-eabi
-          thumbv7em-none-eabihf
-          thumbv8m.main-none-eabi
+        thumbv6m-none-eabi
+        thumbv7em-none-eabi
+        thumbv7em-none-eabihf
+        thumbv8m.main-none-eabi
     - name: Build Crates
       run: scripts/build.sh
 
