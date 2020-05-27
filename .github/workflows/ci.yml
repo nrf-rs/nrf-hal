@@ -11,6 +11,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Install Rust stable
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        components: rustfmt
     - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
@@ -30,18 +36,3 @@ jobs:
     strategy:
       matrix:
         rust_version: [stable, beta, nightly]
-
-  tidy:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v2
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        profile: minimal
-        override: true
-        components: rustfmt
-    - name: Check formatting
-      run: cargo fmt -- --check
