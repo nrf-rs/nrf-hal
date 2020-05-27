@@ -8,7 +8,7 @@ use crate::target::{rtc0_ns as rtc0, Interrupt, NVIC, RTC0_NS as RTC0, RTC1_NS a
 #[cfg(not(feature = "9160"))]
 use crate::target::{rtc0, Interrupt, NVIC, RTC0, RTC1};
 
-#[cfg(any(feature = "52840", feature = "52832"))]
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::target::RTC2;
 
 // Zero Size Type State structs
@@ -252,5 +252,5 @@ macro_rules! impl_instance {
 
 impl_instance!(RTC0, RTC1,);
 
-#[cfg(any(feature = "52840", feature = "52832"))]
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 impl_instance!(RTC2,);

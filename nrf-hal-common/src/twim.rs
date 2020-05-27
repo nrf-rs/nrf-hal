@@ -13,7 +13,7 @@ use crate::target::{twim0_ns as twim0, P0_NS as P0, TWIM0_NS as TWIM0};
 #[cfg(not(feature = "9160"))]
 use crate::target::{twim0, P0, TWIM0};
 
-#[cfg(any(feature = "52832", feature = "52840"))]
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::target::TWIM1;
 
 use crate::{
@@ -404,5 +404,5 @@ pub trait Instance: Deref<Target = twim0::RegisterBlock> {}
 
 impl Instance for TWIM0 {}
 
-#[cfg(any(feature = "52832", feature = "52840"))]
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 impl Instance for TWIM1 {}

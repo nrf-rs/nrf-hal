@@ -11,6 +11,9 @@ pub use nrf52810_pac as target;
 #[cfg(feature = "52832")]
 pub use nrf52832_pac as target;
 
+#[cfg(feature = "52833")]
+pub use nrf52833_pac as target;
+
 #[cfg(feature = "52840")]
 pub use nrf52840_pac as target;
 
@@ -64,7 +67,7 @@ pub mod target_constants {
     pub const SRAM_UPPER: usize = 0x3000_0000;
     pub const FORCE_COPY_BUFFER_SIZE: usize = 255;
 }
-#[cfg(any(feature = "52840", feature = "9160"))]
+#[cfg(any(feature = "52840", feature = "52833", feature = "9160"))]
 pub mod target_constants {
     // NRF52840 and NRF9160 16 bits 1..0xFFFF
     pub const EASY_DMA_SIZE: usize = 65535;

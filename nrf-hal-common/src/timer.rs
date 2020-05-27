@@ -17,7 +17,7 @@ use embedded_hal::{
 use nb::{self, block};
 use void::{unreachable, Void};
 
-#[cfg(any(feature = "52832", feature = "52840"))]
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::target::{TIMER3, TIMER4};
 
 use core::marker::PhantomData;
@@ -362,5 +362,5 @@ macro_rules! impl_instance {
 
 impl_instance!(TIMER0, TIMER1, TIMER2,);
 
-#[cfg(any(feature = "52832", feature = "52840"))]
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 impl_instance!(TIMER3, TIMER4,);
