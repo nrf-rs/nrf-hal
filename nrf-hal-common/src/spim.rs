@@ -18,7 +18,7 @@ use core::iter::repeat_with;
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::target::{SPIM1, SPIM2};
 
-#[cfg(feature = "52840")]
+#[cfg(any(feature = "52833", feature = "52840"))]
 use crate::target::SPIM3;
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
@@ -413,5 +413,5 @@ impl Instance for SPIM1 {}
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 impl Instance for SPIM2 {}
 
-#[cfg(feature = "52840")]
+#[cfg(any(feature = "52833", feature = "52840"))]
 impl Instance for SPIM3 {}
