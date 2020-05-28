@@ -12,6 +12,7 @@ rtt-target = {version = "0.2.0", features = ["cortex-m"] }
 nrf52810-hal = { path = "../../nrf52810-hal", features = ["rt"], optional = true }
 nrf52832-hal = { path = "../../nrf52832-hal", features = ["rt"], optional = true }
 nrf52840-hal = { path = "../../nrf52840-hal", features = ["rt"], optional = true }
+nrf52833-hal = { path = "../../nrf52833-hal", features = ["rt"], optional = true }
 nrf51-hal = { path = "../../nrf51-hal", features = ["rt"], optional = true}
 
 [[bin]]
@@ -24,3 +25,4 @@ test = false
 52810 = ["nrf52810-hal"]
 52832 = ["nrf52832-hal"]
 52840 = ["nrf52840-hal"]
+52833 = ["nrf52833-hal"]
