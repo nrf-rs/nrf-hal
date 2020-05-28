@@ -1,0 +1,38 @@
+name: Rust
+
+on:
+  push:
+    branches: [ master, staging, trying ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Rust stable
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        components: rustfmt
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.rust_version }}
+        profile: minimal
+        override: true
+    - name: Install Arm targets
+      run: >
+        rustup target add
+        thumbv6m-none-eabi
+        thumbv7em-none-eabi
+        thumbv7em-none-eabihf
+        thumbv8m.main-none-eabi
+    - name: Build Crates
+      run: scripts/build.sh
+
+    strategy:
+      matrix:
+        rust_version: [stable, beta, nightly]
