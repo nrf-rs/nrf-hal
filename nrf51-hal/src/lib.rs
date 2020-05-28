@@ -11,6 +11,7 @@ pub mod prelude {
 
 pub use crate::adc::Adc;
 pub use crate::clocks::Clocks;
+pub use crate::ecb::Ecb;
 pub use crate::rtc::Rtc;
 pub use crate::spi::Spi;
 pub use crate::temp::Temp;
