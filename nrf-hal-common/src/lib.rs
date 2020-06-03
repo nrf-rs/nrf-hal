@@ -22,6 +22,8 @@ pub use nrf9160_pac as target;
 
 #[cfg(feature = "51")]
 pub mod adc;
+#[cfg(not(feature = "9160"))]
+pub mod ccm;
 pub mod clocks;
 #[cfg(not(feature = "51"))]
 pub mod delay;
