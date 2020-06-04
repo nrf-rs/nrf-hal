@@ -179,7 +179,6 @@ impl Ccm {
         // This register is shared with AAR, reset it and write the chosen data rate
         regs.mode.write(|w| w.datarate().variant(data_rate.into()));
 
-        regs.shorts.write(|w| w.endksgen_crypt().enabled());
         regs.enable.write(|w| w.enable().enabled());
 
         Self { regs, _aar: arr }
@@ -190,7 +189,7 @@ impl Ccm {
     /// The generated MIC will be appended to after the payload in the `cipher_packet`. The slices
     /// passed to this method must have the correct size, for more information refer to the module
     /// level documentation. The counter in `ccm_data` will be incremented if the operation
-    /// succeeds.
+    /// succeeds. All parameters passed to this method must reside in RAM.
     pub fn encrypt_packet(
         &mut self,
         ccm_data: &mut CcmData,
@@ -228,7 +227,7 @@ impl Ccm {
         let length_variant = if payload_len <= MAXIMUM_LENGTH_5BITS {
             LENGTH_A::DEFAULT
         } else {
-            #[cfg(any(feature = "52840", feature = "52833"))]
+            #[cfg(any(feature = "52840", feature = "52833", feature = "52810"))]
             // NOTE(unsafe) Any 8bits pattern is safe to write to this register
             self.regs
                 .maxpacketsize
@@ -267,10 +266,14 @@ impl Ccm {
         // "Preceding reads and writes cannot be moved past subsequent writes."
         compiler_fence(Ordering::Release);
 
-        // Start key generation, encryption will start automatically because of the enabled short
-        // in init
+        // Start key generation
         // NOTE(unsafe) 1 is a valid pattern to write to this register
         self.regs.tasks_ksgen.write(|w| unsafe { w.bits(1) });
+
+        while self.regs.events_endksgen.read().bits() == 0 {}
+
+        // NOTE(unsafe) 1 is a valid pattern to write to this register
+        self.regs.tasks_crypt.write(|w| unsafe { w.bits(1) });
 
         while self.regs.events_endcrypt.read().bits() == 0
             && self.regs.events_error.read().bits() == 0
@@ -292,7 +295,8 @@ impl Ccm {
     ///
     /// This method will return an error if the MIC verification fails. The slices passed to this
     /// method must have the correct size, for more information refer to the module level
-    /// documentation. The counter in `ccm_data` will be incremented if the operation succeeds.
+    /// documentation. The counter in `ccm_data` will be incremented if the operation succeeds. All
+    /// parameters passed to this method must reside in RAM.
     pub fn decrypt_packet(
         &mut self,
         ccm_data: &mut CcmData,
@@ -335,7 +339,7 @@ impl Ccm {
         let length_variant = if payload_len <= MAXIMUM_LENGTH_5BITS {
             LENGTH_A::DEFAULT
         } else {
-            #[cfg(any(feature = "52840", feature = "52833"))]
+            #[cfg(any(feature = "52840", feature = "52833", feature = "52810"))]
             // NOTE(unsafe) Any 8bits pattern is safe to write to this register
             self.regs
                 .maxpacketsize
@@ -374,10 +378,14 @@ impl Ccm {
         // "Preceding reads and writes cannot be moved past subsequent writes."
         compiler_fence(Ordering::Release);
 
-        // Start key generation, decryption will start automatically because of the enabled short
-        // in init
+        // Start key generation
         // NOTE(unsafe) 1 is a valid pattern to write to this register
         self.regs.tasks_ksgen.write(|w| unsafe { w.bits(1) });
+
+        while self.regs.events_endksgen.read().bits() == 0 {}
+
+        // NOTE(unsafe) 1 is a valid pattern to write to this register
+        self.regs.tasks_crypt.write(|w| unsafe { w.bits(1) });
 
         while self.regs.events_endcrypt.read().bits() == 0
             && self.regs.events_error.read().bits() == 0

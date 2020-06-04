@@ -53,7 +53,7 @@ fn main() -> ! {
 
     let mut ccm_data_enc = CcmData::new(KEY, iv);
     let mut ccm_data_dec = CcmData::new(KEY, iv);
-    let mut ccm = Ccm::init(p.CCM, p.AAR, DataRate::_1Mbit);
+    let mut ccm = Ccm::init(p.CCM, p.AAR, DataRate::_2Mbit);
 
     let mut clear_buffer = [0u8; 254];
     let mut cipher_buffer = [0u8; 258];
@@ -87,16 +87,6 @@ fn main() -> ! {
 
         rprintln!("Encryption Took: {} us", now);
 
-        //rprint!("Cipher Packet: ");
-        //for number in cipher_buffer.iter().take(length + MIC_SIZE + HEADER_SIZE) {
-        //    rprint!("{:x} ", *number);
-        //}
-
-        // Since we're both encrypting and decrypting, we need to decrement the counter to have the
-        // same counter that encrypted the message. `encrypt_packet` and `decrypt_packet`
-        // automatically increments the counter when the operation succeeds.
-        //ccm_data.decrement_counter();
-
         // Clears the buffer, so we can inspect the decrypted text
         clear_buffer = [0u8; 254];
 
@@ -121,9 +111,6 @@ fn main() -> ! {
             &clear_buffer[HEADER_SIZE..length + HEADER_SIZE],
             &MSG[..length]
         );
-
-        //let msg = core::str::from_utf8(&clear_buffer[HEADER_SIZE..length]).unwrap();
-        //rprintln!("Clear text: {}\n", msg);
 
         // Clears the cipher text for next round
         cipher_buffer = [0u8; 258];

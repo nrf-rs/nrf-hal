@@ -19,7 +19,7 @@ restore_unwritten_bytes = false
 
 [general]
 # The chip name of the chip to be debugged.
-chip = "nRF52832"
+#chip = "nRF52832"
 # A list of chip descriptions to be loaded during runtime.
 chip_descriptions = []
 # The default log level to be used.
