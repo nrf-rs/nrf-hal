@@ -7,7 +7,11 @@ use core::{
 };
 
 use crate::clocks::{Clocks, ExternalOscillator};
-use crate::pac::{generic::Variant, radio::state::STATE_A, RADIO};
+use crate::pac::{
+    generic::Variant,
+    radio::{state::STATE_A, txpower::TXPOWER_A},
+    RADIO,
+};
 
 /// IEEE 802.15.4 radio
 pub struct Radio<'c> {
@@ -23,7 +27,7 @@ pub const DEFAULT_CCA: Cca = Cca::CarrierSense;
 pub const DEFAULT_CHANNEL: Channel = Channel::_20;
 
 /// Default TX power = 0 dBm
-pub const DEFAULT_TXPOWER: i8 = 0;
+pub const DEFAULT_TXPOWER: TxPower = TxPower::_0dBm;
 
 /// Default Start of Frame Delimiter = `0xA7` (IEEE compliant)
 pub const DEFAULT_SFD: u8 = 0xA7;
@@ -38,6 +42,7 @@ pub enum Cca {
 /// IEEE 802.15.4 channels
 ///
 /// NOTE these are NOT the same as WiFi 2.4 GHz channels
+// TODO it is possible to use non-standard frequencies below 2_400 MHz; should those be exposed too?
 pub enum Channel {
     /// 2_405 MHz
     _11 = 5,
@@ -73,7 +78,61 @@ pub enum Channel {
     _26 = 80,
 }
 
-// TODO add API to change TXPOWER
+/// Transmission power in dBm (decibel milliwatt)
+// TXPOWERA enum minus the deprecated Neg30dBm variant and with better docs
+#[derive(Clone, Copy, PartialEq)]
+pub enum TxPower {
+    /// +8 dBm
+    Pos8dBm,
+    /// +7 dBm
+    Pos7dBm,
+    /// +6 dBm (~4 mW)
+    Pos6dBm,
+    /// +5 dBm
+    Pos5dBm,
+    /// +4 dBm
+    Pos4dBm,
+    /// +3 dBm (~2 mW)
+    Pos3dBm,
+    /// +2 dBm
+    Pos2dBm,
+    /// 0 dBm (1 mW)
+    _0dBm,
+    /// -4 dBm
+    Neg4dBm,
+    /// -8 dBm
+    Neg8dBm,
+    /// -12 dBm
+    Neg12dBm,
+    /// -16 dBm
+    Neg16dBm,
+    /// -20 dBm (10 μW)
+    Neg20dBm,
+    /// -40 dBm (0.1 μW)
+    Neg40dBm,
+}
+
+impl TxPower {
+    fn _into(self) -> TXPOWER_A {
+        match self {
+            TxPower::Neg40dBm => TXPOWER_A::NEG40DBM,
+            TxPower::Neg20dBm => TXPOWER_A::NEG20DBM,
+            TxPower::Neg16dBm => TXPOWER_A::NEG16DBM,
+            TxPower::Neg12dBm => TXPOWER_A::NEG12DBM,
+            TxPower::Neg8dBm => TXPOWER_A::NEG8DBM,
+            TxPower::Neg4dBm => TXPOWER_A::NEG4DBM,
+            TxPower::_0dBm => TXPOWER_A::_0DBM,
+            TxPower::Pos2dBm => TXPOWER_A::POS2DBM,
+            TxPower::Pos3dBm => TXPOWER_A::POS3DBM,
+            TxPower::Pos4dBm => TXPOWER_A::POS4DBM,
+            TxPower::Pos5dBm => TXPOWER_A::POS5DBM,
+            TxPower::Pos6dBm => TXPOWER_A::POS6DBM,
+            TxPower::Pos7dBm => TXPOWER_A::POS7DBM,
+            TxPower::Pos8dBm => TXPOWER_A::POS8DBM,
+        }
+    }
+}
+
 impl<'c> Radio<'c> {
     /// Initializes the radio for IEEE 802.15.4 operation
     pub fn init<L, LSTAT>(radio: RADIO, _clocks: &'c Clocks<ExternalOscillator, L, LSTAT>) -> Self {
@@ -177,17 +236,13 @@ impl<'c> Radio<'c> {
     }
 
     /// Changes the TX power
-    ///
-    /// `power` is in dBm and will be clamped to the range `-40 ..= +8`
-    pub fn set_txpower(&mut self, power: i8) {
-        let power = cmp::max(cmp::min(power, 8), -40);
-
+    pub fn set_txpower(&mut self, power: TxPower) {
         // FIXME don't completely turn off the radio; RXIDLE or TXIDLE are probably OK
         self.disable();
 
         self.radio
             .txpower
-            .write(|w| unsafe { w.txpower().bits(power as u8) });
+            .write(|w| w.txpower().variant(power._into()));
     }
 
     /// Recevies one radio packet and copies its contents into the given `packet` buffer
@@ -382,7 +437,13 @@ impl<'c> Radio<'c> {
                 self.radio.events_end.reset();
             }
             Event::PhyEnd => {
-                while self.radio.events_phyend.read().events_phyend().bit_is_clear() {
+                while self
+                    .radio
+                    .events_phyend
+                    .read()
+                    .events_phyend()
+                    .bit_is_clear()
+                {
                     continue;
                 }
                 self.radio.events_phyend.reset();
