@@ -278,7 +278,7 @@ impl<'c> Radio<'c> {
 
         // due to a shortcut the transmission will start automatically so we just have to wait
         // until the END event
-        self.wait_for_event(Event::End);
+        self.wait_for_event(Event::PhyEnd);
         dma_end_fence();
     }
 
@@ -381,6 +381,12 @@ impl<'c> Radio<'c> {
                 }
                 self.radio.events_end.reset();
             }
+            Event::PhyEnd => {
+                while self.radio.events_phyend.read().events_phyend().bit_is_clear() {
+                    continue;
+                }
+                self.radio.events_phyend.reset();
+            }
         }
     }
 
@@ -404,6 +410,7 @@ fn dma_end_fence() {
 
 enum Event {
     End,
+    PhyEnd,
 }
 
 /// An IEEE 802.15.4 packet
