@@ -62,7 +62,7 @@ pub mod prelude {
 }
 
 /// Length of Nordic EasyDMA differs for MCUs
-#[cfg(any(feature = "52810", feature = "52832"))]
+#[cfg(any(feature = "52810", feature = "52832", feature = "51"))]
 pub mod target_constants {
     // NRF52832 8 bits1..0xFF
     pub const EASY_DMA_SIZE: usize = 255;
@@ -82,7 +82,6 @@ pub mod target_constants {
 }
 
 /// Does this slice reside entirely within RAM?
-#[cfg(not(feature = "51"))]
 pub(crate) fn slice_in_ram(slice: &[u8]) -> bool {
     let ptr = slice.as_ptr() as usize;
     ptr >= target_constants::SRAM_LOWER && (ptr + slice.len()) < target_constants::SRAM_UPPER

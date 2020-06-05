@@ -11,10 +11,10 @@
 //! Clear packet:
 //!
 //! ```notrust
-//! +----------+---------------+----------+-----------------+
-//! | S0       | Packet length | S1       | Payload         |
-//! | (1 byte) | (1 byte)      | (1 byte) | (0 - 251 bytes) |
-//! +----------+---------------+----------+-----------------+
+//! +----------+---------------+----------+------------------+
+//! | S0       | Packet length | S1       | Payload          |
+//! | (1 byte) | (1 byte)      | (1 byte) | (0 - 251* bytes) |
+//! +----------+---------------+----------+------------------+
 //! ```
 //!
 //! The contents of `S0` and `S1` are not relevant, but the fields must be present in the slice.
@@ -26,16 +26,18 @@
 //! Cipher packet:
 //!
 //! ```notrust
-//! +----------+---------------+----------+-----------------+-----------+
-//! | S0       | Packet length | S1       | Payload         | MIC       |
-//! | (1 byte) | (1 byte)      | (1 byte) | (0 - 251 bytes) | (4 bytes) |
-//! +----------+---------------+----------+-----------------+-----------+
+//! +----------+---------------+----------+-----------------+-------------+
+//! | S0       | Packet length | S1       | Payload          | MIC        |
+//! | (1 byte) | (1 byte)      | (1 byte) | (0 - 251* bytes) | (4 bytes)  |
+//! +----------+---------------+----------+-----------------+-------------+
 //! ```
 //! The contents of `S0` and `S1` are not relevant, but the fields must be present in the slice. The
 //! `Packet length` is the sum of the lengths of the `Payload` and `MIC`.
 //! The decryption operation will also check the MIC field and return an error when it is invalid
 //! and it will decrement the `Length` field by four. During decryption, the `clear text` slice does
 //! not need to have space for the MIC field.
+//!
+//! * nRF51 devices only support payloads of up to 27 bytes.
 //!
 //! # Scratch Area
 //!
@@ -45,12 +47,12 @@
 
 use crate::{
     slice_in_ram,
-    target::{
-        ccm::mode::{DATARATE_A, LENGTH_A},
-        AAR, CCM,
-    },
+    target::{AAR, CCM},
 };
 use core::sync::atomic::{compiler_fence, Ordering};
+
+#[cfg(not(feature = "51"))]
+use crate::target::ccm::mode::{DATARATE_A, LENGTH_A};
 
 const MINIMUM_SCRATCH_AREA_SIZE: usize = 43;
 const HEADER_SIZE: usize = 3;
@@ -62,12 +64,21 @@ const MAXIMUM_LENGTH_5BITS: usize = 31;
 const MAXIMUM_COUNTER: u64 = 0x7F_FFFF_FFFF;
 
 /// Data rate that CCM peripheral shall run in sync with.
+#[cfg(not(feature = "51"))]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DataRate {
     _1Mbit,
     _2Mbit,
 }
 
+/// Data rate that CCM peripheral shall run in sync with.
+#[cfg(feature = "51")]
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum DataRate {
+    _1Mbit,
+}
+
+#[cfg(not(feature = "51"))]
 impl From<DataRate> for DATARATE_A {
     fn from(data_rate: DataRate) -> Self {
         if data_rate == DataRate::_1Mbit {
@@ -177,7 +188,11 @@ impl Ccm {
         regs.tasks_stop.write(|w| unsafe { w.bits(1) });
 
         // This register is shared with AAR, reset it and write the chosen data rate
+        #[cfg(not(feature = "51"))]
         regs.mode.write(|w| w.datarate().variant(data_rate.into()));
+
+        #[cfg(feature = "51")]
+        let _ = data_rate;
 
         regs.enable.write(|w| w.enable().enabled());
 
@@ -224,7 +239,15 @@ impl Ccm {
             return Err(CcmError::InsufficientScratchArea);
         }
 
-        let length_variant = if payload_len <= MAXIMUM_LENGTH_5BITS {
+        #[cfg(feature = "51")]
+        {
+            if payload_len > MAXIMUM_LENGTH_5BITS - MIC_SIZE {
+                return Err(CcmError::WrongPacketLength);
+            }
+        }
+
+        #[cfg(not(feature = "51"))]
+        let length_variant = if payload_len <= MAXIMUM_LENGTH_5BITS - MIC_SIZE {
             LENGTH_A::DEFAULT
         } else {
             #[cfg(any(feature = "52840", feature = "52833", feature = "52810"))]
@@ -236,6 +259,10 @@ impl Ccm {
             LENGTH_A::EXTENDED
         };
 
+        #[cfg(feature = "51")]
+        self.regs.mode.write(|w| w.mode().encryption());
+
+        #[cfg(not(feature = "51"))]
         self.regs
             .mode
             .modify(|_, w| w.mode().encryption().length().variant(length_variant));
@@ -336,6 +363,14 @@ impl Ccm {
             return Err(CcmError::InsufficientScratchArea);
         }
 
+        #[cfg(feature = "51")]
+        {
+            if payload_len > MAXIMUM_LENGTH_5BITS {
+                return Err(CcmError::WrongPacketLength);
+            }
+        }
+
+        #[cfg(not(feature = "51"))]
         let length_variant = if payload_len <= MAXIMUM_LENGTH_5BITS {
             LENGTH_A::DEFAULT
         } else {
@@ -348,6 +383,10 @@ impl Ccm {
             LENGTH_A::EXTENDED
         };
 
+        #[cfg(feature = "51")]
+        self.regs.mode.write(|w| w.mode().decryption());
+
+        #[cfg(not(feature = "51"))]
         self.regs
             .mode
             .modify(|_, w| w.mode().decryption().length().variant(length_variant));
