@@ -191,10 +191,7 @@ impl<'c> Radio<'c> {
             radio.radio.crcinit.write(|w| w.crcinit().bits(0));
 
             // permanent shortcuts
-            radio
-                .radio
-                .shorts
-                .write(|w| w.ccaidle_txen().set_bit().txready_start().set_bit());
+            radio.radio.shorts.write(|w| w.txready_start().set_bit());
         }
 
         // set default settings
@@ -279,9 +276,77 @@ impl<'c> Radio<'c> {
         }
     }
 
-    /// Sends the given `data` as a single radio packet
+    /// Tries to send the given `packet`
+    ///
+    /// This method performs Clear Channel Assessment (CCA) first and sends the `packet` only if the
+    /// channel is observed to be *clear* (no transmission is currently ongoing), otherwise no
+    /// packet is transmitted and the `Err` variant is returned
+    pub fn try_send(&mut self, packet: &Packet) -> Result<(), ()> {
+        // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
+        // go to the RXIDLE state
+        self.enable_rx();
+
+        // start CCA
+        self.radio
+            .tasks_ccastart
+            .write(|w| w.tasks_ccastart().set_bit());
+
+        loop {
+            if self
+                .radio
+                .events_ccaidle
+                .read()
+                .events_ccaidle()
+                .bit_is_set()
+            {
+                // channel is clear
+                self.radio.events_ccaidle.reset();
+                break;
+            }
+
+            if self
+                .radio
+                .events_ccabusy
+                .read()
+                .events_ccabusy()
+                .bit_is_set()
+            {
+                // channel is busy
+                self.radio.events_ccaidle.reset();
+                return Err(());
+            }
+        }
+
+        // NOTE(unsafe) DMA transfer has not yet started
+        unsafe {
+            self.radio
+                .packetptr
+                .write(|w| w.packetptr().bits(packet.buffer.as_ptr() as u32));
+        }
+
+        // the DMA transfer will start at some point after the following write operation so we place
+        // the barrier here
+        dma_start_fence();
+        // enter TX mode
+        self.radio.tasks_txen.write(|w| w.tasks_txen().set_bit());
+
+        // due to a shortcut the transmission will start automatically so we just have to wait
+        // until the PHYEND event is raised
+        self.wait_for_event(Event::PhyEnd);
+        dma_end_fence();
+
+        Ok(())
+    }
+
+    /// Sends the given `packet`
+    ///
+    /// This is utility method that *consecutively* calls the `try_send` method until it succeeds.
+    /// Note that this approach is *not* IEEE spec compliant -- there must be delay between failed
+    /// CCA attempts to be spec compliant
     pub fn send(&mut self, packet: &Packet) {
         // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
+
+        self.radio.shorts.modify(|_, w| w.ccaidle_txen().set_bit());
 
         // go to the RXIDLE state
         self.enable_rx();
@@ -296,8 +361,8 @@ impl<'c> Radio<'c> {
                 .write(|w| w.packetptr().bits(packet.buffer.as_ptr() as u32));
         }
 
-        // start CCA
         'cca: loop {
+            // start CCA
             self.radio
                 .tasks_ccastart
                 .write(|w| w.tasks_ccastart().set_bit());
@@ -324,17 +389,19 @@ impl<'c> Radio<'c> {
                 {
                     // channel is busy
                     self.radio.events_ccaidle.reset();
-                    // FIXME according to the IEEE spec there should be a backoff delay before
-                    // the next CCA
                     continue 'cca;
                 }
             }
         }
 
         // due to a shortcut the transmission will start automatically so we just have to wait
-        // until the END event
+        // until the PHYEND event is raised
         self.wait_for_event(Event::PhyEnd);
         dma_end_fence();
+
+        self.radio
+            .shorts
+            .modify(|_, w| w.ccaidle_txen().clear_bit());
     }
 
     /// Moves the radio from any state to the DISABLED state
