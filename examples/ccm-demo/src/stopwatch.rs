@@ -33,12 +33,6 @@ impl StopWatch {
         self.regs.cc[0].read().bits()
     }
 
-    //#[inline(always)]
-    //pub fn pause(&mut self) {
-    //    // NOTE(unsafe) 1 is a valid pattern to write to this register
-    //    self.regs.tasks_stop.write(|w| unsafe { w.bits(1) });
-    //}
-
     #[inline(always)]
     pub fn stop(&mut self) {
         // NOTE(unsafe) 1 is a valid pattern to write to this register

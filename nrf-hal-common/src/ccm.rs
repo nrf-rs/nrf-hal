@@ -1,6 +1,6 @@
 //! HAL blocking interface to the AES CCM mode encryption.
 //!
-//! Cipher block chaining - message authentication code (CCM) mode is an authenticated encryption
+//! Counter with CBC-MAC (CCM) mode is an authenticated encryption
 //! algorithm designed to provide both authentication and confidentiality during data transfer.
 //!
 //! # Packet Format
@@ -8,7 +8,7 @@
 //! The packets, required by the methods in this module, need to be in a specific format, displayed
 //! below:
 //!
-//! Clear packet:
+//! Cleartext packet:
 //!
 //! ```notrust
 //! +----------+---------------+----------+------------------+
@@ -19,11 +19,11 @@
 //!
 //! The contents of `S0` and `S1` are not relevant, but the fields must be present in the slice.
 //! The encryption operation will append a four-byte MIC after the payload field and add four to the
-//! `Payload length` field, because of that, this module can only encrypt packets with payloads
+//! `Payload length` field. Because of that, this module can only encrypt packets with payloads
 //! lengths up to 251 bytes. The `cipher packet` slice passed to the encryption method must have
 //! enough space for the `clear packet` plus MIC.
 //!
-//! Cipher packet:
+//! Ciphertext packet:
 //!
 //! ```notrust
 //! +----------+---------------+----------+-----------------+-------------+
@@ -64,18 +64,11 @@ const MAXIMUM_LENGTH_5BITS: usize = 31;
 const MAXIMUM_COUNTER: u64 = 0x7F_FFFF_FFFF;
 
 /// Data rate that CCM peripheral shall run in sync with.
-#[cfg(not(feature = "51"))]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DataRate {
     _1Mbit,
+    #[cfg(not(feature = "51"))]
     _2Mbit,
-}
-
-/// Data rate that CCM peripheral shall run in sync with.
-#[cfg(feature = "51")]
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum DataRate {
-    _1Mbit,
 }
 
 #[cfg(not(feature = "51"))]
@@ -137,14 +130,20 @@ impl CcmData {
 
     /// Updates the key.
     #[inline(always)]
-    pub fn update_key(&mut self, key: [u8; 16]) {
+    pub fn set_key(&mut self, key: [u8; 16]) {
         self.key = key;
     }
 
     /// Updates the initialization vector.
     #[inline(always)]
-    pub fn update_iv(&mut self, initialization_vector: [u8; 8]) {
+    pub fn set_iv(&mut self, initialization_vector: [u8; 8]) {
         self.initialization_vector = initialization_vector;
+    }
+
+    /// Updates the direction bit.
+    #[inline(always)]
+    pub fn set_direction(&mut self, direction: bool) {
+        self.direction = if direction { 1 } else { 0 };
     }
 
     /// Increments the counter. It will wrap around to zero at its maximum value.
@@ -201,7 +200,7 @@ impl Ccm {
 
     /// Encrypts a packet and generates a MIC.
     ///
-    /// The generated MIC will be appended to after the payload in the `cipher_packet`. The slices
+    /// The generated MIC will be placed after the payload in the `cipher_packet`. The slices
     /// passed to this method must have the correct size, for more information refer to the module
     /// level documentation. The counter in `ccm_data` will be incremented if the operation
     /// succeeds. All parameters passed to this method must reside in RAM.
@@ -222,7 +221,7 @@ impl Ccm {
 
         let payload_len = clear_packet[LENGTH_HEADER_INDEX] as usize;
 
-        // Shorcut, CCM won't encrypt packet with empty payloads, it will just copy the header
+        // Shortcut, CCM won't encrypt packet with empty payloads, it will just copy the header
         if payload_len == 0 {
             (&mut cipher_packet[..HEADER_SIZE]).copy_from_slice(&clear_packet[..HEADER_SIZE]);
             return Ok(());
@@ -341,7 +340,7 @@ impl Ccm {
 
         let payload_len = cipher_packet[LENGTH_HEADER_INDEX] as usize;
 
-        // Shorcut, CCM won't decrypt packet with empty payloads, it will just copy the header
+        // Shortcut, CCM won't decrypt packet with empty payloads, it will just copy the header
         if payload_len == 0 {
             (&mut clear_packet[..HEADER_SIZE]).copy_from_slice(&cipher_packet[..HEADER_SIZE]);
             return Ok(());

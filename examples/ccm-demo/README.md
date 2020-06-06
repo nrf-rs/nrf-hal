@@ -1,7 +1,6 @@
 # AES-CCM demo
 
 Choose the microcontroller with one of the following features:
-- 51
 - 52810
 - 52832
 - 52840
