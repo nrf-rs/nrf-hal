@@ -9,6 +9,7 @@ pub mod prelude {
     pub use nrf_hal_common::prelude::*;
 }
 
+pub use crate::ccm::Ccm;
 pub use crate::clocks::Clocks;
 pub use crate::delay::Delay;
 pub use crate::ecb::Ecb;

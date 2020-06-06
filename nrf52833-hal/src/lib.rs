@@ -11,6 +11,7 @@ pub mod prelude {
     pub use crate::time::U32Ext;
 }
 
+pub use crate::ccm::Ccm;
 pub use crate::clocks::Clocks;
 pub use crate::delay::Delay;
 pub use crate::ecb::Ecb;

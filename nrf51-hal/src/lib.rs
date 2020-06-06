@@ -10,6 +10,7 @@ pub mod prelude {
 }
 
 pub use crate::adc::Adc;
+pub use crate::ccm::Ccm;
 pub use crate::clocks::Clocks;
 pub use crate::ecb::Ecb;
 pub use crate::rtc::Rtc;
