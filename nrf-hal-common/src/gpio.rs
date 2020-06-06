@@ -1,7 +1,3 @@
-// TODO - clean these up
-#![allow(unused_imports)]
-#![allow(non_camel_case_types)]
-
 use core::marker::PhantomData;
 
 /// Input mode (type state)
@@ -26,15 +22,30 @@ pub struct PushPull;
 /// Open drain output (type state)
 pub struct OpenDrain;
 
-// /// Alternate function
-// pub struct Alternate<MODE> {
-//     _mode: PhantomData<MODE>,
-// }
-
 /// Represents a digital input or output level
 pub enum Level {
     Low,
     High,
+}
+
+/// A GPIO port with up to 32 pins.
+pub enum Port {
+    /// Port 0, available on all nRF52 and nRF51 MCUs.
+    Port0,
+
+    /// Port 1, only available on some nRF52 MCUs.
+    #[cfg(any(feature = "52833", feature = "52840"))]
+    Port1,
+}
+
+impl Port {
+    #[cfg(any(feature = "52833", feature = "52840"))]
+    pub(crate) fn bit(&self) -> bool {
+        match self {
+            Port::Port0 => false,
+            Port::Port1 => true,
+        }
+    }
 }
 
 // ===============================================================
@@ -44,20 +55,19 @@ pub enum Level {
 // ===============================================================
 /// Generic $PX pin
 pub struct Pin<MODE> {
-    pub pin: u8,
-    #[cfg(any(feature = "52833", feature = "52840"))]
-    pub port: bool,
+    // Bit 7: Port, Bits 0-6: Pin
+    pin_port: u8,
     _mode: PhantomData<MODE>,
 }
 
 #[cfg(feature = "51")]
-use crate::target::GPIO as P0;
+use crate::target::{gpio, GPIO as P0};
 
 #[cfg(feature = "9160")]
-use crate::target::P0_NS as P0;
+use crate::target::{p0_ns as gpio, P0_NS as P0};
 
 #[cfg(not(any(feature = "9160", feature = "51")))]
-use crate::target::P0;
+use crate::target::{p0 as gpio, P0};
 
 #[cfg(any(feature = "52833", feature = "52840"))]
 use crate::target::P1;
@@ -66,26 +76,61 @@ use crate::hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
 use void::Void;
 
 impl<MODE> Pin<MODE> {
+    fn new(port: Port, pin: u8) -> Self {
+        let port_bits = match port {
+            Port::Port0 => 0x00,
+            #[cfg(any(feature = "52833", feature = "52840"))]
+            Port::Port1 => 0x80,
+        };
+        Self {
+            pin_port: pin | port_bits,
+            _mode: PhantomData,
+        }
+    }
+
+    #[inline]
+    pub fn pin(&self) -> u8 {
+        #[cfg(any(feature = "52833", feature = "52840"))]
+        {
+            self.pin_port & 0x7f
+        }
+
+        #[cfg(not(any(feature = "52833", feature = "52840")))]
+        {
+            self.pin_port
+        }
+    }
+
+    #[inline]
+    pub fn port(&self) -> Port {
+        #[cfg(any(feature = "52833", feature = "52840"))]
+        {
+            if self.pin_port & 0x80 == 0 {
+                Port::Port0
+            } else {
+                Port::Port1
+            }
+        }
+
+        #[cfg(not(any(feature = "52833", feature = "52840")))]
+        {
+            Port::Port0
+        }
+    }
+
+    fn block(&self) -> &gpio::RegisterBlock {
+        let ptr = match self.port() {
+            Port::Port0 => P0::ptr(),
+            #[cfg(any(feature = "52833", feature = "52840"))]
+            Port::Port1 => P1::ptr(),
+        };
+
+        unsafe { &*ptr }
+    }
+
     /// Convert the pin to be a floating input
     pub fn into_floating_input(self) -> Pin<Input<Floating>> {
-        unsafe {
-            &(*{
-                #[cfg(not(any(feature = "52833", feature = "52840")))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .pin_cnf[self.pin as usize]
-        }
-        .write(|w| {
+        self.block().pin_cnf[self.pin() as usize].write(|w| {
             w.dir().input();
             w.input().connect();
             w.pull().disabled();
@@ -96,30 +141,11 @@ impl<MODE> Pin<MODE> {
 
         Pin {
             _mode: PhantomData,
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            port: self.port,
-            pin: self.pin,
+            pin_port: self.pin_port,
         }
     }
     pub fn into_pullup_input(self) -> Pin<Input<PullUp>> {
-        unsafe {
-            &(*{
-                #[cfg(not(any(feature = "52833", feature = "52840")))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .pin_cnf[self.pin as usize]
-        }
-        .write(|w| {
+        self.block().pin_cnf[self.pin() as usize].write(|w| {
             w.dir().input();
             w.input().connect();
             w.pull().pullup();
@@ -130,30 +156,11 @@ impl<MODE> Pin<MODE> {
 
         Pin {
             _mode: PhantomData,
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            port: self.port,
-            pin: self.pin,
+            pin_port: self.pin_port,
         }
     }
     pub fn into_pulldown_input(self) -> Pin<Input<PullDown>> {
-        unsafe {
-            &(*{
-                #[cfg(not(any(feature = "52833", feature = "52840")))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .pin_cnf[self.pin as usize]
-        }
-        .write(|w| {
+        self.block().pin_cnf[self.pin() as usize].write(|w| {
             w.dir().input();
             w.input().connect();
             w.pull().pulldown();
@@ -164,9 +171,7 @@ impl<MODE> Pin<MODE> {
 
         Pin {
             _mode: PhantomData,
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            port: self.port,
-            pin: self.pin,
+            pin_port: self.pin_port,
         }
     }
 
@@ -174,9 +179,7 @@ impl<MODE> Pin<MODE> {
     pub fn into_push_pull_output(self, initial_output: Level) -> Pin<Output<PushPull>> {
         let mut pin = Pin {
             _mode: PhantomData,
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            port: self.port,
-            pin: self.pin,
+            pin_port: self.pin_port,
         };
 
         match initial_output {
@@ -184,24 +187,7 @@ impl<MODE> Pin<MODE> {
             Level::High => pin.set_high().unwrap(),
         }
 
-        unsafe {
-            &(*{
-                #[cfg(not(any(feature = "52833", feature = "52840")))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .pin_cnf[self.pin as usize]
-        }
-        .write(|w| {
+        self.block().pin_cnf[self.pin() as usize].write(|w| {
             w.dir().output();
             w.input().connect(); // AJM - hack for SPI
             w.pull().disabled();
@@ -224,9 +210,7 @@ impl<MODE> Pin<MODE> {
     ) -> Pin<Output<OpenDrain>> {
         let mut pin = Pin {
             _mode: PhantomData,
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            port: self.port,
-            pin: self.pin,
+            pin_port: self.pin_port,
         };
 
         match initial_output {
@@ -236,23 +220,7 @@ impl<MODE> Pin<MODE> {
 
         // This is safe, as we restrict our access to the dedicated
         // register for this pin.
-        let pin_cnf = unsafe {
-            &(*{
-                #[cfg(not(any(feature = "52833", feature = "52840")))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .pin_cnf[self.pin as usize]
-        };
+        let pin_cnf = &self.block().pin_cnf[self.pin() as usize];
         pin_cnf.write(|w| {
             w.dir().output();
             w.input().disconnect();
@@ -274,27 +242,7 @@ impl<MODE> InputPin for Pin<Input<MODE>> {
     }
 
     fn is_low(&self) -> Result<bool, Self::Error> {
-        Ok(unsafe {
-            ((*{
-                #[cfg(not(any(feature = "52833", feature = "52840")))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .in_
-            .read()
-            .bits()
-                & (1 << self.pin))
-                == 0
-        })
+        Ok(self.block().in_.read().bits() & (1 << self.pin()) == 0)
     }
 }
 
@@ -306,22 +254,7 @@ impl<MODE> OutputPin for Pin<Output<MODE>> {
         // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
         // TODO - I wish I could do something like `.pins$i()`...
         unsafe {
-            (*{
-                #[cfg(not(any(feature = "52833", feature = "52840")))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .outset
-            .write(|w| w.bits(1u32 << self.pin));
+            self.block().outset.write(|w| w.bits(1u32 << self.pin()));
         }
         Ok(())
     }
@@ -331,22 +264,7 @@ impl<MODE> OutputPin for Pin<Output<MODE>> {
         // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
         // TODO - I wish I could do something like `.pins$i()`...
         unsafe {
-            (*{
-                #[cfg(not(any(feature = "52833", feature = "52840")))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .outclr
-            .write(|w| w.bits(1u32 << self.pin));
+            self.block().outclr.write(|w| w.bits(1u32 << self.pin()));
         }
         Ok(())
     }
@@ -362,27 +280,7 @@ impl<MODE> StatefulOutputPin for Pin<Output<MODE>> {
     fn is_set_low(&self) -> Result<bool, Self::Error> {
         // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
         // TODO - I wish I could do something like `.pins$i()`...
-        Ok(unsafe {
-            ((*{
-                #[cfg(not(any(feature = "52833", feature = "52840")))]
-                {
-                    P0::ptr()
-                }
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                {
-                    if !self.port {
-                        P0::ptr()
-                    } else {
-                        P1::ptr()
-                    }
-                }
-            })
-            .out
-            .read()
-            .bits()
-                & (1 << self.pin))
-                == 0
-        })
+        Ok(self.block().out.read().bits() & (1 << self.pin()) == 0)
     }
 }
 
@@ -395,13 +293,13 @@ pub enum OpenDrainConfig {
 }
 
 #[cfg(feature = "51")]
-use crate::target::gpio::{pin_cnf, PIN_CNF};
+use crate::target::gpio::pin_cnf;
 
 #[cfg(feature = "9160")]
-use crate::target::p0_ns::{pin_cnf, PIN_CNF};
+use crate::target::p0_ns::pin_cnf;
 
 #[cfg(not(any(feature = "9160", feature = "51")))]
-use crate::target::p0::{pin_cnf, PIN_CNF};
+use crate::target::p0::pin_cnf;
 
 impl OpenDrainConfig {
     fn variant(self) -> pin_cnf::DRIVE_A {
@@ -426,8 +324,8 @@ macro_rules! gpio {
         pub mod $px {
             use super::{
                 Pin,
+                Port,
 
-                // Alternate,
                 Floating,
                 Input,
                 Level,
@@ -442,10 +340,8 @@ macro_rules! gpio {
                 $PX
             };
 
-            use crate::target;
             use crate::hal::digital::v2::{OutputPin, StatefulOutputPin, InputPin};
             use void::Void;
-
 
 
             // ===============================================================
@@ -590,12 +486,7 @@ macro_rules! gpio {
 
                     /// Degrade to a generic pin struct, which can be used with peripherals
                     pub fn degrade(self) -> Pin<MODE> {
-                        Pin {
-                            _mode: PhantomData,
-                            #[cfg(any(feature = "52833", feature = "52840"))]
-                            port: $port_value,
-                            pin: $i
-                        }
+                        Pin::new($port_value, $i)
                     }
                 }
 
@@ -655,7 +546,7 @@ macro_rules! gpio {
 // For now, it is a little repetitive, especially as the nrf52 only has one
 // 32-bit GPIO port (P0)
 // ===========================================================================
-gpio!(P0, p0, p0, false, [
+gpio!(P0, p0, p0, Port::Port0, [
     P0_00: (p0_00,  0, Input<Floating>),
     P0_01: (p0_01,  1, Input<Floating>),
     P0_02: (p0_02,  2, Input<Floating>),
@@ -693,7 +584,7 @@ gpio!(P0, p0, p0, false, [
 // The p1 types are present in the p0 module generated from the
 // svd, but we want to export them in a p1 module from this crate.
 #[cfg(any(feature = "52833", feature = "52840"))]
-gpio!(P1, p0, p1, true, [
+gpio!(P1, p0, p1, Port::Port1, [
     P1_00: (p1_00,  0, Input<Floating>),
     P1_01: (p1_01,  1, Input<Floating>),
     P1_02: (p1_02,  2, Input<Floating>),

@@ -77,14 +77,14 @@ where
     pub fn new(spi: T, pins: Pins, frequency: Frequency, mode: Mode) -> Self {
         // Select pins
         spi.pselsck
-            .write(|w| unsafe { w.bits(pins.sck.pin.into()) });
+            .write(|w| unsafe { w.bits(pins.sck.pin().into()) });
 
         // Optional pins
         if let Some(ref pin) = pins.mosi {
-            spi.pselmosi.write(|w| unsafe { w.bits(pin.pin.into()) });
+            spi.pselmosi.write(|w| unsafe { w.bits(pin.pin().into()) });
         }
         if let Some(ref pin) = pins.miso {
-            spi.pselmiso.write(|w| unsafe { w.bits(pin.pin.into()) });
+            spi.pselmiso.write(|w| unsafe { w.bits(pin.pin().into()) });
         }
 
         // Enable SPI instance

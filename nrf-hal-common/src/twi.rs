@@ -24,7 +24,7 @@ where
         // the pins through the raw peripheral API. All of the following is
         // safe, as we own the pins now and have exclusive access to their
         // registers.
-        for &pin in &[pins.scl.pin, pins.sda.pin] {
+        for &pin in &[pins.scl.pin(), pins.sda.pin()] {
             unsafe { &*GPIO::ptr() }.pin_cnf[pin as usize].write(|w| {
                 w.dir()
                     .input()
@@ -41,9 +41,9 @@ where
 
         // Set pins
         twi.pselscl
-            .write(|w| unsafe { w.bits(pins.scl.pin.into()) });
+            .write(|w| unsafe { w.bits(pins.scl.pin().into()) });
         twi.pselsda
-            .write(|w| unsafe { w.bits(pins.sda.pin.into()) });
+            .write(|w| unsafe { w.bits(pins.sda.pin().into()) });
 
         // Set frequency
         twi.frequency.write(|w| w.frequency().variant(frequency));
