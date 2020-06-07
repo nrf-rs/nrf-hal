@@ -31,6 +31,8 @@ pub mod delay;
 pub mod ecb;
 pub mod gpio;
 #[cfg(not(feature = "9160"))]
+pub mod ppi;
+#[cfg(not(feature = "9160"))]
 pub mod rng;
 pub mod rtc;
 #[cfg(not(feature = "51"))]
@@ -58,6 +60,8 @@ pub mod prelude {
     pub use crate::hal::digital::v2::*;
     pub use crate::hal::prelude::*;
 
+    #[cfg(not(feature = "9160"))]
+    pub use crate::ppi::{ConfigurablePpi, Ppi};
     pub use crate::time::U32Ext;
 }
 
