@@ -583,7 +583,7 @@ impl Packet {
     /// NOTE `src` data will be truncated to `MAX_PACKET_SIZE` bytes
     pub fn copy_from_slice(&mut self, src: &[u8]) {
         let len = cmp::min(src.len(), Self::MAX_LEN as usize) as u8;
-        self.buffer[Self::DATA][..len as usize].copy_from_slice(src);
+        self.buffer[Self::DATA][..len as usize].copy_from_slice(&src[..len.into()]);
         self.set_len(len);
     }
 
