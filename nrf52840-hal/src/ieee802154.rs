@@ -250,6 +250,10 @@ impl<'c> Radio<'c> {
     pub fn recv(&mut self, packet: &mut Packet) -> Result<u16, u16> {
         // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
 
+        // clear related events
+        self.radio.events_phyend.reset();
+        self.radio.events_end.reset();
+
         // go to the RXIDLE state
         self.enable_rx();
 
@@ -268,8 +272,6 @@ impl<'c> Radio<'c> {
         // wait until we have received something
         self.wait_for_event(Event::End);
         dma_end_fence();
-        // also clear the PHYEND event
-        self.radio.events_phyend.reset();
 
         let crc = self.radio.rxcrc.read().rxcrc().bits() as u16;
         if self.radio.crcstatus.read().crcstatus().bit_is_set() {
@@ -285,6 +287,10 @@ impl<'c> Radio<'c> {
     /// channel is observed to be *clear* (no transmission is currently ongoing), otherwise no
     /// packet is transmitted and the `Err` variant is returned
     pub fn try_send(&mut self, packet: &Packet) -> Result<(), ()> {
+        // clear related events
+        self.radio.events_phyend.reset();
+        self.radio.events_end.reset();
+
         // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
         // go to the RXIDLE state
         self.enable_rx();
@@ -337,8 +343,6 @@ impl<'c> Radio<'c> {
         // until the PHYEND event is raised
         self.wait_for_event(Event::PhyEnd);
         dma_end_fence();
-        // also clear the END event
-        self.radio.events_end.reset();
 
         Ok(())
     }
@@ -350,6 +354,10 @@ impl<'c> Radio<'c> {
     /// CCA attempts to be spec compliant
     pub fn send(&mut self, packet: &Packet) {
         // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
+
+        // clear related events
+        self.radio.events_phyend.reset();
+        self.radio.events_end.reset();
 
         self.radio.shorts.modify(|_, w| w.ccaidle_txen().set_bit());
 
@@ -403,8 +411,6 @@ impl<'c> Radio<'c> {
         // until the PHYEND event is raised
         self.wait_for_event(Event::PhyEnd);
         dma_end_fence();
-        // also clear the END event
-        self.radio.events_end.reset();
 
         self.radio
             .shorts
