@@ -312,7 +312,7 @@ impl<'c> Radio<'c> {
                 .bit_is_set()
             {
                 // channel is busy
-                self.radio.events_ccaidle.reset();
+                self.radio.events_ccabusy.reset();
                 return Err(());
             }
         }
@@ -388,7 +388,7 @@ impl<'c> Radio<'c> {
                     .bit_is_set()
                 {
                     // channel is busy
-                    self.radio.events_ccaidle.reset();
+                    self.radio.events_ccabusy.reset();
                     continue 'cca;
                 }
             }
