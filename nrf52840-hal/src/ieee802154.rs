@@ -158,7 +158,7 @@ impl<'c> Radio<'c> {
                     .plen()
                     ._32bit_zero() // 32-bit zero preamble
                     .crcinc()
-                    .include() // LENGTH field includes CRC (2 bytes)
+                    .include() // the LENGTH field (the value) also accounts for the CRC (2 bytes)
                     .cilen()
                     .bits(0) // no code indicator
                     .lflen()
@@ -247,7 +247,7 @@ impl<'c> Radio<'c> {
     /// This methods returns the `Ok` variant if the CRC included the packet was successfully
     /// validated by the hardware; otherwise it returns the `Err` variant. In either case, `packet`
     /// will be updated with the received packet's data
-    pub fn recv(&mut self, packet: &mut Packet) -> Result<(), ()> {
+    pub fn recv(&mut self, packet: &mut Packet) -> Result<u16, u16> {
         // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
 
         // go to the RXIDLE state
@@ -268,11 +268,14 @@ impl<'c> Radio<'c> {
         // wait until we have received something
         self.wait_for_event(Event::End);
         dma_end_fence();
+        // also clear the PHYEND event
+        self.radio.events_phyend.reset();
 
+        let crc = self.radio.rxcrc.read().rxcrc().bits() as u16;
         if self.radio.crcstatus.read().crcstatus().bit_is_set() {
-            Ok(())
+            Ok(crc)
         } else {
-            Err(())
+            Err(crc)
         }
     }
 
@@ -334,6 +337,8 @@ impl<'c> Radio<'c> {
         // until the PHYEND event is raised
         self.wait_for_event(Event::PhyEnd);
         dma_end_fence();
+        // also clear the END event
+        self.radio.events_end.reset();
 
         Ok(())
     }
@@ -398,6 +403,8 @@ impl<'c> Radio<'c> {
         // until the PHYEND event is raised
         self.wait_for_event(Event::PhyEnd);
         dma_end_fence();
+        // also clear the END event
+        self.radio.events_end.reset();
 
         self.radio
             .shorts
