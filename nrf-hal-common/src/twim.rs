@@ -48,7 +48,7 @@ where
         // the pins through the raw peripheral API. All of the following is
         // safe, as we own the pins now and have exclusive access to their
         // registers.
-        for &pin in &[pins.scl.pin, pins.sda.pin] {
+        for &pin in &[pins.scl.pin(), pins.sda.pin()] {
             unsafe { &*P0::ptr() }.pin_cnf[pin as usize].write(|w| {
                 w.dir()
                     .input()
@@ -65,15 +65,15 @@ where
 
         // Select pins
         twim.psel.scl.write(|w| {
-            let w = unsafe { w.pin().bits(pins.scl.pin) };
+            let w = unsafe { w.pin().bits(pins.scl.pin()) };
             #[cfg(feature = "52840")]
-            let w = w.port().bit(pins.scl.port);
+            let w = w.port().bit(pins.scl.port().bit());
             w.connect().connected()
         });
         twim.psel.sda.write(|w| {
-            let w = unsafe { w.pin().bits(pins.sda.pin) };
+            let w = unsafe { w.pin().bits(pins.sda.pin()) };
             #[cfg(feature = "52840")]
-            let w = w.port().bit(pins.sda.port);
+            let w = w.port().bit(pins.sda.port().bit());
             w.connect().connected()
         });
 

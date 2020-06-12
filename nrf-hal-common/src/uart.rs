@@ -28,14 +28,14 @@ where
 
         // Required pins
         uart.pseltxd
-            .write(|w| unsafe { w.bits(pins.txd.pin.into()) });
+            .write(|w| unsafe { w.bits(pins.txd.pin().into()) });
         uart.pselrxd
-            .write(|w| unsafe { w.bits(pins.rxd.pin.into()) });
+            .write(|w| unsafe { w.bits(pins.rxd.pin().into()) });
 
         // Optional pins
         uart.pselcts.write(|w| unsafe {
             if let Some(ref pin) = pins.cts {
-                w.bits(pin.pin.into())
+                w.bits(pin.pin().into())
             } else {
                 // Disconnect
                 w.bits(0xFFFFFFFF)
@@ -44,7 +44,7 @@ where
 
         uart.pselrts.write(|w| unsafe {
             if let Some(ref pin) = pins.rts {
-                w.bits(pin.pin.into())
+                w.bits(pin.pin().into())
             } else {
                 // Disconnect
                 w.bits(0xFFFFFFFF)

@@ -45,25 +45,25 @@ where
     pub fn new(uarte: T, mut pins: Pins, parity: Parity, baudrate: Baudrate) -> Self {
         // Select pins
         uarte.psel.rxd.write(|w| {
-            let w = unsafe { w.pin().bits(pins.rxd.pin) };
+            let w = unsafe { w.pin().bits(pins.rxd.pin()) };
             #[cfg(any(feature = "52833", feature = "52840"))]
-            let w = w.port().bit(pins.rxd.port);
+            let w = w.port().bit(pins.rxd.port().bit());
             w.connect().connected()
         });
         pins.txd.set_high().unwrap();
         uarte.psel.txd.write(|w| {
-            let w = unsafe { w.pin().bits(pins.txd.pin) };
+            let w = unsafe { w.pin().bits(pins.txd.pin()) };
             #[cfg(any(feature = "52833", feature = "52840"))]
-            let w = w.port().bit(pins.txd.port);
+            let w = w.port().bit(pins.txd.port().bit());
             w.connect().connected()
         });
 
         // Optional pins
         uarte.psel.cts.write(|w| {
             if let Some(ref pin) = pins.cts {
-                let w = unsafe { w.pin().bits(pin.pin) };
+                let w = unsafe { w.pin().bits(pin.pin()) };
                 #[cfg(any(feature = "52833", feature = "52840"))]
-                let w = w.port().bit(pin.port);
+                let w = w.port().bit(pin.port().bit());
                 w.connect().connected()
             } else {
                 w.connect().disconnected()
@@ -72,9 +72,9 @@ where
 
         uarte.psel.rts.write(|w| {
             if let Some(ref pin) = pins.rts {
-                let w = unsafe { w.pin().bits(pin.pin) };
+                let w = unsafe { w.pin().bits(pin.pin()) };
                 #[cfg(any(feature = "52833", feature = "52840"))]
-                let w = w.port().bit(pin.port);
+                let w = w.port().bit(pin.port().bit());
                 w.connect().connected()
             } else {
                 w.connect().disconnected()
