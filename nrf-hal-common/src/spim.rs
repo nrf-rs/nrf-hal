@@ -103,7 +103,7 @@ where
         });
 
         match pins.mosi {
-            Some(mosi) => spim.psel.mosi.write(|w| {
+            Some(ref mosi) => spim.psel.mosi.write(|w| {
                 let w = unsafe { w.pin().bits(mosi.pin()) };
                 #[cfg(any(feature = "52843", feature = "52840"))]
                 let w = w.port().bit(mosi.port().bit());
@@ -112,7 +112,7 @@ where
             None => spim.psel.mosi.write(|w| w.connect().disconnected()),
         }
         match pins.miso {
-            Some(miso) => spim.psel.miso.write(|w| {
+            Some(ref miso) => spim.psel.miso.write(|w| {
                 let w = unsafe { w.pin().bits(miso.pin()) };
                 #[cfg(any(feature = "52843", feature = "52840"))]
                 let w = w.port().bit(miso.port().bit());
