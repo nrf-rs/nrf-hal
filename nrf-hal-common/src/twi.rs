@@ -9,7 +9,7 @@ use crate::{
 
 pub use twi0::frequency::FREQUENCY_A as Frequency;
 
-pub struct Twi<T>(T);
+pub struct Twi<T>(T, Pins);
 
 impl<T> Twi<T>
 where
@@ -50,7 +50,7 @@ where
 
         twi.enable.write(|w| w.enable().enabled());
 
-        Self(twi)
+        Self(twi, pins)
     }
 
     fn send_byte(&self, byte: u8) -> Result<(), Error> {
@@ -234,9 +234,9 @@ where
         Ok(())
     }
 
-    /// Return the raw interface to the underlying TWI peripheral
-    pub fn free(self) -> T {
-        self.0
+    /// Release the resources held by this object
+    pub fn free(self) -> (T, Pins) {
+        (self.0, self.1)
     }
 }
 

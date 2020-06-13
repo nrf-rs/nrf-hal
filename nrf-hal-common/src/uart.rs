@@ -13,7 +13,7 @@ use crate::target::{uart0, UART0};
 pub use uart0::{baudrate::BAUDRATE_A as Baudrate, config::PARITY_A as Parity};
 
 /// Interface to a UART instance
-pub struct Uart<T>(T);
+pub struct Uart<T>(T, Pins);
 
 #[derive(Debug)]
 pub enum Error {}
@@ -66,12 +66,12 @@ where
         uart.tasks_starttx.write(|w| unsafe { w.bits(1) });
         uart.tasks_startrx.write(|w| unsafe { w.bits(1) });
 
-        Uart(uart)
+        Self(uart, pins)
     }
 
-    /// Return the raw interface to the underlying UARTE peripheral
-    pub fn free(self) -> T {
-        self.0
+    /// Release the resources held by this object
+    pub fn free(self) -> (T, Pins) {
+        (self.0, self.1)
     }
 }
 

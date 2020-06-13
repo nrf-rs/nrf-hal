@@ -32,7 +32,7 @@ use embedded_hal::digital::v2::OutputPin;
 /// - The SPIM instances share the same address space with instances of SPIS,
 ///   SPI, TWIM, TWIS, and TWI. You need to make sure that conflicting instances
 ///   are disabled before using `Spim`. See product specification, section 15.2.
-pub struct Spim<T>(T);
+pub struct Spim<T>(T, Pins);
 
 impl<T> embedded_hal::blocking::spi::Transfer<u8> for Spim<T>
 where
@@ -156,7 +156,7 @@ where
             // there.
             unsafe { w.orc().bits(orc) });
 
-        Spim(spim)
+        Self(spim, pins)
     }
 
     /// Internal helper function to setup and execute SPIM DMA transfer
@@ -372,9 +372,9 @@ where
         self.transfer_split_uneven(chip_select, tx_buffer, &mut [0u8; 0])
     }
 
-    /// Return the raw interface to the underlying SPIM peripheral
-    pub fn free(self) -> T {
-        self.0
+    /// Release the resources held by this object
+    pub fn free(self) -> (T, Pins) {
+        (self.0, self.1)
     }
 }
 

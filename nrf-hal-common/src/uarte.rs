@@ -36,7 +36,7 @@ pub use uarte0::{baudrate::BAUDRATE_A as Baudrate, config::PARITY_A as Parity};
 ///   are disabled before using `Uarte`. See product specification:
 ///     - nrf52832: Section 15.2
 ///     - nrf52840: Section 6.1.2
-pub struct Uarte<T>(T);
+pub struct Uarte<T>(T, Pins);
 
 impl<T> Uarte<T>
 where
@@ -93,7 +93,7 @@ where
         // Configure frequency
         uarte.baudrate.write(|w| w.baudrate().variant(baudrate));
 
-        Uarte(uarte)
+        Self(uarte, pins)
     }
 
     /// Write via UARTE
@@ -328,9 +328,9 @@ where
         // The event flag itself is later reset by `finalize_read`.
     }
 
-    /// Return the raw interface to the underlying UARTE peripheral
-    pub fn free(self) -> T {
-        self.0
+    /// Release the resources held by this object
+    pub fn free(self) -> (T, Pins) {
+        (self.0, self.1)
     }
 }
 

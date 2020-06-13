@@ -33,7 +33,7 @@ pub use twim0::frequency::FREQUENCY_A as Frequency;
 /// conflicting instances are disabled before using `Twim`. Please refer to the
 /// product specification for more information (section 15.2 for nRF52832,
 /// section 6.1.2 for nRF52840).
-pub struct Twim<T>(T);
+pub struct Twim<T>(T, Pins);
 
 impl<T> Twim<T>
 where
@@ -83,7 +83,7 @@ where
         // Configure frequency
         twim.frequency.write(|w| w.frequency().variant(frequency));
 
-        Twim(twim)
+        Self(twim, pins)
     }
 
     /// Write to an I2C slave
@@ -333,9 +333,9 @@ where
         Ok(())
     }
 
-    /// Return the raw interface to the underlying TWIM peripheral
-    pub fn free(self) -> T {
-        self.0
+    /// Release the resources held by this object
+    pub fn free(self) -> (T, Pins) {
+        (self.0, self.1)
     }
 }
 

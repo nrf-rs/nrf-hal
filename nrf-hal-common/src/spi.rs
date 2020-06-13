@@ -13,7 +13,7 @@ pub use embedded_hal::{
 pub use spi0::frequency::FREQUENCY_A as Frequency;
 
 /// Interface to a SPI instance
-pub struct Spi<T>(T);
+pub struct Spi<T>(T, Pins);
 
 /// Default implementation
 impl<T> write::Default<u8> for Spi<T>
@@ -101,12 +101,12 @@ where
         // Configure frequency
         spi.frequency.write(|w| w.frequency().variant(frequency));
 
-        Self(spi)
+        Self(spi, pins)
     }
 
-    /// Return the raw interface to the underlying SPI peripheral
-    pub fn free(self) -> T {
-        self.0
+    /// Release the resources held by this object
+    pub fn free(self) -> (T, Pins) {
+        (self.0, self.1)
     }
 }
 
