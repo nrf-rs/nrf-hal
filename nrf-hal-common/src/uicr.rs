@@ -29,7 +29,7 @@ impl Uicr {
     /// overrides back to `1` can only be performed by erasing the UICR registers.
     /// - Sets all registers to 0xFFFF_FFFFu32
     pub fn erase(&mut self, nvmc: &mut NVMC) {
-        assert!(nvmc.config.read().wen().is_wen() == false); // write + erase is forbidden!
+        assert!(!nvmc.config.read().wen().is_wen()); // write + erase is forbidden!
 
         nvmc.config.write(|w| w.wen().een());
         nvmc.eraseuicr.write(|w| w.eraseuicr().erase());
@@ -42,7 +42,7 @@ impl Uicr {
     /// - UICR registers can only be set to `0` bits, additional overrides back to `1` can only be performed by erasing the UICR registers
     pub fn store_customer(&mut self, nvmc: &mut NVMC, offset: usize, values: &[u32]) {
         assert!(values.len() + offset <= self.0.customer.len()); // ensure we fit
-        assert!(nvmc.config.read().wen().is_een() == false); // write + erase is forbidden!
+        assert!(!nvmc.config.read().wen().is_een()); // write + erase is forbidden!
 
         nvmc.config.write(|w| w.wen().wen());
         for (i, value) in values.iter().enumerate() {

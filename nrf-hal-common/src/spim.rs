@@ -324,12 +324,12 @@ where
         // getting Nones out of the iterators
         let txi = tx_buffer
             .chunks(EASY_DMA_SIZE)
-            .map(|c| Some(c))
+            .map(Some)
             .chain(repeat_with(|| None));
 
         let rxi = rx_buffer
             .chunks_mut(EASY_DMA_SIZE)
-            .map(|c| Some(c))
+            .map(Some)
             .chain(repeat_with(|| None));
 
         chip_select.set_low().unwrap();
@@ -346,9 +346,9 @@ where
             .map(|(t, r)| {
                 (
                     t.map(|t| DmaSlice::from_slice(t))
-                        .unwrap_or_else(|| DmaSlice::null()),
+                        .unwrap_or_else(DmaSlice::null),
                     r.map(|r| DmaSlice::from_slice(r))
-                        .unwrap_or_else(|| DmaSlice::null()),
+                        .unwrap_or_else(DmaSlice::null),
                 )
             })
             .try_for_each(|(t, r)| self.do_spi_dma_transfer(t, r));
