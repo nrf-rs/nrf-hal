@@ -340,7 +340,7 @@ where
         // Don't return early, as we must reset the CS pin
         let res = txi
             .zip(rxi)
-            .take_while(|(t, r)| t.is_some() && r.is_some())
+            .take_while(|(t, r)| t.is_some() || r.is_some())
             // We also turn the slices into either a DmaSlice (if there was data), or a null
             // DmaSlice (if there is no data)
             .map(|(t, r)| {
