@@ -3,7 +3,6 @@ members = [
   "boards/adafruit_nrf52pro",
   "boards/adafruit-nrf52-bluefruit-le",
   "boards/nRF52-DK",
-  "boards/nRF52840-DK",
   "boards/nRF9160-DK",
   "boards/actinius-icarus",
   "nrf52810-hal",
