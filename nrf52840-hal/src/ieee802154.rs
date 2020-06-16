@@ -1,7 +1,6 @@
 //! IEEE 802.15.4 radio
 
 use core::{
-    cmp,
     ops::{self, RangeFrom},
     sync::atomic::{self, Ordering},
 };
@@ -16,6 +15,8 @@ use crate::pac::{
 /// IEEE 802.15.4 radio
 pub struct Radio<'c> {
     radio: RADIO,
+    // RADIO needs to be (re-)enabled to pick up new settings
+    needs_enable: bool,
     // used to freeze `Clocks`
     _clocks: &'c (),
 }
@@ -42,7 +43,6 @@ pub enum Cca {
 /// IEEE 802.15.4 channels
 ///
 /// NOTE these are NOT the same as WiFi 2.4 GHz channels
-// TODO it is possible to use non-standard frequencies below 2_400 MHz; should those be exposed too?
 pub enum Channel {
     /// 2_405 MHz
     _11 = 5,
@@ -137,16 +137,22 @@ impl<'c> Radio<'c> {
     /// Initializes the radio for IEEE 802.15.4 operation
     pub fn init<L, LSTAT>(radio: RADIO, _clocks: &'c Clocks<ExternalOscillator, L, LSTAT>) -> Self {
         let mut radio = Self {
+            needs_enable: false,
             radio,
             _clocks: &(),
         };
 
+        // shortcuts will be kept off by default and only be temporarily enabled within blocking
+        // functions
+        radio.radio.shorts.reset();
+
         // go to a known state
         radio.disable();
 
-        // clear any event interesting to us
+        // clear any event of interest to us
         radio.radio.events_disabled.reset();
         radio.radio.events_end.reset();
+        radio.radio.events_phyend.reset();
 
         radio.radio.mode.write(|w| w.mode().ieee802154_250kbit());
 
@@ -171,7 +177,7 @@ impl<'c> Radio<'c> {
 
             radio.radio.pcnf1.write(|w| {
                 w.maxlen()
-                    .bits(Packet::MAX_LEN + 2 /* CRC */) // payload length
+                    .bits(Packet::MAX_PSDU_LEN) // payload length
                     .statlen()
                     .bits(0) // no static length
                     .balen()
@@ -189,9 +195,6 @@ impl<'c> Radio<'c> {
                 .write(|w| w.len().two().skipaddr().ieee802154());
             radio.radio.crcpoly.write(|w| w.crcpoly().bits(0x11021));
             radio.radio.crcinit.write(|w| w.crcinit().bits(0));
-
-            // permanent shortcuts
-            radio.radio.shorts.write(|w| w.txready_start().set_bit());
         }
 
         // set default settings
@@ -205,9 +208,7 @@ impl<'c> Radio<'c> {
 
     /// Changes the radio channel
     pub fn set_channel(&mut self, channel: Channel) {
-        self.disable();
-
-        // NOTE(unsafe) radio is currently disabled
+        self.needs_enable = true;
         unsafe {
             self.radio
                 .frequency
@@ -217,8 +218,7 @@ impl<'c> Radio<'c> {
 
     /// Changes the Clear Channel Assessment method
     pub fn set_cca(&mut self, cca: Cca) {
-        self.disable();
-
+        self.needs_enable = true;
         match cca {
             Cca::CarrierSense => self.radio.ccactrl.write(|w| w.ccamode().carrier_mode()),
         }
@@ -226,17 +226,13 @@ impl<'c> Radio<'c> {
 
     /// Changes the Start of Frame Delimiter
     pub fn set_sfd(&mut self, sfd: u8) {
-        // FIXME don't completely turn off the radio; RXIDLE or TXIDLE are probably OK
-        self.disable();
-
+        // self.needs_enable = true; // this appears to not be needed
         self.radio.sfd.write(|w| unsafe { w.sfd().bits(sfd) });
     }
 
     /// Changes the TX power
     pub fn set_txpower(&mut self, power: TxPower) {
-        // FIXME don't completely turn off the radio; RXIDLE or TXIDLE are probably OK
-        self.disable();
-
+        self.needs_enable = true;
         self.radio
             .txpower
             .write(|w| w.txpower().variant(power._into()));
@@ -254,8 +250,7 @@ impl<'c> Radio<'c> {
         self.radio.events_phyend.reset();
         self.radio.events_end.reset();
 
-        // go to the RXIDLE state
-        self.enable_rx();
+        self.put_in_rx_mode();
 
         // NOTE(unsafe) DMA transfer has not yet started
         // set up RX buffer
@@ -286,31 +281,41 @@ impl<'c> Radio<'c> {
     /// This method performs Clear Channel Assessment (CCA) first and sends the `packet` only if the
     /// channel is observed to be *clear* (no transmission is currently ongoing), otherwise no
     /// packet is transmitted and the `Err` variant is returned
+    // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
     pub fn try_send(&mut self, packet: &Packet) -> Result<(), ()> {
+        self.put_in_rx_mode();
+
         // clear related events
         self.radio.events_phyend.reset();
         self.radio.events_end.reset();
 
-        // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
-        // go to the RXIDLE state
-        self.enable_rx();
+        // NOTE(unsafe) DMA transfer has not yet started
+        unsafe {
+            self.radio
+                .packetptr
+                .write(|w| w.packetptr().bits(packet.buffer.as_ptr() as u32));
+        }
 
+        // immediately start transmission if the channel is idle
+        self.radio
+            .shorts
+            .modify(|_, w| w.ccaidle_txen().set_bit().txready_start().set_bit());
+
+        // the DMA transfer will start at some point after the following write operation so
+        // we place the compiler fence here
+        dma_start_fence();
         // start CCA
         self.radio
             .tasks_ccastart
             .write(|w| w.tasks_ccastart().set_bit());
 
         loop {
-            if self
-                .radio
-                .events_ccaidle
-                .read()
-                .events_ccaidle()
-                .bit_is_set()
-            {
-                // channel is clear
-                self.radio.events_ccaidle.reset();
-                break;
+            if self.radio.events_phyend.read().events_phyend().bit_is_set() {
+                // transmission completed
+                dma_end_fence();
+                self.radio.events_phyend.reset();
+                self.radio.shorts.reset();
+                return Ok(());
             }
 
             if self
@@ -322,29 +327,10 @@ impl<'c> Radio<'c> {
             {
                 // channel is busy
                 self.radio.events_ccabusy.reset();
+                self.radio.shorts.reset();
                 return Err(());
             }
         }
-
-        // NOTE(unsafe) DMA transfer has not yet started
-        unsafe {
-            self.radio
-                .packetptr
-                .write(|w| w.packetptr().bits(packet.buffer.as_ptr() as u32));
-        }
-
-        // the DMA transfer will start at some point after the following write operation so we place
-        // the barrier here
-        dma_start_fence();
-        // enter TX mode
-        self.radio.tasks_txen.write(|w| w.tasks_txen().set_bit());
-
-        // due to a shortcut the transmission will start automatically so we just have to wait
-        // until the PHYEND event is raised
-        self.wait_for_event(Event::PhyEnd);
-        dma_end_fence();
-
-        Ok(())
     }
 
     /// Sends the given `packet`
@@ -352,20 +338,21 @@ impl<'c> Radio<'c> {
     /// This is utility method that *consecutively* calls the `try_send` method until it succeeds.
     /// Note that this approach is *not* IEEE spec compliant -- there must be delay between failed
     /// CCA attempts to be spec compliant
+    // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
     pub fn send(&mut self, packet: &Packet) {
-        // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
+        self.put_in_rx_mode();
 
         // clear related events
         self.radio.events_phyend.reset();
         self.radio.events_end.reset();
 
-        self.radio.shorts.modify(|_, w| w.ccaidle_txen().set_bit());
+        // immediately start transmission if the channel is idle
+        self.radio
+            .shorts
+            .modify(|_, w| w.ccaidle_txen().set_bit().txready_start().set_bit());
 
-        // go to the RXIDLE state
-        self.enable_rx();
-
-        // NOTE the DMA doesn't exactly start at this point but due to shortcuts it may occur at any
-        // point after this volatile write
+        // the DMA transfer will start at some point after the following write operation so
+        // we place the compiler fence here
         dma_start_fence();
         // NOTE(unsafe) DMA transfer has not yet started
         unsafe {
@@ -381,15 +368,10 @@ impl<'c> Radio<'c> {
                 .write(|w| w.tasks_ccastart().set_bit());
 
             loop {
-                if self
-                    .radio
-                    .events_ccaidle
-                    .read()
-                    .events_ccaidle()
-                    .bit_is_set()
-                {
-                    // channel is clear
-                    self.radio.events_ccaidle.reset();
+                if self.radio.events_phyend.read().events_phyend().bit_is_set() {
+                    dma_end_fence();
+                    // transmission is complete
+                    self.radio.events_phyend.reset();
                     break 'cca;
                 }
 
@@ -400,21 +382,39 @@ impl<'c> Radio<'c> {
                     .events_ccabusy()
                     .bit_is_set()
                 {
-                    // channel is busy
+                    // channel is busy; try another CCA
                     self.radio.events_ccabusy.reset();
                     continue 'cca;
                 }
             }
         }
 
-        // due to a shortcut the transmission will start automatically so we just have to wait
-        // until the PHYEND event is raised
-        self.wait_for_event(Event::PhyEnd);
-        dma_end_fence();
+        self.radio.shorts.reset();
+    }
 
-        self.radio
-            .shorts
-            .modify(|_, w| w.ccaidle_txen().clear_bit());
+    /// Sends the specified `packet` without first performing CCA
+    ///
+    /// Acknowledgment packets must be sent using this method
+    // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
+    pub fn send_no_cca(&mut self, packet: &Packet) {
+        self.put_in_tx_mode();
+
+        // clear related events
+        self.radio.events_phyend.reset();
+        self.radio.events_end.reset();
+
+        // NOTE(unsafe) DMA transfer has not yet started
+        unsafe {
+            self.radio
+                .packetptr
+                .write(|w| w.packetptr().bits(packet.buffer.as_ptr() as u32));
+        }
+
+        // start DMA transfer
+        dma_start_fence();
+        self.radio.tasks_start.write(|w| w.tasks_start().set_bit());
+
+        self.wait_for_event(Event::PhyEnd);
     }
 
     /// Moves the radio from any state to the DISABLED state
@@ -430,24 +430,27 @@ impl<'c> Radio<'c> {
                             .tasks_disable
                             .write(|w| w.tasks_disable().set_bit());
 
-                        self.wait_for_state(STATE_A::DISABLED);
+                        self.wait_for_state_a(STATE_A::DISABLED);
                         return;
                     }
 
                     // ramping down
                     STATE_A::RXDISABLE | STATE_A::TXDISABLE => {
-                        self.wait_for_state(STATE_A::DISABLED);
+                        self.wait_for_state_a(STATE_A::DISABLED);
                         return;
                     }
 
-                    // cancel ongoing transfer
+                    // cancel ongoing transfer or ongoing CCA
                     STATE_A::RX => {
+                        self.radio
+                            .tasks_ccastop
+                            .write(|w| w.tasks_ccastop().set_bit());
                         self.radio.tasks_stop.write(|w| w.tasks_stop().set_bit());
-                        self.wait_for_state(STATE_A::RXIDLE);
+                        self.wait_for_state_a(STATE_A::RXIDLE);
                     }
                     STATE_A::TX => {
                         self.radio.tasks_stop.write(|w| w.tasks_stop().set_bit());
-                        self.wait_for_state(STATE_A::TXIDLE);
+                        self.wait_for_state_a(STATE_A::TXIDLE);
                     }
                 }
             } else {
@@ -457,54 +460,52 @@ impl<'c> Radio<'c> {
         }
     }
 
-    /// Moves the radio from any state to the RXEN state
-    fn enable_rx(&mut self) {
-        // See figure 110 in nRF52840-PS
-        loop {
-            if let Variant::Val(state) = self.radio.state.read().state().variant() {
-                match state {
-                    STATE_A::RXIDLE => return,
+    /// Moves the radio to the RXIDLE state
+    fn put_in_rx_mode(&mut self) {
+        let state = self.state();
 
-                    STATE_A::DISABLED => {
-                        self.radio.tasks_rxen.write(|w| w.tasks_rxen().set_bit());
-                        self.wait_for_state(STATE_A::RXIDLE);
-                        return;
-                    }
+        let (disable, enable) = match state {
+            State::Disabled => (false, true),
+            State::RxIdle => (false, self.needs_enable),
+            // NOTE to avoid errata 204 (see rev1 v1.4) we do TXIDLE -> DISABLED -> RXIDLE
+            State::TxIdle => (true, true),
+        };
 
-                    // ramping up
-                    STATE_A::RXRU => {
-                        self.wait_for_state(STATE_A::RXIDLE);
-                        return;
-                    }
+        if disable {
+            self.radio
+                .tasks_disable
+                .write(|w| w.tasks_disable().set_bit());
+            self.wait_for_state_a(STATE_A::DISABLED);
+        }
 
-                    // NOTE to avoid errata 204 (see rev1 v1.4) we first go to the DISABLED state
-                    STATE_A::TXIDLE | STATE_A::TXRU => {
-                        self.radio
-                            .tasks_disable
-                            .write(|w| w.tasks_disable().set_bit());
-                        self.wait_for_state(STATE_A::DISABLED);
-                    }
+        if enable {
+            self.needs_enable = false;
+            self.radio.tasks_rxen.write(|w| w.tasks_rxen().set_bit());
+            self.wait_for_state_a(STATE_A::RXIDLE);
+        }
+    }
 
-                    // ramping down
-                    STATE_A::RXDISABLE | STATE_A::TXDISABLE => {
-                        self.wait_for_state(STATE_A::DISABLED);
-                    }
+    /// Moves the radio to the TXIDLE state
+    fn put_in_tx_mode(&mut self) {
+        let state = self.state();
 
-                    // cancel ongoing transfer
-                    STATE_A::RX => {
-                        self.radio.tasks_stop.write(|w| w.tasks_stop().set_bit());
-                        self.wait_for_state(STATE_A::RXIDLE);
-                        return;
-                    }
-                    STATE_A::TX => {
-                        self.radio.tasks_stop.write(|w| w.tasks_stop().set_bit());
-                        self.wait_for_state(STATE_A::TXIDLE);
-                    }
-                }
-            } else {
-                // STATE register is in an invalid state
-                unreachable!()
+        if state != State::TxIdle || self.needs_enable {
+            self.needs_enable = false;
+            self.radio.tasks_txen.write(|w| w.tasks_txen().set_bit());
+            self.wait_for_state_a(STATE_A::TXIDLE);
+        }
+    }
+
+    fn state(&self) -> State {
+        if let Variant::Val(state) = self.radio.state.read().state().variant() {
+            match state {
+                STATE_A::DISABLED => State::Disabled,
+                STATE_A::TXIDLE => State::TxIdle,
+                STATE_A::RXIDLE => State::RxIdle,
+                _ => unreachable!(),
             }
+        } else {
+            unreachable!()
         }
     }
 
@@ -532,11 +533,22 @@ impl<'c> Radio<'c> {
     }
 
     /// Waits until the radio state matches the given `state`
-    fn wait_for_state(&self, state: STATE_A) {
+    fn wait_for_state_a(&self, state: STATE_A) {
         while self.radio.state.read().state() != state {
             continue;
         }
     }
+}
+
+/// Driver state
+///
+/// After, or at the start of, any method call the RADIO will be in one of these states
+// This is a subset of the STATE_A enum
+#[derive(Copy, Clone, PartialEq)]
+enum State {
+    Disabled,
+    RxIdle,
+    TxIdle,
 }
 
 /// NOTE must be followed by a volatile write operation
@@ -556,13 +568,13 @@ enum Event {
 
 /// An IEEE 802.15.4 packet
 ///
-/// This `Packet` is closest to the PPDU (PHY Protocol Data Unit) defined in the IEEE spec. The API
-/// lets users modify the payload of the PPDU via the `deref` and `copy_from_slice` methods. End
-/// users should write a MPDU (MAC protocol data unit), starting with a MAC header (MHDR), in the
-/// PPDU payload to be IEEE compliant.
+/// This `Packet` is a PHY layer packet. It's made up of the physical header (PHR) and the PSDU
+/// (PHY service data unit). The PSDU of this `Packet` will always include the MAC level CRC, AKA
+/// the FCS (Frame Control Sequence) -- the CRC is fully computed in hardware and automatically
+/// appended on transmission and verified on reception.
 ///
-/// Note that the MAC level CRC, AKA the FCS (Frame Control Sequence), is fully computed in hardware
-/// so it doesn't need to be included in the packet's payload
+/// The API lets users modify the usable part (not the CRC) of the PSDU via the `deref` and
+/// `copy_from_slice` methods. These methods will automatically update the PHR.
 ///
 /// See figure 119 in the Product Specification of the nRF52840 for more details
 pub struct Packet {
@@ -571,17 +583,19 @@ pub struct Packet {
 
 // See figure 124 in nRF52840-PS
 impl Packet {
+    // for indexing purposes
     const PHY_HDR: usize = 0;
     const DATA: RangeFrom<usize> = 1..;
-    const CRC: u8 = 2; // size of the CRC, which is *never* copied to / from RAM
-    const SIZE: usize = 1 /* PHY_HDR */ + Self::MAX_LEN as usize + 1 /* LQI */;
 
-    /// The maximum length of the packet's payload
-    pub const MAX_LEN: u8 = 125;
+    /// Maximum amount of usable payload (CRC excluded) a single packet can contain, in bytes
+    pub const CAPACITY: u8 = 125;
+    const CRC: u8 = 2; // size of the CRC, which is *never* copied to / from RAM
+    const MAX_PSDU_LEN: u8 = Self::CAPACITY + 2 /* Self::CRC */;
+    const SIZE: usize = 1 /* PHR */ + Self::MAX_PSDU_LEN as usize;
 
     /// Returns an empty packet (length = 0)
-    // XXX I believe that be making this not `const` it is not possible to place a `Packet` in
-    // `.rodata` (modulo `#[link_section]` shenanigans) thus it is not necessary to check the
+    // XXX I believe that be making this *not* `const` it is not possible to place a `Packet` in
+    // `.rodata` (modulo unsafe `#[link_section]` shenanigans) thus it is not necessary to check the
     // address of packet in `Radio.{send,recv}` (EasyDMA can only operate on RAM addresses)
     pub fn new() -> Self {
         let mut packet = Self {
@@ -591,11 +605,14 @@ impl Packet {
         packet
     }
 
-    /// Fills the packet with given `src` data
+    /// Fills the packet payload with given `src` data
     ///
-    /// NOTE `src` data will be truncated to `MAX_PACKET_SIZE` bytes
+    /// # Panics
+    ///
+    /// This function panics if `src` is larger than `Self::CAPACITY`
     pub fn copy_from_slice(&mut self, src: &[u8]) {
-        let len = cmp::min(src.len(), Self::MAX_LEN as usize) as u8;
+        assert!(src.len() <= Self::CAPACITY as usize);
+        let len = src.len() as u8;
         self.buffer[Self::DATA][..len as usize].copy_from_slice(&src[..len.into()]);
         self.set_len(len);
     }
@@ -607,9 +624,11 @@ impl Packet {
 
     /// Changes the size of the packet's payload
     ///
-    /// NOTE `len` will be truncated to `MAX_LEN` bytes
+    /// # Panics
+    ///
+    /// This function panics if `len` is larger than `Self::CAPACITY`
     pub fn set_len(&mut self, len: u8) {
-        let len = cmp::min(len, Self::MAX_LEN);
+        assert!(len <= Self::CAPACITY);
         self.buffer[Self::PHY_HDR] = len + Self::CRC;
     }
 
@@ -621,7 +640,7 @@ impl Packet {
     /// stored LQI value.
     ///
     /// Also note that the hardware will *not* compute a LQI for packets smaller than 3 bytes so
-    /// this method will return a junk value for those packets.
+    /// this method will return an invalid value for those packets.
     pub fn lqi(&self) -> u8 {
         self.buffer[1 /* PHY_HDR */ + self.len() as usize /* data */]
     }
