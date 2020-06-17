@@ -590,7 +590,7 @@ impl Packet {
     /// Maximum amount of usable payload (CRC excluded) a single packet can contain, in bytes
     pub const CAPACITY: u8 = 125;
     const CRC: u8 = 2; // size of the CRC, which is *never* copied to / from RAM
-    const MAX_PSDU_LEN: u8 = Self::CAPACITY + 2 /* Self::CRC */;
+    const MAX_PSDU_LEN: u8 = Self::CAPACITY + Self::CRC;
     const SIZE: usize = 1 /* PHR */ + Self::MAX_PSDU_LEN as usize;
 
     /// Returns an empty packet (length = 0)
