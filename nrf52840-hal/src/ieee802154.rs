@@ -5,11 +5,16 @@ use core::{
     sync::atomic::{self, Ordering},
 };
 
-use crate::clocks::{Clocks, ExternalOscillator};
-use crate::pac::{
-    generic::Variant,
-    radio::{state::STATE_A, txpower::TXPOWER_A},
-    RADIO,
+use embedded_hal::timer::CountDown as _;
+
+use crate::{
+    clocks::{Clocks, ExternalOscillator},
+    pac::{
+        generic::Variant,
+        radio::{state::STATE_A, txpower::TXPOWER_A},
+        RADIO,
+    },
+    timer::{self, Timer},
 };
 
 /// IEEE 802.15.4 radio
@@ -244,6 +249,78 @@ impl<'c> Radio<'c> {
     /// validated by the hardware; otherwise it returns the `Err` variant. In either case, `packet`
     /// will be updated with the received packet's data
     pub fn recv(&mut self, packet: &mut Packet) -> Result<u16, u16> {
+        // Start the read
+        self.start_recv(packet);
+
+        // wait until we have received something
+        self.wait_for_event(Event::End);
+        dma_end_fence();
+
+        let crc = self.radio.rxcrc.read().rxcrc().bits() as u16;
+        if self.radio.crcstatus.read().crcstatus().bit_is_set() {
+            Ok(crc)
+        } else {
+            Err(crc)
+        }
+    }
+
+    /// Listens for a packet for no longer than the specified amount of milliseconds
+    ///
+    /// If no packet is received within the specified time then the `Timeout` error is returned
+    ///
+    /// If a packet is received within the time span then the packet CRC is checked. If the CRC is
+    /// incorrect then the `Crc` error is returned; otherwise the `Ok` variant is returned.
+    ///
+    /// Note that the time it takes to switch the radio to RX mode is included in the timeout count.
+    /// This transition may take up to a hundred of milliseconds; see the section 6.20.15.8 in the
+    /// Product Specification for more details about timing
+    pub fn recv_timeout<I>(
+        &mut self,
+        packet: &mut Packet,
+        timer: &mut Timer<I>,
+        millis: u32,
+    ) -> Result<u16, Error>
+    where
+        I: timer::Instance,
+    {
+        // Start the timeout timer
+        timer.start(millis);
+
+        // Start the read
+        self.start_recv(packet);
+
+        // Wait for transmission to end
+        let mut recv_completed = false;
+
+        loop {
+            if self.radio.events_end.read().bits() != 0 {
+                // transfer complete
+                dma_end_fence();
+                recv_completed = true;
+                break;
+            }
+
+            if timer.wait().is_ok() {
+                // timeout
+                break;
+            }
+        }
+
+        if !recv_completed {
+            // Cancel the reception if it did not complete until now
+            self.cancel_recv();
+            Err(Error::Timeout)
+        } else {
+            let crc = self.radio.rxcrc.read().rxcrc().bits() as u16;
+            if self.radio.crcstatus.read().crcstatus().bit_is_set() {
+                Ok(crc)
+            } else {
+                Err(Error::Crc(crc))
+            }
+        }
+    }
+
+    fn start_recv(&mut self, packet: &mut Packet) {
         // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
 
         // clear related events
@@ -263,17 +340,13 @@ impl<'c> Radio<'c> {
         // start transfer
         dma_start_fence();
         self.radio.tasks_start.write(|w| w.tasks_start().set_bit());
+    }
 
-        // wait until we have received something
-        self.wait_for_event(Event::End);
+    fn cancel_recv(&mut self) {
+        self.radio.tasks_stop.write(|w| w.tasks_stop().set_bit());
+        self.wait_for_state_a(STATE_A::RXIDLE);
+        // DMA transfer may have been in progress so synchronize with its memory operations
         dma_end_fence();
-
-        let crc = self.radio.rxcrc.read().rxcrc().bits() as u16;
-        if self.radio.crcstatus.read().crcstatus().bit_is_set() {
-            Ok(crc)
-        } else {
-            Err(crc)
-        }
     }
 
     /// Tries to send the given `packet`
@@ -538,6 +611,15 @@ impl<'c> Radio<'c> {
             continue;
         }
     }
+}
+
+/// Error
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum Error {
+    /// Incorrect CRC
+    Crc(u16),
+    /// Timeout
+    Timeout,
 }
 
 /// Driver state
