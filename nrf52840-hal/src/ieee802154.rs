@@ -264,7 +264,7 @@ impl<'c> Radio<'c> {
         }
     }
 
-    /// Listens for a packet for no longer than the specified amount of milliseconds
+    /// Listens for a packet for no longer than the specified amount of microseconds
     ///
     /// If no packet is received within the specified time then the `Timeout` error is returned
     ///
@@ -272,19 +272,19 @@ impl<'c> Radio<'c> {
     /// incorrect then the `Crc` error is returned; otherwise the `Ok` variant is returned.
     ///
     /// Note that the time it takes to switch the radio to RX mode is included in the timeout count.
-    /// This transition may take up to a hundred of milliseconds; see the section 6.20.15.8 in the
+    /// This transition may take up to a hundred of microseconds; see the section 6.20.15.8 in the
     /// Product Specification for more details about timing
     pub fn recv_timeout<I>(
         &mut self,
         packet: &mut Packet,
         timer: &mut Timer<I>,
-        millis: u32,
+        microseconds: u32,
     ) -> Result<u16, Error>
     where
         I: timer::Instance,
     {
         // Start the timeout timer
-        timer.start(millis);
+        timer.start(microseconds);
 
         // Start the read
         self.start_recv(packet);
