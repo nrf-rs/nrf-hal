@@ -19,7 +19,8 @@ use crate::target::TWIM1;
 use crate::{
     gpio::{Floating, Input, Pin},
     slice_in_ram_or,
-    target_constants::EASY_DMA_SIZE,
+    slice_in_ram,
+    target_constants::{EASY_DMA_SIZE, FORCE_COPY_BUFFER_SIZE},
 };
 
 pub use twim0::frequency::FREQUENCY_A as Frequency;
@@ -348,7 +349,17 @@ where
     type Error = Error;
 
     fn write<'w>(&mut self, addr: u8, bytes: &'w [u8]) -> Result<(), Error> {
-        self.write(addr, bytes)
+        if slice_in_ram(bytes){
+            self.write(addr, bytes)
+        }
+        else {
+            let buf = &mut [0; FORCE_COPY_BUFFER_SIZE][..];
+            for chunk in bytes.chunks(FORCE_COPY_BUFFER_SIZE) {
+                buf[..chunk.len()].copy_from_slice(chunk);
+                self.write(addr, &buf[..chunk.len()])?;
+            }
+            Ok(())
+        }
     }
 }
 
@@ -375,11 +386,22 @@ where
         bytes: &'w [u8],
         buffer: &'w mut [u8],
     ) -> Result<(), Error> {
-        self.write_then_read(addr, bytes, buffer)
+        if slice_in_ram(bytes){
+            self.write_then_read(addr, bytes, buffer)
+        } else {
+            let txi = bytes.chunks(FORCE_COPY_BUFFER_SIZE);
+            let rxi = buffer.chunks_mut(FORCE_COPY_BUFFER_SIZE);
+            let tx_buf = &mut [0; FORCE_COPY_BUFFER_SIZE][..];
+            txi.zip(rxi).try_for_each(|(tx_chunk, rx_chunk)| {
+                tx_buf[..tx_chunk.len()].copy_from_slice(tx_chunk);
+                self.write_then_read(addr, &tx_buf[..tx_chunk.len()], rx_chunk)
+            })?;
+            Ok(())
+        }
     }
 }
 
-/// The pins used by the TWIN peripheral
+/// The pins used by the TWIM peripheral
 ///
 /// Currently, only P0 pins are supported.
 pub struct Pins {
