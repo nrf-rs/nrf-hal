@@ -41,13 +41,24 @@ where
     type Error = Error;
 
     fn transfer<'w>(&mut self, words: &'w mut [u8]) -> Result<&'w [u8], Error> {
-        // If the slice isn't in RAM, we can't write back to it at all
-        slice_in_ram_or(words, Error::DMABufferNotInDataMemory)?;
-
-        words.chunks(EASY_DMA_SIZE).try_for_each(|chunk| {
-            self.do_spi_dma_transfer(DmaSlice::from_slice(chunk), DmaSlice::from_slice(chunk))
-        })?;
-
+        if slice_in_ram(words) {
+            words.chunks(EASY_DMA_SIZE).try_for_each(|chunk| {
+                self.do_spi_dma_transfer(DmaSlice::from_slice(chunk), DmaSlice::from_slice(chunk))
+            })?;
+        } else {
+            words
+                .chunks_mut(FORCE_COPY_BUFFER_SIZE)
+                .try_for_each(|chunk| {
+                    let mut buf = [0u8; FORCE_COPY_BUFFER_SIZE];
+                    buf[..chunk.len()].copy_from_slice(chunk);
+                    self.do_spi_dma_transfer(
+                        DmaSlice::from_slice(&buf[..chunk.len()]),
+                        DmaSlice::from_slice(&buf[..chunk.len()]),
+                    )?;
+                    chunk.copy_from_slice(&buf[..chunk.len()]);
+                    Ok(())
+                })?;
+        }
         Ok(words)
     }
 }
