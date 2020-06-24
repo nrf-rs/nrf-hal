@@ -127,7 +127,7 @@ macro_rules! ppi {
         }
 
         impl Parts {
-            /// Gets access to the PPI abstraction, making possible to separate the channels through
+            /// Gets access to the PPI abstraction, making it possible to separate the channels through
             /// different objects.
             pub fn new(_regs: PPI) -> Self {
                 Self {
