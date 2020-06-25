@@ -18,8 +18,7 @@ use crate::target::TWIM1;
 
 use crate::{
     gpio::{Floating, Input, Pin},
-    slice_in_ram_or,
-    slice_in_ram,
+    slice_in_ram, slice_in_ram_or,
     target_constants::{EASY_DMA_SIZE, FORCE_COPY_BUFFER_SIZE},
 };
 
@@ -349,10 +348,9 @@ where
     type Error = Error;
 
     fn write<'w>(&mut self, addr: u8, bytes: &'w [u8]) -> Result<(), Error> {
-        if slice_in_ram(bytes){
+        if slice_in_ram(bytes) {
             self.write(addr, bytes)
-        }
-        else {
+        } else {
             let buf = &mut [0; FORCE_COPY_BUFFER_SIZE][..];
             for chunk in bytes.chunks(FORCE_COPY_BUFFER_SIZE) {
                 buf[..chunk.len()].copy_from_slice(chunk);
@@ -386,7 +384,7 @@ where
         bytes: &'w [u8],
         buffer: &'w mut [u8],
     ) -> Result<(), Error> {
-        if slice_in_ram(bytes){
+        if slice_in_ram(bytes) {
             self.write_then_read(addr, bytes, buffer)
         } else {
             let txi = bytes.chunks(FORCE_COPY_BUFFER_SIZE);
