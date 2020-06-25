@@ -380,9 +380,9 @@ where
             unsafe { w.maxcnt().bits(rx_buffer.len() as _) });
 
         // Chunk write data
-        for chunk in tx_buffer.chunks(FORCE_COPY_BUFFER_SIZE) {
+        let wr_buffer = &mut [0; FORCE_COPY_BUFFER_SIZE][..];
+        for chunk in tx_buffer.chunks(FORCE_COPY_BUFFER_SIZE.min(EASY_DMA_SIZE)) {
             // Copy chunk into RAM
-            let wr_buffer = &mut [0; FORCE_COPY_BUFFER_SIZE][..];
             wr_buffer[..chunk.len()].copy_from_slice(chunk);
 
             // Set up the DMA write
