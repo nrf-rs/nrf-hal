@@ -133,7 +133,7 @@ where
         while self.0.events_lasttx.read().bits() == 0 {}
         self.0.events_lasttx.write(|w| w); // reset event
 
-        // Stop read operation
+        // Stop write operation
         self.0.tasks_stop.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
@@ -229,7 +229,8 @@ where
     /// Write data to an I2C slave, then read data from the slave without
     /// triggering a stop condition between the two
     ///
-    /// The buffer must have a length of at most 255 bytes.
+    /// The buffers must have a length of at most 255 bytes on the nRF52832
+    /// and at most 65535 bytes on the nRF52840.
     pub fn write_then_read(
         &mut self,
         address: u8,
@@ -333,6 +334,122 @@ where
         Ok(())
     }
 
+    /// Copy data into RAM and write to an I2C slave, then read data from the slave without
+    /// triggering a stop condition between the two
+    ///
+    /// The read buffer must have a length of at most 255 bytes on the nRF52832
+    /// and at most 65535 bytes on the nRF52840.
+    pub fn copy_write_then_read(
+        &mut self,
+        address: u8,
+        tx_buffer: &[u8],
+        rx_buffer: &mut [u8],
+    ) -> Result<(), Error> {
+        if rx_buffer.len() > EASY_DMA_SIZE {
+            return Err(Error::RxBufferTooLong);
+        }
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // before any DMA action has started
+        compiler_fence(SeqCst);
+
+        self.0
+            .address
+            .write(|w| unsafe { w.address().bits(address) });
+
+        // Set up the DMA read
+        self.0.rxd.ptr.write(|w|
+            // We're giving the register a pointer to the stack. Since we're
+            // waiting for the I2C transaction to end before this stack pointer
+            // becomes invalid, there's nothing wrong here.
+            //
+            // The PTR field is a full 32 bits wide and accepts the full range
+            // of values.
+            unsafe { w.ptr().bits(rx_buffer.as_mut_ptr() as u32) });
+        self.0.rxd.maxcnt.write(|w|
+            // We're giving it the length of the buffer, so no danger of
+            // accessing invalid memory. We have verified that the length of the
+            // buffer fits in an `u8`, so the cast to the type of maxcnt
+            // is also fine.
+            //
+            // Note that that nrf52840 maxcnt is a wider
+            // type than a u8, so we use a `_` cast rather than a `u8` cast.
+            // The MAXCNT field is thus at least 8 bits wide and accepts the
+            // full range of values that fit in a `u8`.
+            unsafe { w.maxcnt().bits(rx_buffer.len() as _) });
+
+        // Chunk write data
+        for chunk in tx_buffer.chunks(FORCE_COPY_BUFFER_SIZE) {
+            // Copy chunk into RAM
+            let wr_buffer = &mut [0; FORCE_COPY_BUFFER_SIZE][..];
+            wr_buffer[..chunk.len()].copy_from_slice(chunk);
+
+            // Set up the DMA write
+            self.0.txd.ptr.write(|w|
+                // We're giving the register a pointer to the stack. Since we're
+                // waiting for the I2C transaction to end before this stack pointer
+                // becomes invalid, there's nothing wrong here.
+                //
+                // The PTR field is a full 32 bits wide and accepts the full range
+                // of values.
+                unsafe { w.ptr().bits(wr_buffer.as_ptr() as u32) });
+
+            self.0.txd.maxcnt.write(|w|
+                // We're giving it the length of the buffer, so no danger of
+                // accessing invalid memory. We have verified that the length of the
+                // buffer fits in an `u8`, so the cast to `u8` is also fine.
+                //
+                // The MAXCNT field is 8 bits wide and accepts the full range of
+                // values.
+                unsafe { w.maxcnt().bits(wr_buffer.len() as _) });
+
+            // Start write operation
+            self.0.tasks_starttx.write(|w|
+                // `1` is a valid value to write to task registers.
+                unsafe { w.bits(1) });
+
+            // Wait until write operation is about to end
+            while self.0.events_lasttx.read().bits() == 0 {}
+            self.0.events_lasttx.write(|w| w); // reset event
+
+            // Check for bad writes
+            if self.0.txd.amount.read().bits() != wr_buffer.len() as u32 {
+                return Err(Error::Transmit);
+            }
+        }
+
+        // Start read operation
+        self.0.tasks_startrx.write(|w|
+            // `1` is a valid value to write to task registers.
+            unsafe { w.bits(1) });
+
+        // Wait until read operation is about to end
+        while self.0.events_lastrx.read().bits() == 0 {}
+        self.0.events_lastrx.write(|w| w); // reset event
+
+        // Stop read operation
+        self.0.tasks_stop.write(|w|
+            // `1` is a valid value to write to task registers.
+            unsafe { w.bits(1) });
+
+        // Wait until total operation has ended
+        while self.0.events_stopped.read().bits() == 0 {}
+        self.0.events_stopped.write(|w| w); // reset event
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // after all possible DMA actions have completed
+        compiler_fence(SeqCst);
+
+        // Check for bad reads
+        if self.0.rxd.amount.read().bits() != rx_buffer.len() as u32 {
+            return Err(Error::Receive);
+        }
+
+        Ok(())
+    }
+
     /// Return the raw interface to the underlying TWIM peripheral
     pub fn free(self) -> T {
         self.0
@@ -387,14 +504,7 @@ where
         if slice_in_ram(bytes) {
             self.write_then_read(addr, bytes, buffer)
         } else {
-            let txi = bytes.chunks(FORCE_COPY_BUFFER_SIZE);
-            let rxi = buffer.chunks_mut(FORCE_COPY_BUFFER_SIZE);
-            let tx_buf = &mut [0; FORCE_COPY_BUFFER_SIZE][..];
-            txi.zip(rxi).try_for_each(|(tx_chunk, rx_chunk)| {
-                tx_buf[..tx_chunk.len()].copy_from_slice(tx_chunk);
-                self.write_then_read(addr, &tx_buf[..tx_chunk.len()], rx_chunk)
-            })?;
-            Ok(())
+            self.copy_write_then_read(addr, bytes, buffer)
         }
     }
 }
