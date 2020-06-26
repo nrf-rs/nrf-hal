@@ -30,7 +30,7 @@ pub struct Radio<'c> {
 pub const DEFAULT_CCA: Cca = Cca::CarrierSense;
 
 /// Default radio channel = Channel 20 (`2_450` MHz)
-pub const DEFAULT_CHANNEL: Channel = Channel::_20;
+pub const DEFAULT_CHANNEL: Channel = Channel::_18; // _17 todo undo; set this to interfere with my wifi
 
 /// Default TX power = 0 dBm
 pub const DEFAULT_TXPOWER: TxPower = TxPower::_0dBm;
@@ -43,6 +43,15 @@ pub const DEFAULT_SFD: u8 = 0xA7;
 pub enum Cca {
     /// Carrier sense
     CarrierSense,
+    /// Energy Detection / Energy Above Threshold
+    EnergyDetection {
+        /// Energy measurements above this value mean that the channel is assumed to be busy.
+        /// Note the the measurement range is 0..0xFF - where 0 means that the received power was
+        /// less than 10 dB above the selected receiver sensitivity. This value is not given in dBm,
+        /// but can be converted. See the nrf52840 Product Specification Section 6.20.12.4
+        /// for details.
+        ed_threshold: u8,
+    },
 }
 
 /// IEEE 802.15.4 channels
@@ -203,8 +212,8 @@ impl<'c> Radio<'c> {
         }
 
         // set default settings
-        radio.set_cca(DEFAULT_CCA);
         radio.set_channel(DEFAULT_CHANNEL);
+        radio.set_cca(DEFAULT_CCA);
         radio.set_sfd(DEFAULT_SFD);
         radio.set_txpower(DEFAULT_TXPOWER);
 
@@ -226,6 +235,13 @@ impl<'c> Radio<'c> {
         self.needs_enable = true;
         match cca {
             Cca::CarrierSense => self.radio.ccactrl.write(|w| w.ccamode().carrier_mode()),
+            Cca::EnergyDetection { ed_threshold } => {
+                // "[ED] is enabled by first configuring the field CCAMODE=EdMode in CCACTRL
+                // and writing the CCAEDTHRES field to a chosen value."
+                self.radio
+                    .ccactrl
+                    .write(|w| unsafe { w.ccamode().ed_mode().ccaedthres().bits(ed_threshold) });
+            }
         }
     }
 
@@ -241,6 +257,48 @@ impl<'c> Radio<'c> {
         self.radio
             .txpower
             .write(|w| w.txpower().variant(power._into()));
+    }
+
+    /// Sample the received signal power (i.e. the presence of possibly interfering signals)
+    /// within the bandwidth of the currently used channel for sample_cycles iterations.
+    /// Note that one iteration has a sample time of 128μs, and that each iteration produces the
+    /// average RSSI value measured during this sample time.
+    ///
+    /// Returns the *maximum* measurement recorded during sampling as reported by the hardware (not in dBm!).
+    /// The result can be used to find a suitable ED threshold for Energy Detection-based CCA mechanisms.
+    ///
+    /// For details, see Section 6.20.12.3 Energy detection (ED) of the PS.
+    /// RSSI samples are averaged over a measurement time of 8 symbol periods (128 μs).
+    pub fn energy_detection_scan(&mut self, sample_cycles: u32) -> u8 {
+        unsafe {
+            // Increase the time spent listening
+            self.radio.edcnt.write(|w| w.edcnt().bits(sample_cycles));
+        }
+
+        // ensure that the shortcut between READY event and START task is disabled before putting
+        // the radio into recv mode
+        self.radio.shorts.reset();
+        self.put_in_rx_mode();
+
+        // clear related events
+        self.radio.events_edend.reset();
+
+        // start energy detection sampling
+        self.radio
+            .tasks_edstart
+            .write(|w| w.tasks_edstart().set_bit());
+
+        loop {
+            if self.radio.events_edend.read().events_edend().bit_is_set() {
+                // sampling period is over; collect value
+                self.radio.events_edend.reset();
+
+                // note that since we have increased EDCNT, the EDSAMPLE register contains the
+                // maximumrecorded value, not the average
+                let read_lvl = self.radio.edsample.read().edlvl().bits();
+                return read_lvl;
+            }
+        }
     }
 
     /// Recevies one radio packet and copies its contents into the given `packet` buffer
@@ -356,6 +414,7 @@ impl<'c> Radio<'c> {
     /// packet is transmitted and the `Err` variant is returned
     // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
     pub fn try_send(&mut self, packet: &Packet) -> Result<(), ()> {
+        // enable radio to perform cca
         self.put_in_rx_mode();
 
         // clear related events
@@ -369,7 +428,7 @@ impl<'c> Radio<'c> {
                 .write(|w| w.packetptr().bits(packet.buffer.as_ptr() as u32));
         }
 
-        // immediately start transmission if the channel is idle
+        // configure radio to immediately start transmission if the channel is idle
         self.radio
             .shorts
             .modify(|_, w| w.ccaidle_txen().set_bit().txready_start().set_bit());
@@ -377,7 +436,7 @@ impl<'c> Radio<'c> {
         // the DMA transfer will start at some point after the following write operation so
         // we place the compiler fence here
         dma_start_fence();
-        // start CCA
+        // start CCA. In case the channel is clear, the data at packetptr will be sent automatically
         self.radio
             .tasks_ccastart
             .write(|w| w.tasks_ccastart().set_bit());
@@ -413,6 +472,7 @@ impl<'c> Radio<'c> {
     /// CCA attempts to be spec compliant
     // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
     pub fn send(&mut self, packet: &Packet) {
+        // enable radio to perform cca
         self.put_in_rx_mode();
 
         // clear related events
@@ -435,7 +495,7 @@ impl<'c> Radio<'c> {
         }
 
         'cca: loop {
-            // start CCA
+            // start CCA (+ sending if channel is clear)
             self.radio
                 .tasks_ccastart
                 .write(|w| w.tasks_ccastart().set_bit());
