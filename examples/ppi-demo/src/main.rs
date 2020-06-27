@@ -59,8 +59,8 @@ fn main() -> ! {
     let ppi_channels = ppi::Parts::new(p.PPI);
     let mut channel0 = ppi_channels.ppi0;
 
-    channel0.set_task_endpoint(&p.RADIO.tasks_disable as *const _ as u32);
-    channel0.set_event_endpoint(&p.TIMER0.events_compare[0] as *const _ as u32);
+    channel0.set_task_endpoint(&p.RADIO.tasks_disable);
+    channel0.set_event_endpoint(&p.TIMER0.events_compare[0]);
     channel0.enable();
 
     let radio = p.RADIO;

@@ -10,15 +10,53 @@
 //! to be triggered by the same event, even fixed PPI channels have a configurable fork task.
 
 use crate::target::PPI;
+use cfg_if::cfg_if;
+
+cfg_if! {
+    if #[cfg(feature = "51")] {
+        mod event_nrf51;
+        mod task_nrf51;
+    } else if #[cfg(feature = "52810")] {
+        mod event_nrf52810;
+        mod task_nrf52810;
+    } else if #[cfg(feature = "52832")] {
+        mod event_nrf52832;
+        mod task_nrf52832;
+    } else if #[cfg(feature = "52833")] {
+        mod event_nrf52833;
+        mod task_nrf52833;
+    } else if #[cfg(feature = "52840")] {
+        mod event_nrf52840;
+        mod task_nrf52840;
+    }
+}
 
 mod sealed {
+    use super::{EventAddr, TaskAddr};
+
     pub trait Channel {
         const CH: usize;
     }
 
+    pub trait Task {
+        #[inline(always)]
+        fn task_addr(&self) -> TaskAddr {
+            TaskAddr(self as *const _ as *const u32 as u32)
+        }
+    }
+    pub trait Event {
+        #[inline(always)]
+        fn event_addr(&self) -> EventAddr {
+            EventAddr(self as *const _ as *const u32 as u32)
+        }
+    }
+
     pub trait NotFixed {}
 }
-use sealed::{Channel, NotFixed};
+use sealed::{Channel, Event, NotFixed, Task};
+
+pub struct TaskAddr(pub(crate) u32);
+pub struct EventAddr(pub(crate) u32);
 
 /// Trait to represent a Programmable Peripheral Interconnect channel.
 pub trait Ppi {
@@ -30,52 +68,63 @@ pub trait Ppi {
 
     #[cfg(not(feature = "51"))]
     /// Sets the fork task that must be triggered when the configured event occurs. The user must
-    /// provide the address of the task.
-    fn set_fork_task_endpoint(&mut self, addr: u32);
+    /// provide a reference to the task.
+    fn set_fork_task_endpoint<T: Task>(&mut self, task: &T);
 }
 
 /// Traits that extends the [Ppi](trait.Ppi.html) trait, marking a channel as fully configurable.
 pub trait ConfigurablePpi {
     /// Sets the task that must be triggered when the configured event occurs. The user must provide
-    /// the address of the task.
-    fn set_task_endpoint(&mut self, addr: u32);
+    /// a reference to the task.
+    fn set_task_endpoint<T: Task>(&mut self, task: &T);
 
-    /// Sets the event that will trigger the chosen task(s). The user must provide the address of
+    /// Sets the event that will trigger the chosen task(s). The user must provide a reference to
     /// the event.
-    fn set_event_endpoint(&mut self, addr: u32);
+    fn set_event_endpoint<E: Event>(&mut self, event: &E);
 }
 
 // All unsafe `ptr` calls only uses registers atomically, and only changes the resources owned by
 // the type (guaranteed by the abstraction)
 impl<P: Channel> Ppi for P {
+    #[inline(always)]
     fn enable(&mut self) {
         let regs = unsafe { &*PPI::ptr() };
         regs.chenset.write(|w| unsafe { w.bits(1 << P::CH) });
     }
 
+    #[inline(always)]
     fn disable(&mut self) {
         let regs = unsafe { &*PPI::ptr() };
         regs.chenclr.write(|w| unsafe { w.bits(1 << P::CH) });
     }
 
     #[cfg(not(feature = "51"))]
-    fn set_fork_task_endpoint(&mut self, addr: u32) {
+    #[inline(always)]
+    fn set_fork_task_endpoint<T: Task>(&mut self, task: &T) {
         let regs = unsafe { &*PPI::ptr() };
-        regs.fork[P::CH].tep.write(|w| unsafe { w.bits(addr) });
+        regs.fork[P::CH]
+            .tep
+            .write(|w| unsafe { w.bits(task.task_addr().0) });
     }
 }
 
 // All unsafe `ptr` calls only uses registers atomically, and only changes the resources owned by
 // the type (guaranteed by the abstraction)
 impl<P: Channel + NotFixed> ConfigurablePpi for P {
-    fn set_task_endpoint(&mut self, addr: u32) {
+    #[inline(always)]
+    fn set_task_endpoint<T: Task>(&mut self, task: &T) {
         let regs = unsafe { &*PPI::ptr() };
-        regs.ch[P::CH].tep.write(|w| unsafe { w.bits(addr) });
+        regs.ch[P::CH]
+            .tep
+            .write(|w| unsafe { w.bits(task.task_addr().0) });
     }
 
-    fn set_event_endpoint(&mut self, addr: u32) {
+    #[inline(always)]
+    fn set_event_endpoint<E: Event>(&mut self, event: &E) {
         let regs = unsafe { &*PPI::ptr() };
-        regs.ch[P::CH].eep.write(|w| unsafe { w.bits(addr) });
+        regs.ch[P::CH]
+            .eep
+            .write(|w| unsafe { w.bits(event.event_addr().0) });
     }
 }
 
