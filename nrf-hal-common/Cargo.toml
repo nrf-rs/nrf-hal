@@ -23,6 +23,7 @@ cortex-m = "0.6.2"
 nb = "0.1.2"
 fpa = "0.1.0"
 rand_core = "0.5.1"
+cfg-if = "0.1.10"
 
 [dependencies.void]
 default-features = false
