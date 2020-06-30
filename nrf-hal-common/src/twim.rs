@@ -381,7 +381,7 @@ where
 
         // Chunk write data
         let wr_buffer = &mut [0; FORCE_COPY_BUFFER_SIZE][..];
-        for chunk in tx_buffer.chunks(FORCE_COPY_BUFFER_SIZE.min(EASY_DMA_SIZE)) {
+        for chunk in tx_buffer.chunks(FORCE_COPY_BUFFER_SIZE) {
             // Copy chunk into RAM
             wr_buffer[..chunk.len()].copy_from_slice(chunk);
 
