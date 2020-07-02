@@ -50,7 +50,11 @@ const APP: () = {
         gpiote.port().enable_interrupt();
 
         // PPI usage, channel 2 event triggers "task out" (toggle) on channel 1 (toggles led1)
-        gpiote.channel(1).output_pin(&led1).task_out_polarity(TaskOutPolarity::Toggle).init_high();
+        gpiote
+            .channel(1)
+            .output_pin(&led1)
+            .task_out_polarity(TaskOutPolarity::Toggle)
+            .init_high();
         gpiote.channel(2).input_pin(&btn2).hi_to_lo(false);
         let ppi_channels = ppi::Parts::new(ctx.device.PPI);
         let mut channel0 = ppi_channels.ppi0;
@@ -100,8 +104,12 @@ const APP: () = {
             // Manually run "task out" (toggle) on channel 1 (toggles led1)
             ctx.resources.gpiote.channel(1).out();
         }
-        if btn3_pressed { rprintln!("Button 3 was pressed!"); }
-        if btn4_pressed { rprintln!("Button 4 was pressed!"); }
+        if btn3_pressed {
+            rprintln!("Button 3 was pressed!");
+        }
+        if btn4_pressed {
+            rprintln!("Button 4 was pressed!");
+        }
     }
 
     extern "C" {
