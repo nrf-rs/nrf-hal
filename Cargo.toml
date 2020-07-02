@@ -16,6 +16,7 @@ members = [
   "examples/ecb-demo",
   "examples/ccm-demo",
   "examples/ppi-demo",
+  "examples/gpiote-demo",
 ]
 
 [profile.dev]

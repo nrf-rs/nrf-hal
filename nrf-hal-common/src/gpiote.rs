@@ -157,8 +157,6 @@ impl<'a, P: GpioteInputPin> GpioteChannelEvent<'_, P> {
         config_channel_event_pin(self.gpiote, self.channel, self.pin, EventPolarity::HiToLo);
         if enable_interrupt {
             self.enable_interrupt();
-        } else {
-            self.disable_interrupt();
         }
     }
 
@@ -166,8 +164,6 @@ impl<'a, P: GpioteInputPin> GpioteChannelEvent<'_, P> {
         config_channel_event_pin(self.gpiote, self.channel, self.pin, EventPolarity::LoToHi);
         if enable_interrupt {
             self.enable_interrupt();
-        } else {
-            self.disable_interrupt();
         }
     }
 
@@ -175,8 +171,6 @@ impl<'a, P: GpioteInputPin> GpioteChannelEvent<'_, P> {
         config_channel_event_pin(self.gpiote, self.channel, self.pin, EventPolarity::Toggle);
         if enable_interrupt {
             self.enable_interrupt();
-        } else {
-            self.disable_interrupt();
         }
     }
 
@@ -184,8 +178,6 @@ impl<'a, P: GpioteInputPin> GpioteChannelEvent<'_, P> {
         config_channel_event_pin(self.gpiote, self.channel, self.pin, EventPolarity::None);
         if enable_interrupt {
             self.enable_interrupt();
-        } else {
-            self.disable_interrupt();
         }
     }
 
@@ -194,15 +186,6 @@ impl<'a, P: GpioteInputPin> GpioteChannelEvent<'_, P> {
         unsafe {
             self.gpiote
                 .intenset
-                .modify(|r, w| w.bits(r.bits() | self.pin.pin() as u32))
-        }
-    }
-
-    pub fn disable_interrupt(&self) {
-        // Disable interrupt for pin
-        unsafe {
-            self.gpiote
-                .intenclr
                 .modify(|r, w| w.bits(r.bits() | self.pin.pin() as u32))
         }
     }
