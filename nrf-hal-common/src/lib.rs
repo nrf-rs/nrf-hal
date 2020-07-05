@@ -74,6 +74,8 @@ pub mod target_constants {
     pub const SRAM_LOWER: usize = 0x2000_0000;
     pub const SRAM_UPPER: usize = 0x3000_0000;
     pub const FORCE_COPY_BUFFER_SIZE: usize = 255;
+    const _CHECK_FORCE_COPY_BUFFER_SIZE: usize = EASY_DMA_SIZE - FORCE_COPY_BUFFER_SIZE;
+    // ERROR: FORCE_COPY_BUFFER_SIZE must be <= EASY_DMA_SIZE
 }
 #[cfg(any(feature = "52840", feature = "52833", feature = "9160"))]
 pub mod target_constants {
@@ -83,6 +85,8 @@ pub mod target_constants {
     pub const SRAM_LOWER: usize = 0x2000_0000;
     pub const SRAM_UPPER: usize = 0x3000_0000;
     pub const FORCE_COPY_BUFFER_SIZE: usize = 1024;
+    const _CHECK_FORCE_COPY_BUFFER_SIZE: usize = EASY_DMA_SIZE - FORCE_COPY_BUFFER_SIZE;
+    // ERROR: FORCE_COPY_BUFFER_SIZE must be <= EASY_DMA_SIZE
 }
 
 /// Does this slice reside entirely within RAM?
