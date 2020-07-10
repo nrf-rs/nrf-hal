@@ -4,7 +4,7 @@
 
 use rand_core::{CryptoRng, RngCore};
 
-use crate::target::RNG;
+use crate::pac::RNG;
 
 /// Interface to the RNG peripheral
 ///

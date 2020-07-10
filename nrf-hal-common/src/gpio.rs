@@ -61,16 +61,16 @@ pub struct Pin<MODE> {
 }
 
 #[cfg(feature = "51")]
-use crate::target::{gpio, GPIO as P0};
+use crate::pac::{gpio, GPIO as P0};
 
 #[cfg(feature = "9160")]
-use crate::target::{p0_ns as gpio, P0_NS as P0};
+use crate::pac::{p0_ns as gpio, P0_NS as P0};
 
 #[cfg(not(any(feature = "9160", feature = "51")))]
-use crate::target::{p0 as gpio, P0};
+use crate::pac::{p0 as gpio, P0};
 
 #[cfg(any(feature = "52833", feature = "52840"))]
-use crate::target::P1;
+use crate::pac::P1;
 
 use crate::hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
 use void::Void;
@@ -293,13 +293,13 @@ pub enum OpenDrainConfig {
 }
 
 #[cfg(feature = "51")]
-use crate::target::gpio::pin_cnf;
+use crate::pac::gpio::pin_cnf;
 
 #[cfg(feature = "9160")]
-use crate::target::p0_ns::pin_cnf;
+use crate::pac::p0_ns::pin_cnf;
 
 #[cfg(not(any(feature = "9160", feature = "51")))]
-use crate::target::p0::pin_cnf;
+use crate::pac::p0::pin_cnf;
 
 impl OpenDrainConfig {
     fn variant(self) -> pin_cnf::DRIVE_A {

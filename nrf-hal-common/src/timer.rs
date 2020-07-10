@@ -3,10 +3,10 @@
 //! See product specification, chapter 24.
 
 #[cfg(feature = "9160")]
-use crate::target::{Interrupt, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1, TIMER2_NS as TIMER2};
+use crate::pac::{Interrupt, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1, TIMER2_NS as TIMER2};
 
 #[cfg(not(feature = "9160"))]
-use crate::target::{Interrupt, TIMER0, TIMER1, TIMER2};
+use crate::pac::{Interrupt, TIMER0, TIMER1, TIMER2};
 
 use cast::u32;
 use embedded_hal::{
@@ -18,7 +18,7 @@ use nb::{self, block};
 use void::{unreachable, Void};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-use crate::target::{TIMER3, TIMER4};
+use crate::pac::{TIMER3, TIMER4};
 
 use core::marker::PhantomData;
 

@@ -19,7 +19,7 @@ use nrf52832_hal as hal;
 #[cfg(feature = "52840")]
 use nrf52840_hal as hal;
 
-#[app(device = crate::hal::target)]
+#[app(device = crate::hal::pac)]
 const APP: () = {
     #[init]
     fn init() {

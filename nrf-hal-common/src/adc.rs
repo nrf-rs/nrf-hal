@@ -6,7 +6,7 @@ use core::hint::unreachable_unchecked;
 
 use crate::{
     gpio::{Floating, Input},
-    target::{
+    pac::{
         adc::config::{INPSEL_A as InputSelection, REFSEL_A as Reference, RES_A as Resolution},
         ADC,
     },

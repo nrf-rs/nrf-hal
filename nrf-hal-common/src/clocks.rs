@@ -2,10 +2,10 @@
 //! sources
 
 #[cfg(feature = "9160")]
-use crate::target::CLOCK_NS as CLOCK;
+use crate::pac::CLOCK_NS as CLOCK;
 
 #[cfg(not(feature = "9160"))]
-use crate::target::CLOCK;
+use crate::pac::CLOCK;
 
 // ZST Type States
 

@@ -5,10 +5,10 @@ use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
 #[cfg(feature = "9160")]
-use crate::target::{spim0_ns as spim0, SPIM0_NS as SPIM0};
+use crate::pac::{spim0_ns as spim0, SPIM0_NS as SPIM0};
 
 #[cfg(not(feature = "9160"))]
-use crate::target::{spim0, SPIM0};
+use crate::pac::{spim0, SPIM0};
 
 pub use embedded_hal::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};
 pub use spim0::frequency::FREQUENCY_A as Frequency;
@@ -16,10 +16,10 @@ pub use spim0::frequency::FREQUENCY_A as Frequency;
 use core::iter::repeat_with;
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-use crate::target::{SPIM1, SPIM2};
+use crate::pac::{SPIM1, SPIM2};
 
 #[cfg(any(feature = "52833", feature = "52840"))]
-use crate::target::SPIM3;
+use crate::pac::SPIM3;
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::target_constants::{EASY_DMA_SIZE, FORCE_COPY_BUFFER_SIZE};

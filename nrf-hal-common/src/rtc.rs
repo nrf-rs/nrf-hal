@@ -3,13 +3,13 @@
 use core::ops::Deref;
 
 #[cfg(feature = "9160")]
-use crate::target::{rtc0_ns as rtc0, Interrupt, NVIC, RTC0_NS as RTC0, RTC1_NS as RTC1};
+use crate::pac::{rtc0_ns as rtc0, Interrupt, NVIC, RTC0_NS as RTC0, RTC1_NS as RTC1};
 
 #[cfg(not(feature = "9160"))]
-use crate::target::{rtc0, Interrupt, NVIC, RTC0, RTC1};
+use crate::pac::{rtc0, Interrupt, NVIC, RTC0, RTC1};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-use crate::target::RTC2;
+use crate::pac::RTC2;
 
 // Zero Size Type State structs
 

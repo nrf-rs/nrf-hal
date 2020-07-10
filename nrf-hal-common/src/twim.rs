@@ -8,13 +8,13 @@ use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
 #[cfg(feature = "9160")]
-use crate::target::{twim0_ns as twim0, P0_NS as P0, TWIM0_NS as TWIM0};
+use crate::pac::{twim0_ns as twim0, P0_NS as P0, TWIM0_NS as TWIM0};
 
 #[cfg(not(feature = "9160"))]
-use crate::target::{twim0, P0, TWIM0};
+use crate::pac::{twim0, P0, TWIM0};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-use crate::target::TWIM1;
+use crate::pac::TWIM1;
 
 use crate::{
     gpio::{Floating, Input, Pin},
