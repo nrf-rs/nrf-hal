@@ -210,6 +210,16 @@ impl<'a, P: GpioteInputPin> GpioteChannelEvent<'_, P> {
         }
         self
     }
+
+    pub fn disable_interrupt(&self) -> &Self {
+        // Disable interrupt for pin
+        unsafe {
+            self.gpiote
+                .intenclr
+                .write(|w| w.bits(self.pin.pin() as u32))
+        }
+        self
+    }
 }
 
 fn config_channel_event_pin<P: GpioteInputPin>(
