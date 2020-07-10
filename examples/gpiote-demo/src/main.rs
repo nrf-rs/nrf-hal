@@ -22,7 +22,6 @@ const APP: () = {
     struct Resources {
         gpiote: Gpiote,
         btn1: Pin<Input<PullUp>>,
-        btn2: Pin<Input<PullUp>>,
         btn3: Pin<Input<PullUp>>,
         btn4: Pin<Input<PullUp>>,
     }
@@ -41,7 +40,7 @@ const APP: () = {
         let gpiote = Gpiote::new(ctx.device.GPIOTE);
 
         // Set btn1 to generate event on channel 0 and enable interrupt
-        gpiote.channel(0).input_pin(&btn1).hi_to_lo(true);
+        gpiote.channel0().input_pin(&btn1).hi_to_lo(true);
 
         // Set both btn3 & btn4 to generate port event
         gpiote.port().input_pin(&btn3).low();
@@ -51,15 +50,15 @@ const APP: () = {
 
         // PPI usage, channel 2 event triggers "task out" (toggle) on channel 1 (toggles led1)
         gpiote
-            .channel(1)
+            .channel1()
             .output_pin(&led1)
             .task_out_polarity(TaskOutPolarity::Toggle)
             .init_high();
-        gpiote.channel(2).input_pin(&btn2).hi_to_lo(false);
+        gpiote.channel2().input_pin(&btn2).hi_to_lo(false);
         let ppi_channels = ppi::Parts::new(ctx.device.PPI);
         let mut channel0 = ppi_channels.ppi0;
-        channel0.set_task_endpoint(gpiote.channel(1).task_out());
-        channel0.set_event_endpoint(gpiote.channel(2).event());
+        channel0.set_task_endpoint(gpiote.channel1().task_out());
+        channel0.set_event_endpoint(gpiote.channel2().event());
         channel0.enable();
 
         // Enable the monotonic timer (CYCCNT)
@@ -71,7 +70,6 @@ const APP: () = {
         init::LateResources {
             gpiote,
             btn1,
-            btn2,
             btn3,
             btn4,
         }
@@ -92,17 +90,16 @@ const APP: () = {
         ctx.schedule.debounce(ctx.start + 3_000_000.cycles()).ok();
     }
 
-    #[task(resources = [gpiote, btn1, btn2, btn3, btn4])]
+    #[task(resources = [gpiote, btn1, btn3, btn4])]
     fn debounce(ctx: debounce::Context) {
         let btn1_pressed = ctx.resources.btn1.is_low().unwrap();
-        let btn2_pressed = ctx.resources.btn2.is_low().unwrap();
         let btn3_pressed = ctx.resources.btn3.is_low().unwrap();
         let btn4_pressed = ctx.resources.btn4.is_low().unwrap();
 
         if btn1_pressed {
             rprintln!("Button 1 was pressed!");
             // Manually run "task out" (toggle) on channel 1 (toggles led1)
-            ctx.resources.gpiote.channel(1).out();
+            ctx.resources.gpiote.channel1().out();
         }
         if btn3_pressed {
             rprintln!("Button 3 was pressed!");

@@ -32,11 +32,39 @@ impl Gpiote {
         Self { gpiote }
     }
 
-    pub fn channel(&self, channel: usize) -> GpioteChannel {
+    fn channel(&self, channel: usize) -> GpioteChannel {
         GpioteChannel {
             gpiote: &self.gpiote,
             channel,
         }
+    }
+    pub fn channel0(&self) -> GpioteChannel {
+        self.channel(0)
+    }
+    pub fn channel1(&self) -> GpioteChannel {
+        self.channel(1)
+    }
+    pub fn channel2(&self) -> GpioteChannel {
+        self.channel(2)
+    }
+    pub fn channel3(&self) -> GpioteChannel {
+        self.channel(3)
+    }
+    #[cfg(not(feature = "51"))]
+    pub fn channel4(&self) -> GpioteChannel {
+        self.channel(4)
+    }
+    #[cfg(not(feature = "51"))]
+    pub fn channel5(&self) -> GpioteChannel {
+        self.channel(5)
+    }
+    #[cfg(not(feature = "51"))]
+    pub fn channel6(&self) -> GpioteChannel {
+        self.channel(6)
+    }
+    #[cfg(not(feature = "51"))]
+    pub fn channel7(&self) -> GpioteChannel {
+        self.channel(7)
     }
 
     pub fn port(&self) -> GpiotePort {
