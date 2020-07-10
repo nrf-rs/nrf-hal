@@ -1,3 +1,6 @@
+//! Implementation details of the nRF HAL crates. Don't use this directly, use one of the specific
+//! HAL crates instead (`nrfXYZ-hal`).
+
 #![no_std]
 
 use embedded_hal as hal;
