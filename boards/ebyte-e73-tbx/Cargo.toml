@@ -1,0 +1,25 @@
+[package]
+authors = ["Marius Knaust <marius.knaust@gmail.com>"]
+categories = ["embedded", "no-std"]
+description = "BSP for the EBYTE E73-TBX boards"
+keywords = ["arm", "nrf52"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+name = "ebyte-e73-tbx-bsp"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+cortex-m = "0.6.2"
+cortex-m-rt = "0.6.12"
+panic-halt = "0.2.0"
+nrf52810-hal = { version = "0.10.0", path = "../../nrf52810-hal", optional = true }
+nrf52832-hal = { version = "0.10.0", path = "../../nrf52832-hal", default-features = false, features = ["rt", "xxAA-package"], optional = true }
+
+[dev-dependencies]
+nb = "0.1.2"
+panic-semihosting = "0.5.3"
+
+[features]
+tba = ["nrf52810-hal"]
+tbb = ["nrf52832-hal"]

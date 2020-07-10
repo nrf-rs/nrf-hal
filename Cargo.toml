@@ -5,6 +5,7 @@ members = [
   "boards/nRF52-DK",
   "boards/nRF9160-DK",
   "boards/actinius-icarus",
+  "boards/ebyte-e73-tbx",
   "nrf52810-hal",
   "nrf52832-hal",
   "nrf52833-hal",
