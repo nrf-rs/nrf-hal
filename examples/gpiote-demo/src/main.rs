@@ -88,6 +88,12 @@ const APP: () = {
 
     #[task(binds = GPIOTE, resources = [gpiote], schedule = [debounce])]
     fn on_gpiote(ctx: on_gpiote::Context) {
+        if ctx.resources.gpiote.channel0().is_event_triggered() {
+            rprintln!("Interrupt from channel 0 event");
+        }
+        if ctx.resources.gpiote.port().is_event_triggered() {
+            rprintln!("Interrupt from port event");
+        }
         // Reset all events
         ctx.resources.gpiote.reset_events();
         // Debounce

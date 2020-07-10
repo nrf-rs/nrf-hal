@@ -107,6 +107,10 @@ impl<'a> GpioteChannel<'_> {
         }
     }
 
+    pub fn is_event_triggered(&self) -> bool {
+        self.gpiote.events_in[self.channel].read().bits() != 0
+    }
+
     pub fn reset_events(&self) {
         self.gpiote.events_in[self.channel].write(|w| w);
     }
@@ -163,6 +167,9 @@ impl<'a> GpiotePort<'_> {
     pub fn disable_interrupt(&self) {
         // Disable port interrupt
         self.gpiote.intenclr.write(|w| w.port().set_bit());
+    }
+    pub fn is_event_triggered(&self) -> bool {
+        self.gpiote.events_port.read().bits() != 0
     }
     pub fn reset_events(&self) {
         // Mark port events as handled
