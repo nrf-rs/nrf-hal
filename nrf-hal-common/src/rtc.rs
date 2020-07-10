@@ -203,7 +203,7 @@ where
         self.periph.counter.read().bits()
     }
 
-	/// Clear the Real Time Counter
+    /// Clear the Real Time Counter
     pub fn clear_counter(&self) {
         unsafe {
             self.periph.tasks_clear.write(|w| w.bits(1));
