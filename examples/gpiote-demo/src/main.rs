@@ -40,7 +40,11 @@ const APP: () = {
         let gpiote = Gpiote::new(ctx.device.GPIOTE);
 
         // Set btn1 to generate event on channel 0 and enable interrupt
-        gpiote.channel0().input_pin(&btn1).hi_to_lo(true);
+        gpiote
+            .channel0()
+            .input_pin(&btn1)
+            .hi_to_lo()
+            .enable_interrupt();
 
         // Set both btn3 & btn4 to generate port event
         gpiote.port().input_pin(&btn3).low();
@@ -54,7 +58,7 @@ const APP: () = {
             .output_pin(led1)
             .task_out_polarity(TaskOutPolarity::Toggle)
             .init_high();
-        gpiote.channel2().input_pin(&btn2).hi_to_lo(false);
+        gpiote.channel2().input_pin(&btn2).hi_to_lo();
         let ppi_channels = ppi::Parts::new(ctx.device.PPI);
         let mut channel0 = ppi_channels.ppi0;
         channel0.set_task_endpoint(gpiote.channel1().task_out());

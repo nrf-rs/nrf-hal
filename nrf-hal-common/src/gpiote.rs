@@ -181,41 +181,34 @@ pub struct GpioteChannelEvent<'a, P: GpioteInputPin> {
 }
 
 impl<'a, P: GpioteInputPin> GpioteChannelEvent<'_, P> {
-    pub fn hi_to_lo(&self, enable_interrupt: bool) {
+    pub fn hi_to_lo(&self) -> &Self {
         config_channel_event_pin(self.gpiote, self.channel, self.pin, EventPolarity::HiToLo);
-        if enable_interrupt {
-            self.enable_interrupt();
-        }
+        self
     }
 
-    pub fn lo_to_hi(&self, enable_interrupt: bool) {
+    pub fn lo_to_hi(&self) -> &Self {
         config_channel_event_pin(self.gpiote, self.channel, self.pin, EventPolarity::LoToHi);
-        if enable_interrupt {
-            self.enable_interrupt();
-        }
+        self
     }
 
-    pub fn toggle(&self, enable_interrupt: bool) {
+    pub fn toggle(&self) -> &Self {
         config_channel_event_pin(self.gpiote, self.channel, self.pin, EventPolarity::Toggle);
-        if enable_interrupt {
-            self.enable_interrupt();
-        }
+        self
     }
 
-    pub fn none(&self, enable_interrupt: bool) {
+    pub fn none(&self) -> &Self {
         config_channel_event_pin(self.gpiote, self.channel, self.pin, EventPolarity::None);
-        if enable_interrupt {
-            self.enable_interrupt();
-        }
+        self
     }
 
-    pub fn enable_interrupt(&self) {
+    pub fn enable_interrupt(&self) -> &Self {
         // Enable interrupt for pin
         unsafe {
             self.gpiote
                 .intenset
                 .modify(|r, w| w.bits(r.bits() | self.pin.pin() as u32))
         }
+        self
     }
 }
 
