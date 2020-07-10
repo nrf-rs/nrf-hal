@@ -203,6 +203,21 @@ where
         self.periph.counter.read().bits()
     }
 
+    /// Clear the Real Time Counter
+    pub fn clear_counter(&self) {
+        unsafe {
+            self.periph.tasks_clear.write(|w| w.bits(1));
+        }
+    }
+
+    /// Sets the Real Time Counter value to 0xFFFFF0, to allow tests of the overflow condition.
+    /// The overflow event occurs when the Real Time Counter overflows from 0xFFFFFF to 0.
+    pub fn trigger_overflow(&self) {
+        unsafe {
+            self.periph.tasks_trigovrflw.write(|w| w.bits(1));
+        }
+    }
+
     /// Destructure the high level interface. Does not reset any configuration made
     /// to the given RTC peripheral
     pub fn release(self) -> T {
