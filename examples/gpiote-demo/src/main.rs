@@ -51,7 +51,7 @@ const APP: () = {
         // PPI usage, channel 2 event triggers "task out" (toggle) on channel 1 (toggles led1)
         gpiote
             .channel1()
-            .output_pin(&led1)
+            .output_pin(led1)
             .task_out_polarity(TaskOutPolarity::Toggle)
             .init_high();
         gpiote.channel2().input_pin(&btn2).hi_to_lo(false);

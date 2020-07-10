@@ -98,7 +98,7 @@ impl<'a> GpioteChannel<'_> {
         }
     }
 
-    pub fn output_pin<P: GpioteOutputPin>(&'a self, pin: &'a P) -> GpioteTask<'a, P> {
+    pub fn output_pin<P: GpioteOutputPin>(&'a self, pin: P) -> GpioteTask<'a, P> {
         GpioteTask {
             gpiote: &self.gpiote,
             pin: pin,
@@ -274,7 +274,7 @@ fn config_port_event_pin<P: GpioteInputPin>(pin: &P, sense: PortEventSense) {
 
 pub struct GpioteTask<'a, P: GpioteOutputPin> {
     gpiote: &'a GPIOTE,
-    pin: &'a P,
+    pin: P,
     channel: usize,
     task_out_polarity: TaskOutPolarity,
 }
@@ -284,7 +284,7 @@ impl<'a, P: GpioteOutputPin> GpioteTask<'_, P> {
         config_channel_task_pin(
             self.gpiote,
             self.channel,
-            self.pin,
+            &self.pin,
             &self.task_out_polarity,
             Level::High,
         );
@@ -294,7 +294,7 @@ impl<'a, P: GpioteOutputPin> GpioteTask<'_, P> {
         config_channel_task_pin(
             self.gpiote,
             self.channel,
-            self.pin,
+            &self.pin,
             &self.task_out_polarity,
             Level::Low,
         );
