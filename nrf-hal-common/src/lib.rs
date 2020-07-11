@@ -34,6 +34,8 @@ pub mod delay;
 pub mod ecb;
 pub mod gpio;
 #[cfg(not(feature = "9160"))]
+pub mod gpiote;
+#[cfg(not(feature = "9160"))]
 pub mod ppi;
 #[cfg(not(feature = "9160"))]
 pub mod rng;
