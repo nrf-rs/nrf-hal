@@ -4,7 +4,7 @@ use core::ops::Deref;
 
 use crate::{
     gpio::{Floating, Input, Pin},
-    target::{twi0, GPIO, TWI0, TWI1},
+    pac::{twi0, GPIO, TWI0, TWI1},
 };
 
 pub use twi0::frequency::FREQUENCY_A as Frequency;

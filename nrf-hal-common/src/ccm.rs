@@ -46,13 +46,13 @@
 //! (16 + `Packet Length`) bytes, whatever is largest.
 
 use crate::{
+    pac::{AAR, CCM},
     slice_in_ram,
-    target::{AAR, CCM},
 };
 use core::sync::atomic::{compiler_fence, Ordering};
 
 #[cfg(not(feature = "51"))]
-use crate::target::ccm::mode::{DATARATE_A, LENGTH_A};
+use crate::pac::ccm::mode::{DATARATE_A, LENGTH_A};
 
 const MINIMUM_SCRATCH_AREA_SIZE: usize = 43;
 const HEADER_SIZE: usize = 3;

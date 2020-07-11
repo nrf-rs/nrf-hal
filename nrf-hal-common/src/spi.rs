@@ -3,7 +3,7 @@ use core::ops::Deref;
 
 use crate::{
     gpio::{Floating, Input, Output, Pin, PushPull},
-    target::{spi0, SPI0, SPI1},
+    pac::{spi0, SPI0, SPI1},
 };
 
 pub use embedded_hal::{

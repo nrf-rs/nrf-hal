@@ -1,10 +1,10 @@
 //! HAL interface to the SAADC peripheral
 
 #[cfg(feature = "9160")]
-use crate::target::{saadc_ns as saadc, SAADC_NS as SAADC};
+use crate::pac::{saadc_ns as saadc, SAADC_NS as SAADC};
 
 #[cfg(not(feature = "9160"))]
-use crate::target::{saadc, SAADC};
+use crate::pac::{saadc, SAADC};
 
 use crate::gpio::{Floating, Input};
 use core::{

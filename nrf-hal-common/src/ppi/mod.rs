@@ -9,7 +9,7 @@
 //! On nRF52 devices, there is also a fork task endpoint, where the user can configure one more task
 //! to be triggered by the same event, even fixed PPI channels have a configurable fork task.
 
-use crate::target::PPI;
+use crate::pac::PPI;
 use cfg_if::cfg_if;
 
 cfg_if! {

@@ -1,6 +1,6 @@
 //! Temperature sensor interface.
 
-use crate::target::TEMP;
+use crate::pac::TEMP;
 use fpa::I30F2;
 use void::Void;
 

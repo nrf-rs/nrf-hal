@@ -11,13 +11,13 @@ use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 use embedded_hal::digital::v2::OutputPin;
 
 #[cfg(any(feature = "52833", feature = "52840"))]
-use crate::target::UARTE1;
+use crate::pac::UARTE1;
 
 #[cfg(feature = "9160")]
-use crate::target::{uarte0_ns as uarte0, UARTE0_NS as UARTE0, UARTE1_NS as UARTE1};
+use crate::pac::{uarte0_ns as uarte0, UARTE0_NS as UARTE0, UARTE1_NS as UARTE1};
 
 #[cfg(not(feature = "9160"))]
-use crate::target::{uarte0, UARTE0};
+use crate::pac::{uarte0, UARTE0};
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::prelude::*;

@@ -2,7 +2,7 @@
 //!
 //! The ECB encryption block supports 128 bit AES encryption (encryption only, not decryption).
 
-use crate::target::ECB;
+use crate::pac::ECB;
 use core::sync::atomic::{compiler_fence, Ordering};
 
 /// Error type to represent a sharing conflict during encryption.

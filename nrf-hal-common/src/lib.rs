@@ -6,22 +6,22 @@
 use embedded_hal as hal;
 
 #[cfg(feature = "51")]
-pub use nrf51 as target;
+pub use nrf51 as pac;
 
 #[cfg(feature = "52810")]
-pub use nrf52810_pac as target;
+pub use nrf52810_pac as pac;
 
 #[cfg(feature = "52832")]
-pub use nrf52832_pac as target;
+pub use nrf52832_pac as pac;
 
 #[cfg(feature = "52833")]
-pub use nrf52833_pac as target;
+pub use nrf52833_pac as pac;
 
 #[cfg(feature = "52840")]
-pub use nrf52840_pac as target;
+pub use nrf52840_pac as pac;
 
 #[cfg(feature = "9160")]
-pub use nrf9160_pac as target;
+pub use nrf9160_pac as pac;
 
 #[cfg(feature = "51")]
 pub mod adc;

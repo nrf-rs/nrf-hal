@@ -7,7 +7,7 @@ use nb::block;
 use void::Void;
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
-use crate::target::{uart0, UART0};
+use crate::pac::{uart0, UART0};
 
 // Re-export SVD variants to allow user to directly set values
 pub use uart0::{baudrate::BAUDRATE_A as Baudrate, config::PARITY_A as Parity};
