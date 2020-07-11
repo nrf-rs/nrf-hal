@@ -6,6 +6,7 @@ authors = [
    "Ruben Paz <me@ruben.io>",
 ]
 edition = "2018"
+publish = false
 
 [dependencies]
 cortex-m-rt = "0.6.12"

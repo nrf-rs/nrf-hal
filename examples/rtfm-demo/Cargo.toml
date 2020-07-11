@@ -3,6 +3,7 @@ name = "rtfm-demo"
 version = "0.1.0"
 authors = ["James Munns <james.munns@ferrous-systems.com>"]
 edition = "2018"
+publish = false
 
 [dependencies]
 cortex-m-rtfm = "0.4.3"
