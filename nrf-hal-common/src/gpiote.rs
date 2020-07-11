@@ -1,3 +1,7 @@
+//! HAL interface for the GPIOTE peripheral
+//!
+//! The GPIO tasks and events (GPIOTE) module provides functionality for accessing GPIO pins using tasks and events.
+
 #[cfg(feature = "51")]
 use crate::target::{gpio, GPIO as P0};
 
@@ -23,11 +27,13 @@ const NUM_CHANNELS: usize = 8;
 #[cfg(feature = "51")]
 const NUM_CHANNELS: usize = 4;
 
+/// A safe wrapper around the GPIOTE peripheral.
 pub struct Gpiote {
     gpiote: GPIOTE,
 }
 
 impl Gpiote {
+    /// Takes ownership of the `GPIOTE` peripheral, returning a safe wrapper.
     pub fn new(gpiote: GPIOTE) -> Self {
         Self { gpiote }
     }
@@ -73,12 +79,13 @@ impl Gpiote {
         }
     }
 
+    /// Marks all GPIOTE events as handled
     pub fn reset_events(&self) {
-        // Mark all events as handled
         (0..NUM_CHANNELS).for_each(|ch| self.gpiote.events_in[ch].write(|w| w));
         self.gpiote.events_port.write(|w| w);
     }
 
+    /// Consumes `self` and return back the raw `GPIOTE` peripheral.
     pub fn free(self) -> GPIOTE {
         self.gpiote
     }
@@ -90,6 +97,7 @@ pub struct GpioteChannel<'a> {
 }
 
 impl<'a> GpioteChannel<'_> {
+    /// Configures the channel as an event input with associated pin
     pub fn input_pin<P: GpioteInputPin>(&'a self, pin: &'a P) -> GpioteChannelEvent<'a, P> {
         GpioteChannelEvent {
             gpiote: &self.gpiote,
@@ -97,7 +105,7 @@ impl<'a> GpioteChannel<'_> {
             channel: self.channel,
         }
     }
-
+    /// Configures the channel as a task output with associated pin
     pub fn output_pin<P: GpioteOutputPin>(&'a self, pin: P) -> GpioteTask<'a, P> {
         GpioteTask {
             gpiote: &self.gpiote,
@@ -107,47 +115,49 @@ impl<'a> GpioteChannel<'_> {
         }
     }
 
+    /// Checks if the channel event has been triggered
     pub fn is_event_triggered(&self) -> bool {
         self.gpiote.events_in[self.channel].read().bits() != 0
     }
-
+    /// Resets channel events
     pub fn reset_events(&self) {
         self.gpiote.events_in[self.channel].write(|w| w);
     }
 
+    /// Triggers `task out` (as configured with task_out_polarity, defaults to Toggle)
     pub fn out(&self) {
         self.gpiote.tasks_out[self.channel].write(|w| unsafe { w.bits(1) });
     }
-
+    /// Triggers `task set` (set associated pin high)
     #[cfg(not(feature = "51"))]
     pub fn set(&self) {
         self.gpiote.tasks_set[self.channel].write(|w| unsafe { w.bits(1) });
     }
-
+    /// Triggers `task clear` (set associated pin low)
     #[cfg(not(feature = "51"))]
     pub fn clear(&self) {
         self.gpiote.tasks_clr[self.channel].write(|w| unsafe { w.bits(1) });
     }
 
+    /// Returns reference to channel event endpoint for PPI
     pub fn event(&self) -> &Reg<u32, _EVENTS_IN> {
-        // Return reference to event for PPI
         &self.gpiote.events_in[self.channel]
     }
 
+    /// Returns reference to task_out endpoint for PPI
     pub fn task_out(&self) -> &Reg<u32, _TASKS_OUT> {
-        // Return reference to task_out for PPI
         &self.gpiote.tasks_out[self.channel]
     }
 
+    /// Returns reference to task_clr endpoint for PPI
     #[cfg(not(feature = "51"))]
     pub fn task_clr(&self) -> &Reg<u32, _TASKS_CLR> {
-        // Return reference to task_clr for PPI
         &self.gpiote.tasks_clr[self.channel]
     }
 
+    /// Returns reference to task_set endpoint for PPI
     #[cfg(not(feature = "51"))]
     pub fn task_set(&self) -> &Reg<u32, _TASKS_SET> {
-        // Return reference to task_set for PPI
         &self.gpiote.tasks_set[self.channel]
     }
 }
@@ -157,26 +167,28 @@ pub struct GpiotePort<'a> {
 }
 
 impl<'a> GpiotePort<'_> {
+    /// Configures associated pin as port event trigger
     pub fn input_pin<P: GpioteInputPin>(&'a self, pin: &'a P) -> GpiotePortEvent<'a, P> {
         GpiotePortEvent { pin }
     }
+    /// Enables GPIOTE interrupt for port events
     pub fn enable_interrupt(&self) {
-        // Enable port interrupt
         self.gpiote.intenset.write(|w| w.port().set());
     }
+    /// Disables GPIOTE interrupt for port events
     pub fn disable_interrupt(&self) {
-        // Disable port interrupt
         self.gpiote.intenclr.write(|w| w.port().set_bit());
     }
+    /// Checks if port event has been triggered
     pub fn is_event_triggered(&self) -> bool {
         self.gpiote.events_port.read().bits() != 0
     }
+    /// Marks port events as handled
     pub fn reset_events(&self) {
-        // Mark port events as handled
         self.gpiote.events_port.write(|w| w);
     }
+    /// Returns reference to port event endpoint for PPI
     pub fn event(&self) -> &Reg<u32, _EVENTS_PORT> {
-        // Return reference to event for PPI
         &self.gpiote.events_port
     }
 }
@@ -188,28 +200,29 @@ pub struct GpioteChannelEvent<'a, P: GpioteInputPin> {
 }
 
 impl<'a, P: GpioteInputPin> GpioteChannelEvent<'_, P> {
+    /// Generates event on falling edge
     pub fn hi_to_lo(&self) -> &Self {
         config_channel_event_pin(self.gpiote, self.channel, self.pin, EventPolarity::HiToLo);
         self
     }
-
+    /// Generates event on rising edge
     pub fn lo_to_hi(&self) -> &Self {
         config_channel_event_pin(self.gpiote, self.channel, self.pin, EventPolarity::LoToHi);
         self
     }
-
+    /// Generates event on any pin activity
     pub fn toggle(&self) -> &Self {
         config_channel_event_pin(self.gpiote, self.channel, self.pin, EventPolarity::Toggle);
         self
     }
-
+    /// No event is generated on pin activity
     pub fn none(&self) -> &Self {
         config_channel_event_pin(self.gpiote, self.channel, self.pin, EventPolarity::None);
         self
     }
 
+    /// Enables GPIOTE interrupt for pin
     pub fn enable_interrupt(&self) -> &Self {
-        // Enable interrupt for pin
         unsafe {
             self.gpiote
                 .intenset
@@ -218,8 +231,8 @@ impl<'a, P: GpioteInputPin> GpioteChannelEvent<'_, P> {
         self
     }
 
+    /// Disables GPIOTE interrupt for pin
     pub fn disable_interrupt(&self) -> &Self {
-        // Disable interrupt for pin
         unsafe {
             self.gpiote
                 .intenclr
@@ -252,12 +265,15 @@ pub struct GpiotePortEvent<'a, P: GpioteInputPin> {
 }
 
 impl<'a, P: GpioteInputPin> GpiotePortEvent<'_, P> {
+    /// Generates event on pin low
     pub fn low(&self) {
         config_port_event_pin(self.pin, PortEventSense::Low);
     }
+    /// Generates event on pin high
     pub fn high(&self) {
         config_port_event_pin(self.pin, PortEventSense::High);
     }
+    /// No event is generated on pin activity
     pub fn disabled(&self) {
         config_port_event_pin(self.pin, PortEventSense::Disabled);
     }
@@ -290,6 +306,7 @@ pub struct GpioteTask<'a, P: GpioteOutputPin> {
 }
 
 impl<'a, P: GpioteOutputPin> GpioteTask<'_, P> {
+    /// Sets initial task output pin state to high
     pub fn init_high(&self) {
         config_channel_task_pin(
             self.gpiote,
@@ -299,7 +316,7 @@ impl<'a, P: GpioteOutputPin> GpioteTask<'_, P> {
             Level::High,
         );
     }
-
+    /// Sets initial task output pin state to low
     pub fn init_low(&self) {
         config_channel_task_pin(
             self.gpiote,
@@ -309,7 +326,7 @@ impl<'a, P: GpioteOutputPin> GpioteTask<'_, P> {
             Level::Low,
         );
     }
-
+    /// Configures polarity of the `task out` operation
     pub fn task_out_polarity(&mut self, polarity: TaskOutPolarity) -> &mut Self {
         self.task_out_polarity = polarity;
         self
@@ -338,6 +355,7 @@ fn config_channel_task_pin<P: GpioteOutputPin>(
     });
 }
 
+/// Polarity of the `task out` operation
 pub enum TaskOutPolarity {
     Set,
     Clear,
@@ -357,6 +375,7 @@ pub enum PortEventSense {
     Low,
 }
 
+/// Trait to represent event input pin
 pub trait GpioteInputPin {
     fn pin(&self) -> u8;
     fn port(&self) -> Port;
@@ -389,6 +408,7 @@ impl GpioteInputPin for Pin<Input<Floating>> {
     }
 }
 
+/// Trait to represent task output pin
 pub trait GpioteOutputPin {
     fn pin(&self) -> u8;
 }
