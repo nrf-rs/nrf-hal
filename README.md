@@ -6,6 +6,10 @@
 
 ![CI](https://github.com/nrf-rs/nrf-hal/workflows/CI/badge.svg)
 
+Please refer to the [changelog] to see what changed in the last releases.
+
+[changelog]: ./CHANGELOG.md
+
 ## Crates
 
 Every nRF chip has its own crate, listed below:
