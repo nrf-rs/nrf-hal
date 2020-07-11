@@ -3,6 +3,7 @@ name = "ecb-demo"
 version = "0.0.1"
 edition = "2018"
 authors = [ "Thales Fragoso <thales.fragosoz@gmail.com>"]
+publish = false
 
 [dependencies]
 cortex-m = "0.6.2"

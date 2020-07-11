@@ -3,7 +3,7 @@ name = "nrf51-hal"
 version = "0.10.0"
 edition = "2018"
 description = "HAL for nRF51 microcontrollers"
-repository = "https://github.com/nrf-rs/nrf52-hal"
+repository = "https://github.com/nrf-rs/nrf-hal"
 authors = [
     "James Munns <james@onevariable.com>",
     "Hanno Braun <hanno@braun-robotics.com>",

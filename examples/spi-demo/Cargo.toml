@@ -3,6 +3,7 @@ name = "spi-demo"
 version = "0.1.0"
 authors = ["Fredrik Simonsson <simson@thesimson.net>"]
 edition = "2018"
+publish = false
 
 [dependencies]
 cortex-m-rt = "0.6.5"
