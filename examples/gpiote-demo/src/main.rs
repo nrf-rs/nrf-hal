@@ -52,7 +52,7 @@ const APP: () = {
         // Enable interrupt for port event
         gpiote.port().enable_interrupt();
 
-        // PPI usage, channel 2 event triggers "task out" (toggle) on channel 1 (toggles led1)
+        // PPI usage, channel 2 event triggers "task out" operation (toggle) on channel 1 (toggles led1)
         gpiote
             .channel1()
             .output_pin(led1)
@@ -60,10 +60,10 @@ const APP: () = {
             .init_high();
         gpiote.channel2().input_pin(&btn2).hi_to_lo();
         let ppi_channels = ppi::Parts::new(ctx.device.PPI);
-        let mut channel0 = ppi_channels.ppi0;
-        channel0.set_task_endpoint(gpiote.channel1().task_out());
-        channel0.set_event_endpoint(gpiote.channel2().event());
-        channel0.enable();
+        let mut ppi0 = ppi_channels.ppi0;
+        ppi0.set_task_endpoint(gpiote.channel1().task_out());
+        ppi0.set_event_endpoint(gpiote.channel2().event());
+        ppi0.enable();
 
         // Enable the monotonic timer (CYCCNT)
         ctx.core.DCB.enable_trace();
@@ -108,14 +108,18 @@ const APP: () = {
 
         if btn1_pressed {
             rprintln!("Button 1 was pressed!");
-            // Manually run "task out" (toggle) on channel 1 (toggles led1)
+            // Manually run "task out" operation (toggle) on channel 1 (toggles led1)
             ctx.resources.gpiote.channel1().out();
         }
         if btn3_pressed {
             rprintln!("Button 3 was pressed!");
+            // Manually run "task clear" on channel 1 (led1 on)
+            ctx.resources.gpiote.channel1().clear();
         }
         if btn4_pressed {
             rprintln!("Button 4 was pressed!");
+            // Manually run "task set" on channel 1 (led1 off)
+            ctx.resources.gpiote.channel1().set();
         }
     }
 
