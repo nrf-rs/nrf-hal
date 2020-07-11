@@ -3,24 +3,24 @@
 //! The GPIO tasks and events (GPIOTE) module provides functionality for accessing GPIO pins using tasks and events.
 
 #[cfg(feature = "51")]
-use crate::target::{gpio, GPIO as P0};
+use crate::pac::GPIO as P0;
 
 #[cfg(not(feature = "51"))]
-use crate::target::{p0 as gpio, P0};
+use crate::pac::P0;
 
 #[cfg(any(feature = "52833", feature = "52840"))]
-use crate::target::P1;
+use crate::pac::P1;
 
 use {
     crate::gpio::{
         Floating, Input, Level, OpenDrain, Output, Pin, Port, PullDown, PullUp, PushPull,
     },
-    crate::target::gpiote::{_EVENTS_IN, _EVENTS_PORT, _TASKS_OUT},
-    crate::target::{generic::Reg, GPIOTE},
+    crate::pac::gpiote::{_EVENTS_IN, _EVENTS_PORT, _TASKS_OUT},
+    crate::pac::{generic::Reg, GPIOTE},
 };
 
 #[cfg(not(feature = "51"))]
-use crate::target::gpiote::{_TASKS_CLR, _TASKS_SET};
+use crate::pac::gpiote::{_TASKS_CLR, _TASKS_SET};
 
 #[cfg(not(feature = "51"))]
 const NUM_CHANNELS: usize = 8;
