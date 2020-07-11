@@ -4,9 +4,9 @@
 
 ### New Features
 
-- Added support for Nordic nRF52833 ([#148]).
-- Added a driver for the AES-ECB peripheral ([#145]).
-- Added a driver for the AES-CCM peripheral ([#154]).
+- Add support for Nordic nRF52833 ([#148]).
+- Add a driver for the AES-ECB peripheral ([#145]).
+- Add a driver for the AES-CCM peripheral ([#154]).
 - Add PPI support and example ([#162]).
 - Add methods for task clear and trigger overflow to the RTC ([#168]).
 - Add a driver for the GPIOTE peripheral ([#167]).
