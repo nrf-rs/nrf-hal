@@ -18,7 +18,7 @@ pub struct Watchdog<T: sealed::WdMode> {
 }
 
 /// An interface to feed the Watchdog
-pub struct WatchdogHandle<T:sealed::HandleId>(T);
+pub struct WatchdogHandle<T: sealed::HandleId>(T);
 
 impl<T> WatchdogHandle<T>
 where
@@ -33,7 +33,25 @@ where
     #[inline]
     pub fn pet(&mut self) {
         let hdl = unsafe { &*WDT::ptr() };
-        hdl.rr[T::IDX].write(|w| w.rr().reload());
+        hdl.rr[self.0.index()].write(|w| w.rr().reload());
+    }
+
+    /// Has this handle been pet within the current window?
+    pub fn is_pet(&self) -> bool {
+        let hdl = unsafe { &*WDT::ptr() };
+        let rd = hdl.reqstatus.read().bits();
+        let idx = self.0.index();
+        debug_assert!(idx < 8, "Bad Index!");
+        ((rd >> idx) & 0x1) == 0
+    }
+
+    /// Convert the handle into a generic handle
+    ///
+    /// This is useful if you need to place handles into an array
+    pub fn degrade(self) -> WatchdogHandle<HdlN> {
+        WatchdogHandle(HdlN {
+            idx: self.0.index() as u8,
+        })
     }
 }
 
@@ -53,6 +71,11 @@ pub struct Hdl5;
 pub struct Hdl6;
 /// A type state representing Watchdog Handle 7
 pub struct Hdl7;
+
+/// A structure that represents a runtime stored Watchdog Handle
+pub struct HdlN {
+    idx: u8,
+}
 
 /// A structure containing the active watchdog and all requested
 /// Watchdog handles
@@ -86,7 +109,7 @@ impl Watchdog<Inactive> {
     pub fn new(wdt: WDT) -> Watchdog<Inactive> {
         Watchdog {
             wdt,
-            _state: Inactive
+            _state: Inactive,
         }
     }
 
@@ -104,9 +127,6 @@ impl Watchdog<Inactive> {
     /// NOTE: All activated handles must be pet within the configured time interval to
     /// prevent a reset from occuring.
     pub fn activate(self, handles: NumHandles) -> Parts {
-        self.wdt.tasks_start.write(|w| unsafe {
-            w.bits(1)
-        });
         self.wdt.rren.write(|w| unsafe {
             w.bits(match handles {
                 NumHandles::One => 0b0000_0001,
@@ -119,21 +139,49 @@ impl Watchdog<Inactive> {
                 NumHandles::Eight => 0b1111_1111,
             })
         });
+        self.wdt.tasks_start.write(|w| unsafe { w.bits(1) });
         Parts {
             wdt: Watchdog {
                 wdt: self.wdt,
-                _state: Active
+                _state: Active,
             },
             hdl0: WatchdogHandle(Hdl0),
-            hdl1: if handles >= NumHandles::Two   { Some(WatchdogHandle(Hdl1)) } else { None },
-            hdl2: if handles >= NumHandles::Three { Some(WatchdogHandle(Hdl2)) } else { None },
-            hdl3: if handles >= NumHandles::Four  { Some(WatchdogHandle(Hdl3)) } else { None },
-            hdl4: if handles >= NumHandles::Five  { Some(WatchdogHandle(Hdl4)) } else { None },
-            hdl5: if handles >= NumHandles::Six   { Some(WatchdogHandle(Hdl5)) } else { None },
-            hdl6: if handles >= NumHandles::Seven { Some(WatchdogHandle(Hdl6)) } else { None },
-            hdl7: if handles == NumHandles::Eight { Some(WatchdogHandle(Hdl7)) } else { None },
+            hdl1: if handles >= NumHandles::Two {
+                Some(WatchdogHandle(Hdl1))
+            } else {
+                None
+            },
+            hdl2: if handles >= NumHandles::Three {
+                Some(WatchdogHandle(Hdl2))
+            } else {
+                None
+            },
+            hdl3: if handles >= NumHandles::Four {
+                Some(WatchdogHandle(Hdl3))
+            } else {
+                None
+            },
+            hdl4: if handles >= NumHandles::Five {
+                Some(WatchdogHandle(Hdl4))
+            } else {
+                None
+            },
+            hdl5: if handles >= NumHandles::Six {
+                Some(WatchdogHandle(Hdl5))
+            } else {
+                None
+            },
+            hdl6: if handles >= NumHandles::Seven {
+                Some(WatchdogHandle(Hdl6))
+            } else {
+                None
+            },
+            hdl7: if handles == NumHandles::Eight {
+                Some(WatchdogHandle(Hdl7))
+            } else {
+                None
+            },
         }
-
     }
 
     /// Enable the watchdog interrupt
@@ -163,9 +211,9 @@ impl Watchdog<Inactive> {
     /// number is provided, 15 ticks will be used as the configured value
     #[inline(always)]
     pub fn set_lfosc_ticks(&mut self, ticks: u32) {
-        self.wdt.crv.write(|w| unsafe {
-            w.bits(ticks.max(0x0000_000F))
-        });
+        self.wdt
+            .crv
+            .write(|w| unsafe { w.bits(ticks.max(0x0000_000F)) });
     }
 
     /// Should the watchdog continue to count during sleep modes?
@@ -184,7 +232,7 @@ impl Watchdog<Inactive> {
 }
 
 impl Watchdog<Active> {
-    /// Is the watchdog still awaiting pets?
+    /// Is the watchdog still awaiting pets from any handle?
     ///
     /// This reports whether sufficient pets have been received from all
     /// handles to prevent a reset this time period
@@ -210,7 +258,7 @@ where
 
 mod sealed {
     pub trait HandleId {
-        const IDX: usize;
+        fn index(&self) -> usize;
     }
 
     pub trait WdMode {}
@@ -220,26 +268,47 @@ impl sealed::WdMode for Inactive {}
 impl sealed::WdMode for Active {}
 
 impl sealed::HandleId for Hdl0 {
-    const IDX: usize = 0;
+    fn index(&self) -> usize {
+        0
+    }
 }
 impl sealed::HandleId for Hdl1 {
-    const IDX: usize = 1;
+    fn index(&self) -> usize {
+        1
+    }
 }
 impl sealed::HandleId for Hdl2 {
-    const IDX: usize = 2;
+    fn index(&self) -> usize {
+        2
+    }
 }
 impl sealed::HandleId for Hdl3 {
-    const IDX: usize = 3;
+    fn index(&self) -> usize {
+        3
+    }
 }
 impl sealed::HandleId for Hdl4 {
-    const IDX: usize = 4;
+    fn index(&self) -> usize {
+        4
+    }
 }
 impl sealed::HandleId for Hdl5 {
-    const IDX: usize = 5;
+    fn index(&self) -> usize {
+        5
+    }
 }
 impl sealed::HandleId for Hdl6 {
-    const IDX: usize = 6;
+    fn index(&self) -> usize {
+        6
+    }
 }
 impl sealed::HandleId for Hdl7 {
-    const IDX: usize = 7;
+    fn index(&self) -> usize {
+        7
+    }
+}
+impl sealed::HandleId for HdlN {
+    fn index(&self) -> usize {
+        self.idx.into()
+    }
 }
