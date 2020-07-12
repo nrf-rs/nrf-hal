@@ -15,7 +15,6 @@ features = ["unproven"]
 version = "0.2"
 
 [dependencies.nrf52832-hal]
-version = "0.10.0"
 path = "../../nrf52832-hal"
 optional = true
 
