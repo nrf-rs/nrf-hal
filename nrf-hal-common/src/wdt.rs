@@ -4,6 +4,7 @@
 //! Once the watchdog has been started, it cannot be stopped.
 
 use crate::pac::WDT;
+use handles::*;
 
 /// A type state representing a watchdog that has not been started
 pub struct Inactive;
@@ -15,6 +16,13 @@ pub struct Active;
 pub struct Watchdog<T: sealed::WdMode> {
     wdt: WDT,
     _state: T,
+}
+
+/// A structure containing the active watchdog and all requested
+/// Watchdog handles
+pub struct Parts<T> {
+    pub watchdog: Watchdog<Active>,
+    pub handles: T,
 }
 
 /// An interface to feed the Watchdog
@@ -55,61 +63,25 @@ where
     }
 }
 
-/// A type state representing Watchdog Handle 0
-pub struct Hdl0;
-/// A type state representing Watchdog Handle 1
-pub struct Hdl1;
-/// A type state representing Watchdog Handle 2
-pub struct Hdl2;
-/// A type state representing Watchdog Handle 3
-pub struct Hdl3;
-/// A type state representing Watchdog Handle 4
-pub struct Hdl4;
-/// A type state representing Watchdog Handle 5
-pub struct Hdl5;
-/// A type state representing Watchdog Handle 6
-pub struct Hdl6;
-/// A type state representing Watchdog Handle 7
-pub struct Hdl7;
-
-/// A structure that represents a runtime stored Watchdog Handle
-pub struct HdlN {
-    idx: u8,
-}
-
-/// A structure containing the active watchdog and all requested
-/// Watchdog handles
-pub struct Parts {
-    pub wdt: Watchdog<Active>,
-    pub hdl0: WatchdogHandle<Hdl0>,
-    pub hdl1: Option<WatchdogHandle<Hdl1>>,
-    pub hdl2: Option<WatchdogHandle<Hdl2>>,
-    pub hdl3: Option<WatchdogHandle<Hdl3>>,
-    pub hdl4: Option<WatchdogHandle<Hdl4>>,
-    pub hdl5: Option<WatchdogHandle<Hdl5>>,
-    pub hdl6: Option<WatchdogHandle<Hdl6>>,
-    pub hdl7: Option<WatchdogHandle<Hdl7>>,
-}
-
-/// The number of watchdog handles to activate
-#[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
-pub enum NumHandles {
-    One,
-    Two,
-    Three,
-    Four,
-    Five,
-    Six,
-    Seven,
-    Eight,
-}
-
 impl Watchdog<Inactive> {
-    /// Create a new watchdog instance from the peripheral
-    pub fn new(wdt: WDT) -> Watchdog<Inactive> {
-        Watchdog {
+    /// Try to create a new watchdog instance from the peripheral
+    ///
+    /// This function will return an error if the watchdog has already
+    /// been activated, which may happen on a (non-watchdog) soft reset.
+    /// In this case, it may be possible to still obtain the handles with
+    /// the `Watchdog::try_recover()` method.
+    ///
+    /// If the watchdog has already started, configuration is no longer possible.
+    pub fn try_new(wdt: WDT) -> Result<Watchdog<Inactive>, WDT> {
+        let watchdog = Watchdog {
             wdt,
             _state: Inactive,
+        };
+
+        if watchdog.is_active() {
+            Err(watchdog.wdt)
+        } else {
+            Ok(watchdog)
         }
     }
 
@@ -126,61 +98,15 @@ impl Watchdog<Inactive> {
     ///
     /// NOTE: All activated handles must be pet within the configured time interval to
     /// prevent a reset from occuring.
-    pub fn activate(self, handles: NumHandles) -> Parts {
-        self.wdt.rren.write(|w| unsafe {
-            w.bits(match handles {
-                NumHandles::One => 0b0000_0001,
-                NumHandles::Two => 0b0000_0011,
-                NumHandles::Three => 0b0000_0111,
-                NumHandles::Four => 0b0000_1111,
-                NumHandles::Five => 0b0001_1111,
-                NumHandles::Six => 0b0011_1111,
-                NumHandles::Seven => 0b0111_1111,
-                NumHandles::Eight => 0b1111_1111,
-            })
-        });
+    pub fn activate<H: sealed::Handles>(self) -> Parts<H::Handles> {
+        self.wdt.rren.write(|w| unsafe { w.bits(H::ENABLE) });
         self.wdt.tasks_start.write(|w| unsafe { w.bits(1) });
         Parts {
-            wdt: Watchdog {
+            watchdog: Watchdog {
                 wdt: self.wdt,
                 _state: Active,
             },
-            hdl0: WatchdogHandle(Hdl0),
-            hdl1: if handles >= NumHandles::Two {
-                Some(WatchdogHandle(Hdl1))
-            } else {
-                None
-            },
-            hdl2: if handles >= NumHandles::Three {
-                Some(WatchdogHandle(Hdl2))
-            } else {
-                None
-            },
-            hdl3: if handles >= NumHandles::Four {
-                Some(WatchdogHandle(Hdl3))
-            } else {
-                None
-            },
-            hdl4: if handles >= NumHandles::Five {
-                Some(WatchdogHandle(Hdl4))
-            } else {
-                None
-            },
-            hdl5: if handles >= NumHandles::Six {
-                Some(WatchdogHandle(Hdl5))
-            } else {
-                None
-            },
-            hdl6: if handles >= NumHandles::Seven {
-                Some(WatchdogHandle(Hdl6))
-            } else {
-                None
-            },
-            hdl7: if handles == NumHandles::Eight {
-                Some(WatchdogHandle(Hdl7))
-            } else {
-                None
-            },
+            handles: H::create_handle(),
         }
     }
 
@@ -242,6 +168,25 @@ impl Watchdog<Active> {
         let status = self.wdt.reqstatus.read().bits();
         (status & enabled) == 0
     }
+
+    /// Try to recover a handle to an already running watchdog. If the
+    /// number of requested handles matches the activated number of handles,
+    /// an activated handle will be returned. Otherwise the peripheral will
+    /// be returned
+    pub fn try_recover<H: sealed::Handles>(wdt: WDT) -> Result<Parts<H::Handles>, WDT> {
+        // Do we have the same number of handles at least?
+        if wdt.rren.read().bits() == H::ENABLE {
+            Ok(Parts {
+                watchdog: Watchdog {
+                    wdt,
+                    _state: Active,
+                },
+                handles: H::create_handle(),
+            })
+        } else {
+            Err(wdt)
+        }
+    }
 }
 
 impl<T> Watchdog<T>
@@ -250,8 +195,7 @@ where
 {
     /// Is the watchdog active?
     #[inline(always)]
-    pub fn is_running(&self) -> bool {
-        // TODO: Should we just believe the type state?
+    pub fn is_active(&self) -> bool {
         self.wdt.runstatus.read().runstatus().bit_is_set()
     }
 }
@@ -259,6 +203,12 @@ where
 mod sealed {
     pub trait HandleId {
         fn index(&self) -> usize;
+    }
+
+    pub trait Handles {
+        type Handles;
+        const ENABLE: u32;
+        fn create_handle() -> Self::Handles;
     }
 
     pub trait WdMode {}
@@ -310,5 +260,188 @@ impl sealed::HandleId for Hdl7 {
 impl sealed::HandleId for HdlN {
     fn index(&self) -> usize {
         self.idx.into()
+    }
+}
+
+pub mod handles {
+    //! Type states representing individual watchdog handles
+
+    /// A type state representing Watchdog Handle 0
+    pub struct Hdl0;
+    /// A type state representing Watchdog Handle 1
+    pub struct Hdl1;
+    /// A type state representing Watchdog Handle 2
+    pub struct Hdl2;
+    /// A type state representing Watchdog Handle 3
+    pub struct Hdl3;
+    /// A type state representing Watchdog Handle 4
+    pub struct Hdl4;
+    /// A type state representing Watchdog Handle 5
+    pub struct Hdl5;
+    /// A type state representing Watchdog Handle 6
+    pub struct Hdl6;
+    /// A type state representing Watchdog Handle 7
+    pub struct Hdl7;
+
+    /// A structure that represents a runtime stored Watchdog Handle
+    pub struct HdlN {
+        pub(super) idx: u8,
+    }
+}
+
+pub mod count {
+    //! Type states representing the number of requested handles
+
+    use super::{sealed::Handles, Hdl0, Hdl1, Hdl2, Hdl3, Hdl4, Hdl5, Hdl6, Hdl7, WatchdogHandle};
+    /// A type state representing the request for One handles
+    pub struct One;
+    /// A type state representing the request for Two handles
+    pub struct Two;
+    /// A type state representing the request for Three handles
+    pub struct Three;
+    /// A type state representing the request for Four handles
+    pub struct Four;
+    /// A type state representing the request for Five handles
+    pub struct Five;
+    /// A type state representing the request for Six handles
+    pub struct Six;
+    /// A type state representing the request for Seven handles
+    pub struct Seven;
+    /// A type state representing the request for Eight handles
+    pub struct Eight;
+
+    impl Handles for One {
+        type Handles = (WatchdogHandle<Hdl0>,);
+        const ENABLE: u32 = 0b0000_0001;
+        fn create_handle() -> Self::Handles {
+            (WatchdogHandle(Hdl0),)
+        }
+    }
+    impl Handles for Two {
+        type Handles = (WatchdogHandle<Hdl0>, WatchdogHandle<Hdl1>);
+        const ENABLE: u32 = 0b0000_0011;
+        fn create_handle() -> Self::Handles {
+            (WatchdogHandle(Hdl0), WatchdogHandle(Hdl1))
+        }
+    }
+    impl Handles for Three {
+        type Handles = (
+            WatchdogHandle<Hdl0>,
+            WatchdogHandle<Hdl1>,
+            WatchdogHandle<Hdl2>,
+        );
+        const ENABLE: u32 = 0b0000_0111;
+        fn create_handle() -> Self::Handles {
+            (
+                WatchdogHandle(Hdl0),
+                WatchdogHandle(Hdl1),
+                WatchdogHandle(Hdl2),
+            )
+        }
+    }
+    impl Handles for Four {
+        type Handles = (
+            WatchdogHandle<Hdl0>,
+            WatchdogHandle<Hdl1>,
+            WatchdogHandle<Hdl2>,
+            WatchdogHandle<Hdl3>,
+        );
+        const ENABLE: u32 = 0b0000_1111;
+        fn create_handle() -> Self::Handles {
+            (
+                WatchdogHandle(Hdl0),
+                WatchdogHandle(Hdl1),
+                WatchdogHandle(Hdl2),
+                WatchdogHandle(Hdl3),
+            )
+        }
+    }
+    impl Handles for Five {
+        type Handles = (
+            WatchdogHandle<Hdl0>,
+            WatchdogHandle<Hdl1>,
+            WatchdogHandle<Hdl2>,
+            WatchdogHandle<Hdl3>,
+            WatchdogHandle<Hdl4>,
+        );
+        const ENABLE: u32 = 0b0001_1111;
+        fn create_handle() -> Self::Handles {
+            (
+                WatchdogHandle(Hdl0),
+                WatchdogHandle(Hdl1),
+                WatchdogHandle(Hdl2),
+                WatchdogHandle(Hdl3),
+                WatchdogHandle(Hdl4),
+            )
+        }
+    }
+    impl Handles for Six {
+        type Handles = (
+            WatchdogHandle<Hdl0>,
+            WatchdogHandle<Hdl1>,
+            WatchdogHandle<Hdl2>,
+            WatchdogHandle<Hdl3>,
+            WatchdogHandle<Hdl4>,
+            WatchdogHandle<Hdl5>,
+        );
+        const ENABLE: u32 = 0b0011_1111;
+        fn create_handle() -> Self::Handles {
+            (
+                WatchdogHandle(Hdl0),
+                WatchdogHandle(Hdl1),
+                WatchdogHandle(Hdl2),
+                WatchdogHandle(Hdl3),
+                WatchdogHandle(Hdl4),
+                WatchdogHandle(Hdl5),
+            )
+        }
+    }
+    impl Handles for Seven {
+        type Handles = (
+            WatchdogHandle<Hdl0>,
+            WatchdogHandle<Hdl1>,
+            WatchdogHandle<Hdl2>,
+            WatchdogHandle<Hdl3>,
+            WatchdogHandle<Hdl4>,
+            WatchdogHandle<Hdl5>,
+            WatchdogHandle<Hdl6>,
+        );
+        const ENABLE: u32 = 0b0111_1111;
+        fn create_handle() -> Self::Handles {
+            (
+                WatchdogHandle(Hdl0),
+                WatchdogHandle(Hdl1),
+                WatchdogHandle(Hdl2),
+                WatchdogHandle(Hdl3),
+                WatchdogHandle(Hdl4),
+                WatchdogHandle(Hdl5),
+                WatchdogHandle(Hdl6),
+            )
+        }
+    }
+    impl Handles for Eight {
+        type Handles = (
+            WatchdogHandle<Hdl0>,
+            WatchdogHandle<Hdl1>,
+            WatchdogHandle<Hdl2>,
+            WatchdogHandle<Hdl3>,
+            WatchdogHandle<Hdl4>,
+            WatchdogHandle<Hdl5>,
+            WatchdogHandle<Hdl6>,
+            WatchdogHandle<Hdl7>,
+        );
+        const ENABLE: u32 = 0b1111_1111;
+        fn create_handle() -> Self::Handles {
+            (
+                WatchdogHandle(Hdl0),
+                WatchdogHandle(Hdl1),
+                WatchdogHandle(Hdl2),
+                WatchdogHandle(Hdl3),
+                WatchdogHandle(Hdl4),
+                WatchdogHandle(Hdl5),
+                WatchdogHandle(Hdl6),
+                WatchdogHandle(Hdl7),
+            )
+        }
     }
 }

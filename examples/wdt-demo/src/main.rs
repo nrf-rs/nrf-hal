@@ -27,7 +27,7 @@ use {
     hal::{
         gpio::{Input, Level, Output, Pin, PullUp, PushPull},
         timer::Timer,
-        wdt::{HdlN, NumHandles, Watchdog, WatchdogHandle},
+        wdt::{count, handles::HdlN, Parts, Watchdog, WatchdogHandle},
     },
     nrf52840_hal as hal,
     rtt_target::{rprintln, rtt_init_print},
@@ -70,23 +70,36 @@ const APP: () = {
         let timer = Timer::new(ctx.device.TIMER0);
 
         // Create a new watchdog instance
-        let mut watchdog = Watchdog::new(ctx.device.WDT);
-
+        //
         // In case the watchdog is already running, just spin and let it expire, since
         // we can't configure it anyway. This usually happens when we first program
         // the device and the watchdog was previously active
-        if watchdog.is_running() {
-            rprintln!("Oops, watchdog already active. Let's just reset.");
-            loop {
-                continue;
+        let (hdl0, hdl1, hdl2, hdl3) = match Watchdog::try_new(ctx.device.WDT) {
+            Ok(mut watchdog) => {
+                // Set the watchdog to timeout after 5 seconds (in 32.768kHz ticks)
+                watchdog.set_lfosc_ticks(5 * 32768);
+
+                // Activate the watchdog with four handles
+                let Parts {
+                    watchdog: _watchdog,
+                    handles,
+                } = watchdog.activate::<count::Four>();
+
+                handles
             }
-        }
-
-        // Set the watchdog to timeout after 5 seconds (in 32.768kHz ticks)
-        watchdog.set_lfosc_ticks(5 * 32768);
-
-        // Activate the watchdog with four handles
-        let wdt_parts = watchdog.activate(NumHandles::Four);
+            Err(wdt) => match Watchdog::try_recover::<count::Four>(wdt) {
+                Ok(Parts { handles, .. }) => {
+                    rprintln!("Oops, watchdog already active, but recovering!");
+                    handles
+                }
+                Err(_wdt) => {
+                    rprintln!("Oops, watchdog already active, resetting!");
+                    loop {
+                        continue;
+                    }
+                }
+            },
+        };
 
         // Enable the monotonic timer (CYCCNT)
         ctx.core.DCB.enable_trace();
@@ -113,10 +126,10 @@ const APP: () = {
             led2,
             led3,
             led4,
-            hdl0: wdt_parts.hdl0.degrade(),
-            hdl1: wdt_parts.hdl1.unwrap().degrade(),
-            hdl2: wdt_parts.hdl2.unwrap().degrade(),
-            hdl3: wdt_parts.hdl3.unwrap().degrade(),
+            hdl0: hdl0.degrade(),
+            hdl1: hdl1.degrade(),
+            hdl2: hdl2.degrade(),
+            hdl3: hdl3.degrade(),
             timer,
         }
     }
