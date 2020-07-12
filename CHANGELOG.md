@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.11.0]
 
 ### New Features
 
@@ -33,3 +33,4 @@
 [#168]: https://github.com/nrf-rs/nrf-hal/pull/168
 [#167]: https://github.com/nrf-rs/nrf-hal/pull/167
 [#172]: https://github.com/nrf-rs/nrf-hal/pull/172
+[0.11.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.11.0
