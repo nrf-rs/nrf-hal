@@ -88,8 +88,15 @@ const APP: () = {
                 handles
             }
             Err(wdt) => match Watchdog::try_recover::<count::Four>(wdt) {
-                Ok(Parts { handles, .. }) => {
+                Ok(Parts { mut handles, .. }) => {
                     rprintln!("Oops, watchdog already active, but recovering!");
+
+                    // Pet all the dogs quickly to reset to default timeout
+                    handles.0.pet();
+                    handles.1.pet();
+                    handles.2.pet();
+                    handles.3.pet();
+
                     handles
                 }
                 Err(_wdt) => {

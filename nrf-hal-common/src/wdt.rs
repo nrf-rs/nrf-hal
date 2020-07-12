@@ -173,6 +173,9 @@ impl Watchdog<Active> {
     /// number of requested handles matches the activated number of handles,
     /// an activated handle will be returned. Otherwise the peripheral will
     /// be returned
+    ///
+    /// NOTE: Since the watchdog is already counting, you want to pet these dogs
+    /// as soon as possible!
     pub fn try_recover<H: sealed::Handles>(wdt: WDT) -> Result<Parts<H::Handles>, WDT> {
         // Do we have the same number of handles at least?
         if wdt.rren.read().bits() == H::ENABLE {
