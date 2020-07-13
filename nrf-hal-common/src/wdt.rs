@@ -72,6 +72,7 @@ impl Watchdog<Inactive> {
     /// the `Watchdog::try_recover()` method.
     ///
     /// If the watchdog has already started, configuration is no longer possible.
+    #[inline]
     pub fn try_new(wdt: WDT) -> Result<Watchdog<Inactive>, WDT> {
         let watchdog = Watchdog {
             wdt,
@@ -88,6 +89,7 @@ impl Watchdog<Inactive> {
     /// Release the peripheral
     ///
     /// Note: The peripheral cannot be released after activation
+    #[inline]
     pub fn release(self) -> WDT {
         self.wdt
     }
@@ -145,6 +147,7 @@ impl Watchdog<Inactive> {
     /// Should the watchdog continue to count during sleep modes?
     ///
     /// This value defaults to ENABLED on reset.
+    #[inline]
     pub fn run_during_sleep(&self, setting: bool) {
         self.wdt.config.modify(|_r, w| w.sleep().bit(setting));
     }
@@ -152,6 +155,7 @@ impl Watchdog<Inactive> {
     /// Should the watchdog continue to count when the CPU is halted for debug?
     ///
     /// This value defaults to DISABLED on reset.
+    #[inline]
     pub fn run_during_debug_halt(&self, setting: bool) {
         self.wdt.config.modify(|_r, w| w.halt().bit(setting));
     }
