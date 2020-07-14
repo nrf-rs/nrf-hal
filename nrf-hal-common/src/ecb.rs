@@ -24,7 +24,7 @@ impl Ecb {
         regs.intenclr
             .write(|w| w.endecb().clear().errorecb().clear());
 
-        // NOTE(unsafe) 1 is a valid pattern to write to this register
+        // NOTE(unsafe) 1 is a valid pattern to write to this register.
         regs.tasks_stopecb.write(|w| unsafe { w.bits(1) });
         Self { regs }
     }
@@ -68,12 +68,12 @@ impl Ecb {
             cipher_text: [0; 16],
         };
 
-        // NOTE(unsafe) Any 32bits pattern is safe to write to this register
+        // NOTE(unsafe) Any 32bits pattern is safe to write to this register.
         self.regs
             .ecbdataptr
             .write(|w| unsafe { w.bits(&mut buf as *mut _ as u32) });
 
-        // Clear all events
+        // Clear all events.
         self.regs.events_endecb.reset();
         self.regs.events_errorecb.reset();
 
@@ -90,7 +90,7 @@ impl Ecb {
         compiler_fence(Ordering::Acquire);
 
         if self.regs.events_errorecb.read().bits() == 1 {
-            // It's ok to return here, the events will be cleared before the next encryption
+            // It's ok to return here, the events will be cleared before the next encryption.
             return Err(EncryptionError {});
         }
         Ok(buf.cipher_text)

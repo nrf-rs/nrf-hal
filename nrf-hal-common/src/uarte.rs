@@ -1,4 +1,4 @@
-//! HAL interface to the UARTE peripheral
+//! HAL interface to the UARTE peripheral.
 //!
 //! See product specification:
 //!
@@ -25,10 +25,10 @@ use crate::slice_in_ram_or;
 use crate::target_constants::EASY_DMA_SIZE;
 use crate::timer::{self, Timer};
 
-// Re-export SVD variants to allow user to directly set values
+// Re-export SVD variants to allow user to directly set values.
 pub use uarte0::{baudrate::BAUDRATE_A as Baudrate, config::PARITY_A as Parity};
 
-/// Interface to a UARTE instance
+/// Interface to a UARTE instance.
 ///
 /// This is a very basic interface that comes with the following limitations:
 /// - The UARTE instances share the same address space with instances of UART.
@@ -81,24 +81,24 @@ where
             }
         });
 
-        // Enable UARTE instance
+        // Enable UARTE instance.
         uarte.enable.write(|w| w.enable().enabled());
 
-        // Configure
+        // Configure.
         let hardware_flow_control = pins.rts.is_some() && pins.cts.is_some();
         uarte
             .config
             .write(|w| w.hwfc().bit(hardware_flow_control).parity().variant(parity));
 
-        // Configure frequency
+        // Configure frequency.
         uarte.baudrate.write(|w| w.baudrate().variant(baudrate));
 
         Uarte(uarte)
     }
 
-    /// Write via UARTE
+    /// Write via UARTE.
     ///
-    /// This method uses transmits all bytes in `tx_buffer`
+    /// This method uses transmits all bytes in `tx_buffer`.
     ///
     /// The buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
@@ -107,19 +107,19 @@ where
             return Err(Error::TxBufferTooLong);
         }
 
-        // We can only DMA out of RAM
+        // We can only DMA out of RAM.
         slice_in_ram_or(tx_buffer, Error::BufferNotInRAM)?;
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started
+        // before any DMA action has started.
         compiler_fence(SeqCst);
 
         // Reset the events.
         self.0.events_endtx.reset();
         self.0.events_txstopped.reset();
 
-        // Set up the DMA write
+        // Set up the DMA write.
         self.0.txd.ptr.write(|w|
             // We're giving the register a pointer to the stack. Since we're
             // waiting for the UARTE transaction to end before this stack pointer
@@ -137,12 +137,12 @@ where
             // values.
             unsafe { w.maxcnt().bits(tx_buffer.len() as _) });
 
-        // Start UARTE Transmit transaction
+        // Start UARTE Transmit transaction.
         self.0.tasks_starttx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
-        // Wait for transmission to end
+        // Wait for transmission to end.
         let mut endtx;
         let mut txstopped;
         loop {
@@ -155,7 +155,7 @@ where
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed
+        // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
 
         if txstopped {
@@ -163,7 +163,7 @@ where
         }
 
         // Lower power consumption by disabling the transmitter once we're
-        // finished
+        // finished.
         self.0.tasks_stoptx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
@@ -171,16 +171,16 @@ where
         Ok(())
     }
 
-    /// Read via UARTE
+    /// Read via UARTE.
     ///
     /// This method fills all bytes in `rx_buffer`, and blocks
     /// until the buffer is full.
     ///
-    /// The buffer must have a length of at most 255 bytes
+    /// The buffer must have a length of at most 255 bytes.
     pub fn read(&mut self, rx_buffer: &mut [u8]) -> Result<(), Error> {
         self.start_read(rx_buffer)?;
 
-        // Wait for transmission to end
+        // Wait for transmission to end.
         while self.0.events_endrx.read().bits() == 0 {}
 
         self.finalize_read();
@@ -192,7 +192,7 @@ where
         Ok(())
     }
 
-    /// Read via UARTE
+    /// Read via UARTE.
     ///
     /// This method fills all bytes in `rx_buffer`, and blocks
     /// until the buffer is full or the timeout expires, whichever
@@ -205,7 +205,7 @@ where
     /// and in cases where a timeout does NOT occur, the timer will be left running
     /// until completion.
     ///
-    /// The buffer must have a length of at most 255 bytes
+    /// The buffer must have a length of at most 255 bytes.
     pub fn read_timeout<I>(
         &mut self,
         rx_buffer: &mut [u8],
@@ -215,13 +215,13 @@ where
     where
         I: timer::Instance,
     {
-        // Start the read
+        // Start the read.
         self.start_read(rx_buffer)?;
 
-        // Start the timeout timer
+        // Start the timeout timer.
         timer.start(cycles);
 
-        // Wait for transmission to end
+        // Wait for transmission to end.
         let mut event_complete = false;
         let mut timeout_occured = false;
 
@@ -234,11 +234,11 @@ where
         }
 
         if !event_complete {
-            // Cancel the reception if it did not complete until now
+            // Cancel the reception if it did not complete until now.
             self.cancel_read();
         }
 
-        // Cleanup, even in the error case
+        // Cleanup, even in the error case.
         self.finalize_read();
 
         let bytes_read = self.0.rxd.amount.read().bits() as usize;
@@ -255,7 +255,7 @@ where
     }
 
     /// Start a UARTE read transaction by setting the control
-    /// values and triggering a read task
+    /// values and triggering a read task.
     fn start_read(&mut self, rx_buffer: &mut [u8]) -> Result<(), Error> {
         // This is overly restrictive. See (similar SPIM issue):
         // https://github.com/nrf-rs/nrf52/issues/17
@@ -264,11 +264,11 @@ where
         }
 
         // NOTE: RAM slice check is not necessary, as a mutable slice can only be
-        // built from data located in RAM
+        // built from data located in RAM.
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started
+        // before any DMA action has started.
         compiler_fence(SeqCst);
 
         // Set up the DMA read
@@ -289,7 +289,7 @@ where
             // range of values.
             unsafe { w.maxcnt().bits(rx_buffer.len() as _) });
 
-        // Start UARTE Receive transaction
+        // Start UARTE Receive transaction.
         self.0.tasks_startrx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
@@ -297,29 +297,29 @@ where
         Ok(())
     }
 
-    /// Finalize a UARTE read transaction by clearing the event
+    /// Finalize a UARTE read transaction by clearing the event.
     fn finalize_read(&mut self) {
         // Reset the event, otherwise it will always read `1` from now on.
         self.0.events_endrx.write(|w| w);
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed
+        // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
     }
 
-    /// Stop an unfinished UART read transaction and flush FIFO to DMA buffer
+    /// Stop an unfinished UART read transaction and flush FIFO to DMA buffer.
     fn cancel_read(&mut self) {
-        // Stop reception
+        // Stop reception.
         self.0.tasks_stoprx.write(|w| unsafe { w.bits(1) });
 
-        // Wait for the reception to have stopped
+        // Wait for the reception to have stopped.
         while self.0.events_rxto.read().bits() == 0 {}
 
-        // Reset the event flag
+        // Reset the event flag.
         self.0.events_rxto.write(|w| w);
 
-        // Ask UART to flush FIFO to DMA buffer
+        // Ask UART to flush FIFO to DMA buffer.
         self.0.tasks_flushrx.write(|w| unsafe { w.bits(1) });
 
         // Wait for the flush to complete.
@@ -328,7 +328,7 @@ where
         // The event flag itself is later reset by `finalize_read`.
     }
 
-    /// Return the raw interface to the underlying UARTE peripheral
+    /// Return the raw interface to the underlying UARTE peripheral.
     pub fn free(self) -> T {
         self.0
     }
@@ -340,7 +340,7 @@ where
 {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         // Copy all data into an on-stack buffer so we never try to EasyDMA from
-        // flash
+        // flash.
         let buf = &mut [0; 16][..];
         for block in s.as_bytes().chunks(16) {
             buf[..block.len()].copy_from_slice(block);

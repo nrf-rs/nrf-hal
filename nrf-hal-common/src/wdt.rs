@@ -1,4 +1,4 @@
-//! HAL interface to the WDT peripheral
+//! HAL interface to the WDT peripheral.
 //!
 //! This HAL implements a basic watchdog timer with 1..=8 handles.
 //! Once the watchdog has been started, it cannot be stopped.
@@ -6,33 +6,32 @@
 use crate::pac::WDT;
 use handles::*;
 
-/// A type state representing a watchdog that has not been started
+/// A type state representing a watchdog that has not been started.
 pub struct Inactive;
 
-/// A type state representing a watchdog that has been started and cannot be stopped
+/// A type state representing a watchdog that has been started and cannot be stopped.
 pub struct Active;
 
-/// An interface to the Watchdog
+/// An interface to the Watchdog.
 pub struct Watchdog<T: sealed::WdMode> {
     wdt: WDT,
     _state: T,
 }
 
-/// A structure containing the active watchdog and all requested
-/// Watchdog handles
+/// A structure containing the active watchdog and all requested Watchdog handles.
 pub struct Parts<T> {
     pub watchdog: Watchdog<Active>,
     pub handles: T,
 }
 
-/// An interface to feed the Watchdog
+/// An interface to feed the Watchdog.
 pub struct WatchdogHandle<T: sealed::HandleId>(T);
 
 impl<T> WatchdogHandle<T>
 where
     T: sealed::HandleId,
 {
-    /// Pet the watchdog
+    /// Pet the watchdog.
     ///
     /// This function pets the given watchdog handle.
     ///
@@ -53,9 +52,9 @@ where
         ((rd >> idx) & 0x1) == 0
     }
 
-    /// Convert the handle into a generic handle
+    /// Convert the handle into a generic handle.
     ///
-    /// This is useful if you need to place handles into an array
+    /// This is useful if you need to place handles into an array.
     pub fn degrade(self) -> WatchdogHandle<HdlN> {
         WatchdogHandle(HdlN {
             idx: self.0.index() as u8,
@@ -64,7 +63,7 @@ where
 }
 
 impl Watchdog<Inactive> {
-    /// Try to create a new watchdog instance from the peripheral
+    /// Try to create a new watchdog instance from the peripheral.
     ///
     /// This function will return an error if the watchdog has already
     /// been activated, which may happen on a (non-watchdog) soft reset.
@@ -86,15 +85,15 @@ impl Watchdog<Inactive> {
         }
     }
 
-    /// Release the peripheral
+    /// Release the peripheral.
     ///
-    /// Note: The peripheral cannot be released after activation
+    /// Note: The peripheral cannot be released after activation.
     #[inline]
     pub fn release(self) -> WDT {
         self.wdt
     }
 
-    /// Activate the watchdog with the given number of handles
+    /// Activate the watchdog with the given number of handles.
     ///
     /// The watchdog cannot be deactivated after starting.
     ///
@@ -112,7 +111,7 @@ impl Watchdog<Inactive> {
         }
     }
 
-    /// Enable the watchdog interrupt
+    /// Enable the watchdog interrupt.
     ///
     /// NOTE: Although the interrupt will occur, there is no way to prevent
     /// the reset from occuring. From the time the event was fired, the
@@ -123,20 +122,20 @@ impl Watchdog<Inactive> {
         self.wdt.intenset.write(|w| w.timeout().set_bit());
     }
 
-    /// Disable the watchdog interrupt
+    /// Disable the watchdog interrupt.
     ///
-    /// NOTE: This has no effect on the reset caused by the Watchdog
+    /// NOTE: This has no effect on the reset caused by the Watchdog.
     #[inline(always)]
     pub fn disable_interrupt(&mut self) {
         self.wdt.intenclr.write(|w| w.timeout().set_bit());
     }
 
-    /// Set the number of 32.768kHz ticks in each watchdog period
+    /// Set the number of 32.768kHz ticks in each watchdog period.
     ///
     /// This value defaults to 0xFFFF_FFFF (1.5 days) on reset.
     ///
     /// Note: there is a minimum of 15 ticks (458 microseconds). If a lower
-    /// number is provided, 15 ticks will be used as the configured value
+    /// number is provided, 15 ticks will be used as the configured value.
     #[inline(always)]
     pub fn set_lfosc_ticks(&mut self, ticks: u32) {
         self.wdt
@@ -165,7 +164,7 @@ impl Watchdog<Active> {
     /// Is the watchdog still awaiting pets from any handle?
     ///
     /// This reports whether sufficient pets have been received from all
-    /// handles to prevent a reset this time period
+    /// handles to prevent a reset this time period.
     #[inline(always)]
     pub fn awaiting_pets(&self) -> bool {
         let enabled = self.wdt.rren.read().bits();
@@ -176,7 +175,7 @@ impl Watchdog<Active> {
     /// Try to recover a handle to an already running watchdog. If the
     /// number of requested handles matches the activated number of handles,
     /// an activated handle will be returned. Otherwise the peripheral will
-    /// be returned
+    /// be returned.
     ///
     /// NOTE: Since the watchdog is already counting, you want to pet these dogs
     /// as soon as possible!
@@ -271,50 +270,50 @@ impl sealed::HandleId for HdlN {
 }
 
 pub mod handles {
-    //! Type states representing individual watchdog handles
+    //! Type states representing individual watchdog handles.
 
-    /// A type state representing Watchdog Handle 0
+    /// A type state representing Watchdog Handle 0.
     pub struct Hdl0;
-    /// A type state representing Watchdog Handle 1
+    /// A type state representing Watchdog Handle 1.
     pub struct Hdl1;
-    /// A type state representing Watchdog Handle 2
+    /// A type state representing Watchdog Handle 2.
     pub struct Hdl2;
-    /// A type state representing Watchdog Handle 3
+    /// A type state representing Watchdog Handle 3.
     pub struct Hdl3;
-    /// A type state representing Watchdog Handle 4
+    /// A type state representing Watchdog Handle 4.
     pub struct Hdl4;
-    /// A type state representing Watchdog Handle 5
+    /// A type state representing Watchdog Handle 5.
     pub struct Hdl5;
-    /// A type state representing Watchdog Handle 6
+    /// A type state representing Watchdog Handle 6.
     pub struct Hdl6;
-    /// A type state representing Watchdog Handle 7
+    /// A type state representing Watchdog Handle 7.
     pub struct Hdl7;
 
-    /// A structure that represents a runtime stored Watchdog Handle
+    /// A structure that represents a runtime stored Watchdog Handle.
     pub struct HdlN {
         pub(super) idx: u8,
     }
 }
 
 pub mod count {
-    //! Type states representing the number of requested handles
+    //! Type states representing the number of requested handles.
 
     use super::{sealed::Handles, Hdl0, Hdl1, Hdl2, Hdl3, Hdl4, Hdl5, Hdl6, Hdl7, WatchdogHandle};
-    /// A type state representing the request for One handles
+    /// A type state representing the request for One handles.
     pub struct One;
-    /// A type state representing the request for Two handles
+    /// A type state representing the request for Two handles.
     pub struct Two;
-    /// A type state representing the request for Three handles
+    /// A type state representing the request for Three handles.
     pub struct Three;
-    /// A type state representing the request for Four handles
+    /// A type state representing the request for Four handles.
     pub struct Four;
-    /// A type state representing the request for Five handles
+    /// A type state representing the request for Five handles.
     pub struct Five;
-    /// A type state representing the request for Six handles
+    /// A type state representing the request for Six handles.
     pub struct Six;
-    /// A type state representing the request for Seven handles
+    /// A type state representing the request for Seven handles.
     pub struct Seven;
-    /// A type state representing the request for Eight handles
+    /// A type state representing the request for Eight handles.
     pub struct Eight;
 
     impl Handles for One {

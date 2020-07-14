@@ -1,4 +1,4 @@
-//! API for the Analog to Digital converter
+//! API for the Analog to Digital converter.
 
 use embedded_hal::adc::{Channel, OneShot};
 
@@ -63,7 +63,7 @@ pub struct AdcConfig {
     pub reference: Reference,
 }
 
-// 0 volts reads as 0, VDD volts reads as 2^10
+// 0 volts reads as 0, VDD volts reads as 2^10.
 impl Default for AdcConfig {
     fn default() -> Self {
         Self {

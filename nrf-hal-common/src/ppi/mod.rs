@@ -1,4 +1,4 @@
-//! HAL interface for the PPI peripheral
+//! HAL interface for the PPI peripheral.
 //!
 //! The Programmable Peripheral Interconnect interface allows for an autonomous interoperability
 //! between peripherals through their events and tasks. There are fixed PPI channels and fully
@@ -84,7 +84,7 @@ pub trait ConfigurablePpi {
 }
 
 // All unsafe `ptr` calls only uses registers atomically, and only changes the resources owned by
-// the type (guaranteed by the abstraction)
+// the type (guaranteed by the abstraction).
 impl<P: Channel> Ppi for P {
     #[inline(always)]
     fn enable(&mut self) {
@@ -109,7 +109,7 @@ impl<P: Channel> Ppi for P {
 }
 
 // All unsafe `ptr` calls only uses registers atomically, and only changes the resources owned by
-// the type (guaranteed by the abstraction)
+// the type (guaranteed by the abstraction).
 impl<P: Channel + NotFixed> ConfigurablePpi for P {
     #[inline(always)]
     fn set_task_endpoint<T: Task>(&mut self, task: &T) {

@@ -1,6 +1,7 @@
-//! HAL interface to the SPIM peripheral
+//! HAL interface to the SPIM peripheral.
 //!
 //! See product specification, chapter 31.
+
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
@@ -26,7 +27,7 @@ use crate::target_constants::{EASY_DMA_SIZE, FORCE_COPY_BUFFER_SIZE};
 use crate::{slice_in_ram, slice_in_ram_or, DmaSlice};
 use embedded_hal::digital::v2::OutputPin;
 
-/// Interface to a SPIM instance
+/// Interface to a SPIM instance.
 ///
 /// This is a very basic interface that comes with the following limitations:
 /// - The SPIM instances share the same address space with instances of SPIS,
@@ -94,7 +95,7 @@ where
     }
 
     pub fn new(spim: T, pins: Pins, frequency: Frequency, mode: Mode, orc: u8) -> Self {
-        // Select pins
+        // Select pins.
         spim.psel.sck.write(|w| {
             let w = unsafe { w.pin().bits(pins.sck.pin()) };
             #[cfg(any(feature = "52843", feature = "52840"))]
@@ -121,10 +122,10 @@ where
             None => spim.psel.miso.write(|w| w.connect().disconnected()),
         }
 
-        // Enable SPIM instance
+        // Enable SPIM instance.
         spim.enable.write(|w| w.enable().enabled());
 
-        // Configure mode
+        // Configure mode.
         spim.config.write(|w| {
             // Can't match on `mode` due to embedded-hal, see https://github.com/rust-embedded/embedded-hal/pull/126
             if mode == MODE_0 {
@@ -147,10 +148,10 @@ where
             w
         });
 
-        // Configure frequency
+        // Configure frequency.
         spim.frequency.write(|w| w.frequency().variant(frequency));
 
-        // Set over-read character to `0`
+        // Set over-read character to `0`.
         spim.orc.write(|w|
             // The ORC field is 8 bits long, so `0` is a valid value to write
             // there.
@@ -159,24 +160,24 @@ where
         Spim(spim)
     }
 
-    /// Internal helper function to setup and execute SPIM DMA transfer
+    /// Internal helper function to setup and execute SPIM DMA transfer.
     fn do_spi_dma_transfer(&mut self, tx: DmaSlice, rx: DmaSlice) -> Result<(), Error> {
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started
+        // before any DMA action has started.
         compiler_fence(SeqCst);
 
-        // Set up the DMA write
+        // Set up the DMA write.
         self.0.txd.ptr.write(|w| unsafe { w.ptr().bits(tx.ptr) });
 
         self.0.txd.maxcnt.write(|w|
-            // Note that that nrf52840 maxcnt is a wider
+            // Note that that nrf52840 maxcnt is a wider.
             // type than a u8, so we use a `_` cast rather than a `u8` cast.
             // The MAXCNT field is thus at least 8 bits wide and accepts the full
             // range of values that fit in a `u8`.
             unsafe { w.maxcnt().bits(tx.len as _ ) });
 
-        // Set up the DMA read
+        // Set up the DMA read.
         self.0.rxd.ptr.write(|w|
             // This is safe for the same reasons that writing to TXD.PTR is
             // safe. Please refer to the explanation there.
@@ -186,17 +187,17 @@ where
             // safe. Please refer to the explanation there.
             unsafe { w.maxcnt().bits(rx.len as _) });
 
-        // Start SPI transaction
+        // Start SPI transaction.
         self.0.tasks_start.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed
+        // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
 
-        // Wait for END event
+        // Wait for END event.
         //
         // This event is triggered once both transmitting and receiving are
         // done.
@@ -207,7 +208,7 @@ where
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed
+        // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
 
         if self.0.txd.amount.read().bits() != tx.len {
@@ -219,9 +220,9 @@ where
         Ok(())
     }
 
-    /// Read from an SPI slave
+    /// Read from an SPI slave.
     ///
-    /// This method is deprecated. Consider using `transfer` or `transfer_split`
+    /// This method is deprecated. Consider using `transfer` or `transfer_split`.
     #[inline(always)]
     pub fn read(
         &mut self,
@@ -232,7 +233,7 @@ where
         self.transfer_split_uneven(chip_select, tx_buffer, rx_buffer)
     }
 
-    /// Read and write from a SPI slave, using a single buffer
+    /// Read and write from a SPI slave, using a single buffer.
     ///
     /// This method implements a complete read transaction, which consists of
     /// the master transmitting what it wishes to read, and the slave responding
@@ -249,7 +250,7 @@ where
 
         chip_select.set_low().unwrap();
 
-        // Don't return early, as we must reset the CS pin
+        // Don't return early, as we must reset the CS pin.
         let res = buffer.chunks(EASY_DMA_SIZE).try_for_each(|chunk| {
             self.do_spi_dma_transfer(DmaSlice::from_slice(chunk), DmaSlice::from_slice(chunk))
         });
@@ -259,7 +260,7 @@ where
         res
     }
 
-    /// Read and write from a SPI slave, using separate read and write buffers
+    /// Read and write from a SPI slave, using separate read and write buffers.
     ///
     /// This method implements a complete read transaction, which consists of
     /// the master transmitting what it wishes to read, and the slave responding
@@ -277,7 +278,7 @@ where
         rx_buffer: &mut [u8],
     ) -> Result<(), Error> {
         // NOTE: RAM slice check for `rx_buffer` is not necessary, as a mutable
-        // slice can only be built from data located in RAM
+        // slice can only be built from data located in RAM.
         slice_in_ram_or(tx_buffer, Error::DMABufferNotInDataMemory)?;
 
         let txi = tx_buffer.chunks(EASY_DMA_SIZE);
@@ -295,7 +296,7 @@ where
         res
     }
 
-    /// Read and write from a SPI slave, using separate read and write buffers
+    /// Read and write from a SPI slave, using separate read and write buffers.
     ///
     /// This method implements a complete read transaction, which consists of
     /// the master transmitting what it wishes to read, and the slave responding
@@ -315,13 +316,13 @@ where
         rx_buffer: &mut [u8],
     ) -> Result<(), Error> {
         // NOTE: RAM slice check for `rx_buffer` is not necessary, as a mutable
-        // slice can only be built from data located in RAM
+        // slice can only be built from data located in RAM.
         slice_in_ram_or(tx_buffer, Error::DMABufferNotInDataMemory)?;
 
         // For the tx and rx, we want to return Some(chunk)
         // as long as there is data to send. We then chain a repeat to
         // the end so once all chunks have been exhausted, we will keep
-        // getting Nones out of the iterators
+        // getting Nones out of the iterators.
         let txi = tx_buffer
             .chunks(EASY_DMA_SIZE)
             .map(Some)
@@ -335,14 +336,14 @@ where
         chip_select.set_low().unwrap();
 
         // We then chain the iterators together, and once BOTH are feeding
-        // back Nones, then we are done sending and receiving
+        // back Nones, then we are done sending and receiving.
         //
-        // Don't return early, as we must reset the CS pin
+        // Don't return early, as we must reset the CS pin.
         let res = txi
             .zip(rxi)
             .take_while(|(t, r)| t.is_some() || r.is_some())
             // We also turn the slices into either a DmaSlice (if there was data), or a null
-            // DmaSlice (if there is no data)
+            // DmaSlice (if there is no data).
             .map(|(t, r)| {
                 (
                     t.map(|t| DmaSlice::from_slice(t))
@@ -358,7 +359,7 @@ where
         res
     }
 
-    /// Write to an SPI slave
+    /// Write to an SPI slave.
     ///
     /// This method uses the provided chip select pin to initiate the
     /// transaction, then transmits all bytes in `tx_buffer`. All incoming
@@ -372,7 +373,7 @@ where
         self.transfer_split_uneven(chip_select, tx_buffer, &mut [0u8; 0])
     }
 
-    /// Return the raw interface to the underlying SPIM peripheral
+    /// Return the raw interface to the underlying SPIM peripheral.
     pub fn free(self) -> T {
         self.0
     }
@@ -396,13 +397,13 @@ pub struct Pins {
 pub enum Error {
     TxBufferTooLong,
     RxBufferTooLong,
-    /// EasyDMA can only read from data memory, read only buffers in flash will fail
+    /// EasyDMA can only read from data memory, read only buffers in flash will fail.
     DMABufferNotInDataMemory,
     Transmit,
     Receive,
 }
 
-/// Implemented by all SPIM instances
+/// Implemented by all SPIM instances.
 pub trait Instance: Deref<Target = spim0::RegisterBlock> {}
 
 impl Instance for SPIM0 {}

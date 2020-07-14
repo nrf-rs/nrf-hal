@@ -1,5 +1,4 @@
-//! Configuration and control of the High and Low Frequency Clock
-//! sources
+//! Configuration and control of the High and Low Frequency Clock sources.
 
 #[cfg(feature = "9160")]
 use crate::pac::CLOCK_NS as CLOCK;
@@ -9,27 +8,27 @@ use crate::pac::CLOCK;
 
 // ZST Type States
 
-/// Internal/RC Oscillator
+/// Internal/RC Oscillator.
 pub struct Internal;
 
-/// External Crystal Oscillator
+/// External Crystal Oscillator.
 pub struct ExternalOscillator;
 
-/// Low Frequency Clock synthesize from High Frequency Clock
+/// Low Frequency Clock synthesize from High Frequency Clock.
 pub struct LfOscSynthesized;
 
-/// Low Frequency Clock Started
+/// Low Frequency Clock Started.
 pub struct LfOscStarted;
 
-/// Low Frequency Clock Stopped
+/// Low Frequency Clock Stopped.
 pub struct LfOscStopped;
 
-/// High Frequency Clock Frequency (in Hz)
+/// High Frequency Clock Frequency (in Hz).
 pub const HFCLK_FREQ: u32 = 64_000_000;
-/// Low Frequency Clock Frequency (in Hz)
+/// Low Frequency Clock Frequency (in Hz).
 pub const LFCLK_FREQ: u32 = 32_768;
 
-/// A high level abstraction for the CLOCK peripheral
+/// A high level abstraction for the CLOCK peripheral.
 pub struct Clocks<H, L, LSTAT> {
     hfclk: H,
     lfclk: L,
@@ -49,7 +48,7 @@ impl Clocks<Internal, Internal, LfOscStopped> {
 }
 
 impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
-    /// Use an external oscillator as the high frequency clock source
+    /// Use an external oscillator as the high frequency clock source.
     pub fn enable_ext_hfosc(self) -> Clocks<ExternalOscillator, L, LSTAT> {
         self.periph.tasks_hfclkstart.write(|w| unsafe { w.bits(1) });
 
@@ -67,7 +66,7 @@ impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
         }
     }
 
-    /// Use the internal oscillator as the high frequency clock source
+    /// Use the internal oscillator as the high frequency clock source.
     pub fn disable_ext_hfosc(self) -> Clocks<Internal, L, LSTAT> {
         self.periph.tasks_hfclkstop.write(|w| unsafe { w.bits(1) });
         Clocks {
@@ -78,12 +77,12 @@ impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
         }
     }
 
-    /// Start the Low Frequency clock
+    /// Start the Low Frequency clock.
     pub fn start_lfclk(self) -> Clocks<H, L, LfOscStarted> {
         self.periph.tasks_lfclkstart.write(|w| unsafe { w.bits(1) });
 
         // Datasheet says this could take 100us from synth source
-        // 600us from rc source, 0.25s from an external source
+        // 600us from rc source, 0.25s from an external source.
         while self.periph.events_lfclkstarted.read().bits() != 1 {}
         self.periph
             .events_lfclkstarted
@@ -99,7 +98,7 @@ impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
 }
 
 /// Allowable configuration options for the low frequency oscillator when
-/// driven fron an external crystal
+/// driven fron an external crystal.
 pub enum LfOscConfiguration {
     NoExternalNoBypass,
     ExternalNoBypass,
@@ -107,7 +106,7 @@ pub enum LfOscConfiguration {
 }
 
 impl<H, L> Clocks<H, L, LfOscStarted> {
-    /// Stop the Low Frequency clock
+    /// Stop the Low Frequency clock.
     pub fn stop_lfclk(self) -> Clocks<H, L, LfOscStopped> {
         self.periph.tasks_lfclkstop.write(|w| unsafe { w.bits(1) });
         Clocks {
@@ -120,7 +119,7 @@ impl<H, L> Clocks<H, L, LfOscStarted> {
 }
 
 impl<H, L> Clocks<H, L, LfOscStopped> {
-    /// Use the internal RC Oscillator for the low frequency clock source
+    /// Use the internal RC Oscillator for the low frequency clock source.
     #[cfg(feature = "51")]
     pub fn set_lfclk_src_rc(self) -> Clocks<H, Internal, LfOscStopped> {
         self.periph.lfclksrc.write(|w| w.src().rc());
@@ -132,7 +131,7 @@ impl<H, L> Clocks<H, L, LfOscStopped> {
         }
     }
 
-    /// Generate the Low Frequency clock from the high frequency clock source
+    /// Generate the Low Frequency clock from the high frequency clock source.
     #[cfg(feature = "51")]
     pub fn set_lfclk_src_synth(self) -> Clocks<H, LfOscSynthesized, LfOscStopped> {
         self.periph.lfclksrc.write(|w| w.src().synth());
@@ -144,7 +143,7 @@ impl<H, L> Clocks<H, L, LfOscStopped> {
         }
     }
 
-    /// Use an external crystal to drive the low frequency clock
+    /// Use an external crystal to drive the low frequency clock.
     #[cfg(feature = "51")]
     pub fn set_lfclk_src_external(self) -> Clocks<H, ExternalOscillator, LfOscStopped> {
         self.periph.lfclksrc.write(move |w| w.src().xtal());
@@ -156,7 +155,7 @@ impl<H, L> Clocks<H, L, LfOscStopped> {
         }
     }
 
-    /// Use the internal RC Oscillator for the low frequency clock source
+    /// Use the internal RC Oscillator for the low frequency clock source.
     #[cfg(not(any(feature = "9160", feature = "51")))]
     pub fn set_lfclk_src_rc(self) -> Clocks<H, Internal, LfOscStopped> {
         self.periph
@@ -170,7 +169,7 @@ impl<H, L> Clocks<H, L, LfOscStopped> {
         }
     }
 
-    /// Generate the Low Frequency clock from the high frequency clock source
+    /// Generate the Low Frequency clock from the high frequency clock source.
     #[cfg(not(any(feature = "9160", feature = "51")))]
     pub fn set_lfclk_src_synth(self) -> Clocks<H, LfOscSynthesized, LfOscStopped> {
         self.periph
@@ -184,7 +183,7 @@ impl<H, L> Clocks<H, L, LfOscStopped> {
         }
     }
 
-    /// Use an external crystal to drive the low frequency clock
+    /// Use an external crystal to drive the low frequency clock.
     #[cfg(not(any(feature = "9160", feature = "51")))]
     pub fn set_lfclk_src_external(
         self,
