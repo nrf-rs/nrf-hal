@@ -12,6 +12,7 @@ members = [
   "examples/ccm-demo",
   "examples/ppi-demo",
   "examples/gpiote-demo",
+  "examples/wdt-demo",
 ]
 
 [profile.dev]
