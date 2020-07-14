@@ -1,4 +1,4 @@
-//! HAL interface to the TWI peripheral
+//! HAL interface to the TWI peripheral.
 
 use core::ops::Deref;
 
@@ -39,13 +39,13 @@ where
             });
         }
 
-        // Set pins
+        // Set pins.
         twi.pselscl
             .write(|w| unsafe { w.bits(pins.scl.pin().into()) });
         twi.pselsda
             .write(|w| unsafe { w.bits(pins.sda.pin().into()) });
 
-        // Set frequency
+        // Set frequency.
         twi.frequency.write(|w| w.frequency().variant(frequency));
 
         twi.enable.write(|w| w.enable().enabled());
@@ -54,56 +54,56 @@ where
     }
 
     fn send_byte(&self, byte: u8) -> Result<(), Error> {
-        // Clear sent event
+        // Clear sent event.
         self.0.events_txdsent.write(|w| unsafe { w.bits(0) });
 
-        // Copy data into the send buffer
+        // Copy data into the send buffer.
         self.0.txd.write(|w| unsafe { w.bits(u32::from(byte)) });
 
-        // Wait until transmission was confirmed
+        // Wait until transmission was confirmed.
         while self.0.events_txdsent.read().bits() == 0 {
-            // Bail out if we get an error instead
+            // Bail out if we get an error instead.
             if self.0.events_error.read().bits() != 0 {
                 self.0.events_error.write(|w| unsafe { w.bits(0) });
                 return Err(Error::Transmit);
             }
         }
 
-        // Clear sent event
+        // Clear sent event.
         self.0.events_txdsent.write(|w| unsafe { w.bits(0) });
 
         Ok(())
     }
 
     fn recv_byte(&self) -> Result<u8, Error> {
-        // Wait until something ended up in the buffer
+        // Wait until something ended up in the buffer.
         while self.0.events_rxdready.read().bits() == 0 {
-            // Bail out if it's an error instead of data
+            // Bail out if it's an error instead of data.
             if self.0.events_error.read().bits() != 0 {
                 self.0.events_error.write(|w| unsafe { w.bits(0) });
                 return Err(Error::Receive);
             }
         }
 
-        // Read out data
+        // Read out data.
         let out = self.0.rxd.read().bits() as u8;
 
-        // Clear reception event
+        // Clear reception event.
         self.0.events_rxdready.write(|w| unsafe { w.bits(0) });
 
         Ok(out)
     }
 
     fn send_stop(&self) -> Result<(), Error> {
-        // Clear stopped event
+        // Clear stopped event.
         self.0.events_stopped.write(|w| unsafe { w.bits(0) });
 
-        // Start stop condition
+        // Start stop condition.
         self.0.tasks_stop.write(|w| unsafe { w.bits(1) });
 
-        // Wait until stop was sent
+        // Wait until stop was sent.
         while self.0.events_stopped.read().bits() == 0 {
-            // Bail out if we get an error instead
+            // Bail out if we get an error instead.
             if self.0.events_error.read().bits() != 0 {
                 self.0.events_error.write(|w| unsafe { w.bits(0) });
                 return Err(Error::Transmit);
@@ -113,56 +113,56 @@ where
         Ok(())
     }
 
-    /// Write to an I2C slave
+    /// Write to an I2C slave.
     pub fn write(&mut self, address: u8, buffer: &[u8]) -> Result<(), Error> {
-        // Make sure all previously used shortcuts are disabled
+        // Make sure all previously used shortcuts are disabled.
         self.0
             .shorts
             .write(|w| w.bb_stop().disabled().bb_suspend().disabled());
 
-        // Set Slave I2C address
+        // Set Slave I2C address.
         self.0
             .address
             .write(|w| unsafe { w.address().bits(address.into()) });
 
-        // Start data transmission
+        // Start data transmission.
         self.0.tasks_starttx.write(|w| unsafe { w.bits(1) });
 
-        // Clock out all bytes
+        // Clock out all bytes.
         for byte in buffer {
             self.send_byte(*byte)?;
         }
 
-        // Send stop
+        // Send stop.
         self.send_stop()?;
         Ok(())
     }
 
-    /// Read from an I2C slave
+    /// Read from an I2C slave.
     pub fn read(&mut self, address: u8, buffer: &mut [u8]) -> Result<(), Error> {
-        // Make sure all previously used shortcuts are disabled
+        // Make sure all previously used shortcuts are disabled.
         self.0
             .shorts
             .write(|w| w.bb_stop().disabled().bb_suspend().disabled());
 
-        // Set Slave I2C address
+        // Set Slave I2C address.
         self.0
             .address
             .write(|w| unsafe { w.address().bits(address.into()) });
 
-        // Read into buffer
+        // Read into buffer.
         if let Some((last, before)) = buffer.split_last_mut() {
-            // If we want to read multiple bytes we need to use the suspend mode
+            // If we want to read multiple bytes we need to use the suspend mode.
             if !before.is_empty() {
                 self.0.shorts.write(|w| w.bb_suspend().enabled());
             } else {
                 self.0.shorts.write(|w| w.bb_stop().enabled());
             }
 
-            // Clear reception event
+            // Clear reception event.
             self.0.events_rxdready.write(|w| unsafe { w.bits(0) });
 
-            // Start data reception
+            // Start data reception.
             self.0.tasks_startrx.write(|w| unsafe { w.bits(1) });
 
             for byte in &mut before.into_iter() {
@@ -180,44 +180,44 @@ where
     }
 
     /// Write data to an I2C slave, then read data from the slave without
-    /// triggering a stop condition between the two
+    /// triggering a stop condition between the two.
     pub fn write_then_read(
         &mut self,
         address: u8,
         wr_buffer: &[u8],
         rd_buffer: &mut [u8],
     ) -> Result<(), Error> {
-        // Make sure all previously used shortcuts are disabled
+        // Make sure all previously used shortcuts are disabled.
         self.0
             .shorts
             .write(|w| w.bb_stop().disabled().bb_suspend().disabled());
 
-        // Set Slave I2C address
+        // Set Slave I2C address.
         self.0
             .address
             .write(|w| unsafe { w.address().bits(address.into()) });
 
-        // Start data transmission
+        // Start data transmission.
         self.0.tasks_starttx.write(|w| unsafe { w.bits(1) });
 
-        // Send out all bytes in the outgoing buffer
+        // Send out all bytes in the outgoing buffer.
         for byte in wr_buffer {
             self.send_byte(*byte)?;
         }
 
-        // Turn around to read data
+        // Turn around to read data.
         if let Some((last, before)) = rd_buffer.split_last_mut() {
-            // If we want to read multiple bytes we need to use the suspend mode
+            // If we want to read multiple bytes we need to use the suspend mode.
             if !before.is_empty() {
                 self.0.shorts.write(|w| w.bb_suspend().enabled());
             } else {
                 self.0.shorts.write(|w| w.bb_stop().enabled());
             }
 
-            // Clear reception event
+            // Clear reception event.
             self.0.events_rxdready.write(|w| unsafe { w.bits(0) });
 
-            // Start data reception
+            // Start data reception.
             self.0.tasks_startrx.write(|w| unsafe { w.bits(1) });
 
             for byte in &mut before.into_iter() {
@@ -234,13 +234,11 @@ where
         Ok(())
     }
 
-    /// Return the raw interface to the underlying TWI peripheral
+    /// Return the raw interface to the underlying TWI peripheral.
     pub fn free(self) -> T {
         self.0
     }
 }
-
-/// Implementation of embedded_hal::blocking::i2c Traits
 
 impl<T> embedded_hal::blocking::i2c::Write for Twi<T>
 where
@@ -280,14 +278,14 @@ where
     }
 }
 
-/// The pins used by the TWI peripheral
+/// The pins used by the TWI peripheral.
 ///
 /// Currently, only P0 pins are supported.
 pub struct Pins {
-    // Serial Clock Line
+    // Serial Clock Line.
     pub scl: Pin<Input<Floating>>,
 
-    // Serial Data Line
+    // Serial Data Line.
     pub sda: Pin<Input<Floating>>,
 }
 
@@ -297,7 +295,7 @@ pub enum Error {
     Receive,
 }
 
-/// Implemented by all TWIM instances
+/// Implemented by all TWIM instances.
 pub trait Instance: Deref<Target = twi0::RegisterBlock> {}
 
 impl Instance for TWI0 {}

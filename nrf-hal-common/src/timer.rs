@@ -1,4 +1,4 @@
-//! HAL interface to the TIMER peripheral
+//! HAL interface to the TIMER peripheral.
 //!
 //! See product specification, chapter 24.
 
@@ -25,7 +25,7 @@ use core::marker::PhantomData;
 pub struct OneShot;
 pub struct Periodic;
 
-/// Interface to a TIMER instance
+/// Interface to a TIMER instance.
 ///
 /// Right now, this is a very basic interface. The timer will always be
 /// hardcoded to a frequency of 1 MHz and 32 bits accuracy.
@@ -78,7 +78,7 @@ where
         Timer::<T, OneShot>(self.free(), PhantomData)
     }
 
-    /// Return the raw interface to the underlying timer peripheral
+    /// Return the raw interface to the underlying timer peripheral.
     pub fn free(self) -> T {
         self.0
     }
@@ -88,7 +88,7 @@ where
         self.0.read_counter()
     }
 
-    /// Enables the interrupt for this timer
+    /// Enables the interrupt for this timer.
     ///
     /// Enables an interrupt that is fired when the timer reaches the value that
     /// is given as an argument to `start`.
@@ -102,7 +102,7 @@ where
         self.0.enable_interrupt();
     }
 
-    /// Disables the interrupt for this timer
+    /// Disables the interrupt for this timer.
     ///
     /// Disables an interrupt that is fired when the timer reaches the value
     /// that is given as an argument to `start`.
@@ -131,7 +131,7 @@ where
 {
     type Time = u32;
 
-    /// Start the timer
+    /// Start the timer.
     ///
     /// The timer will run for the given number of cycles, then it will stop and
     /// reset.
@@ -142,7 +142,7 @@ where
         self.0.timer_start(cycles);
     }
 
-    /// Wait for the timer to stop
+    /// Wait for the timer to stop.
     ///
     /// Will return `Err(nb::Error::WouldBlock)` while the timer is still
     /// running. Once the timer reached the number of cycles given in the
@@ -169,7 +169,6 @@ where
 {
     type Error = ();
 
-    // Cancel a running timer.
     fn cancel(&mut self) -> Result<(), Self::Error> {
         self.0.timer_cancel();
         Ok(())
@@ -232,9 +231,9 @@ where
     }
 }
 
-/// Implemented by all `timer0::TIMER` instances
+/// Implemented by all `timer0::TIMER` instances.
 pub trait Instance {
-    /// This interrupt associated with this RTC instance
+    /// This interrupt associated with this RTC instance.
     const INTERRUPT: Interrupt;
 
     fn timer_start<Time>(&self, cycles: Time)
@@ -295,10 +294,10 @@ macro_rules! impl_instance {
                     #[cfg(feature = "51")]
                     self.cc[0].write(|w| unsafe { w.bits(cycles.into())} );
 
-                    // Clear the counter value
+                    // Clear the counter value.
                     self.tasks_clear.write(|w| unsafe { w.bits(1) });
 
-                    // Start the timer
+                    // Start the timer.
                     self.tasks_start.write(|w| unsafe { w.bits(1) });
                 }
 

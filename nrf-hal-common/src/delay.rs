@@ -1,4 +1,4 @@
-//! Delays
+//! Delays.
 use cast::u32;
 use cortex_m::peripheral::syst::SystClkSource;
 use cortex_m::peripheral::SYST;
@@ -6,20 +6,20 @@ use cortex_m::peripheral::SYST;
 use crate::clocks::HFCLK_FREQ;
 use crate::hal::blocking::delay::{DelayMs, DelayUs};
 
-/// System timer (SysTick) as a delay provider
+/// System timer (SysTick) as a delay provider.
 pub struct Delay {
     syst: SYST,
 }
 
 impl Delay {
-    /// Configures the system timer (SysTick) as a delay provider
+    /// Configures the system timer (SysTick) as a delay provider.
     pub fn new(mut syst: SYST) -> Self {
         syst.set_clock_source(SystClkSource::Core);
 
         Delay { syst }
     }
 
-    /// Releases the system timer (SysTick) resource
+    /// Releases the system timer (SysTick) resource.
     pub fn free(self) -> SYST {
         self.syst
     }

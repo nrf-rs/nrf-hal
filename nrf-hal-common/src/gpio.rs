@@ -1,28 +1,28 @@
 use core::marker::PhantomData;
 
-/// Input mode (type state)
+/// Input mode (type state).
 pub struct Input<MODE> {
     _mode: PhantomData<MODE>,
 }
 
-/// Floating input (type state)
+/// Floating input (type state).
 pub struct Floating;
-/// Pulled down input (type state)
+/// Pulled down input (type state).
 pub struct PullDown;
-/// Pulled up input (type state)
+/// Pulled up input (type state).
 pub struct PullUp;
 
-/// Output mode (type state)
+/// Output mode (type state).
 pub struct Output<MODE> {
     _mode: PhantomData<MODE>,
 }
 
-/// Push pull output (type state)
+/// Push pull output (type state).
 pub struct PushPull;
-/// Open drain output (type state)
+/// Open drain output (type state).
 pub struct OpenDrain;
 
-/// Represents a digital input or output level
+/// Represents a digital input or output level.
 pub enum Level {
     Low,
     High,
@@ -175,7 +175,7 @@ impl<MODE> Pin<MODE> {
         }
     }
 
-    /// Convert the pin to be a push-pull output with normal drive
+    /// Convert the pin to be a push-pull output with normal drive.
     pub fn into_push_pull_output(self, initial_output: Level) -> Pin<Output<PushPull>> {
         let mut pin = Pin {
             _mode: PhantomData,
@@ -199,10 +199,10 @@ impl<MODE> Pin<MODE> {
         pin
     }
 
-    /// Convert the pin to be an open-drain output
+    /// Convert the pin to be an open-drain output.
     ///
-    /// This method currently does not support configuring an
-    /// internal pull-up or pull-down resistor.
+    /// This method currently does not support configuring an internal pull-up or pull-down
+    /// resistor.
     pub fn into_open_drain_output(
         self,
         config: OpenDrainConfig,
@@ -218,8 +218,7 @@ impl<MODE> Pin<MODE> {
             Level::High => pin.set_high().unwrap(),
         }
 
-        // This is safe, as we restrict our access to the dedicated
-        // register for this pin.
+        // This is safe, as we restrict our access to the dedicated register for this pin.
         let pin_cnf = &self.block().pin_cnf[self.pin() as usize];
         pin_cnf.write(|w| {
             w.dir().output();
@@ -249,7 +248,7 @@ impl<MODE> InputPin for Pin<Input<MODE>> {
 impl<MODE> OutputPin for Pin<Output<MODE>> {
     type Error = Void;
 
-    /// Set the output as high
+    /// Set the output as high.
     fn set_high(&mut self) -> Result<(), Self::Error> {
         // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
         // TODO - I wish I could do something like `.pins$i()`...
@@ -259,7 +258,7 @@ impl<MODE> OutputPin for Pin<Output<MODE>> {
         Ok(())
     }
 
-    /// Set the output as low
+    /// Set the output as low.
     fn set_low(&mut self) -> Result<(), Self::Error> {
         // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
         // TODO - I wish I could do something like `.pins$i()`...
@@ -284,7 +283,7 @@ impl<MODE> StatefulOutputPin for Pin<Output<MODE>> {
     }
 }
 
-/// Pin configuration for open-drain mode
+/// Pin configuration for open-drain mode.
 pub enum OpenDrainConfig {
     Disconnect0Standard1,
     Disconnect0HighDrive1,

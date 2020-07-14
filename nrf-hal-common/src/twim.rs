@@ -1,9 +1,9 @@
-//! HAL interface to the TWIM peripheral
+//! HAL interface to the TWIM peripheral.
 //!
 //! See product specification:
 //!
-//! - nrf52832: Section 33
-//! - nrf52840: Section 6.31
+//! - nRF52832: Section 33
+//! - nRF52840: Section 6.31
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
@@ -24,7 +24,7 @@ use crate::{
 
 pub use twim0::frequency::FREQUENCY_A as Frequency;
 
-/// Interface to a TWIM instance
+/// Interface to a TWIM instance.
 ///
 /// This is a very basic interface that comes with the following limitation:
 /// The TWIM instances share the same address space with instances of SPIM,
@@ -63,7 +63,7 @@ where
             });
         }
 
-        // Select pins
+        // Select pins.
         twim.psel.scl.write(|w| {
             let w = unsafe { w.pin().bits(pins.scl.pin()) };
             #[cfg(feature = "52840")]
@@ -77,16 +77,16 @@ where
             w.connect().connected()
         });
 
-        // Enable TWIM instance
+        // Enable TWIM instance.
         twim.enable.write(|w| w.enable().enabled());
 
-        // Configure frequency
+        // Configure frequency.
         twim.frequency.write(|w| w.frequency().variant(frequency));
 
         Twim(twim)
     }
 
-    /// Write to an I2C slave
+    /// Write to an I2C slave.
     ///
     /// The buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
@@ -99,14 +99,14 @@ where
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started
+        // before any DMA action has started.
         compiler_fence(SeqCst);
 
         self.0
             .address
             .write(|w| unsafe { w.address().bits(address) });
 
-        // Set up the DMA write
+        // Set up the DMA write.
         self.0.txd.ptr.write(|w|
             // We're giving the register a pointer to the stack. Since we're
             // waiting for the I2C transaction to end before this stack pointer
@@ -124,32 +124,32 @@ where
             // values.
             unsafe { w.maxcnt().bits(buffer.len() as _) });
 
-        // Clear address NACK
+        // Clear address NACK.
         self.0.errorsrc.write(|w| w.anack().bit(true));
 
-        // Start write operation
+        // Start write operation.
         self.0.tasks_starttx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
-        // Wait until write operation is about to end
+        // Wait until write operation is about to end.
         while self.0.events_lasttx.read().bits() == 0
             && self.0.errorsrc.read().anack().is_not_received()
         {}
         self.0.events_lasttx.write(|w| w); // reset event
 
-        // Stop write operation
+        // Stop write operation.
         self.0.tasks_stop.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
-        // Wait until write operation has ended
+        // Wait until write operation has ended.
         while self.0.events_stopped.read().bits() == 0 {}
         self.0.events_stopped.write(|w| w); // reset event
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed
+        // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
 
         if self.0.errorsrc.read().anack().is_received() {
@@ -163,13 +163,13 @@ where
         Ok(())
     }
 
-    /// Read from an I2C slave
+    /// Read from an I2C slave.
     ///
     /// The buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
     pub fn read(&mut self, address: u8, buffer: &mut [u8]) -> Result<(), Error> {
         // NOTE: RAM slice check is not necessary, as a mutable slice can only be
-        // built from data located in RAM
+        // built from data located in RAM.
 
         if buffer.len() > EASY_DMA_SIZE {
             return Err(Error::RxBufferTooLong);
@@ -177,14 +177,14 @@ where
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started
+        // before any DMA action has started.
         compiler_fence(SeqCst);
 
         self.0
             .address
             .write(|w| unsafe { w.address().bits(address) });
 
-        // Set up the DMA read
+        // Set up the DMA read.
         self.0.rxd.ptr.write(|w|
             // We're giving the register a pointer to the stack. Since we're
             // waiting for the I2C transaction to end before this stack pointer
@@ -205,32 +205,32 @@ where
             // full range of values that fit in a `u8`.
             unsafe { w.maxcnt().bits(buffer.len() as _) });
 
-        // Clear address NACK
+        // Clear address NACK.
         self.0.errorsrc.write(|w| w.anack().bit(true));
 
-        // Start read operation
+        // Start read operation.
         self.0.tasks_startrx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
-        // Wait until read operation is about to end
+        // Wait until read operation is about to end.
         while self.0.events_lastrx.read().bits() == 0
             && self.0.errorsrc.read().anack().is_not_received()
         {}
         self.0.events_lastrx.write(|w| w); // reset event
 
-        // Stop read operation
+        // Stop read operation.
         self.0.tasks_stop.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
-        // Wait until read operation has ended
+        // Wait until read operation has ended.
         while self.0.events_stopped.read().bits() == 0 {}
         self.0.events_stopped.write(|w| w); // reset event
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed
+        // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
 
         if self.0.errorsrc.read().anack().is_received() {
@@ -245,7 +245,7 @@ where
     }
 
     /// Write data to an I2C slave, then read data from the slave without
-    /// triggering a stop condition between the two
+    /// triggering a stop condition between the two.
     ///
     /// The buffers must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
@@ -256,7 +256,7 @@ where
         rd_buffer: &mut [u8],
     ) -> Result<(), Error> {
         // NOTE: RAM slice check for `rd_buffer` is not necessary, as a mutable
-        // slice can only be built from data located in RAM
+        // slice can only be built from data located in RAM.
         slice_in_ram_or(wr_buffer, Error::DMABufferNotInDataMemory)?;
 
         if wr_buffer.len() > EASY_DMA_SIZE {
@@ -269,14 +269,14 @@ where
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started
+        // before any DMA action has started.
         compiler_fence(SeqCst);
 
         self.0
             .address
             .write(|w| unsafe { w.address().bits(address) });
 
-        // Set up the DMA write
+        // Set up the DMA write.
         self.0.txd.ptr.write(|w|
             // We're giving the register a pointer to the stack. Since we're
             // waiting for the I2C transaction to end before this stack pointer
@@ -294,7 +294,7 @@ where
             // values.
             unsafe { w.maxcnt().bits(wr_buffer.len() as _) });
 
-        // Set up the DMA read
+        // Set up the DMA read.
         self.0.rxd.ptr.write(|w|
             // We're giving the register a pointer to the stack. Since we're
             // waiting for the I2C transaction to end before this stack pointer
@@ -315,20 +315,20 @@ where
             // full range of values that fit in a `u8`.
             unsafe { w.maxcnt().bits(rd_buffer.len() as _) });
 
-        // Clear address NACK
+        // Clear address NACK.
         self.0.errorsrc.write(|w| w.anack().bit(true));
 
-        // Start write operation
+        // Start write operation.
         // `1` is a valid value to write to task registers.
         self.0.tasks_starttx.write(|w| unsafe { w.bits(1) });
 
-        // Wait until write operation is about to end
+        // Wait until write operation is about to end.
         while self.0.events_lasttx.read().bits() == 0
             && self.0.errorsrc.read().anack().is_not_received()
         {}
         self.0.events_lasttx.write(|w| w); // reset event
 
-        // Stop operation if address is NACK
+        // Stop operation if address is NACK.
         if self.0.errorsrc.read().anack().is_received() {
             // `1` is a valid value to write to task registers.
             self.0.tasks_stop.write(|w| unsafe { w.bits(1) });
@@ -338,19 +338,19 @@ where
             return Err(Error::AddressNack);
         }
 
-        // Start read operation
+        // Start read operation.
         // `1` is a valid value to write to task registers.
         self.0.tasks_startrx.write(|w| unsafe { w.bits(1) });
 
-        // Wait until read operation is about to end
+        // Wait until read operation is about to end.
         while self.0.events_lastrx.read().bits() == 0 {}
         self.0.events_lastrx.write(|w| w); // reset event
 
-        // Stop read operation
+        // Stop read operation.
         // `1` is a valid value to write to task registers.
         self.0.tasks_stop.write(|w| unsafe { w.bits(1) });
 
-        // Wait until total operation has ended
+        // Wait until total operation has ended.
         while self.0.events_stopped.read().bits() == 0 {}
 
         self.0.events_lasttx.write(|w| w); // reset event
@@ -359,7 +359,7 @@ where
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed
+        // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
 
         let bad_write = self.0.txd.amount.read().bits() != wr_buffer.len() as u32;
@@ -377,7 +377,7 @@ where
     }
 
     /// Copy data into RAM and write to an I2C slave, then read data from the slave without
-    /// triggering a stop condition between the two
+    /// triggering a stop condition between the two.
     ///
     /// The read buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
@@ -393,14 +393,14 @@ where
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started
+        // before any DMA action has started.
         compiler_fence(SeqCst);
 
         self.0
             .address
             .write(|w| unsafe { w.address().bits(address) });
 
-        // Set up the DMA read
+        // Set up the DMA read.
         self.0.rxd.ptr.write(|w|
             // We're giving the register a pointer to the stack. Since we're
             // waiting for the I2C transaction to end before this stack pointer
@@ -421,13 +421,13 @@ where
             // full range of values that fit in a `u8`.
             unsafe { w.maxcnt().bits(rx_buffer.len() as _) });
 
-        // Chunk write data
+        // Chunk write data.
         let wr_buffer = &mut [0; FORCE_COPY_BUFFER_SIZE][..];
         for chunk in tx_buffer.chunks(FORCE_COPY_BUFFER_SIZE) {
-            // Copy chunk into RAM
+            // Copy chunk into RAM.
             wr_buffer[..chunk.len()].copy_from_slice(chunk);
 
-            // Set up the DMA write
+            // Set up the DMA write.
             self.0.txd.ptr.write(|w|
                 // We're giving the register a pointer to the stack. Since we're
                 // waiting for the I2C transaction to end before this stack pointer
@@ -446,45 +446,45 @@ where
                 // values.
                 unsafe { w.maxcnt().bits(wr_buffer.len() as _) });
 
-            // Start write operation
+            // Start write operation.
             self.0.tasks_starttx.write(|w|
                 // `1` is a valid value to write to task registers.
                 unsafe { w.bits(1) });
 
-            // Wait until write operation is about to end
+            // Wait until write operation is about to end.
             while self.0.events_lasttx.read().bits() == 0 {}
             self.0.events_lasttx.write(|w| w); // reset event
 
-            // Check for bad writes
+            // Check for bad writes.
             if self.0.txd.amount.read().bits() != wr_buffer.len() as u32 {
                 return Err(Error::Transmit);
             }
         }
 
-        // Start read operation
+        // Start read operation.
         self.0.tasks_startrx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
-        // Wait until read operation is about to end
+        // Wait until read operation is about to end.
         while self.0.events_lastrx.read().bits() == 0 {}
         self.0.events_lastrx.write(|w| w); // reset event
 
-        // Stop read operation
+        // Stop read operation.
         self.0.tasks_stop.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
-        // Wait until total operation has ended
+        // Wait until total operation has ended.
         while self.0.events_stopped.read().bits() == 0 {}
         self.0.events_stopped.write(|w| w); // reset event
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed
+        // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
 
-        // Check for bad reads
+        // Check for bad reads.
         if self.0.rxd.amount.read().bits() != rx_buffer.len() as u32 {
             return Err(Error::Receive);
         }
@@ -492,13 +492,11 @@ where
         Ok(())
     }
 
-    /// Return the raw interface to the underlying TWIM peripheral
+    /// Return the raw interface to the underlying TWIM peripheral.
     pub fn free(self) -> T {
         self.0
     }
 }
-
-/// Implementation of embedded_hal::blocking::i2c Traits
 
 impl<T> embedded_hal::blocking::i2c::Write for Twim<T>
 where
@@ -551,14 +549,14 @@ where
     }
 }
 
-/// The pins used by the TWIM peripheral
+/// The pins used by the TWIM peripheral.
 ///
 /// Currently, only P0 pins are supported.
 pub struct Pins {
-    // Serial Clock Line
+    // Serial Clock Line.
     pub scl: Pin<Input<Floating>>,
 
-    // Serial Data Line
+    // Serial Data Line.
     pub sda: Pin<Input<Floating>>,
 }
 

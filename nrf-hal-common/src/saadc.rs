@@ -1,4 +1,4 @@
-//! HAL interface to the SAADC peripheral
+//! HAL interface to the SAADC peripheral.
 
 #[cfg(feature = "9160")]
 use crate::pac::{saadc_ns as saadc, SAADC_NS as SAADC};
@@ -20,7 +20,7 @@ pub use saadc::{
 };
 
 // Only 1 channel is allowed right now, a discussion needs to be had as to how
-// multiple channels should work (See "scan mode" in the datasheet)
+// multiple channels should work (See "scan mode" in the datasheet).
 // Issue: https://github.com/nrf-rs/nrf-hal/issues/82
 
 pub struct Saadc(SAADC);
@@ -28,7 +28,7 @@ pub struct Saadc(SAADC);
 impl Saadc {
     pub fn new(saadc: SAADC, config: SaadcConfig) -> Self {
         // The write enums do not implement clone/copy/debug, only the
-        // read ones, hence the need to pull out and move the values
+        // read ones, hence the need to pull out and move the values.
         let SaadcConfig {
             resolution,
             oversample,
@@ -119,7 +119,7 @@ where
             .write(|w| unsafe { w.maxcnt().bits(1) });
 
         // Conservative compiler fence to prevent starting the ADC before the
-        // pointer and maxcount have been set
+        // pointer and maxcount have been set.
         compiler_fence(SeqCst);
 
         self.0.tasks_start.write(|w| unsafe { w.bits(1) });
@@ -128,12 +128,12 @@ where
         while self.0.events_end.read().bits() == 0 {}
         self.0.events_end.reset();
 
-        // Will only occur if more than one channel has been enabled
+        // Will only occur if more than one channel has been enabled.
         if self.0.result.amount.read().bits() != 1 {
             return Err(nb::Error::Other(()));
         }
 
-        // Second fence to prevent optimizations creating issues with the EasyDMA-modified `val`
+        // Second fence to prevent optimizations creating issues with the EasyDMA-modified `val`.
         compiler_fence(SeqCst);
 
         Ok(val)

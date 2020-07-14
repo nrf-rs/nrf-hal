@@ -102,7 +102,7 @@ pub(crate) fn slice_in_ram(slice: &[u8]) -> bool {
     ptr >= target_constants::SRAM_LOWER && (ptr + slice.len()) < target_constants::SRAM_UPPER
 }
 
-/// Return an error if slice is not in RAM
+/// Return an error if slice is not in RAM.
 #[cfg(not(feature = "51"))]
 pub(crate) fn slice_in_ram_or<T>(slice: &[u8], err: T) -> Result<(), T> {
     if slice_in_ram(slice) {
