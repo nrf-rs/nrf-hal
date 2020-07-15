@@ -103,6 +103,8 @@ where
             5 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input5()),
             6 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input6()),
             7 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input7()),
+            #[cfg(not(feature = "9160"))]
+            8 => self.0.ch[0].pselp.write(|w| w.pselp().vdd()),
             // This can never happen the only analog pins have already been defined
             // PAY CLOSE ATTENTION TO ANY CHANGES TO THIS IMPL OR THE `channel_mappings!` MACRO
             _ => unsafe { unreachable_unchecked() },
@@ -175,5 +177,10 @@ channel_mappings! {
     4 => crate::gpio::p0::P0_28<Input<Floating>>,
     5 => crate::gpio::p0::P0_29<Input<Floating>>,
     6 => crate::gpio::p0::P0_30<Input<Floating>>,
-    7 => crate::gpio::p0::P0_31<Input<Floating>>
+    7 => crate::gpio::p0::P0_31<Input<Floating>>,
+    8 => InternalVdd
 }
+
+#[cfg(not(feature = "9160"))]
+/// Channel that doesn't sample a pin, but the internal VDD voltage.
+pub struct InternalVdd;
