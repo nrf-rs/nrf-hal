@@ -63,6 +63,10 @@ pub mod uicr;
 #[cfg(not(feature = "9160"))]
 pub mod wdt;
 
+
+#[cfg(feature = "bbq-uarte")]
+pub mod bbq_uarte;
+
 pub mod prelude {
     pub use crate::hal::digital::v2::*;
     pub use crate::hal::prelude::*;
