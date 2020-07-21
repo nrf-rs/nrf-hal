@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.11.1]
+
+### New Features
+
+- Add support for the Watchdog Timer peripheral ([#175])
+- Renamed RTFM examples to RTIC examples ([#183])
+- Updated comment style ([#180])
+- Support VDD source for the ADC ([#181])
+
+[#175]: https://github.com/nrf-rs/nrf-hal/pull/175
+[#180]: https://github.com/nrf-rs/nrf-hal/pull/180
+[#181]: https://github.com/nrf-rs/nrf-hal/pull/181
+[#183]: https://github.com/nrf-rs/nrf-hal/pull/183
+
+### Fixes
+
+None
+
+### Breaking Changes
+
+None
+
 ## [0.11.0]
 
 ### New Features
