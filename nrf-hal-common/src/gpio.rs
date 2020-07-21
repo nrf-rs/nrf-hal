@@ -23,12 +23,14 @@ pub struct PushPull;
 pub struct OpenDrain;
 
 /// Represents a digital input or output level.
+#[derive(Debug, Eq, PartialEq)]
 pub enum Level {
     Low,
     High,
 }
 
 /// A GPIO port with up to 32 pins.
+#[derive(Debug, Eq, PartialEq)]
 pub enum Port {
     /// Port 0, available on all nRF52 and nRF51 MCUs.
     Port0,
