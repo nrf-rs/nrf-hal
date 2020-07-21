@@ -1,0 +1,37 @@
+[package]
+name = "bbq-uarte-demo"
+version = "0.0.1"
+edition = "2018"
+authors = [ "James Munns <james.munns@ferrous-systems.com>"]
+
+[dependencies]
+cortex-m = "0.6.2"
+cortex-m-rtic = "0.5.3"
+cortex-m-rt = "0.6.12"
+bbqueue = "0.4.6"
+embedded-hal = "0.2.3"
+rtt-target = {version = "0.2.0", features = ["cortex-m"] }
+
+nrf52810-hal = { version = "0.11", features = ["rt"], optional = true }
+nrf52832-hal = { version = "0.11", features = ["rt"], optional = true }
+nrf52840-hal = { version = "0.11", features = ["rt"], optional = true }
+
+nrf-hal-common = { version = "0.11", features = ["bbq-uarte"] }
+panic-reset = "0.1.0"
+
+[dependencies.panic-persist]
+version = "0.2.1"
+default-features = false
+
+# Disable documentation to avoid spurious rustdoc warnings
+[[bin]]
+name = "bbq-uarte-demo"
+doc = false
+test = false
+
+[features]
+52810 = ["nrf52810-hal"]
+52832 = ["nrf52832-hal"]
+52840 = ["nrf52840-hal"]
+default = ["52832"]
+

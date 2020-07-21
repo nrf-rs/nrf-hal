@@ -13,6 +13,7 @@ members = [
   "examples/ppi-demo",
   "examples/gpiote-demo",
   "examples/wdt-demo",
+  "examples/bbq-uarte-demo",
 ]
 
 [profile.dev]
@@ -25,3 +26,6 @@ lto = false
 debug = true
 lto = true
 opt-level = "s"
+
+[patch.crates-io]
+nrf-hal-common = { path = "./nrf-hal-common" }
