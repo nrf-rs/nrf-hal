@@ -5,7 +5,7 @@ members = [
   "nrf52833-hal",
   "nrf52840-hal",
   "nrf9160-hal",
-  "examples/rtfm-demo",
+  "examples/rtic-demo",
   "examples/spi-demo",
   "examples/twi-ssd1306",
   "examples/ecb-demo",

@@ -5,7 +5,7 @@
 use panic_semihosting;
 
 use cortex_m_semihosting::{debug, hprintln};
-use rtfm::app;
+use rtic::app;
 
 #[cfg(feature = "51")]
 use nrf51_hal as hal;
@@ -22,16 +22,18 @@ use nrf52840_hal as hal;
 #[app(device = crate::hal::pac)]
 const APP: () = {
     #[init]
-    fn init() {
+    fn init(_: init::Context) {
         hprintln!("init").unwrap();
     }
 
     #[idle]
-    fn idle() -> ! {
+    fn idle(_: idle::Context) -> ! {
         hprintln!("idle").unwrap();
 
         debug::exit(debug::EXIT_SUCCESS);
 
-        loop {}
+        loop {
+            continue;
+        }
     }
 };
