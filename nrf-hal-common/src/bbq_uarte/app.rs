@@ -1,6 +1,6 @@
-use bbqueue::{ArrayLength, Consumer, Producer, Error, GrantR, GrantW};
+use crate::pac::{Interrupt, NVIC};
+use bbqueue::{ArrayLength, Consumer, Error, GrantR, GrantW, Producer};
 use core::ops::{Deref, DerefMut};
-use crate::pac::{NVIC, Interrupt};
 
 pub struct UarteApp<OutgoingLen, IncomingLen>
 where
@@ -17,14 +17,20 @@ where
     IncomingLen: ArrayLength<u8>,
 {
     pub fn read(&mut self) -> Result<UarteGrantR<'static, IncomingLen>, Error> {
-        self.incoming_cons.read().map(|gr| UarteGrantR { grant_r: gr })
+        self.incoming_cons
+            .read()
+            .map(|gr| UarteGrantR { grant_r: gr })
     }
 
-    pub fn write_grant(&mut self, bytes: usize) -> Result<UarteGrantW<'static, OutgoingLen>, Error> {
-        self.outgoing_prod.grant_exact(bytes).map(|gr| UarteGrantW { grant_w: gr })
+    pub fn write_grant(
+        &mut self,
+        bytes: usize,
+    ) -> Result<UarteGrantW<'static, OutgoingLen>, Error> {
+        self.outgoing_prod
+            .grant_exact(bytes)
+            .map(|gr| UarteGrantW { grant_w: gr })
     }
 }
-
 
 /// A write grant for a single Uarte
 ///

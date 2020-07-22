@@ -1,11 +1,12 @@
 use crate::{
     pac::{Interrupt, NVIC},
-    ppi::{Ppi, ConfigurablePpi},
-    timer::Instance as TimerInstance,
-    uarte:: {
-        Baudrate, Parity, Pins, uarte_start_read, uarte_setup, uarte_start_write, uarte_cancel_read, Instance as UarteInstance,
-    },
+    ppi::{ConfigurablePpi, Ppi},
     target_constants::EASY_DMA_SIZE,
+    timer::Instance as TimerInstance,
+    uarte::{
+        uarte_cancel_read, uarte_setup, uarte_start_read, uarte_start_write, Baudrate,
+        Instance as UarteInstance, Parity, Pins,
+    },
 };
 use bbqueue::{ArrayLength, Consumer, GrantR, GrantW, Producer};
 use core::sync::atomic::{compiler_fence, AtomicBool, Ordering::SeqCst};
@@ -46,7 +47,7 @@ where
     OutgoingLen: ArrayLength<u8>,
     IncomingLen: ArrayLength<u8>,
     Channel: Ppi + ConfigurablePpi,
-    Uarte: UarteInstance
+    Uarte: UarteInstance,
 {
     pub(crate) outgoing_cons: Consumer<'static, OutgoingLen>,
     pub(crate) incoming_prod: Producer<'static, IncomingLen>,
@@ -63,11 +64,10 @@ where
     OutgoingLen: ArrayLength<u8>,
     IncomingLen: ArrayLength<u8>,
     Channel: Ppi + ConfigurablePpi,
-    Uarte: UarteInstance
+    Uarte: UarteInstance,
 {
     pub fn init(&mut self, pins: Pins, parity: Parity, baudrate: Baudrate) {
         uarte_setup(&self.uarte, pins, parity, baudrate);
-
 
         // Clear all interrupts
         self.uarte.intenclr.write(|w| unsafe { w.bits(0xFFFFFFFF) });
@@ -153,7 +153,6 @@ where
                 self.tx_grant = Some(gr);
             }
         }
-
 
         // Clear events we processed
         if endrx {

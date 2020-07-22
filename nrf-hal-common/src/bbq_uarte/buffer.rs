@@ -1,13 +1,13 @@
 use bbqueue::{ArrayLength, BBBuffer};
 
-use crate::timer::Instance as TimerInstance;
-use crate::uarte::{Baudrate, Parity, Pins, Instance as UarteInstance};
-use crate::ppi::{Ppi, ConfigurablePpi};
 use crate::bbq_uarte::{
-    Error,
     app::UarteApp,
     irq::{UarteIrq, UarteTimer},
+    Error,
 };
+use crate::ppi::{ConfigurablePpi, Ppi};
+use crate::timer::Instance as TimerInstance;
+use crate::uarte::{Baudrate, Instance as UarteInstance, Parity, Pins};
 use core::sync::atomic::AtomicBool;
 
 use crate::pac::{Interrupt, TIMER0, TIMER1, TIMER2};

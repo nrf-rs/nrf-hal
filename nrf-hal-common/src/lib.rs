@@ -63,7 +63,6 @@ pub mod uicr;
 #[cfg(not(feature = "9160"))]
 pub mod wdt;
 
-
 #[cfg(feature = "bbq-uarte")]
 pub mod bbq_uarte;
 

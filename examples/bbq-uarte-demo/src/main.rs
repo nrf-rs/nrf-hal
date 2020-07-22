@@ -10,9 +10,7 @@ use nrf52832_hal as hal;
 use nrf52840_hal as hal;
 
 use {
-    bbqueue::{
-        consts::*, BBBuffer, ConstBBBuffer,
-    },
+    bbqueue::{consts::*, BBBuffer, ConstBBBuffer},
     core::sync::atomic::AtomicBool,
     hal::{
         gpio::Level,
@@ -24,7 +22,6 @@ use {
 };
 
 use hal::pac::UARTE0;
-
 
 // Panic provider crate
 use panic_reset as _;

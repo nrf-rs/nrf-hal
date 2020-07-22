@@ -207,7 +207,6 @@ where
     }
 }
 
-
 /// Start a UARTE read transaction by setting the control
 /// values and triggering a read task
 pub(crate) fn uarte_start_read<T: Instance>(uarte: &T, rx_buffer: &mut [u8]) -> Result<(), Error> {
@@ -250,7 +249,6 @@ pub(crate) fn uarte_start_read<T: Instance>(uarte: &T, rx_buffer: &mut [u8]) -> 
 
     Ok(())
 }
-
 
 pub(crate) fn uarte_start_write<T: Instance>(uarte: &T, tx_buffer: &[u8]) -> Result<(), Error> {
     if tx_buffer.len() > EASY_DMA_SIZE {
@@ -295,7 +293,12 @@ pub(crate) fn uarte_start_write<T: Instance>(uarte: &T, tx_buffer: &[u8]) -> Res
     Ok(())
 }
 
-pub(crate) fn uarte_setup<T: Instance>(uarte: &T, mut pins: Pins, parity: Parity, baudrate: Baudrate) {
+pub(crate) fn uarte_setup<T: Instance>(
+    uarte: &T,
+    mut pins: Pins,
+    parity: Parity,
+    baudrate: Baudrate,
+) {
     // Select pins
     uarte.psel.rxd.write(|w| {
         let w = unsafe { w.pin().bits(pins.rxd.pin()) };
