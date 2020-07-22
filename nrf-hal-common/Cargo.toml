@@ -61,6 +61,10 @@ version = "0.2.1"
 features = ["unproven"]
 version = "0.2.4"
 
+[dependencies.bbqueue]
+optional = true
+version = "0.4.6"
+
 [features]
 doc = []
 51 = ["nrf51"]
@@ -69,3 +73,6 @@ doc = []
 52833 = ["nrf52833-pac"]
 52840 = ["nrf52840-pac"]
 9160 = ["nrf9160-pac"]
+
+# Batteries Included options
+bbq-uarte = ["bbqueue"]
