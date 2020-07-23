@@ -19,6 +19,8 @@ use crate::pac::{uarte0_ns as uarte0, UARTE0_NS as UARTE0, UARTE1_NS as UARTE1};
 #[cfg(not(feature = "9160"))]
 use crate::pac::{uarte0, UARTE0};
 
+use crate::pac::Interrupt;
+
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::prelude::*;
 use crate::slice_in_ram_or;
@@ -36,64 +38,18 @@ pub use uarte0::{baudrate::BAUDRATE_A as Baudrate, config::PARITY_A as Parity};
 ///   are disabled before using `Uarte`. See product specification:
 ///     - nrf52832: Section 15.2
 ///     - nrf52840: Section 6.1.2
-pub struct Uarte<T>(T);
+pub struct Uarte<T: Instance> {
+    inner: LowLevelUarte<T>,
+}
 
 impl<T> Uarte<T>
 where
     T: Instance,
 {
-    pub fn new(uarte: T, mut pins: Pins, parity: Parity, baudrate: Baudrate) -> Self {
-        // Select pins
-        uarte.psel.rxd.write(|w| {
-            let w = unsafe { w.pin().bits(pins.rxd.pin()) };
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            let w = w.port().bit(pins.rxd.port().bit());
-            w.connect().connected()
-        });
-        pins.txd.set_high().unwrap();
-        uarte.psel.txd.write(|w| {
-            let w = unsafe { w.pin().bits(pins.txd.pin()) };
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            let w = w.port().bit(pins.txd.port().bit());
-            w.connect().connected()
-        });
-
-        // Optional pins
-        uarte.psel.cts.write(|w| {
-            if let Some(ref pin) = pins.cts {
-                let w = unsafe { w.pin().bits(pin.pin()) };
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                let w = w.port().bit(pin.port().bit());
-                w.connect().connected()
-            } else {
-                w.connect().disconnected()
-            }
-        });
-
-        uarte.psel.rts.write(|w| {
-            if let Some(ref pin) = pins.rts {
-                let w = unsafe { w.pin().bits(pin.pin()) };
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                let w = w.port().bit(pin.port().bit());
-                w.connect().connected()
-            } else {
-                w.connect().disconnected()
-            }
-        });
-
-        // Enable UARTE instance.
-        uarte.enable.write(|w| w.enable().enabled());
-
-        // Configure.
-        let hardware_flow_control = pins.rts.is_some() && pins.cts.is_some();
-        uarte
-            .config
-            .write(|w| w.hwfc().bit(hardware_flow_control).parity().variant(parity));
-
-        // Configure frequency.
-        uarte.baudrate.write(|w| w.baudrate().variant(baudrate));
-
-        Uarte(uarte)
+    pub fn new(uarte: T, pins: Pins, parity: Parity, baudrate: Baudrate) -> Self {
+        let ll_uarte = LowLevelUarte { uarte };
+        ll_uarte.setup(pins, parity, baudrate);
+        Uarte { inner: ll_uarte }
     }
 
     /// Write via UARTE.
@@ -103,51 +59,14 @@ where
     /// The buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
     pub fn write(&mut self, tx_buffer: &[u8]) -> Result<(), Error> {
-        if tx_buffer.len() > EASY_DMA_SIZE {
-            return Err(Error::TxBufferTooLong);
-        }
-
-        // We can only DMA out of RAM.
-        slice_in_ram_or(tx_buffer, Error::BufferNotInRAM)?;
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started.
-        compiler_fence(SeqCst);
-
-        // Reset the events.
-        self.0.events_endtx.reset();
-        self.0.events_txstopped.reset();
-
-        // Set up the DMA write.
-        self.0.txd.ptr.write(|w|
-            // We're giving the register a pointer to the stack. Since we're
-            // waiting for the UARTE transaction to end before this stack pointer
-            // becomes invalid, there's nothing wrong here.
-            //
-            // The PTR field is a full 32 bits wide and accepts the full range
-            // of values.
-            unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) });
-        self.0.txd.maxcnt.write(|w|
-            // We're giving it the length of the buffer, so no danger of
-            // accessing invalid memory. We have verified that the length of the
-            // buffer fits in an `u8`, so the cast to `u8` is also fine.
-            //
-            // The MAXCNT field is 8 bits wide and accepts the full range of
-            // values.
-            unsafe { w.maxcnt().bits(tx_buffer.len() as _) });
-
-        // Start UARTE Transmit transaction.
-        self.0.tasks_starttx.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) });
+        self.inner.start_write(tx_buffer)?;
 
         // Wait for transmission to end.
         let mut endtx;
         let mut txstopped;
         loop {
-            endtx = self.0.events_endtx.read().bits() != 0;
-            txstopped = self.0.events_txstopped.read().bits() != 0;
+            endtx = self.inner.uarte.events_endtx.read().bits() != 0;
+            txstopped = self.inner.uarte.events_txstopped.read().bits() != 0;
             if endtx || txstopped {
                 break;
             }
@@ -164,7 +83,7 @@ where
 
         // Lower power consumption by disabling the transmitter once we're
         // finished.
-        self.0.tasks_stoptx.write(|w|
+        self.inner.uarte.tasks_stoptx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
@@ -178,14 +97,14 @@ where
     ///
     /// The buffer must have a length of at most 255 bytes.
     pub fn read(&mut self, rx_buffer: &mut [u8]) -> Result<(), Error> {
-        self.start_read(rx_buffer)?;
+        self.inner.start_read(rx_buffer)?;
 
         // Wait for transmission to end.
-        while self.0.events_endrx.read().bits() == 0 {}
+        while self.inner.uarte.events_endrx.read().bits() == 0 {}
 
         self.finalize_read();
 
-        if self.0.rxd.amount.read().bits() != rx_buffer.len() as u32 {
+        if self.inner.uarte.rxd.amount.read().bits() != rx_buffer.len() as u32 {
             return Err(Error::Receive);
         }
 
@@ -216,7 +135,7 @@ where
         I: timer::Instance,
     {
         // Start the read.
-        self.start_read(rx_buffer)?;
+        self.inner.start_read(rx_buffer)?;
 
         // Start the timeout timer.
         timer.start(cycles);
@@ -226,7 +145,7 @@ where
         let mut timeout_occured = false;
 
         loop {
-            event_complete |= self.0.events_endrx.read().bits() != 0;
+            event_complete |= self.inner.uarte.events_endrx.read().bits() != 0;
             timeout_occured |= timer.wait().is_ok();
             if event_complete || timeout_occured {
                 break;
@@ -235,13 +154,13 @@ where
 
         if !event_complete {
             // Cancel the reception if it did not complete until now.
-            self.cancel_read();
+            self.inner.cancel_read();
         }
 
         // Cleanup, even in the error case.
         self.finalize_read();
 
-        let bytes_read = self.0.rxd.amount.read().bits() as usize;
+        let bytes_read = self.inner.uarte.rxd.amount.read().bits() as usize;
 
         if timeout_occured && !event_complete {
             return Err(Error::Timeout(bytes_read));
@@ -254,53 +173,10 @@ where
         Ok(())
     }
 
-    /// Start a UARTE read transaction by setting the control
-    /// values and triggering a read task.
-    fn start_read(&mut self, rx_buffer: &mut [u8]) -> Result<(), Error> {
-        // This is overly restrictive. See (similar SPIM issue):
-        // https://github.com/nrf-rs/nrf52/issues/17
-        if rx_buffer.len() > u8::max_value() as usize {
-            return Err(Error::TxBufferTooLong);
-        }
-
-        // NOTE: RAM slice check is not necessary, as a mutable slice can only be
-        // built from data located in RAM.
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started.
-        compiler_fence(SeqCst);
-
-        // Set up the DMA read
-        self.0.rxd.ptr.write(|w|
-            // We're giving the register a pointer to the stack. Since we're
-            // waiting for the UARTE transaction to end before this stack pointer
-            // becomes invalid, there's nothing wrong here.
-            //
-            // The PTR field is a full 32 bits wide and accepts the full range
-            // of values.
-            unsafe { w.ptr().bits(rx_buffer.as_ptr() as u32) });
-        self.0.rxd.maxcnt.write(|w|
-            // We're giving it the length of the buffer, so no danger of
-            // accessing invalid memory. We have verified that the length of the
-            // buffer fits in an `u8`, so the cast to `u8` is also fine.
-            //
-            // The MAXCNT field is at least 8 bits wide and accepts the full
-            // range of values.
-            unsafe { w.maxcnt().bits(rx_buffer.len() as _) });
-
-        // Start UARTE Receive transaction.
-        self.0.tasks_startrx.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) });
-
-        Ok(())
-    }
-
     /// Finalize a UARTE read transaction by clearing the event.
     fn finalize_read(&mut self) {
         // Reset the event, otherwise it will always read `1` from now on.
-        self.0.events_endrx.write(|w| w);
+        self.inner.uarte.events_endrx.write(|w| w);
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
@@ -308,29 +184,9 @@ where
         compiler_fence(SeqCst);
     }
 
-    /// Stop an unfinished UART read transaction and flush FIFO to DMA buffer.
-    fn cancel_read(&mut self) {
-        // Stop reception.
-        self.0.tasks_stoprx.write(|w| unsafe { w.bits(1) });
-
-        // Wait for the reception to have stopped.
-        while self.0.events_rxto.read().bits() == 0 {}
-
-        // Reset the event flag.
-        self.0.events_rxto.write(|w| w);
-
-        // Ask UART to flush FIFO to DMA buffer.
-        self.0.tasks_flushrx.write(|w| unsafe { w.bits(1) });
-
-        // Wait for the flush to complete.
-        while self.0.events_endrx.read().bits() == 0 {}
-
-        // The event flag itself is later reset by `finalize_read`.
-    }
-
     /// Return the raw interface to the underlying UARTE peripheral.
     pub fn free(self) -> T {
-        self.0
+        self.inner.uarte
     }
 }
 
@@ -368,9 +224,193 @@ pub enum Error {
     BufferNotInRAM,
 }
 
-pub trait Instance: Deref<Target = uarte0::RegisterBlock> {}
+/// This is a low level wrapper around the PAC uarte.
+///
+/// It is provided to allow for low level helper functions that are
+/// use by the HAL, or could be used to implement alternative HAL functionality.
+///
+/// In general, you should prefer to use `Uarte` when interfacing with the HAL,
+/// as it takes care of safety guarantees not handled by these low level interfaces.
+pub struct LowLevelUarte<T: Instance> {
+    pub uarte: T,
+}
 
-impl Instance for UARTE0 {}
+impl<T> LowLevelUarte<T>
+where
+    T: Instance,
+{
+    /// Start a UARTE read transaction by setting the control
+    /// values and triggering a read task
+    pub(crate) fn start_read(&self, rx_buffer: &mut [u8]) -> Result<(), Error> {
+        // This is overly restrictive. See (similar SPIM issue):
+        // https://github.com/nrf-rs/nrf52/issues/17
+        if rx_buffer.len() > u8::max_value() as usize {
+            return Err(Error::RxBufferTooLong);
+        }
+
+        // NOTE: RAM slice check is not necessary, as a mutable slice can only be
+        // built from data located in RAM
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // before any DMA action has started
+        compiler_fence(SeqCst);
+
+        // Set up the DMA read
+        self.uarte.rxd.ptr.write(|w|
+            // We're giving the register a pointer to the stack. Since we're
+            // waiting for the UARTE transaction to end before this stack pointer
+            // becomes invalid, there's nothing wrong here.
+            //
+            // The PTR field is a full 32 bits wide and accepts the full range
+            // of values.
+            unsafe { w.ptr().bits(rx_buffer.as_ptr() as u32) });
+        self.uarte.rxd.maxcnt.write(|w|
+            // We're giving it the length of the buffer, so no danger of
+            // accessing invalid memory. We have verified that the length of the
+            // buffer fits in an `u8`, so the cast to `u8` is also fine.
+            //
+            // The MAXCNT field is at least 8 bits wide and accepts the full
+            // range of values.
+            unsafe { w.maxcnt().bits(rx_buffer.len() as _) });
+
+        // Start UARTE Receive transaction
+        self.uarte.tasks_startrx.write(|w|
+            // `1` is a valid value to write to task registers.
+            unsafe { w.bits(1) });
+
+        Ok(())
+    }
+
+    pub(crate) fn start_write(&self, tx_buffer: &[u8]) -> Result<(), Error> {
+        if tx_buffer.len() > EASY_DMA_SIZE {
+            return Err(Error::TxBufferTooLong);
+        }
+
+        // We can only DMA out of RAM.
+        slice_in_ram_or(tx_buffer, Error::BufferNotInRAM)?;
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // before any DMA action has started
+        compiler_fence(SeqCst);
+
+        // Reset the events.
+        self.uarte.events_endtx.reset();
+        self.uarte.events_txstopped.reset();
+
+        // Set up the DMA write
+        self.uarte.txd.ptr.write(|w|
+            // We're giving the register a pointer to the stack. Since we're
+            // waiting for the UARTE transaction to end before this stack pointer
+            // becomes invalid, there's nothing wrong here.
+            //
+            // The PTR field is a full 32 bits wide and accepts the full range
+            // of values.
+            unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) });
+        self.uarte.txd.maxcnt.write(|w|
+            // We're giving it the length of the buffer, so no danger of
+            // accessing invalid memory. We have verified that the length of the
+            // buffer fits in an `u8`, so the cast to `u8` is also fine.
+            //
+            // The MAXCNT field is 8 bits wide and accepts the full range of
+            // values.
+            unsafe { w.maxcnt().bits(tx_buffer.len() as _) });
+
+        // Start UARTE Transmit transaction
+        self.uarte.tasks_starttx.write(|w|
+            // `1` is a valid value to write to task registers.
+            unsafe { w.bits(1) });
+
+        Ok(())
+    }
+
+    pub(crate) fn setup(&self, mut pins: Pins, parity: Parity, baudrate: Baudrate) {
+        // Select pins
+        self.uarte.psel.rxd.write(|w| {
+            let w = unsafe { w.pin().bits(pins.rxd.pin()) };
+            #[cfg(feature = "52840")]
+            let w = w.port().bit(pins.rxd.port().bit());
+            w.connect().connected()
+        });
+        pins.txd.set_high().unwrap();
+        self.uarte.psel.txd.write(|w| {
+            let w = unsafe { w.pin().bits(pins.txd.pin()) };
+            #[cfg(feature = "52840")]
+            let w = w.port().bit(pins.txd.port().bit());
+            w.connect().connected()
+        });
+
+        // Optional pins
+        self.uarte.psel.cts.write(|w| {
+            if let Some(ref pin) = pins.cts {
+                let w = unsafe { w.pin().bits(pin.pin()) };
+                #[cfg(feature = "52840")]
+                let w = w.port().bit(pin.port().bit());
+                w.connect().connected()
+            } else {
+                w.connect().disconnected()
+            }
+        });
+
+        self.uarte.psel.rts.write(|w| {
+            if let Some(ref pin) = pins.rts {
+                let w = unsafe { w.pin().bits(pin.pin()) };
+                #[cfg(feature = "52840")]
+                let w = w.port().bit(pin.port().bit());
+                w.connect().connected()
+            } else {
+                w.connect().disconnected()
+            }
+        });
+
+        // Enable UARTE instance
+        self.uarte.enable.write(|w| w.enable().enabled());
+
+        // Configure
+        let hardware_flow_control = pins.rts.is_some() && pins.cts.is_some();
+        self.uarte
+            .config
+            .write(|w| w.hwfc().bit(hardware_flow_control).parity().variant(parity));
+
+        // Configure frequency
+        self.uarte
+            .baudrate
+            .write(|w| w.baudrate().variant(baudrate));
+    }
+
+    /// Stop an unfinished UART read transaction and flush FIFO to DMA buffer
+    pub(crate) fn cancel_read(&self) {
+        self.uarte.events_rxto.write(|w| w);
+
+        // Stop reception
+        self.uarte.tasks_stoprx.write(|w| unsafe { w.bits(1) });
+
+        // Wait for the reception to have stopped
+        while self.uarte.events_rxto.read().bits() == 0 {}
+
+        // Reset the event flag
+        self.uarte.events_rxto.write(|w| w);
+
+        // Ask UART to flush FIFO to DMA buffer
+        self.uarte.tasks_flushrx.write(|w| unsafe { w.bits(1) });
+
+        // Wait for the flush to complete.
+        while self.uarte.events_endrx.read().bits() == 0 {}
+
+        // The event flag itself is later reset by `finalize_read`.
+    }
+}
+
+pub trait Instance: Deref<Target = uarte0::RegisterBlock> {
+    const INTERRUPT: Interrupt;
+}
+
+impl Instance for UARTE0 {
+    const INTERRUPT: Interrupt = Interrupt::UARTE0_UART0;
+}
 
 #[cfg(any(feature = "52833", feature = "52840", feature = "9160"))]
-impl Instance for UARTE1 {}
+impl Instance for UARTE1 {
+    const INTERRUPT: Interrupt = Interrupt::UARTE1;
+}
