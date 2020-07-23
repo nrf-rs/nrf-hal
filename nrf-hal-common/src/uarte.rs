@@ -59,7 +59,9 @@ where
     /// The buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
     pub fn write(&mut self, tx_buffer: &[u8]) -> Result<(), Error> {
-        self.inner.start_write(tx_buffer)?;
+        unsafe {
+            self.inner.start_write(tx_buffer)?;
+        }
 
         // Wait for transmission to end.
         let mut endtx;
@@ -72,20 +74,11 @@ where
             }
         }
 
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed.
-        compiler_fence(SeqCst);
-
         if txstopped {
             return Err(Error::Transmit);
         }
 
-        // Lower power consumption by disabling the transmitter once we're
-        // finished.
-        self.inner.uarte.tasks_stoptx.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) });
+        self.inner.stop_write();
 
         Ok(())
     }
@@ -97,12 +90,14 @@ where
     ///
     /// The buffer must have a length of at most 255 bytes.
     pub fn read(&mut self, rx_buffer: &mut [u8]) -> Result<(), Error> {
-        self.inner.start_read(rx_buffer)?;
+        unsafe {
+            self.inner.start_read(rx_buffer)?;
+        }
 
         // Wait for transmission to end.
         while self.inner.uarte.events_endrx.read().bits() == 0 {}
 
-        self.finalize_read();
+        self.inner.finalize_read();
 
         if self.inner.uarte.rxd.amount.read().bits() != rx_buffer.len() as u32 {
             return Err(Error::Receive);
@@ -135,7 +130,9 @@ where
         I: timer::Instance,
     {
         // Start the read.
-        self.inner.start_read(rx_buffer)?;
+        unsafe {
+            self.inner.start_read(rx_buffer)?;
+        }
 
         // Start the timeout timer.
         timer.start(cycles);
@@ -158,7 +155,7 @@ where
         }
 
         // Cleanup, even in the error case.
-        self.finalize_read();
+        self.inner.finalize_read();
 
         let bytes_read = self.inner.uarte.rxd.amount.read().bits() as usize;
 
@@ -171,17 +168,6 @@ where
         }
 
         Ok(())
-    }
-
-    /// Finalize a UARTE read transaction by clearing the event.
-    fn finalize_read(&mut self) {
-        // Reset the event, otherwise it will always read `1` from now on.
-        self.inner.uarte.events_endrx.write(|w| w);
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed.
-        compiler_fence(SeqCst);
     }
 
     /// Return the raw interface to the underlying UARTE peripheral.
@@ -231,6 +217,8 @@ pub enum Error {
 ///
 /// In general, you should prefer to use `Uarte` when interfacing with the HAL,
 /// as it takes care of safety guarantees not handled by these low level interfaces.
+/// Failure to operate these interfaces correctly may leave the hardware in an
+/// unexpected or inconsistent state.
 pub struct LowLevelUarte<T: Instance> {
     pub uarte: T,
 }
@@ -241,7 +229,10 @@ where
 {
     /// Start a UARTE read transaction by setting the control
     /// values and triggering a read task
-    pub(crate) fn start_read(&self, rx_buffer: &mut [u8]) -> Result<(), Error> {
+    ///
+    /// SAFETY: `rx_buffer` must live until the read transaction is complete, and must
+    /// not be accessed between the call to read and the transaction is complete.
+    pub unsafe fn start_read(&self, rx_buffer: &mut [u8]) -> Result<(), Error> {
         // This is overly restrictive. See (similar SPIM issue):
         // https://github.com/nrf-rs/nrf52/issues/17
         if rx_buffer.len() > u8::max_value() as usize {
@@ -264,7 +255,7 @@ where
             //
             // The PTR field is a full 32 bits wide and accepts the full range
             // of values.
-            unsafe { w.ptr().bits(rx_buffer.as_ptr() as u32) });
+            w.ptr().bits(rx_buffer.as_ptr() as u32));
         self.uarte.rxd.maxcnt.write(|w|
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
@@ -272,17 +263,20 @@ where
             //
             // The MAXCNT field is at least 8 bits wide and accepts the full
             // range of values.
-            unsafe { w.maxcnt().bits(rx_buffer.len() as _) });
+            w.maxcnt().bits(rx_buffer.len() as _));
 
         // Start UARTE Receive transaction
         self.uarte.tasks_startrx.write(|w|
             // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) });
+            w.bits(1));
 
         Ok(())
     }
 
-    pub(crate) fn start_write(&self, tx_buffer: &[u8]) -> Result<(), Error> {
+    // Start a write transaction
+    //
+    // SAFETY: `tx_buffer` must live long enough for this transaction to complete
+    pub unsafe fn start_write(&self, tx_buffer: &[u8]) -> Result<(), Error> {
         if tx_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
@@ -307,7 +301,7 @@ where
             //
             // The PTR field is a full 32 bits wide and accepts the full range
             // of values.
-            unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) });
+            w.ptr().bits(tx_buffer.as_ptr() as u32));
         self.uarte.txd.maxcnt.write(|w|
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
@@ -315,12 +309,12 @@ where
             //
             // The MAXCNT field is 8 bits wide and accepts the full range of
             // values.
-            unsafe { w.maxcnt().bits(tx_buffer.len() as _) });
+            w.maxcnt().bits(tx_buffer.len() as _));
 
         // Start UARTE Transmit transaction
         self.uarte.tasks_starttx.write(|w|
             // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) });
+            w.bits(1));
 
         Ok(())
     }
@@ -399,6 +393,31 @@ where
         while self.uarte.events_endrx.read().bits() == 0 {}
 
         // The event flag itself is later reset by `finalize_read`.
+    }
+
+    /// Finalize a UARTE read transaction by clearing the event.
+    pub fn finalize_read(&self) {
+        // Reset the event, otherwise it will always read `1` from now on.
+        self.uarte.events_endrx.write(|w| w);
+
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // after all possible DMA actions have completed.
+        compiler_fence(SeqCst);
+    }
+
+    /// Stop a UARTE write transaction
+    pub fn stop_write(&self) {
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // after all possible DMA actions have completed.
+        compiler_fence(SeqCst);
+
+        // Lower power consumption by disabling the transmitter once we're
+        // finished.
+        self.uarte.tasks_stoptx.write(|w|
+            // `1` is a valid value to write to task registers.
+            unsafe { w.bits(1) });
     }
 }
 
