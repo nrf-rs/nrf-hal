@@ -426,10 +426,18 @@ pub trait Instance: Deref<Target = uarte0::RegisterBlock> {
 }
 
 impl Instance for UARTE0 {
+    #[cfg(not(feature = "9160"))]
     const INTERRUPT: Interrupt = Interrupt::UARTE0_UART0;
+
+    #[cfg(feature = "9160")]
+    const INTERRUPT: Interrupt = Interrupt::UARTE0_SPIM0_SPIS0_TWIM0_TWIS0;
 }
 
 #[cfg(any(feature = "52833", feature = "52840", feature = "9160"))]
 impl Instance for UARTE1 {
+    #[cfg(not(feature = "9160"))]
     const INTERRUPT: Interrupt = Interrupt::UARTE1;
+
+    #[cfg(feature = "9160")]
+    const INTERRUPT: Interrupt = Interrupt::UARTE1_SPIM1_SPIS1_TWIM1_TWIS1;
 }
