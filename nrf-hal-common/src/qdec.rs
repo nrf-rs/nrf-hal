@@ -148,7 +148,7 @@ impl Qdec {
         self.qdec.enable.write(|w| w.enable().clear_bit());
     }
 
-    /// Returns the accumulated change since last read (-).
+    /// Returns the accumulated change since last read (-1024..1023).
     #[inline(always)]
     pub fn read(&self) -> i16 {
         self.qdec.tasks_readclracc.write(|w| unsafe { w.bits(1) });
