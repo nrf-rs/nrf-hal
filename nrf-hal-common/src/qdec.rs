@@ -8,7 +8,7 @@ use {
     crate::pac::QDEC,
 };
 
-/// A safe wrapper around the GPIOTE peripheral with associated pins
+/// A safe wrapper around the `QDEC` peripheral with associated pins.
 pub struct Qdec {
     qdec: QDEC,
     pin_a: Pin<Input<PullUp>>,
@@ -17,7 +17,7 @@ pub struct Qdec {
 }
 
 impl Qdec {
-    /// Takes ownership of the `QDEC` peripheral and associated pins, returning a safe wrapper
+    /// Takes ownership of the `QDEC` peripheral and associated pins, returning a safe wrapper.
     pub fn new(
         qdec: QDEC,
         pin_a: Pin<Input<PullUp>>,
@@ -78,13 +78,16 @@ impl Qdec {
         }
     }
 
-    /// Enables input debounce filters
+    /// Enables/disables input debounce filters.
     #[inline(always)]
-    pub fn debounce(&self) {
-        self.qdec.dbfen.write(|w| w.dbfen().enabled());
+    pub fn debounce(&self, enable: bool) {
+        match enable {
+            true => self.qdec.dbfen.write(|w| w.dbfen().enabled()),
+            false => self.qdec.dbfen.write(|w| w.dbfen().disabled()),
+        }
     }
 
-    /// LED output pin polarity
+    /// LED output pin polarity.
     #[inline(always)]
     pub fn led_polarity(&self, polarity: LedPolarity) {
         self.qdec.ledpol.write(|w| match polarity {
@@ -93,7 +96,7 @@ impl Qdec {
         });
     }
 
-    /// Time period the LED is switched ON prior to sampling (0..511 us)
+    /// Time period the LED is switched ON prior to sampling (0..511 us).
     #[inline(always)]
     pub fn led_pre(&self, usecs: u16) {
         self.qdec
@@ -101,13 +104,13 @@ impl Qdec {
             .write(|w| unsafe { w.ledpre().bits(usecs.min(511)) });
     }
 
-    /// Marks the interrupt trigger event as handled
+    /// Marks the interrupt trigger event as handled.
     #[inline(always)]
     pub fn reset_events(&self) {
         self.qdec.events_reportrdy.write(|w| w);
     }
 
-    /// Triggers the QDEC interrupt on the specified number of non-zero samples
+    /// Triggers the QDEC interrupt on the specified number of non-zero samples.
     #[inline(always)]
     pub fn enable_interrupt(&self, num_samples: NumSamples) {
         self.qdec.reportper.write(|w| match num_samples {
@@ -124,20 +127,20 @@ impl Qdec {
         self.qdec.intenset.write(|w| w.reportrdy().set_bit());
     }
 
-    /// Disables the QDEC interrupt triggering
+    /// Disables the QDEC interrupt triggering.
     #[inline(always)]
     pub fn disable_interrupt(&self) {
         self.qdec.intenclr.write(|w| w.reportrdy().set_bit());
     }
 
-    /// Enables the quadrature decoder
+    /// Enables the quadrature decoder.
     #[inline(always)]
     pub fn enable(&self) {
         self.qdec.enable.write(|w| w.enable().set_bit());
         self.qdec.tasks_start.write(|w| unsafe { w.bits(1) });
     }
 
-    /// Disables the quadrature decoder
+    /// Disables the quadrature decoder.
     #[inline(always)]
     pub fn disable(&self) {
         self.qdec.tasks_stop.write(|w| unsafe { w.bits(1) });
@@ -145,7 +148,7 @@ impl Qdec {
         self.qdec.enable.write(|w| w.enable().clear_bit());
     }
 
-    /// Returns the accumulated change since last read
+    /// Returns the accumulated change since last read (-).
     #[inline(always)]
     pub fn read(&self) -> i16 {
         self.qdec.tasks_readclracc.write(|w| unsafe { w.bits(1) });
@@ -153,6 +156,7 @@ impl Qdec {
     }
 
     /// Consumes `self` and returns back the raw `QDEC` peripheral.
+    #[inline]
     pub fn free(
         self,
     ) -> (
