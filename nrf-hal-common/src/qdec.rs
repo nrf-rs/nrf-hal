@@ -47,7 +47,7 @@ impl Qdec {
         if let Some(p) = &pin_led {
             qdec.psel.led.write(|w| {
                 #[cfg(any(feature = "52833", feature = "52840"))]
-                w.port().bit(match pin_a.port() {
+                w.port().bit(match p.port() {
                     Port::Port0 => false,
                     Port::Port1 => true,
                 });
