@@ -3,8 +3,10 @@
 //! The Quadrature decoder (QDEC) provides buffered decoding of quadrature-encoded sensor signals.
 //! It is suitable for mechanical and optical sensors.
 
+#[cfg(any(feature = "52833", feature = "52840"))]
+use crate::gpio::Port;
 use {
-    crate::gpio::{Input, Pin, Port, PullUp},
+    crate::gpio::{Input, Pin, PullUp},
     crate::pac::QDEC,
 };
 
