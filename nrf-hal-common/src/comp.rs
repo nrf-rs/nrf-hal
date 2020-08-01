@@ -169,16 +169,19 @@ impl Comp {
     }
 
     /// Returns reference to `Up` transition event endpoint for PPI.
+    #[inline(always)]
     pub fn event_up(&self) -> &Reg<u32, _EVENTS_UP> {
         &self.comp.events_up
     }
 
     /// Returns reference to `Down` transition event endpoint for PPI.
+    #[inline(always)]
     pub fn event_down(&self) -> &Reg<u32, _EVENTS_DOWN> {
         &self.comp.events_down
     }
 
     /// Returns reference to `Cross` transition event endpoint for PPI.
+    #[inline(always)]
     pub fn event_cross(&self) -> &Reg<u32, _EVENTS_CROSS> {
         &self.comp.events_cross
     }
