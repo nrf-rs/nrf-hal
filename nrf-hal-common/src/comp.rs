@@ -26,6 +26,7 @@ impl Comp {
             4 => w.psel().analog_input4(),
             5 => w.psel().analog_input5(),
             6 => w.psel().analog_input6(),
+            #[cfg(not(feature = "52810"))]
             7 => w.psel().analog_input7(),
             _ => unreachable!(),
         });
@@ -84,7 +85,7 @@ impl Comp {
         self
     }
 
-    /// Rising hysteresis threshold in single ended mode `Vup = (value+1)/64*Vref`.
+    /// Upward hysteresis threshold in single ended mode `Vup = (value+1)/64*Vref`.
     #[inline(always)]
     pub fn hysteresis_threshold_up(&self, value: u8) -> &Self {
         self.comp
@@ -93,7 +94,7 @@ impl Comp {
         self
     }
 
-    /// Falling hysteresis threshold in single ended mode `Vdown = (value+1)/64*Vref`.
+    /// Downward hysteresis threshold in single ended mode `Vdown = (value+1)/64*Vref`.
     #[inline(always)]
     pub fn hysteresis_threshold_down(&self, value: u8) -> &Self {
         self.comp
