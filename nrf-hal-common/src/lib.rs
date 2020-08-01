@@ -28,6 +28,8 @@ pub mod adc;
 #[cfg(not(feature = "9160"))]
 pub mod ccm;
 pub mod clocks;
+#[cfg(not(any(feature = "51", feature = "9160")))]
+pub mod comp;
 #[cfg(not(feature = "51"))]
 pub mod delay;
 #[cfg(not(feature = "9160"))]
