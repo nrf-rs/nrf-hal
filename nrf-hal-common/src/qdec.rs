@@ -29,19 +29,19 @@ impl Qdec {
     ) -> Self {
         qdec.psel.a.write(|w| {
             #[cfg(any(feature = "52833", feature = "52840"))]
-            w.port().bit(match pin_a.port() {
-                Port::Port0 => false,
-                Port::Port1 => true,
-            });
+            match pin_a.port() {
+                Port::Port0 => w.port().clear_bit(),
+                Port::Port1 => w.port().set_bit(),
+            };
             unsafe { w.pin().bits(pin_a.pin()) };
             w.connect().connected()
         });
         qdec.psel.b.write(|w| {
             #[cfg(any(feature = "52833", feature = "52840"))]
-            w.port().bit(match pin_a.port() {
-                Port::Port0 => false,
-                Port::Port1 => true,
-            });
+            match pin_b.port() {
+                Port::Port0 => w.port().clear_bit(),
+                Port::Port1 => w.port().set_bit(),
+            };
             unsafe { w.pin().bits(pin_b.pin()) };
             w.connect().connected()
         });
@@ -49,10 +49,10 @@ impl Qdec {
         if let Some(p) = &pin_led {
             qdec.psel.led.write(|w| {
                 #[cfg(any(feature = "52833", feature = "52840"))]
-                w.port().bit(match p.port() {
-                    Port::Port0 => false,
-                    Port::Port1 => true,
-                });
+                match p.port() {
+                    Port::Port0 => w.port().clear_bit(),
+                    Port::Port1 => w.port().set_bit(),
+                };
                 unsafe { w.pin().bits(p.pin()) };
                 w.connect().connected()
             });
@@ -82,28 +82,31 @@ impl Qdec {
 
     /// Enables/disables input debounce filters.
     #[inline(always)]
-    pub fn debounce(&self, enable: bool) {
+    pub fn debounce(&self, enable: bool) -> &Self {
         match enable {
             true => self.qdec.dbfen.write(|w| w.dbfen().enabled()),
             false => self.qdec.dbfen.write(|w| w.dbfen().disabled()),
         }
+        self
     }
 
     /// LED output pin polarity.
     #[inline(always)]
-    pub fn led_polarity(&self, polarity: LedPolarity) {
+    pub fn led_polarity(&self, polarity: LedPolarity) -> &Self {
         self.qdec.ledpol.write(|w| match polarity {
             LedPolarity::ActiveHigh => w.ledpol().active_high(),
             LedPolarity::ActiveLow => w.ledpol().active_low(),
         });
+        self
     }
 
     /// Time period the LED is switched ON prior to sampling (0..511 us).
     #[inline(always)]
-    pub fn led_pre(&self, usecs: u16) {
+    pub fn led_pre(&self, usecs: u16) -> &Self {
         self.qdec
             .ledpre
             .write(|w| unsafe { w.ledpre().bits(usecs.min(511)) });
+        self
     }
 
     /// Marks the interrupt trigger event as handled.
@@ -114,7 +117,7 @@ impl Qdec {
 
     /// Triggers the QDEC interrupt on the specified number of non-zero samples.
     #[inline(always)]
-    pub fn enable_interrupt(&self, num_samples: NumSamples) {
+    pub fn enable_interrupt(&self, num_samples: NumSamples) -> &Self {
         self.qdec.reportper.write(|w| match num_samples {
             NumSamples::_10smpl => w.reportper()._10smpl(),
             NumSamples::_40smpl => w.reportper()._40smpl(),
@@ -127,12 +130,14 @@ impl Qdec {
             NumSamples::_1smpl => w.reportper()._1smpl(),
         });
         self.qdec.intenset.write(|w| w.reportrdy().set_bit());
+        self
     }
 
     /// Disables the QDEC interrupt triggering.
     #[inline(always)]
-    pub fn disable_interrupt(&self) {
+    pub fn disable_interrupt(&self) -> &Self {
         self.qdec.intenclr.write(|w| w.reportrdy().set_bit());
+        self
     }
 
     /// Enables the quadrature decoder.

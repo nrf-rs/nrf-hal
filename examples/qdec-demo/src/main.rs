@@ -29,9 +29,9 @@ const APP: () = {
         let pin_b = p0.p0_30.into_pullup_input().degrade();
 
         let qdec = Qdec::new(ctx.device.QDEC, pin_a, pin_b, None, SamplePeriod::_128us);
-        qdec.debounce(true);
-        qdec.enable_interrupt(NumSamples::_1smpl);
-        qdec.enable();
+        qdec.debounce(true)
+            .enable_interrupt(NumSamples::_1smpl)
+            .enable();
 
         init::LateResources { qdec }
     }
