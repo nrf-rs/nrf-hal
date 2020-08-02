@@ -1,5 +1,5 @@
 [package]
-name = "lpcomp-demo"
+name = "comp-demo"
 version = "0.1.0"
 authors = ["Henrik Alsér"]
 edition = "2018"
