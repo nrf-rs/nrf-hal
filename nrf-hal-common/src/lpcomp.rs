@@ -1,8 +1,11 @@
 //! HAL interface for the LPCOMP peripheral.
 //!
-//! The comparator (LPCOMP) compares an input voltage (Vin) against a second input voltage (Vref).
-//! Vin can be derived from an analog input pin (AIN0-AIN7).
-//! Vref can be derived from multiple sources depending on the operation mode of the comparator.
+//! In System ON, the LPCOMP can generate separate events on rising and falling edges of a signal,
+//! or sample the current state of the pin as being above or below the selected reference.
+//! The block can be configured to use any of the analog inputs on the device.
+//! Additionally, the low power comparator can be used as an analog wakeup source from System OFF.
+//! The comparator threshold can be programmed to a range of fractions of the supply voltage
+//! or to use an external analog reference input pin.
 
 use {
     crate::gpio::{p0::*, Floating, Input},
@@ -22,8 +25,9 @@ impl LpComp {
     /// Takes ownership of the `LPCOMP` peripheral, returning a safe wrapper.
     pub fn new<P: LpCompInputPin>(lpcomp: LPCOMP, input_pin: &P) -> Self {
         lpcomp.psel.write(|w| w.psel().variant(input_pin.ain()));
-        #[cfg(not(feature = "51"))]
-        lpcomp.refsel.write(|w| w.refsel().ref4_8vdd());
+        lpcomp
+            .refsel
+            .write(|w| w.refsel().bits(VRef::_4_8Vdd.into()));
         Self { lpcomp }
     }
 
