@@ -221,28 +221,33 @@ impl Comp {
     }
 }
 
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum OperationMode {
     Differential,
     SingleEnded,
 }
 
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum PowerMode {
     LowPower,
     Normal,
     HighSpeed,
 }
 
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum CompResult {
     Above,
     Below,
 }
 
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum Transition {
     Up,
     Down,
     Cross,
 }
 
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum VRef {
     Int1V2,
     Int1V8,
