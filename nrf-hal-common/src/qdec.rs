@@ -176,6 +176,7 @@ impl Qdec {
     }
 }
 
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum SamplePeriod {
     _128us,
     _256us,
@@ -190,6 +191,7 @@ pub enum SamplePeriod {
     _131ms,
 }
 
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum NumSamples {
     _10smpl,
     _40smpl,
@@ -202,6 +204,7 @@ pub enum NumSamples {
     _1smpl,
 }
 
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum LedPolarity {
     ActiveHigh,
     ActiveLow,
