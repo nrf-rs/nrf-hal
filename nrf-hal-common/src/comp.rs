@@ -5,9 +5,12 @@
 //! Vref can be derived from multiple sources depending on the operation mode of the comparator.
 
 use {
-    crate::gpio::{Floating, Input},
-    crate::pac::comp::{_EVENTS_CROSS, _EVENTS_DOWN, _EVENTS_UP},
-    crate::pac::{generic::Reg, COMP},
+    crate::gpio::{p0::*, Floating, Input},
+    crate::pac::{
+        comp::{extrefsel::EXTREFSEL_A, psel::PSEL_A, _EVENTS_CROSS, _EVENTS_DOWN, _EVENTS_UP},
+        generic::Reg,
+        COMP,
+    },
 };
 
 /// A safe wrapper around the `COMP` peripheral.
@@ -18,18 +21,7 @@ pub struct Comp {
 impl Comp {
     /// Takes ownership of the `COMP` peripheral, returning a safe wrapper.
     pub fn new<P: AnalogPin>(comp: COMP, input_pin: &P) -> Self {
-        comp.psel.write(|w| match input_pin.ain() {
-            0 => w.psel().analog_input0(),
-            1 => w.psel().analog_input1(),
-            2 => w.psel().analog_input2(),
-            3 => w.psel().analog_input3(),
-            4 => w.psel().analog_input4(),
-            5 => w.psel().analog_input5(),
-            6 => w.psel().analog_input6(),
-            #[cfg(not(feature = "52810"))]
-            7 => w.psel().analog_input7(),
-            _ => unreachable!(),
-        });
+        comp.psel.write(|w| w.psel().variant(input_pin.ain()));
         comp.mode.write(|w| w.sp().normal());
         comp.mode.write(|w| w.main().se());
         comp.refsel.write(|w| w.refsel().int1v2());
@@ -63,17 +55,9 @@ impl Comp {
     /// Sets analog reference pin.
     #[inline(always)]
     pub fn aref_pin<P: AnalogPin>(&self, ref_pin: &P) -> &Self {
-        self.comp.extrefsel.write(|w| match ref_pin.ain() {
-            0 => w.extrefsel().analog_reference0(),
-            1 => w.extrefsel().analog_reference1(),
-            2 => w.extrefsel().analog_reference2(),
-            3 => w.extrefsel().analog_reference3(),
-            4 => w.extrefsel().analog_reference4(),
-            5 => w.extrefsel().analog_reference5(),
-            6 => w.extrefsel().analog_reference6(),
-            7 => w.extrefsel().analog_reference7(),
-            _ => unreachable!(),
-        });
+        self.comp
+            .extrefsel
+            .write(|w| w.extrefsel().variant(ref_pin.aref()));
         self
     }
 
@@ -258,29 +242,44 @@ pub enum VRef {
 
 /// Trait to represent analog input pins.
 pub trait AnalogPin {
-    /// Returns `AIN` id.
-    fn ain(&self) -> u8;
+    fn ain(&self) -> PSEL_A;
+    fn aref(&self) -> EXTREFSEL_A;
 }
 
 macro_rules! analog_pins {
-    ($($n:expr => $pin:path),*) => {
+    ($($pin:path => ($ain:expr, $aref:expr),)+) => {
         $(
             impl AnalogPin for $pin {
-                fn ain(&self) -> u8 {
-                    $n
+                fn ain(&self) -> PSEL_A {
+                    $ain
+                }
+                fn aref(&self) -> EXTREFSEL_A {
+                    $aref
                 }
             }
         )*
     };
 }
 
+#[cfg(not(feature = "52810"))]
 analog_pins! {
-    0 => crate::gpio::p0::P0_02<Input<Floating>>,
-    1 => crate::gpio::p0::P0_03<Input<Floating>>,
-    2 => crate::gpio::p0::P0_04<Input<Floating>>,
-    3 => crate::gpio::p0::P0_05<Input<Floating>>,
-    4 => crate::gpio::p0::P0_28<Input<Floating>>,
-    5 => crate::gpio::p0::P0_29<Input<Floating>>,
-    6 => crate::gpio::p0::P0_30<Input<Floating>>,
-    7 => crate::gpio::p0::P0_31<Input<Floating>>
+    P0_02<Input<Floating>> => (PSEL_A::ANALOGINPUT0, EXTREFSEL_A::ANALOGREFERENCE0),
+    P0_03<Input<Floating>> => (PSEL_A::ANALOGINPUT1, EXTREFSEL_A::ANALOGREFERENCE1),
+    P0_04<Input<Floating>> => (PSEL_A::ANALOGINPUT2, EXTREFSEL_A::ANALOGREFERENCE2),
+    P0_05<Input<Floating>> => (PSEL_A::ANALOGINPUT3, EXTREFSEL_A::ANALOGREFERENCE3),
+    P0_28<Input<Floating>> => (PSEL_A::ANALOGINPUT4, EXTREFSEL_A::ANALOGREFERENCE4),
+    P0_29<Input<Floating>> => (PSEL_A::ANALOGINPUT5, EXTREFSEL_A::ANALOGREFERENCE5),
+    P0_30<Input<Floating>> => (PSEL_A::ANALOGINPUT6, EXTREFSEL_A::ANALOGREFERENCE6),
+    P0_31<Input<Floating>> => (PSEL_A::ANALOGINPUT7, EXTREFSEL_A::ANALOGREFERENCE7),
+}
+
+#[cfg(feature = "52810")]
+analog_pins! {
+    P0_02<Input<Floating>> => (PSEL_A::ANALOGINPUT0, EXTREFSEL_A::ANALOGREFERENCE0),
+    P0_03<Input<Floating>> => (PSEL_A::ANALOGINPUT1, EXTREFSEL_A::ANALOGREFERENCE1),
+    P0_04<Input<Floating>> => (PSEL_A::ANALOGINPUT2, EXTREFSEL_A::ANALOGREFERENCE2),
+    P0_05<Input<Floating>> => (PSEL_A::ANALOGINPUT3, EXTREFSEL_A::ANALOGREFERENCE3),
+    P0_28<Input<Floating>> => (PSEL_A::ANALOGINPUT4, EXTREFSEL_A::ANALOGREFERENCE4),
+    P0_29<Input<Floating>> => (PSEL_A::ANALOGINPUT5, EXTREFSEL_A::ANALOGREFERENCE5),
+    P0_30<Input<Floating>> => (PSEL_A::ANALOGINPUT6, EXTREFSEL_A::ANALOGREFERENCE6),
 }
