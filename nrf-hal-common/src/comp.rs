@@ -258,15 +258,21 @@ pub trait CompRefPin {
     fn aref(&self) -> EXTREFSEL_A;
 }
 
-macro_rules! analog_pins {
-    ($($pin:path => ($ain:expr, $aref:expr),)+) => {
+macro_rules! comp_input_pins {
+    ($($pin:path => $ain:expr,)+) => {
         $(
             impl CompInputPin for $pin {
                 fn ain(&self) -> PSEL_A {
                     $ain
                 }
             }
+        )*
+    };
+}
 
+macro_rules! comp_ref_pins {
+    ($($pin:path => $aref:expr,)+) => {
+        $(
             impl CompRefPin for $pin {
                 fn aref(&self) -> EXTREFSEL_A {
                     $aref
@@ -276,25 +282,36 @@ macro_rules! analog_pins {
     };
 }
 
+comp_ref_pins! {
+    P0_02<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE0,
+    P0_03<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE1,
+    P0_04<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE2,
+    P0_05<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE3,
+    P0_28<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE4,
+    P0_29<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE5,
+    P0_30<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE6,
+    P0_31<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE7,
+}
+
 #[cfg(not(feature = "52810"))]
-analog_pins! {
-    P0_02<Input<Floating>> => (PSEL_A::ANALOGINPUT0, EXTREFSEL_A::ANALOGREFERENCE0),
-    P0_03<Input<Floating>> => (PSEL_A::ANALOGINPUT1, EXTREFSEL_A::ANALOGREFERENCE1),
-    P0_04<Input<Floating>> => (PSEL_A::ANALOGINPUT2, EXTREFSEL_A::ANALOGREFERENCE2),
-    P0_05<Input<Floating>> => (PSEL_A::ANALOGINPUT3, EXTREFSEL_A::ANALOGREFERENCE3),
-    P0_28<Input<Floating>> => (PSEL_A::ANALOGINPUT4, EXTREFSEL_A::ANALOGREFERENCE4),
-    P0_29<Input<Floating>> => (PSEL_A::ANALOGINPUT5, EXTREFSEL_A::ANALOGREFERENCE5),
-    P0_30<Input<Floating>> => (PSEL_A::ANALOGINPUT6, EXTREFSEL_A::ANALOGREFERENCE6),
-    P0_31<Input<Floating>> => (PSEL_A::ANALOGINPUT7, EXTREFSEL_A::ANALOGREFERENCE7),
+comp_input_pins! {
+    P0_02<Input<Floating>> => PSEL_A::ANALOGINPUT0,
+    P0_03<Input<Floating>> => PSEL_A::ANALOGINPUT1,
+    P0_04<Input<Floating>> => PSEL_A::ANALOGINPUT2,
+    P0_05<Input<Floating>> => PSEL_A::ANALOGINPUT3,
+    P0_28<Input<Floating>> => PSEL_A::ANALOGINPUT4,
+    P0_29<Input<Floating>> => PSEL_A::ANALOGINPUT5,
+    P0_30<Input<Floating>> => PSEL_A::ANALOGINPUT6,
+    P0_31<Input<Floating>> => PSEL_A::ANALOGINPUT7,
 }
 
 #[cfg(feature = "52810")]
-analog_pins! {
-    P0_02<Input<Floating>> => (PSEL_A::ANALOGINPUT0, EXTREFSEL_A::ANALOGREFERENCE0),
-    P0_03<Input<Floating>> => (PSEL_A::ANALOGINPUT1, EXTREFSEL_A::ANALOGREFERENCE1),
-    P0_04<Input<Floating>> => (PSEL_A::ANALOGINPUT2, EXTREFSEL_A::ANALOGREFERENCE2),
-    P0_05<Input<Floating>> => (PSEL_A::ANALOGINPUT3, EXTREFSEL_A::ANALOGREFERENCE3),
-    P0_28<Input<Floating>> => (PSEL_A::ANALOGINPUT4, EXTREFSEL_A::ANALOGREFERENCE4),
-    P0_29<Input<Floating>> => (PSEL_A::ANALOGINPUT5, EXTREFSEL_A::ANALOGREFERENCE5),
-    P0_30<Input<Floating>> => (PSEL_A::ANALOGINPUT6, EXTREFSEL_A::ANALOGREFERENCE6),
+comp_input_pins! {
+    P0_02<Input<Floating>> => PSEL_A::ANALOGINPUT0,
+    P0_03<Input<Floating>> => PSEL_A::ANALOGINPUT1,
+    P0_04<Input<Floating>> => PSEL_A::ANALOGINPUT2,
+    P0_05<Input<Floating>> => PSEL_A::ANALOGINPUT3,
+    P0_28<Input<Floating>> => PSEL_A::ANALOGINPUT4,
+    P0_29<Input<Floating>> => PSEL_A::ANALOGINPUT5,
+    P0_30<Input<Floating>> => PSEL_A::ANALOGINPUT6,
 }
