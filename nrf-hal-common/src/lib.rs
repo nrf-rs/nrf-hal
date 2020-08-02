@@ -35,6 +35,8 @@ pub mod ecb;
 pub mod gpio;
 #[cfg(not(feature = "9160"))]
 pub mod gpiote;
+#[cfg(not(any(feature = "52810", feature = "9160")))]
+pub mod lpcomp;
 #[cfg(not(feature = "9160"))]
 pub mod ppi;
 #[cfg(not(feature = "9160"))]
