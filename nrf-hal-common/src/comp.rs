@@ -47,7 +47,10 @@ impl Comp {
             VRef::Int1V8 => w.refsel().int1v8(),
             VRef::Int2V4 => w.refsel().int2v4(),
             VRef::Vdd => w.refsel().vdd(),
-            VRef::ARef => w.refsel().aref(),
+            VRef::ARef(r) => {
+                self.comp.extrefsel.write(|w| w.extrefsel().variant(r));
+                w.refsel().aref()
+            }
         });
         self
     }
@@ -231,13 +234,19 @@ pub enum Transition {
     Cross,
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum VRef {
     Int1V2,
     Int1V8,
     Int2V4,
     Vdd,
-    ARef,
+    ARef(EXTREFSEL_A),
+}
+
+impl VRef {
+    pub fn from_pin<P: CompRefPin>(pin: &P) -> Self {
+        VRef::ARef(pin.aref())
+    }
 }
 
 /// Trait to represent analog input pins.
