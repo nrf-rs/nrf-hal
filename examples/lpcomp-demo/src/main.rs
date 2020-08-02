@@ -33,7 +33,7 @@ const APP: () = {
 
         let p0 = hal::gpio::p0::Parts::new(ctx.device.P0);
         let btn1 = p0.p0_11.into_pullup_input().degrade();
-        let led1 = p0.p0_13.into_push_pull_output(Level::High).degrade();
+        let mut led1 = p0.p0_13.into_push_pull_output(Level::High).degrade();
         let in_pin = p0.p0_04.into_floating_input();
         let ref_pin = p0.p0_03.into_floating_input();
 
@@ -45,6 +45,12 @@ const APP: () = {
             .analog_detect(Transition::Up) // Power up the device on upward transition
             .enable_interrupt(Transition::Cross) // Trigger `COMP_LPCOMP` interrupt on any transition
             .enable();
+
+        // Read initial comparator state and set led on/off
+        match lpcomp.read() {
+            CompResult::Above => led1.set_low().ok(),
+            CompResult::Below => led1.set_high().ok(),
+        };
 
         let gpiote = Gpiote::new(ctx.device.GPIOTE);
         gpiote
