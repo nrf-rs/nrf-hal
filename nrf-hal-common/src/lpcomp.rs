@@ -47,7 +47,7 @@ impl LpComp {
         self
     }
 
-    /// Enables/disables differential comparator hysteresis (50mV).
+    /// Enables/disables comparator hysteresis.
     #[cfg(not(feature = "51"))]
     #[inline(always)]
     pub fn hysteresis(&self, enabled: bool) -> &Self {
@@ -58,7 +58,7 @@ impl LpComp {
         self
     }
 
-    /// Analog detect configuration.
+    /// `Analog detect` event configuration, used for analog signal power up from OFF.
     #[cfg(not(feature = "51"))]
     #[inline(always)]
     pub fn analog_detect(&self, event: Transition) -> &Self {
