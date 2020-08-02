@@ -20,7 +20,7 @@ pub struct Comp {
 
 impl Comp {
     /// Takes ownership of the `COMP` peripheral, returning a safe wrapper.
-    pub fn new<P: AnalogPin>(comp: COMP, input_pin: &P) -> Self {
+    pub fn new<P: CompInputPin>(comp: COMP, input_pin: &P) -> Self {
         comp.psel.write(|w| w.psel().variant(input_pin.ain()));
         comp.mode.write(|w| w.sp().normal());
         comp.mode.write(|w| w.main().se());
@@ -54,7 +54,7 @@ impl Comp {
 
     /// Sets analog reference pin.
     #[inline(always)]
-    pub fn aref_pin<P: AnalogPin>(&self, ref_pin: &P) -> &Self {
+    pub fn aref_pin<P: CompRefPin>(&self, ref_pin: &P) -> &Self {
         self.comp
             .extrefsel
             .write(|w| w.extrefsel().variant(ref_pin.aref()));
@@ -63,7 +63,7 @@ impl Comp {
 
     /// Sets comparator mode to differential with external Vref pin.
     #[inline(always)]
-    pub fn differential<P: AnalogPin>(&self, ref_pin: &P) -> &Self {
+    pub fn differential<P: CompRefPin>(&self, ref_pin: &P) -> &Self {
         self.comp.mode.write(|w| w.main().diff());
         self.aref_pin(ref_pin);
         self
@@ -241,18 +241,30 @@ pub enum VRef {
 }
 
 /// Trait to represent analog input pins.
-pub trait AnalogPin {
+pub trait CompInputPin {
     fn ain(&self) -> PSEL_A;
+}
+/// Trait to represent analog ref pins.
+pub trait CompRefPin {
     fn aref(&self) -> EXTREFSEL_A;
 }
 
-macro_rules! analog_pins {
-    ($($pin:path => ($ain:expr, $aref:expr),)+) => {
+macro_rules! comp_input_pins {
+    ($($pin:path => $ain:expr,)+) => {
         $(
-            impl AnalogPin for $pin {
+            impl CompInputPin for $pin {
                 fn ain(&self) -> PSEL_A {
                     $ain
                 }
+            }
+        )*
+    };
+}
+
+macro_rules! comp_ref_pins {
+    ($($pin:path => $aref:expr,)+) => {
+        $(
+            impl CompRefPin for $pin {
                 fn aref(&self) -> EXTREFSEL_A {
                     $aref
                 }
@@ -261,25 +273,36 @@ macro_rules! analog_pins {
     };
 }
 
+comp_input_pins! {
+    P0_02<Input<Floating>> => PSEL_A::ANALOGINPUT0,
+    P0_03<Input<Floating>> => PSEL_A::ANALOGINPUT1,
+    P0_04<Input<Floating>> => PSEL_A::ANALOGINPUT2,
+    P0_05<Input<Floating>> => PSEL_A::ANALOGINPUT3,
+    P0_28<Input<Floating>> => PSEL_A::ANALOGINPUT4,
+    P0_29<Input<Floating>> => PSEL_A::ANALOGINPUT5,
+    P0_30<Input<Floating>> => PSEL_A::ANALOGINPUT6,
+    P0_31<Input<Floating>> => PSEL_A::ANALOGINPUT7,
+}
+
 #[cfg(not(feature = "52810"))]
-analog_pins! {
-    P0_02<Input<Floating>> => (PSEL_A::ANALOGINPUT0, EXTREFSEL_A::ANALOGREFERENCE0),
-    P0_03<Input<Floating>> => (PSEL_A::ANALOGINPUT1, EXTREFSEL_A::ANALOGREFERENCE1),
-    P0_04<Input<Floating>> => (PSEL_A::ANALOGINPUT2, EXTREFSEL_A::ANALOGREFERENCE2),
-    P0_05<Input<Floating>> => (PSEL_A::ANALOGINPUT3, EXTREFSEL_A::ANALOGREFERENCE3),
-    P0_28<Input<Floating>> => (PSEL_A::ANALOGINPUT4, EXTREFSEL_A::ANALOGREFERENCE4),
-    P0_29<Input<Floating>> => (PSEL_A::ANALOGINPUT5, EXTREFSEL_A::ANALOGREFERENCE5),
-    P0_30<Input<Floating>> => (PSEL_A::ANALOGINPUT6, EXTREFSEL_A::ANALOGREFERENCE6),
-    P0_31<Input<Floating>> => (PSEL_A::ANALOGINPUT7, EXTREFSEL_A::ANALOGREFERENCE7),
+comp_ref_pins! {
+    P0_02<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE0,
+    P0_03<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE1,
+    P0_04<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE2,
+    P0_05<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE3,
+    P0_28<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE4,
+    P0_29<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE5,
+    P0_30<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE6,
+    P0_31<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE7,
 }
 
 #[cfg(feature = "52810")]
-analog_pins! {
-    P0_02<Input<Floating>> => (PSEL_A::ANALOGINPUT0, EXTREFSEL_A::ANALOGREFERENCE0),
-    P0_03<Input<Floating>> => (PSEL_A::ANALOGINPUT1, EXTREFSEL_A::ANALOGREFERENCE1),
-    P0_04<Input<Floating>> => (PSEL_A::ANALOGINPUT2, EXTREFSEL_A::ANALOGREFERENCE2),
-    P0_05<Input<Floating>> => (PSEL_A::ANALOGINPUT3, EXTREFSEL_A::ANALOGREFERENCE3),
-    P0_28<Input<Floating>> => (PSEL_A::ANALOGINPUT4, EXTREFSEL_A::ANALOGREFERENCE4),
-    P0_29<Input<Floating>> => (PSEL_A::ANALOGINPUT5, EXTREFSEL_A::ANALOGREFERENCE5),
-    P0_30<Input<Floating>> => (PSEL_A::ANALOGINPUT6, EXTREFSEL_A::ANALOGREFERENCE6),
+comp_ref_pins! {
+    P0_02<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE0,
+    P0_03<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE1,
+    P0_04<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE2,
+    P0_05<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE3,
+    P0_28<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE4,
+    P0_29<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE5,
+    P0_30<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE6,
 }
