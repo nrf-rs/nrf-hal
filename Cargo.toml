@@ -14,6 +14,8 @@ members = [
   "examples/gpiote-demo",
   "examples/wdt-demo",
   "examples/comp-demo",
+  "examples/twim-demo",
+  "examples/twis-demo",
 ]
 
 [profile.dev]

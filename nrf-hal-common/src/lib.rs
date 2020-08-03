@@ -56,6 +56,8 @@ pub mod timer;
 pub mod twi;
 #[cfg(not(feature = "51"))]
 pub mod twim;
+#[cfg(not(any(feature = "51", feature = "9160")))]
+pub mod twis;
 #[cfg(feature = "51")]
 pub mod uart;
 #[cfg(not(feature = "51"))]
