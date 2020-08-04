@@ -9,7 +9,7 @@ use {
         sync::atomic::{compiler_fence, Ordering},
     },
     hal::{
-        gpio::{Level, Output, Pin, PushPull},
+        gpio::{p0::Parts, Level, Output, Pin, PushPull},
         pac::TWIS0,
         twis::*,
     },
@@ -36,15 +36,15 @@ const APP: () = {
         let _clocks = hal::clocks::Clocks::new(ctx.device.CLOCK).enable_ext_hfosc();
         rtt_init_print!();
 
-        let p0 = hal::gpio::p0::Parts::new(ctx.device.P0);
+        let p0 = Parts::new(ctx.device.P0);
         let led = p0.p0_06.into_push_pull_output(Level::High).degrade();
         let scl = p0.p0_14.into_floating_input().degrade();
         let sda = p0.p0_16.into_floating_input().degrade();
 
         let twis = Twis::new(ctx.device.TWIS0, Pins { scl, sda }, ADDR0);
-        twis.address1(ADDR1)
-            .enable_interrupt(TwiCommand::Write)
-            .enable_interrupt(TwiCommand::Read)
+        twis.address1(ADDR1) // Add a secondary i2c address
+            .enable_interrupt(TwiEvent::Write) // Trigger interrupt on WRITE command
+            .enable_interrupt(TwiEvent::Read) // Trigger interrupt on READ command
             .enable();
 
         let buffer0 = singleton!(: [u8; BUF0_SZ] = [0; BUF0_SZ]).unwrap();
@@ -72,8 +72,8 @@ const APP: () = {
         let buffer1 = ctx.resources.buffer1;
         let led = ctx.resources.led;
 
-        if twis.is_read() {
-            twis.reset_read_event();
+        if twis.is_event_triggered(TwiEvent::Read) {
+            twis.reset_event(TwiEvent::Read);
             led.set_low().ok();
             rprintln!("\nREAD cmd received on addr 0x{:x}", twis.address_match());
             rprintln!("Writing data to controller...");
@@ -89,8 +89,8 @@ const APP: () = {
                 _ => unreachable!(),
             }
         }
-        if twis.is_write() {
-            twis.reset_write_event();
+        if twis.is_event_triggered(TwiEvent::Write) {
+            twis.reset_event(TwiEvent::Write);
             led.set_high().ok();
             rprintln!("\nWRITE cmd received on addr 0x{:x}", twis.address_match());
             rprintln!("Reading data from controller...");

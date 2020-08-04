@@ -93,20 +93,20 @@ where
 
     /// Enables interrupt for specified command.
     #[inline(always)]
-    pub fn enable_interrupt(&self, command: TwiCommand) -> &Self {
+    pub fn enable_interrupt(&self, command: TwiEvent) -> &Self {
         self.0.intenset.modify(|_r, w| match command {
-            TwiCommand::Read => w.read().set_bit(),
-            TwiCommand::Write => w.write().set_bit(),
+            TwiEvent::Read => w.read().set_bit(),
+            TwiEvent::Write => w.write().set_bit(),
         });
         self
     }
 
     /// Disables interrupt for specified command.
     #[inline(always)]
-    pub fn disable_interrupt(&self, command: TwiCommand) -> &Self {
+    pub fn disable_interrupt(&self, command: TwiEvent) -> &Self {
         self.0.intenclr.write(|w| match command {
-            TwiCommand::Read => w.read().set_bit(),
-            TwiCommand::Write => w.write().set_bit(),
+            TwiEvent::Read => w.read().set_bit(),
+            TwiEvent::Write => w.write().set_bit(),
         });
         self
     }
@@ -118,16 +118,13 @@ where
         self.0.events_write.write(|w| w);
     }
 
-    /// Resets read events.
+    /// Resets specified event.
     #[inline(always)]
-    pub fn reset_read_event(&self) {
-        self.0.events_read.write(|w| w);
-    }
-
-    /// Resets write events.
-    #[inline(always)]
-    pub fn reset_write_event(&self) {
-        self.0.events_write.write(|w| w);
+    pub fn reset_event(&self, event: TwiEvent) {
+        match event {
+            TwiEvent::Read => self.0.events_read.write(|w| w),
+            TwiEvent::Write => self.0.events_write.write(|w| w),
+        };
     }
 
     /// Returns matched address for latest command.
@@ -139,16 +136,13 @@ where
             .bits()
     }
 
-    /// Checks if read event has been triggered.
+    /// Checks if specified event has been triggered.
     #[inline(always)]
-    pub fn is_read(&self) -> bool {
-        self.0.events_read.read().bits() != 0
-    }
-
-    /// Checks if write event has been triggered.
-    #[inline(always)]
-    pub fn is_write(&self) -> bool {
-        self.0.events_write.read().bits() != 0
+    pub fn is_event_triggered(&self, event: TwiEvent) -> bool {
+        match event {
+            TwiEvent::Read => self.0.events_read.read().bits() != 0,
+            TwiEvent::Write => self.0.events_write.read().bits() != 0,
+        }
     }
 
     /// Returns reference to `READ` event endpoint for PPI.
@@ -314,7 +308,7 @@ pub enum Error {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
-pub enum TwiCommand {
+pub enum TwiEvent {
     Read,
     Write,
 }
