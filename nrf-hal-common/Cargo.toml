@@ -37,6 +37,10 @@ version = "0.2.3"
 optional = true
 version = "0.9.0"
 
+[dependencies.usb-device]
+version = "0.2.5"
+optional = true
+
 [dependencies.nrf52810-pac]
 optional = true
 version = "0.9.0"
@@ -63,9 +67,10 @@ version = "0.2.4"
 
 [features]
 doc = []
+usbd = ["usb-device"]
 51 = ["nrf51"]
 52810 = ["nrf52810-pac"]
 52832 = ["nrf52832-pac"]
 52833 = ["nrf52833-pac"]
-52840 = ["nrf52840-pac"]
+52840 = ["nrf52840-pac", "usbd"]
 9160 = ["nrf9160-pac"]
