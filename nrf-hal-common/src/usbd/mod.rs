@@ -14,6 +14,7 @@ use crate::{
 };
 use core::sync::atomic::{compiler_fence, Ordering};
 use core::{cell::Cell, mem, ptr, slice};
+use cortex_m::asm::delay;
 use cortex_m::interrupt::{self, Mutex};
 use usb_device::{
     bus::{PollResult, UsbBus, UsbBusAllocator},
@@ -200,7 +201,7 @@ impl UsbBus for Usbd<'_> {
         ep_addr: Option<EndpointAddress>,
         ep_type: EndpointType,
         max_packet_size: u16,
-        interval: u8,
+        _interval: u8,
     ) -> usb_device::Result<EndpointAddress> {
         // Endpoint addresses are fixed in hardware:
         // - 0x80 / 0x00 - Control        EP0
@@ -284,14 +285,41 @@ impl UsbBus for Usbd<'_> {
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
 
+            regs.eventcause.write(|w| w.ready().set_bit()); // Write 1 to clear.
             errata::pre_enable();
+        });
 
+        interrupt::free(|cs| {
+            let regs = self.periph.borrow(cs);
             regs.enable.write(|w| w.enable().enabled());
+        });
 
+        interrupt::free(|cs| {
+            let regs = self.periph.borrow(cs);
             // Wait until the peripheral is ready.
             while !regs.eventcause.read().ready().is_ready() {}
             regs.eventcause.write(|w| w.ready().set_bit()); // Write 1 to clear.
+        });
 
+        interrupt::free(|_cs| {
+            // let regs = self.periph.borrow(cs);
+            errata::post_wakeup();
+        });
+
+        // Works around Erratum 166 on chip revisions 1 and 2.
+        unsafe {
+            errata::poke(0x40027800, 0x0000_07E3);
+            errata::poke(0x40027804, 0x0000_0040);
+        }
+
+        interrupt::free(|cs| {
+            let regs = self.periph.borrow(cs);
+            regs.isosplit.write(|w| w.split().half_in());
+            errata::clear_dma_pending();
+        });
+
+        interrupt::free(|cs| {
+            let regs = self.periph.borrow(cs);
             errata::post_enable();
 
             // Enable the USB pullup, allowing enumeration.
@@ -377,6 +405,7 @@ impl UsbBus for Usbd<'_> {
     #[inline]
     fn set_device_address(&self, _addr: u8) {
         // Nothing to do, the peripheral handles this.
+        delay(1_000_000_000);
     }
 
     fn write(&self, ep_addr: EndpointAddress, buf: &[u8]) -> usb_device::Result<usize> {
@@ -688,6 +717,7 @@ impl UsbBus for Usbd<'_> {
                 {
                     // Do not clear OUT events, since we have to continue reporting them until the
                     // buffer is read.
+                    regs.events_endepout[i].reset();
                     out_complete |= 1 << i;
                 }
             }
@@ -717,6 +747,7 @@ impl UsbBus for Usbd<'_> {
             let regs = self.periph.borrow(cs);
             regs.usbpullup.write(|w| w.connect().disabled());
             // TODO delay needed?
+            delay(1_000_000_000);
             regs.usbpullup.write(|w| w.connect().enabled());
         });
 
