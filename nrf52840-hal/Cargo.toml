@@ -31,5 +31,6 @@ version = "0.2.3"
 
 [features]
 doc = []
+usbd = []
 rt = ["nrf52840-pac/rt"]
-default = ["rt"]
+default = ["rt", "usbd"]

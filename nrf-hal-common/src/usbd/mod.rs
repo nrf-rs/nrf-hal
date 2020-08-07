@@ -10,7 +10,7 @@ mod errata;
 
 use crate::{
     clocks::{Clocks, ExternalOscillator},
-    target::USBD,
+    pac::USBD,
 };
 use core::sync::atomic::{compiler_fence, Ordering};
 use core::{cell::Cell, mem, ptr, slice};
@@ -470,7 +470,7 @@ impl UsbBus for Usbd<'_> {
                 // stage and must be followed by us responding with an ACK token to an OUT token
                 // sent from the host (AKA the status stage) -- `usb-device` provides no call back
                 // for that so we'll trigger the status stage using a shortcut
-                let is_short_packet = buf.len() < self.max_packet_size_0.into();
+                let is_short_packet = buf.len() < self.max_packet_size_0 as usize;
                 regs.shorts.modify(|_, w| {
                     if is_short_packet {
                         w.ep0datadone_ep0status().set_bit()
@@ -607,7 +607,7 @@ impl UsbBus for Usbd<'_> {
             errata::pre_wakeup();
 
             regs.lowpower.write(|w| w.lowpower().force_normal());
-            
+
         });
     }
 
@@ -733,14 +733,4 @@ impl UsbBus for Usbd<'_> {
 
         Ok(())
     }
-
-    /// The peripheral handles this for us.
-    ///
-    /// The Reference Manual says:
-    ///
-    /// > Note: The USBD peripheral handles the SetAddress transfer by itself. As a consequence, the
-    /// > software shall not process this command other than updating its state machine (see Device
-    /// > state diagram), nor initiate a status stage. If necessary, the address assigned by the
-    /// > host can be read out from the USBADDR register after the command has been processed.
-    const INHIBIT_SET_ADDRESS_RESPONSE: bool = true;
 }
