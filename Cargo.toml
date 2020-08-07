@@ -15,6 +15,7 @@ members = [
   "examples/wdt-demo",
   "examples/comp-demo",
   "examples/usb",
+  "examples/usb-test",
 ]
 
 [profile.dev]
@@ -27,3 +28,7 @@ lto = false
 debug = true
 lto = true
 opt-level = "s"
+
+[patch.crates-io.usb-device]
+git = "https://github.com/jonas-schievink/usb-device.git"
+branch = "inhibit-setaddr-resp"

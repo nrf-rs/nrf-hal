@@ -11,9 +11,13 @@ unsafe fn peek(addr: u32) -> u32 {
 pub fn pre_enable() {
     // Works around Erratum 187 on chip revisions 1 and 2.
     unsafe {
-        poke(0x4006EC00, 0x00009375);
-        poke(0x4006ED14, 0x00000003);
-        poke(0x4006EC00, 0x00009375);
+        if peek(0x4006EC00) == 0x00000000 {
+            poke(0x4006EC00, 0x00009375);
+            poke(0x4006ED14, 0x00000003);
+            poke(0x4006EC00, 0x00009375);
+        } else {
+            poke(0x4006ED14, 0x00000003);
+        }
     }
 
     pre_wakeup();
@@ -24,9 +28,13 @@ pub fn post_enable() {
 
     // Works around Erratum 187 on chip revisions 1 and 2.
     unsafe {
-        poke(0x4006EC00, 0x00009375);
-        poke(0x4006ED14, 0x00000000);
-        poke(0x4006EC00, 0x00009375);
+        if peek(0x4006EC00) == 0x00000000 {
+            poke(0x4006EC00, 0x00009375);
+            poke(0x4006EC14, 0x00000000);
+            poke(0x4006EC00, 0x00009375);
+        } else {
+            poke(0x4006EC14, 0x00000000);
+        }
     }
 }
 
@@ -36,10 +44,11 @@ pub fn pre_wakeup() {
     unsafe {
         if peek(0x4006EC00) == 0x00000000 {
             poke(0x4006EC00, 0x00009375);
+            poke(0x4006ED14, 0x000000C0);
+            poke(0x4006EC00, 0x00009375);
+        } else {
+            poke(0x4006ED14, 0x00000003);
         }
-
-        poke(0x4006EC14, 0x000000C0);
-        poke(0x4006EC00, 0x00009375);
     }
 }
 
@@ -49,9 +58,10 @@ pub fn post_wakeup() {
     unsafe {
         if peek(0x4006EC00) == 0x00000000 {
             poke(0x4006EC00, 0x00009375);
+            poke(0x4006EC14, 0x00000000);
+            poke(0x4006EC00, 0x00009375);
+        } else {
+            poke(0x4006EC14, 0x00000000);
         }
-
-        poke(0x4006EC14, 0x00000000);
-        poke(0x4006EC00, 0x00009375);
     }
 }

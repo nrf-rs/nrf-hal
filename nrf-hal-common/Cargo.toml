@@ -37,10 +37,6 @@ version = "0.2.3"
 optional = true
 version = "0.9.0"
 
-[dependencies.usb-device]
-version = "0.2.5"
-optional = true
-
 [dependencies.nrf52810-pac]
 optional = true
 version = "0.9.0"
@@ -64,6 +60,10 @@ version = "0.2.1"
 [dependencies.embedded-hal]
 features = ["unproven"]
 version = "0.2.4"
+
+[dependencies.usb-device]
+version = "0.2.5"
+optional = true
 
 [features]
 doc = []

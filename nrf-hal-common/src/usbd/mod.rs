@@ -222,17 +222,6 @@ impl UsbBus for Usbd<'_> {
 
         let buf = self.alloc_ep_buf(ep_type, max_packet_size)?;
 
-        if false {
-            unimplemented!(
-                "alloc_ep({:?}, {:?}, {:?}, {}, {})",
-                ep_dir,
-                ep_addr,
-                ep_type,
-                max_packet_size,
-                interval,
-            );
-        }
-
         let (used, bufs, lens) = match ep_dir {
             UsbDirection::In => (
                 &mut self.used_in,
@@ -733,4 +722,6 @@ impl UsbBus for Usbd<'_> {
 
         Ok(())
     }
+
+    const INHIBIT_SET_ADDRESS_RESPONSE: bool = true;
 }
