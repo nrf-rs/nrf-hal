@@ -251,7 +251,7 @@ impl UsbBus for Usbd<'_> {
                     lens[8] = buf.len() as u8;
                     return Ok(EndpointAddress::from_parts(0x08, ep_dir));
                 }
-            }
+            },
             EndpointType::Control => 0,
             EndpointType::Interrupt | EndpointType::Bulk => {
                 let leading = used.leading_zeros();
@@ -325,6 +325,8 @@ impl UsbBus for Usbd<'_> {
             // Enable the USB pullup, allowing enumeration.
             regs.usbpullup.write(|w| w.connect().enabled());
         });
+
+        delay(100_000_000);
     }
 
     #[inline]
@@ -379,7 +381,7 @@ impl UsbBus for Usbd<'_> {
                 }
             }
 
-            // XXX this is not spec compliant; the endpoints should only be enabled after the device
+            // XXX: this is not spec compliant; the endpoints should only be enabled after the device
             // has been put in the Configured state. However, usb-device provides no hook to do that
             // TODO: Merge `used_{in,out}` with `iso_{in,out}_used` so ISO is enabled here as well.
             // Make the enabled endpoints respond to traffic.
@@ -405,7 +407,7 @@ impl UsbBus for Usbd<'_> {
     #[inline]
     fn set_device_address(&self, _addr: u8) {
         // Nothing to do, the peripheral handles this.
-        delay(1_000_000_000);
+        delay(100_000_000);
     }
 
     fn write(&self, ep_addr: EndpointAddress, buf: &[u8]) -> usb_device::Result<usize> {
@@ -613,6 +615,23 @@ impl UsbBus for Usbd<'_> {
     fn suspend(&self) {
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
+
+        for i in 1..8 {
+            unsafe {
+                errata::poke(0x40027800, 0x0000_07B6 + (2 * ((i & 0xF) - 1)));
+                let mut temp = errata::peek(0x40027804);
+                temp |= 1 << 1;
+                errata::poke(0x40027804, temp);
+            }
+        }
+
+        unsafe {
+            errata::poke(0x40027800, 0x0000_07B4);
+            let mut temp = errata::peek(0x40027804);
+            temp |= 1 << 2;
+            errata::poke(0x40027804, temp);
+        }
+
             regs.lowpower.write(|w| w.lowpower().low_power());
         });
     }
@@ -622,9 +641,10 @@ impl UsbBus for Usbd<'_> {
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
 
-            errata::pre_wakeup();
-
             regs.lowpower.write(|w| w.lowpower().force_normal());
+
+            errata::pre_wakeup();
+            // delay(10_000_000);
 
         });
     }
@@ -645,6 +665,8 @@ impl UsbBus for Usbd<'_> {
                 } else if regs.eventcause.read().resume().bit() {
                     regs.eventcause.write(|w| w.resume().bit(true));
                     return PollResult::Resume;
+                } else if regs.eventcause.read().ready().bit() {
+                    regs.eventcause.write(|w| w.ready().bit(true));
                 } else {
                     regs.events_usbevent.reset();
                 }
@@ -747,7 +769,7 @@ impl UsbBus for Usbd<'_> {
             let regs = self.periph.borrow(cs);
             regs.usbpullup.write(|w| w.connect().disabled());
             // TODO delay needed?
-            delay(1_000_000_000);
+            delay(100_000_000);
             regs.usbpullup.write(|w| w.connect().enabled());
         });
 

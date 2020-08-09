@@ -9,6 +9,7 @@ use nrf52840_hal::prelude::*;
 use nrf52840_hal::usbd::Usbd;
 use nrf52840_hal::clocks::Clocks;
 use nrf52840_pac::Peripherals;
+use nrf52840_pac::interrupt;
 use usb_device::device::{UsbDeviceBuilder, UsbDeviceState, UsbVidPid};
 use usb_device::UsbError;
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
@@ -21,19 +22,19 @@ use cortex_m::interrupt::{free, Mutex};
 pub type SafeSerial = Mutex<RefCell<Option<nrf52840_hal::uarte::Uarte<nrf52840_hal::pac::UARTE0>>>>;
 pub static SERIAL: SafeSerial = Mutex::new(RefCell::new(None));
 
-// #[interrupt]
-// fn USBD() {
+#[interrupt]
+fn USBD() {
     // SCB::sys_reset();
-//     free(|cs| {
-//         if let Some(ref mut s) = SERIAL.borrow(cs).borrow_mut().deref_mut() {
-//             writeln!(s, "loop").unwrap();
-//         }
-//     });
-// }
+    // free(|cs| {
+    //     if let Some(ref mut s) = SERIAL.borrow(cs).borrow_mut().deref_mut() {
+    //         writeln!(s, "interrupt!").unwrap();
+    //     }
+    // });
+}
 
 #[entry]
 fn main() -> ! {
-    static mut EP_BUF: [u8; 512] = [0; 512];
+    static mut EP_BUF: [u8; 1024] = [0; 1024];
 
     let periph = Peripherals::take().unwrap();
     while !periph
@@ -57,6 +58,9 @@ fn main() -> ! {
     let clocks = clocks.enable_ext_hfosc();
 
     let usbd = periph.USBD;
+    unsafe {
+        usbd.inten.write(|w| { w.bits(0xFF) });
+    }
     let p0 = p0::Parts::new(periph.P0);
     let _p1 = p1::Parts::new(periph.P1);
 
@@ -89,7 +93,7 @@ fn main() -> ! {
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x16c0, 0x27dd))
         .product("nRF52840 Serial Port Demo")
         .device_class(USB_CLASS_CDC)
-        // .max_packet_size_0(64) // (makes control transfers 8x faster)
+        .max_packet_size_0(64) // (makes control transfers 8x faster)
         .build();
 
     let mut state = UsbDeviceState::Default;
@@ -99,6 +103,16 @@ fn main() -> ! {
         //         writeln!(s, "loop").unwrap();
         //     }
         // });
+
+        let new_state = usb_dev.state();
+        if new_state != state {
+            free(|cs| {
+                if let Some(ref mut s) = SERIAL.borrow(cs).borrow_mut().deref_mut() {
+                    writeln!(s, "State: {:?} -> {:?}", state, new_state).unwrap();
+                }
+            });
+            state = new_state;
+        }
 
         if !usb_dev.poll(&mut [&mut serial]) {
             continue;
@@ -117,15 +131,6 @@ fn main() -> ! {
             Err(e) => Err(e).unwrap(),
         };
 
-        let new_state = usb_dev.state();
-        if new_state != state {
-            free(|cs| {
-                if let Some(ref mut s) = SERIAL.borrow(cs).borrow_mut().deref_mut() {
-                    writeln!(s, "State: {:?} -> {:?}", state, new_state).unwrap();
-                }
-            });
-            state = new_state;
-        }
     }
 }
 

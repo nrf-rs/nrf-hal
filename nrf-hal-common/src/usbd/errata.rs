@@ -43,10 +43,10 @@ pub fn pre_wakeup() {
         // Works around Erratum 171 on chip revisions 1 and 2.
         if peek(0x4006EC00) == 0x0000_0000 {
             poke(0x4006EC00, 0x0000_9375);
-            poke(0x4006ED14, 0x0000_00C0);
+            poke(0x4006EC14, 0x0000_00C0);
             poke(0x4006EC00, 0x0000_9375);
         } else {
-            poke(0x4006ED14, 0x0000_0003);
+            poke(0x4006EC14, 0x0000_00C0);
         }
     }
 }
