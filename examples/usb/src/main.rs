@@ -58,9 +58,9 @@ fn main() -> ! {
     let clocks = clocks.enable_ext_hfosc();
 
     let usbd = periph.USBD;
-    unsafe {
-        usbd.inten.write(|w| { w.bits(0xFF) });
-    }
+    // unsafe {
+    //     usbd.inten.write(|w| { w.bits(0xFF) });
+    // }
     let p0 = p0::Parts::new(periph.P0);
     let _p1 = p1::Parts::new(periph.P1);
 

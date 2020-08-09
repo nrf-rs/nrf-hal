@@ -107,7 +107,11 @@ impl<'c> Usbd<'c> {
 
     /// Fetches the address assigned to the device (only valid when device is configured).
     pub fn device_address(&self) -> u8 {
-        unsafe { &*USBD::ptr() }.usbaddr.read().addr().bits()
+        // unsafe { &*USBD::ptr() }.usbaddr.read().addr().bits()
+        interrupt::free(|cs| {
+            let regs = self.periph.borrow(cs);
+            regs.usbaddr.read().addr().bits()
+        })
     }
 
     fn alloc_ep_buf(
@@ -182,6 +186,8 @@ impl<'c> Usbd<'c> {
             let ptr = self.bufs.out_bufs[0];
             let len = self.bufs.out_lens[0];
 
+            // panic!("read_control_setup: htd: {:?} {:?} !", ptr, len);
+
             unsafe {
                 regs.epout0.ptr.write(|w| w.bits(ptr as u32));
                 regs.epout0.maxcnt.write(|w| w.bits(u32::from(len)));
@@ -251,7 +257,7 @@ impl UsbBus for Usbd<'_> {
                     lens[8] = buf.len() as u8;
                     return Ok(EndpointAddress::from_parts(0x08, ep_dir));
                 }
-            },
+            }
             EndpointType::Control => 0,
             EndpointType::Interrupt | EndpointType::Bulk => {
                 let leading = used.leading_zeros();
@@ -315,7 +321,7 @@ impl UsbBus for Usbd<'_> {
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
             regs.isosplit.write(|w| w.split().half_in());
-            errata::clear_dma_pending();
+            errata::dma_pending_clear();
         });
 
         interrupt::free(|cs| {
@@ -326,7 +332,7 @@ impl UsbBus for Usbd<'_> {
             regs.usbpullup.write(|w| w.connect().enabled());
         });
 
-        delay(100_000_000);
+        // delay(100_000_000);
     }
 
     #[inline]
@@ -406,8 +412,9 @@ impl UsbBus for Usbd<'_> {
 
     #[inline]
     fn set_device_address(&self, _addr: u8) {
+        panic!("set_addr!");
         // Nothing to do, the peripheral handles this.
-        delay(100_000_000);
+        // delay(100_000_000);
     }
 
     fn write(&self, ep_addr: EndpointAddress, buf: &[u8]) -> usb_device::Result<usize> {
@@ -419,9 +426,12 @@ impl UsbBus for Usbd<'_> {
             return Err(UsbError::InvalidEndpoint);
         }
 
+        errata::dma_pending_clear();
+
         // A 0-length write to Control EP 0 is a status stage acknowledging a control write xfer
         if ep_addr.index() == 0 && buf.is_empty() {
             // There is no need to mark the buffer as used here.
+            panic!("write: ep0!");
 
             interrupt::free(|cs| {
                 let regs = self.periph.borrow(cs);
@@ -463,6 +473,7 @@ impl UsbBus for Usbd<'_> {
         let len = self.bufs.in_lens[i];
         let slice = unsafe { slice::from_raw_parts_mut(ptr, usize::from(len)) };
         slice[..buf.len()].copy_from_slice(buf);
+        // panic!("write: ep ({:?}): {:?} vs buffer: {:?}!", i, buf, slice);
 
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
@@ -497,12 +508,17 @@ impl UsbBus for Usbd<'_> {
                     } else {
                         w.ep0datadone_ep0status().clear_bit()
                     }
-                })
+                });
             }
+
+            errata::dma_pending_set();
 
             // Kick off device -> host transmission. This starts DMA, so a compiler fence is needed.
             dma_start();
             regs.tasks_startepin[i].write(|w| w.tasks_startepin().set_bit());
+
+            while !regs.events_endepin[i].read().events_endepin().bit_is_set() && !regs.events_usbreset.read().events_usbreset().bit_is_set() {}
+
 
             Ok(buf.len())
         })
@@ -525,14 +541,19 @@ impl UsbBus for Usbd<'_> {
             if i == 0 {
                 // Control setup packet is special, since it is put in registers, not a buffer.
                 if regs.events_ep0setup.read().events_ep0setup().bit_is_set() {
+                    // XXX: We should abort any other transfers, check https://github.com/NordicSemiconductor/nrfx/blob/master/drivers/src/nrfx_usbd.c#L1198
+                    // errata::dma_pending_clear();
+
                     regs.events_ep0setup.reset();
                     return self.read_control_setup(regs, buf);
                 } else {
+                    panic!("read: ep0 data!");
                     // XXX hack!
                     regs.tasks_ep0status
                         .write(|w| w.tasks_ep0status().set_bit());
                     return Ok(0);
                 }
+                // panic!("read: ep {}!", i);
             }
 
             // Is the endpoint ready? (ie. has DMA finished?)
@@ -616,21 +637,21 @@ impl UsbBus for Usbd<'_> {
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
 
-        for i in 1..8 {
-            unsafe {
-                errata::poke(0x40027800, 0x0000_07B6 + (2 * ((i & 0xF) - 1)));
-                let mut temp = errata::peek(0x40027804);
-                temp |= 1 << 1;
-                errata::poke(0x40027804, temp);
-            }
-        }
+            // for i in 1..8 {
+            //     unsafe {
+            //         errata::poke(0x40027800, 0x0000_07B6 + (2 * ((i & 0xF) - 1)));
+            //         let mut temp = errata::peek(0x40027804);
+            //         temp |= 1 << 1;
+            //         errata::poke(0x40027804, temp);
+            //     }
+            // }
 
-        unsafe {
-            errata::poke(0x40027800, 0x0000_07B4);
-            let mut temp = errata::peek(0x40027804);
-            temp |= 1 << 2;
-            errata::poke(0x40027804, temp);
-        }
+            // unsafe {
+            //     errata::poke(0x40027800, 0x0000_07B4);
+            //     let mut temp = errata::peek(0x40027804);
+            //     temp |= 1 << 2;
+            //     errata::poke(0x40027804, temp);
+            // }
 
             regs.lowpower.write(|w| w.lowpower().low_power());
         });
@@ -641,11 +662,11 @@ impl UsbBus for Usbd<'_> {
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
 
+            regs.events_usbevent.reset();
             regs.lowpower.write(|w| w.lowpower().force_normal());
 
             errata::pre_wakeup();
             // delay(10_000_000);
-
         });
     }
 
@@ -653,6 +674,8 @@ impl UsbBus for Usbd<'_> {
         interrupt::free(|cs| {
             let in_bufs_in_use = self.in_bufs_in_use.borrow(cs);
             let regs = self.periph.borrow(cs);
+
+            errata::dma_pending_clear();
 
             if regs.events_usbreset.read().events_usbreset().bit_is_set() {
                 regs.events_usbreset.reset();
@@ -666,8 +689,14 @@ impl UsbBus for Usbd<'_> {
                     regs.eventcause.write(|w| w.resume().bit(true));
                     return PollResult::Resume;
                 } else if regs.eventcause.read().ready().bit() {
+                    panic!("poll: ready!");
                     regs.eventcause.write(|w| w.ready().bit(true));
                 } else {
+                    // panic!("poll: else: {:?} ISOOUTCRC: {:?} USBWUALLOWED: {:?}!",
+                    //     regs.eventcause.read().bits(),
+                    //     regs.eventcause.read().isooutcrc().bit(),
+                    //     regs.eventcause.read().usbwuallowed().bit(),
+                    // );
                     regs.events_usbevent.reset();
                 }
             }
@@ -677,22 +706,26 @@ impl UsbBus for Usbd<'_> {
             let mut out_complete = 0;
             for i in 0..=7 {
                 if i == 0 {
+
                     if regs
                         .events_ep0datadone
                         .read()
                         .events_ep0datadone()
                         .bit_is_set()
                     {
+                        // panic!("poll: ep0datadone");
                         dma_end();
 
                         // Clear event, since we must only report this once.
                         regs.events_ep0datadone.reset();
+                        regs.events_endepin[i].reset();
                         in_complete |= 1 << i;
 
                         // The associated buffer is free again.
                         in_bufs_in_use.set(in_bufs_in_use.get() & !(1 << i));
                     }
                 } else {
+                    // panic!("poll: other EPs ({:?})", i);
                     if regs.events_endepin[i].read().events_endepin().bit_is_set() {
                         dma_end();
 
@@ -712,6 +745,7 @@ impl UsbBus for Usbd<'_> {
                     // memory to RAM. we start that transfer right here
                     let offset = 16 + i;
                     if regs.epdatastatus.read().bits() & (1 << offset) != 0 {
+                        panic!("poll: other EPs data ({:?})", i);
                         // MAXCNT must match SIZE
                         let size = regs.size.epout[i].read().bits();
                         let epout = [
@@ -725,6 +759,9 @@ impl UsbBus for Usbd<'_> {
                             &regs.epout7,
                         ];
                         epout[i].maxcnt.write(|w| unsafe { w.bits(size) });
+
+                        errata::dma_pending_set();
+
                         dma_start();
                         regs.tasks_startepout[i].write(|w| w.tasks_startepout().set_bit());
                         // clear flag so we don't start the DMA transfer more than once
@@ -737,6 +774,7 @@ impl UsbBus for Usbd<'_> {
                     .events_endepout()
                     .bit_is_set()
                 {
+                    panic!("poll: other EPs out ({:?})", i);
                     // Do not clear OUT events, since we have to continue reporting them until the
                     // buffer is read.
                     regs.events_endepout[i].reset();
@@ -745,14 +783,21 @@ impl UsbBus for Usbd<'_> {
             }
 
             // Setup packets are only relevant on the control EP 0.
-            let mut ep_setup = 0;
-            if regs.events_ep0setup.read().events_ep0setup().bit_is_set() {
-                ep_setup = 1;
-            }
+            let ep_setup = if regs.events_ep0setup.read().events_ep0setup().bit_is_set() {
+                1
+            } else {
+                0
+            };
 
             // TODO: Check ISO EP
 
             if out_complete != 0 || in_complete != 0 || ep_setup != 0 {
+
+                // panic!("poll: none: out: {:?} in: {:?} setup: {:?}",
+                //     out_complete,
+                //     in_complete,
+                //     ep_setup
+                // );
                 PollResult::Data {
                     ep_out: out_complete,
                     ep_in_complete: in_complete,
@@ -769,7 +814,7 @@ impl UsbBus for Usbd<'_> {
             let regs = self.periph.borrow(cs);
             regs.usbpullup.write(|w| w.connect().disabled());
             // TODO delay needed?
-            delay(100_000_000);
+            delay(10_000_000);
             regs.usbpullup.write(|w| w.connect().enabled());
         });
 

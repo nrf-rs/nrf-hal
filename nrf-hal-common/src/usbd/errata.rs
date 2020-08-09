@@ -65,7 +65,13 @@ pub fn post_wakeup() {
     }
 }
 
-pub fn clear_dma_pending() {
+pub fn dma_pending_set() {
+    unsafe {
+        poke(0x40027C1C, 0x0000_0082);
+    }
+}
+
+pub fn dma_pending_clear() {
     unsafe {
         poke(0x40027C1C, 0x0000_0000);
     }
