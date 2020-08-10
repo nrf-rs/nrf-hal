@@ -63,7 +63,7 @@ const APP: () = {
         let led4 = p0.p0_16.into_push_pull_output(Level::High).degrade();
 
         let pwm = Pwm::new(ctx.device.PWM0);
-        pwm.set_period(500u32.hz().into())
+        pwm.set_period(500u32.hz())
             .set_output_pin(Channel::C0, &led1)
             .set_output_pin(Channel::C1, &led2)
             .set_output_pin(Channel::C2, &led3)
@@ -147,24 +147,22 @@ const APP: () = {
         if ctx.resources.btn2.is_low().unwrap() {
             match status {
                 AppStatus::Demo2B => {
-                    rprintln!("DEMO 2C: Play complex sequence 4 times");
+                    rprintln!("DEMO 2C: Play grouped sequence 4 times");
                     *status = AppStatus::Demo2C;
+                    let amplitude = max_duty as i32 / 20;
+                    let offset = 0;
+                    // In `Grouped` mode, each step consists of two values [G0, G1]
                     for x in 0..12 {
-                        BUF[x] = triangle_wave(
-                            x as i32,
-                            12,
-                            max_duty as i32 / 20,
-                            0,
-                            max_duty as i32 / 800,
-                        ) as u16;
+                        BUF[x * 2] = triangle_wave(x as i32, 12, amplitude, 6, offset) as u16;
+                        BUF[x * 2 + 1] = triangle_wave(x as i32, 12, amplitude, 0, offset) as u16;
                     }
-                    pwm.set_load_mode(LoadMode::Common)
+                    pwm.set_load_mode(LoadMode::Grouped)
                         .set_step_mode(StepMode::Auto)
-                        .set_seq_refresh(Seq::Seq0, 100)
-                        .set_seq_refresh(Seq::Seq1, 10)
+                        .set_seq_refresh(Seq::Seq0, 70)
+                        .set_seq_refresh(Seq::Seq1, 30)
                         .repeat(4);
-                    pwm.load_seq(Seq::Seq0, &BUF[..6]).ok();
-                    pwm.load_seq(Seq::Seq1, &BUF[6..12]).ok();
+                    pwm.load_seq(Seq::Seq0, &BUF[..12]).ok();
+                    pwm.load_seq(Seq::Seq1, &BUF[12..24]).ok();
                     pwm.start_seq(Seq::Seq0);
                 }
                 AppStatus::Demo2A => {
@@ -172,6 +170,7 @@ const APP: () = {
                     *status = AppStatus::Demo2B;
                     let amplitude = max_duty as i32 / 5;
                     let offset = max_duty as i32 / 300;
+                    // In `Individual` mode, each step consists of four values [C0, C1, C2, C3]
                     for x in 0..12 {
                         BUF[4 * x] = triangle_wave(x as i32, 12, amplitude, 0, offset) as u16;
                         BUF[4 * x + 1] = triangle_wave(x as i32, 12, amplitude, 3, offset) as u16;
@@ -187,8 +186,9 @@ const APP: () = {
                     pwm.start_seq(Seq::Seq0);
                 }
                 _ => {
-                    rprintln!("DEMO 2A: Play sequence once");
+                    rprintln!("DEMO 2A: Play common sequence once");
                     *status = AppStatus::Demo2A;
+                    // In `Common` mode, each step consists of one value for all channels.
                     for x in 0..10 {
                         BUF[x] = triangle_wave(x as i32, 10, 2000, 0, 100) as u16;
                     }
@@ -234,12 +234,13 @@ const APP: () = {
         if ctx.resources.btn4.is_low().unwrap() {
             rprintln!("DEMO 4: Waveform mode");
             *status = AppStatus::Demo4;
+            // In `Waveform` mode, each step consists of four values [C0, C1, C2, MAX_DUTY]
+            // So the maximum duty cycle can be set on a per step basis, affecting the PWM frequency
             for x in 0..12 {
                 let current_max = x * 2_200 + 5_000;
                 BUF[4 * x] = ((x % 3) * current_max / (5 * (x + 1))) as u16;
                 BUF[4 * x + 1] = (((x + 1) % 3) * current_max / (5 * (x + 1))) as u16;
                 BUF[4 * x + 2] = (((x + 2) % 3) * current_max / (5 * (x + 1))) as u16;
-                // In waveform mode, the 4th sample is current max_duty
                 BUF[4 * x + 3] = current_max as u16;
             }
             pwm.set_load_mode(LoadMode::Waveform)
