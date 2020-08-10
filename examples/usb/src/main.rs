@@ -96,7 +96,7 @@ fn main() -> ! {
         .max_packet_size_0(64) // (makes control transfers 8x faster)
         .build();
 
-    let mut state = UsbDeviceState::Default;
+    let mut state = usb_dev.state();
     loop {
         // free(|cs| {
         //     if let Some(ref mut s) = SERIAL.borrow(cs).borrow_mut().deref_mut() {

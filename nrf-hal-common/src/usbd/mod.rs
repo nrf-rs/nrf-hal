@@ -291,7 +291,10 @@ impl UsbBus for Usbd<'_> {
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
 
+            // Clear ready eventcause
             regs.eventcause.write(|w| w.ready().set_bit()); // Write 1 to clear.
+
+            // Do erratum magic
             errata::pre_enable();
         });
 
@@ -304,23 +307,24 @@ impl UsbBus for Usbd<'_> {
             let regs = self.periph.borrow(cs);
             // Wait until the peripheral is ready.
             while !regs.eventcause.read().ready().is_ready() {}
-            regs.eventcause.write(|w| w.ready().set_bit()); // Write 1 to clear.
-        });
+            // Clear ready eventcause
+            regs.eventcause.write(|w| w.ready().set_bit());
 
         interrupt::free(|_cs| {
             // let regs = self.periph.borrow(cs);
             errata::post_wakeup();
         });
 
-        // Works around Erratum 166 on chip revisions 1 and 2.
-        unsafe {
-            errata::poke(0x40027800, 0x0000_07E3);
-            errata::poke(0x40027804, 0x0000_0040);
-        }
+            // Works around Erratum 166 on chip revisions 1 and 2.
+            unsafe {
+                errata::poke(0x40027800, 0x0000_07E3);
+                errata::poke(0x40027804, 0x0000_0040);
+            }
 
-        interrupt::free(|cs| {
-            let regs = self.periph.borrow(cs);
-            regs.isosplit.write(|w| w.split().half_in());
+            // Set up ISO stuff
+            // regs.isosplit.write(|w| w.split().half_in());
+            // regs.isoinconfig.write(|w| w.response().no_resp());
+
             errata::dma_pending_clear();
         });
 
@@ -395,6 +399,7 @@ impl UsbBus for Usbd<'_> {
                 regs.epinen.write(|w| w.bits(self.used_in.into()));
                 regs.epouten.write(|w| w.bits(self.used_out.into()));
             }
+            // panic!("Reset: used_in: {:?} used_out: {:?}", self.used_in, self.used_out);
 
             for i in 1..8 {
                 let out_enabled = self.used_out & (1 << i) != 0;
@@ -407,6 +412,8 @@ impl UsbBus for Usbd<'_> {
                     regs.size.epout[i].reset();
                 }
             }
+
+            delay(800_000);
         });
     }
 
@@ -517,8 +524,9 @@ impl UsbBus for Usbd<'_> {
             dma_start();
             regs.tasks_startepin[i].write(|w| w.tasks_startepin().set_bit());
 
-            while !regs.events_endepin[i].read().events_endepin().bit_is_set() && !regs.events_usbreset.read().events_usbreset().bit_is_set() {}
-
+            while !regs.events_endepin[i].read().events_endepin().bit_is_set()
+                && !regs.events_usbreset.read().events_usbreset().bit_is_set()
+            {}
 
             Ok(buf.len())
         })
@@ -652,6 +660,22 @@ impl UsbBus for Usbd<'_> {
             //     temp |= 1 << 2;
             //     errata::poke(0x40027804, temp);
             // }
+            regs.epout0.ptr.reset();
+            regs.epout0.maxcnt.reset();
+            regs.epout1.ptr.reset();
+            regs.epout1.maxcnt.reset();
+            regs.epout2.ptr.reset();
+            regs.epout2.maxcnt.reset();
+            regs.epout3.ptr.reset();
+            regs.epout3.maxcnt.reset();
+            regs.epout4.ptr.reset();
+            regs.epout4.maxcnt.reset();
+            regs.epout5.ptr.reset();
+            regs.epout5.maxcnt.reset();
+            regs.epout6.ptr.reset();
+            regs.epout6.maxcnt.reset();
+            regs.epout7.ptr.reset();
+            regs.epout7.maxcnt.reset();
 
             regs.lowpower.write(|w| w.lowpower().low_power());
         });
@@ -677,6 +701,7 @@ impl UsbBus for Usbd<'_> {
 
             errata::dma_pending_clear();
 
+            // XXX: Handle started event?
             if regs.events_usbreset.read().events_usbreset().bit_is_set() {
                 regs.events_usbreset.reset();
                 return PollResult::Reset;
@@ -706,24 +731,23 @@ impl UsbBus for Usbd<'_> {
             let mut out_complete = 0;
             for i in 0..=7 {
                 if i == 0 {
+                    // if regs
+                    //     .events_ep0datadone
+                    //     .read()
+                    //     .events_ep0datadone()
+                    //     .bit_is_set()
+                    // {
+                    //     // panic!("poll: ep0datadone");
+                    //     dma_end();
 
-                    if regs
-                        .events_ep0datadone
-                        .read()
-                        .events_ep0datadone()
-                        .bit_is_set()
-                    {
-                        // panic!("poll: ep0datadone");
-                        dma_end();
+                    //     // Clear event, since we must only report this once.
+                    //     regs.events_ep0datadone.reset();
+                    //     regs.events_endepin[i].reset();
+                    //     in_complete |= 1 << i;
 
-                        // Clear event, since we must only report this once.
-                        regs.events_ep0datadone.reset();
-                        regs.events_endepin[i].reset();
-                        in_complete |= 1 << i;
-
-                        // The associated buffer is free again.
-                        in_bufs_in_use.set(in_bufs_in_use.get() & !(1 << i));
-                    }
+                    //     // The associated buffer is free again.
+                    //     in_bufs_in_use.set(in_bufs_in_use.get() & !(1 << i));
+                    // }
                 } else {
                     // panic!("poll: other EPs ({:?})", i);
                     if regs.events_endepin[i].read().events_endepin().bit_is_set() {
