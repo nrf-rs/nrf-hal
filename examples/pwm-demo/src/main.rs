@@ -27,7 +27,6 @@ pub enum AppStatus {
     Demo1C,
     Demo2A,
     Demo2B,
-    Demo2C,
     Demo3,
     Demo4,
 }
@@ -63,7 +62,7 @@ const APP: () = {
         let led4 = p0.p0_16.into_push_pull_output(Level::High).degrade();
 
         let pwm = Pwm::new(ctx.device.PWM0);
-        pwm.set_period(100u32.hz().into())
+        pwm.set_period(500u32.hz().into())
             .set_output_pin(Channel::C0, &led1)
             .set_output_pin(Channel::C1, &led2)
             .set_output_pin(Channel::C2, &led3)
@@ -235,8 +234,6 @@ const APP: () = {
 
     extern "C" {
         fn SWI0_EGU0();
-        fn SWI1_EGU1();
-        fn SWI2_EGU2();
     }
 };
 
