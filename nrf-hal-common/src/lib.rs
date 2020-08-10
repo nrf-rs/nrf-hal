@@ -39,6 +39,8 @@ pub mod gpio;
 pub mod gpiote;
 #[cfg(not(feature = "9160"))]
 pub mod ppi;
+#[cfg(any(feature = "52833", feature = "52840"))]
+pub mod pwm;
 #[cfg(not(feature = "9160"))]
 pub mod rng;
 pub mod rtc;
