@@ -149,54 +149,56 @@ const APP: () = {
                 AppStatus::Demo2B => {
                     rprintln!("DEMO 2C: Play grouped sequence 4 times");
                     *status = AppStatus::Demo2C;
-                    let amplitude = max_duty as i32 / 20;
-                    let offset = 0;
+                    let ampl = max_duty as i32 / 20;
+                    let len: usize = 12;
                     // In `Grouped` mode, each step consists of two values [G0, G1]
-                    for x in 0..12 {
-                        BUF[x * 2] = triangle_wave(x as i32, 12, amplitude, 6, offset) as u16;
-                        BUF[x * 2 + 1] = triangle_wave(x as i32, 12, amplitude, 0, offset) as u16;
+                    for x in 0..len {
+                        BUF[x * 2] = triangle_wave(x, len, ampl, 6, 0) as u16;
+                        BUF[x * 2 + 1] = triangle_wave(x, len, ampl, 0, 0) as u16;
                     }
                     pwm.set_load_mode(LoadMode::Grouped)
                         .set_step_mode(StepMode::Auto)
-                        .set_seq_refresh(Seq::Seq0, 70)
+                        .set_seq_refresh(Seq::Seq0, 70) // Playback rate (periods per step)
                         .set_seq_refresh(Seq::Seq1, 30)
                         .repeat(4);
-                    pwm.load_seq(Seq::Seq0, &BUF[..12]).ok();
-                    pwm.load_seq(Seq::Seq1, &BUF[12..24]).ok();
+                    pwm.load_seq(Seq::Seq0, &BUF[..len]).ok();
+                    pwm.load_seq(Seq::Seq1, &BUF[len..(2 * len)]).ok();
                     pwm.start_seq(Seq::Seq0);
                 }
                 AppStatus::Demo2A => {
                     rprintln!("DEMO 2B: Loop individual sequences");
                     *status = AppStatus::Demo2B;
-                    let amplitude = max_duty as i32 / 5;
+                    let ampl = max_duty as i32 / 5;
                     let offset = max_duty as i32 / 300;
+                    let len = 12;
                     // In `Individual` mode, each step consists of four values [C0, C1, C2, C3]
-                    for x in 0..12 {
-                        BUF[4 * x] = triangle_wave(x as i32, 12, amplitude, 0, offset) as u16;
-                        BUF[4 * x + 1] = triangle_wave(x as i32, 12, amplitude, 3, offset) as u16;
-                        BUF[4 * x + 2] = triangle_wave(x as i32, 12, amplitude, 6, offset) as u16;
-                        BUF[4 * x + 3] = triangle_wave(x as i32, 12, amplitude, 9, offset) as u16;
+                    for x in 0..len {
+                        BUF[4 * x] = triangle_wave(x, len, ampl, 0, offset) as u16;
+                        BUF[4 * x + 1] = triangle_wave(x, len, ampl, 3, offset) as u16;
+                        BUF[4 * x + 2] = triangle_wave(x, len, ampl, 6, offset) as u16;
+                        BUF[4 * x + 3] = triangle_wave(x, len, ampl, 9, offset) as u16;
                     }
                     pwm.set_load_mode(LoadMode::Individual)
                         .set_seq_refresh(Seq::Seq0, 30)
                         .set_seq_refresh(Seq::Seq1, 30)
                         .loop_inf();
-                    pwm.load_seq(Seq::Seq0, &BUF[..48]).ok();
-                    pwm.load_seq(Seq::Seq1, &BUF[..48]).ok();
+                    pwm.load_seq(Seq::Seq0, &BUF[..(4 * len)]).ok();
+                    pwm.load_seq(Seq::Seq1, &BUF[..(4 * len)]).ok();
                     pwm.start_seq(Seq::Seq0);
                 }
                 _ => {
                     rprintln!("DEMO 2A: Play common sequence once");
                     *status = AppStatus::Demo2A;
+                    let len = 10;
                     // In `Common` mode, each step consists of one value for all channels.
-                    for x in 0..10 {
-                        BUF[x] = triangle_wave(x as i32, 10, 2000, 0, 100) as u16;
+                    for x in 0..len {
+                        BUF[x] = triangle_wave(x, len, 2000, 0, 100) as u16;
                     }
                     pwm.set_load_mode(LoadMode::Common)
-                        .one_shot()
-                        .set_seq_refresh(Seq::Seq0, 50)
                         .set_step_mode(StepMode::Auto)
-                        .load_seq(Seq::Seq0, &BUF[..10])
+                        .set_seq_refresh(Seq::Seq0, 50)
+                        .one_shot()
+                        .load_seq(Seq::Seq0, &BUF[..len])
                         .ok();
                     pwm.start_seq(Seq::Seq0);
                 }
@@ -219,14 +221,15 @@ const APP: () = {
                     *status = AppStatus::Demo3;
                     let amplitude = max_duty as i32 / 20;
                     let offset = max_duty as i32 / 300;
-                    for x in 0..6 {
-                        BUF[x] = triangle_wave(x as i32, 6, amplitude, 0, offset) as u16;
+                    let len = 6;
+                    for x in 0..len {
+                        BUF[x] = triangle_wave(x, len, amplitude, 0, offset) as u16;
                     }
                     pwm.set_load_mode(LoadMode::Common)
-                        .loop_inf()
-                        .set_step_mode(StepMode::NextStep);
-                    pwm.load_seq(Seq::Seq0, &BUF[..3]).ok();
-                    pwm.load_seq(Seq::Seq1, &BUF[3..6]).ok();
+                        .set_step_mode(StepMode::NextStep)
+                        .loop_inf();
+                    pwm.load_seq(Seq::Seq0, &BUF[..(len / 2)]).ok();
+                    pwm.load_seq(Seq::Seq1, &BUF[(len / 2)..len]).ok();
                     pwm.start_seq(Seq::Seq0);
                 }
             }
@@ -234,9 +237,10 @@ const APP: () = {
         if ctx.resources.btn4.is_low().unwrap() {
             rprintln!("DEMO 4: Waveform mode");
             *status = AppStatus::Demo4;
+            let len = 12;
             // In `Waveform` mode, each step consists of four values [C0, C1, C2, MAX_DUTY]
             // So the maximum duty cycle can be set on a per step basis, affecting the PWM frequency
-            for x in 0..12 {
+            for x in 0..len {
                 let current_max = x * 2_200 + 5_000;
                 BUF[4 * x] = ((x % 3) * current_max / (5 * (x + 1))) as u16;
                 BUF[4 * x + 1] = (((x + 1) % 3) * current_max / (5 * (x + 1))) as u16;
@@ -248,8 +252,8 @@ const APP: () = {
                 .set_seq_refresh(Seq::Seq0, 150)
                 .set_seq_refresh(Seq::Seq1, 150)
                 .loop_inf();
-            pwm.load_seq(Seq::Seq0, &BUF[..48]).ok();
-            pwm.load_seq(Seq::Seq1, &BUF[..48]).ok();
+            pwm.load_seq(Seq::Seq0, &BUF[..(4 * len)]).ok();
+            pwm.load_seq(Seq::Seq1, &BUF[..(4 * len)]).ok();
             pwm.start_seq(Seq::Seq0);
         }
     }
@@ -259,9 +263,10 @@ const APP: () = {
     }
 };
 
-fn triangle_wave(x: i32, length: i32, amplitude: i32, phase: i32, y_offset: i32) -> i32 {
-    (amplitude - (((x + phase) * amplitude / (length / (2))) % (2 * amplitude) - amplitude).abs())
-        + y_offset
+fn triangle_wave(x: usize, length: usize, ampl: i32, phase: i32, y_offset: i32) -> i32 {
+    let x = x as i32;
+    let length = length as i32;
+    ampl - ((2 * (x + phase) * ampl / length) % (2 * ampl) - ampl).abs() + y_offset
 }
 
 #[inline(never)]
