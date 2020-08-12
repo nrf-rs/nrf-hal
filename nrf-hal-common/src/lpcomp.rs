@@ -147,9 +147,9 @@ impl LpComp {
     #[inline(always)]
     pub fn reset_event(&self, event: Transition) {
         match event {
-            Transition::Cross => self.lpcomp.events_cross.write(|w| w),
-            Transition::Down => self.lpcomp.events_down.write(|w| w),
-            Transition::Up => self.lpcomp.events_up.write(|w| w),
+            Transition::Cross => self.lpcomp.events_cross.reset(),
+            Transition::Down => self.lpcomp.events_down.reset(),
+            Transition::Up => self.lpcomp.events_up.reset(),
         }
     }
 
