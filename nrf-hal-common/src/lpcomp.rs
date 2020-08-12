@@ -156,9 +156,9 @@ impl LpComp {
     /// Marks all events as handled.
     #[inline(always)]
     pub fn reset_events(&self) {
-        self.lpcomp.events_cross.write(|w| w);
-        self.lpcomp.events_down.write(|w| w);
-        self.lpcomp.events_up.write(|w| w);
+        self.lpcomp.events_cross.reset();
+        self.lpcomp.events_down.reset();
+        self.lpcomp.events_up.reset();
     }
 
     /// Returns the output state of the comparator.
