@@ -78,7 +78,7 @@ where
         self
     }
 
-    /// Sets ORC.
+    /// Sets the over-read character (character sent on over-read of the transmit buffer).
     #[inline(always)]
     pub fn orc(&self, orc: u8) -> &Self {
         self.0.orc.write(|w| unsafe { w.orc().bits(orc) });
