@@ -13,6 +13,7 @@ members = [
   "examples/ppi-demo",
   "examples/gpiote-demo",
   "examples/wdt-demo",
+  "examples/qdec-demo",
   "examples/comp-demo",
 ]
 
