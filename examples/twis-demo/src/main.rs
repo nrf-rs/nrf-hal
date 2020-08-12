@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 
-use cortex_m::singleton;
 use embedded_hal::digital::v2::OutputPin;
 use {
     core::{
@@ -26,8 +25,10 @@ const BUF1_SZ: usize = 4;
 const APP: () = {
     struct Resources {
         twis: Twis<TWIS0>,
-        buffer0: &'static mut [u8; BUF0_SZ],
-        buffer1: &'static mut [u8; BUF1_SZ],
+        #[init([0; BUF0_SZ])]
+        buffer0: [u8; BUF0_SZ],
+        #[init([0; BUF1_SZ])]
+        buffer1: [u8; BUF1_SZ],
         led: Pin<Output<PushPull>>,
     }
 
@@ -47,14 +48,7 @@ const APP: () = {
             .enable_interrupt(TwiEvent::Read) // Trigger interrupt on READ command
             .enable();
 
-        let buffer0 = singleton!(: [u8; BUF0_SZ] = [0; BUF0_SZ]).unwrap();
-        let buffer1 = singleton!(: [u8; BUF1_SZ] = [0; BUF1_SZ]).unwrap();
-        init::LateResources {
-            twis,
-            buffer0,
-            buffer1,
-            led,
-        }
+        init::LateResources { twis, led }
     }
 
     #[idle]
@@ -79,11 +73,11 @@ const APP: () = {
             rprintln!("Writing data to controller...");
             match twis.address_match() {
                 ADDR0 => {
-                    let res = twis.write(&buffer0[..]);
+                    let res = twis.tx(&buffer0[..]);
                     rprintln!("Result: {:?}\n{:?}", res, buffer0);
                 }
                 ADDR1 => {
-                    let res = twis.write(&buffer1[..]);
+                    let res = twis.tx(&buffer1[..]);
                     rprintln!("Result: {:?}\n{:?}", res, buffer1);
                 }
                 _ => unreachable!(),
@@ -96,11 +90,11 @@ const APP: () = {
             rprintln!("Reading data from controller...");
             match twis.address_match() {
                 ADDR0 => {
-                    let res = twis.read(&mut buffer0[..]);
+                    let res = twis.rx(&mut buffer0[..]);
                     rprintln!("Result: {:?}\n{:?}", res, buffer0);
                 }
                 ADDR1 => {
-                    let res = twis.read(&mut buffer1[..]);
+                    let res = twis.rx(&mut buffer1[..]);
                     rprintln!("Result: {:?}\n{:?}", res, buffer1);
                 }
                 _ => unreachable!(),

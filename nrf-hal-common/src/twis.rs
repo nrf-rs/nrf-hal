@@ -53,13 +53,13 @@ where
 
         twis.psel.scl.write(|w| {
             let w = unsafe { w.pin().bits(pins.scl.pin()) };
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52833", feature = "52840"))]
             let w = w.port().bit(pins.scl.port().bit());
             w.connect().connected()
         });
         twis.psel.sda.write(|w| {
             let w = unsafe { w.pin().bits(pins.sda.pin()) };
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52833", feature = "52840"))]
             let w = w.port().bit(pins.sda.port().bit());
             w.connect().connected()
         });
@@ -78,7 +78,7 @@ where
         self
     }
 
-    /// Sets ORC.
+    /// Sets the over-read character (character sent on over-read of the transmit buffer).
     #[inline(always)]
     pub fn orc(&self, orc: u8) -> &Self {
         self.0.orc.write(|w| unsafe { w.orc().bits(orc) });
@@ -173,7 +173,7 @@ where
     ///
     /// The buffer must reside in RAM and have a length of at most
     /// 255 bytes on the nRF52832 and at most 65535 bytes on the nRF52840.
-    pub fn write(&mut self, buffer: &[u8]) -> Result<(), Error> {
+    pub fn tx(&mut self, buffer: &[u8]) -> Result<(), Error> {
         slice_in_ram_or(buffer, Error::DMABufferNotInDataMemory)?;
 
         if buffer.len() > EASY_DMA_SIZE {
@@ -229,7 +229,7 @@ where
     ///
     /// The buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
-    pub fn read(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
+    pub fn rx(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
         // NOTE: RAM slice check is not necessary, as a mutable slice can only be
         // built from data located in RAM.
 
