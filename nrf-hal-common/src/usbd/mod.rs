@@ -30,6 +30,110 @@ fn dma_end() {
     compiler_fence(Ordering::Acquire);
 }
 
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum UsbState {
+    Disabled,
+    Started,
+    Initialized,
+    PoweredOn,
+    Attached,
+    Configured,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum EndpointState {
+    Disabled,
+    Ctrl(CtrlState),
+    Bulk(TransferType, Option<BulkInState>, Option<BulkOutState>),
+}
+
+impl EndpointState {
+    fn ctrl_state(self) -> CtrlState {
+        match self {
+            EndpointState::Ctrl(state) => state,
+            _ => panic!("Expected EndpointState::Ctrl"),
+        }
+    }
+
+    fn bulk_state(self) -> (TransferType, Option<BulkInState>, Option<BulkOutState>) {
+        match self {
+            EndpointState::Bulk(transfer_type, in_state, out_state) => {
+                (transfer_type, in_state, out_state)
+            }
+            _ => panic!("Expected EndpointState::Bulk"),
+        }
+    }
+}
+
+/// State of the control endpoint (endpoint 0).
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum CtrlState {
+    /// Control endpoint is idle, and waiting for a command from the host.
+    Init,
+    /// Control endpoint has started an IN transfer.
+    ReadIn,
+    /// Control endpoint has moved to the status phase.
+    ReadStatus,
+    /// Control endpoint is handling a control write (OUT) transfer.
+    WriteOut,
+}
+
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum BulkInState {
+    // The endpoint is ready to perform transactions.
+    Init,
+    // There is a pending DMA transfer on this IN endpoint.
+    InDma,
+    // There is a pending IN packet transfer on this endpoint.
+    InData,
+}
+
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum BulkOutState {
+    // The endpoint is ready to perform transactions.
+    Init,
+    // There is a pending OUT packet in this endpoint's buffer, to be read by
+    // the client application.
+    OutDelay,
+    // There is a pending EPDATA to reply to.
+    OutData,
+    // There is a pending DMA transfer on this OUT endpoint.
+    OutDma,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum TransferType {
+    Control = 0,
+    Isochronous,
+    Bulk,
+    Interrupt,
+}
+
+pub struct Endpoint<'a> {
+    slice_in: Option<&'a [u8]>,
+    slice_out: Option<&'a [u8]>,
+    state: EndpointState,
+    // The USB controller can only process one DMA transfer at a time (over all endpoints). The
+    // request_transmit_* bits allow to queue transfers until the DMA becomes available again.
+    // Whether a DMA transfer is requested on this IN endpoint.
+    request_transmit_in: bool,
+    // Whether a DMA transfer is requested on this OUT endpoint.
+    request_transmit_out: bool,
+}
+
+impl Endpoint<'_> {
+    const fn new() -> Self {
+        Endpoint {
+            slice_in: None,
+            slice_out: None,
+            state: EndpointState::Disabled,
+            request_transmit_in: false,
+            request_transmit_out: false,
+        }
+    }
+}
+
 struct Buffers {
     // Ptr and size is stored separately to save space
     in_bufs: [*mut u8; 9],
@@ -72,6 +176,10 @@ pub struct Usbd<'c> {
     /// returns `WouldBlock`.
     in_bufs_in_use: Mutex<Cell<u16>>,
 
+    state: Option<UsbState>,
+    dma_pending: bool,
+    descriptors: [Endpoint<'c>; 8],
+
     // used to freeze `Clocks` and ensure they remain in the `ExternalOscillator` state
     _clocks: &'c (),
 }
@@ -102,6 +210,19 @@ impl<'c> Usbd<'c> {
             iso_out_used: false,
             in_bufs_in_use: Mutex::new(Cell::new(0)),
             _clocks: &(),
+
+            state: None,
+            dma_pending: false,
+            descriptors: [
+                Endpoint::new(),
+                Endpoint::new(),
+                Endpoint::new(),
+                Endpoint::new(),
+                Endpoint::new(),
+                Endpoint::new(),
+                Endpoint::new(),
+                Endpoint::new(),
+            ],
         })
     }
 
@@ -288,33 +409,29 @@ impl UsbBus for Usbd<'_> {
 
     #[inline]
     fn enable(&mut self) {
+        if self.state != Some(UsbState::Disabled) {
+            panic!("USB already enabled!");
+            return;
+        }
+
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
 
+            // --- Enable the peripheral
             // Clear ready eventcause
             regs.eventcause.write(|w| w.ready().set_bit()); // Write 1 to clear.
 
             // Do erratum magic
             errata::pre_enable();
-        });
 
-        interrupt::free(|cs| {
-            let regs = self.periph.borrow(cs);
             regs.enable.write(|w| w.enable().enabled());
-        });
 
-        interrupt::free(|cs| {
-            let regs = self.periph.borrow(cs);
             // Wait until the peripheral is ready.
             while !regs.eventcause.read().ready().is_ready() {}
             // Clear ready eventcause
             regs.eventcause.write(|w| w.ready().set_bit());
 
-        interrupt::free(|_cs| {
-            // let regs = self.periph.borrow(cs);
             errata::post_wakeup();
-        });
-
             // Works around Erratum 166 on chip revisions 1 and 2.
             unsafe {
                 errata::poke(0x40027800, 0x0000_07E3);
@@ -326,14 +443,33 @@ impl UsbBus for Usbd<'_> {
             // regs.isoinconfig.write(|w| w.response().no_resp());
 
             errata::dma_pending_clear();
-        });
 
-        interrupt::free(|cs| {
-            let regs = self.periph.borrow(cs);
+            self.state = Some(UsbState::Initialized);
+
             errata::post_enable();
 
+            // - Power On the peripheral
+            // while regs.POWER.usbregstatus.read().vbusdetect().is_vbus_present() &&
+            //     !regs.POWER.usbregstatus.read().outputrdy().is_usb_power_ready()
+            // {}
+            delay(1_000_000);
+            self.state = Some(UsbState::PoweredOn);
+
+            // - Start the peripheral
+            regs.intenset.write(|w| w.usbreset().set());
+            regs.intenset.write(|w| w.started().set());
+            regs.intenset.write(|w| w.endepin0().set());
+            regs.intenset.write(|w| w.ep0datadone().set());
+            regs.intenset.write(|w| w.endepout0().set());
+            regs.intenset.write(|w| w.usbevent().set());
+            regs.intenset.write(|w| w.ep0setup().set());
+            regs.intenset.write(|w| w.epdata().set());
+            self.state = Some(UsbState::Started);
+
+            // - Attach the peripheral
             // Enable the USB pullup, allowing enumeration.
             regs.usbpullup.write(|w| w.connect().enabled());
+            self.state = Some(UsbState::Attached);
         });
 
         // delay(100_000_000);
@@ -344,74 +480,28 @@ impl UsbBus for Usbd<'_> {
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
 
-            // Neat little hack to work around svd2rust not coalescing these on its own.
-            let epin = [
-                &regs.epin0,
-                &regs.epin1,
-                &regs.epin2,
-                &regs.epin3,
-                &regs.epin4,
-                &regs.epin5,
-                &regs.epin6,
-                &regs.epin7,
-            ];
-            let epout = [
-                &regs.epout0,
-                &regs.epout1,
-                &regs.epout2,
-                &regs.epout3,
-                &regs.epout4,
-                &regs.epout5,
-                &regs.epout6,
-                &regs.epout7,
-            ];
-
-            // TODO: Initialize ISO buffers
-            // Initialize all data pointers for the endpoint buffers, since they never change.
-            for i in 0..8 {
-                let in_enabled = self.used_in & (1 << i) != 0;
-                let out_enabled = self.used_out & (1 << i) != 0;
-
-                if in_enabled {
-                    unsafe {
-                        epin[i].ptr.write(|w| w.bits(self.bufs.in_bufs[i] as u32));
-                        epin[i]
-                            .maxcnt
-                            .write(|w| w.bits(u32::from(self.bufs.in_lens[i])));
+            for (ep, desc) in self.descriptors.iter_mut().enumerate() {
+                match desc.state {
+                    EndpointState::Disabled => {}
+                    EndpointState::Ctrl(_) => desc.state = EndpointState::Ctrl(CtrlState::Init),
+                    EndpointState::Bulk(transfer_type, in_state, out_state) => {
+                        desc.state = EndpointState::Bulk(
+                            transfer_type,
+                            in_state.map(|_| BulkInState::Init),
+                            out_state.map(|_| BulkOutState::Init),
+                        );
+                        if out_state.is_some() {
+                            // Accept incoming OUT packets.
+                            regs.size.epout[ep].reset();
+                        }
                     }
                 }
-
-                if out_enabled {
-                    unsafe {
-                        epout[i].ptr.write(|w| w.bits(self.bufs.out_bufs[i] as u32));
-                        epout[i]
-                            .maxcnt
-                            .write(|w| w.bits(u32::from(self.bufs.out_lens[i])));
-                    }
-                }
+                // Clear the DMA status.
+                desc.request_transmit_in = false;
+                desc.request_transmit_out = false;
             }
 
-            // XXX: this is not spec compliant; the endpoints should only be enabled after the device
-            // has been put in the Configured state. However, usb-device provides no hook to do that
-            // TODO: Merge `used_{in,out}` with `iso_{in,out}_used` so ISO is enabled here as well.
-            // Make the enabled endpoints respond to traffic.
-            unsafe {
-                regs.epinen.write(|w| w.bits(self.used_in.into()));
-                regs.epouten.write(|w| w.bits(self.used_out.into()));
-            }
-            // panic!("Reset: used_in: {:?} used_out: {:?}", self.used_in, self.used_out);
-
-            for i in 1..8 {
-                let out_enabled = self.used_out & (1 << i) != 0;
-
-                // when first enabled, bulk/interrupt OUT endpoints will *not* receive data (the
-                // peripheral will NAK all incoming packets) until we write a zero to the SIZE
-                // register (see figure 203 of the 52840 manual). To avoid that we write a 0 to the
-                // SIZE register
-                if out_enabled {
-                    regs.size.epout[i].reset();
-                }
-            }
+            self.dma_pending = false;
 
             delay(800_000);
         });
@@ -816,7 +906,6 @@ impl UsbBus for Usbd<'_> {
             // TODO: Check ISO EP
 
             if out_complete != 0 || in_complete != 0 || ep_setup != 0 {
-
                 // panic!("poll: none: out: {:?} in: {:?} setup: {:?}",
                 //     out_complete,
                 //     in_complete,
