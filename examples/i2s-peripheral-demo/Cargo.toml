@@ -1,0 +1,20 @@
+[package]
+name = "i2s-peripheral-demo"
+version = "0.1.0"
+authors = ["Henrik Alsér"]
+edition = "2018"
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cortex-m = "0.6.2"
+cortex-m-rtic = "0.5.3"
+rtt-target = {version = "0.2.0", features = ["cortex-m"] }
+nrf52840-hal = { features = ["rt"], path = "../../nrf52840-hal" }
+small_morse = "0.1.0"
+m = "0.1.1"
+
+[dependencies.embedded-hal]
+version = "0.2.3"
+features = ["unproven"]
