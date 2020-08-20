@@ -479,8 +479,12 @@ where
     /// Loads a sequence buffer.
     /// NOTE: `buf` must live until the sequence is done playing.
     pub fn load_seq(&self, seq: Seq, buf: &[u16]) -> Result<(), Error> {
-        if ((buf.as_ptr() as usize) < SRAM_LOWER) || ((buf.as_ptr() as usize) > SRAM_UPPER) {
+        if (buf.as_ptr() as usize) < SRAM_LOWER || (buf.as_ptr() as usize) > SRAM_UPPER {
             return Err(Error::DMABufferNotInDataMemory);
+        }
+
+        if buf.len() > 2048 {
+            return Err(Error::BufferTooLong);
         }
 
         compiler_fence(Ordering::SeqCst);
@@ -981,6 +985,7 @@ impl From<StepMode> for bool {
 #[derive(Debug)]
 pub enum Error {
     DMABufferNotInDataMemory,
+    BufferTooLong,
 }
 
 pub trait Instance: private::Sealed {}
