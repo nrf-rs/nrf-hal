@@ -21,14 +21,14 @@ use crate::{
 
 /// A safe wrapper around the raw peripheral.
 #[derive(Debug)]
-pub struct Pwm<T: sealed::Instance> {
+pub struct Pwm<T: Instance> {
     pwm: T,
     duty: [u16; 4],
 }
 
 impl<T> Pwm<T>
 where
-    T: sealed::Instance,
+    T: Instance,
 {
     /// Takes ownership of the peripheral and applies sane defaults.
     pub fn new(pwm: T) -> Pwm<T> {
@@ -695,7 +695,7 @@ where
     }
 }
 
-impl<T: sealed::Instance> embedded_hal::Pwm for Pwm<T> {
+impl<T: Instance> embedded_hal::Pwm for Pwm<T> {
     type Channel = Channel;
     type Duty = u16;
     type Time = Hertz;
@@ -734,12 +734,12 @@ impl<T: sealed::Instance> embedded_hal::Pwm for Pwm<T> {
 
 /// PWM channel
 #[derive(Debug)]
-pub struct PwmChannel<'a, T: sealed::Instance> {
+pub struct PwmChannel<'a, T: Instance> {
     pwm: &'a Pwm<T>,
     channel: Channel,
 }
 
-impl<'a, T: sealed::Instance> PwmChannel<'a, T> {
+impl<'a, T: Instance> PwmChannel<'a, T> {
     pub fn new(pwm: &'a Pwm<T>, channel: Channel) -> Self {
         Self { pwm, channel }
     }
@@ -772,7 +772,7 @@ impl<'a, T: sealed::Instance> PwmChannel<'a, T> {
     }
 }
 
-impl<'a, T: sealed::Instance> embedded_hal::PwmPin for PwmChannel<'a, T> {
+impl<'a, T: Instance> embedded_hal::PwmPin for PwmChannel<'a, T> {
     type Duty = u16;
 
     fn disable(&mut self) {
@@ -798,12 +798,12 @@ impl<'a, T: sealed::Instance> embedded_hal::PwmPin for PwmChannel<'a, T> {
 
 /// PWM group
 #[derive(Debug)]
-pub struct PwmGroup<'a, T: sealed::Instance> {
+pub struct PwmGroup<'a, T: Instance> {
     pwm: &'a Pwm<T>,
     group: Group,
 }
 
-impl<'a, T: sealed::Instance> PwmGroup<'a, T> {
+impl<'a, T: Instance> PwmGroup<'a, T> {
     pub fn new(pwm: &'a Pwm<T>, group: Group) -> Self {
         Self { pwm, group }
     }
@@ -835,7 +835,7 @@ impl<'a, T: sealed::Instance> PwmGroup<'a, T> {
     }
 }
 
-impl<'a, T: sealed::Instance> embedded_hal::PwmPin for PwmGroup<'a, T> {
+impl<'a, T: Instance> embedded_hal::PwmPin for PwmGroup<'a, T> {
     type Duty = u16;
 
     fn disable(&mut self) {
@@ -983,18 +983,30 @@ pub enum Error {
     DMABufferNotInDataMemory,
 }
 
-mod sealed {
-    use core::ops::Deref;
-    pub trait Instance: Deref<Target = crate::pac::pwm0::RegisterBlock> {}
-}
+pub trait Instance: private::Sealed {}
 
-impl sealed::Instance for PWM0 {}
+impl Instance for PWM0 {}
 
 #[cfg(not(any(feature = "52810")))]
-impl sealed::Instance for PWM1 {}
+impl Instance for PWM1 {}
 
 #[cfg(not(any(feature = "52810")))]
-impl sealed::Instance for PWM2 {}
+impl Instance for PWM2 {}
 
 #[cfg(not(any(feature = "52810", feature = "52832")))]
-impl sealed::Instance for PWM3 {}
+impl Instance for PWM3 {}
+
+mod private {
+    pub trait Sealed: core::ops::Deref<Target = crate::pac::pwm0::RegisterBlock> {}
+
+    impl Sealed for crate::pwm::PWM0 {}
+
+    #[cfg(not(any(feature = "52810")))]
+    impl Sealed for crate::pwm::PWM1 {}
+
+    #[cfg(not(any(feature = "52810")))]
+    impl Sealed for crate::pwm::PWM2 {}
+
+    #[cfg(not(any(feature = "52810", feature = "52832")))]
+    impl Sealed for crate::pwm::PWM3 {}
+}
