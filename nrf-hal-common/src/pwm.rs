@@ -483,7 +483,7 @@ where
             return Err(Error::DMABufferNotInDataMemory);
         }
 
-        if buf.len() > 2048 {
+        if buf.len() > 32_768 {
             return Err(Error::BufferTooLong);
         }
 
