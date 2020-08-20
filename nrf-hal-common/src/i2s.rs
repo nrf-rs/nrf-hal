@@ -248,7 +248,7 @@ impl I2S {
             return Err(Error::DMABufferNotInDataMemory);
         }
 
-        if buf.maxcnt() > 4096 {
+        if buf.maxcnt() > 16_384 {
             return Err(Error::BufferTooLong);
         }
 
@@ -271,7 +271,7 @@ impl I2S {
             return Err(Error::DMABufferNotInDataMemory);
         }
 
-        if buf.maxcnt() > 4096 {
+        if buf.maxcnt() > 16_384 {
             return Err(Error::BufferTooLong);
         }
 
@@ -310,7 +310,7 @@ impl I2S {
     /// Sets the size (in 32bit words) of the receive and transmit buffers.
     #[inline(always)]
     pub fn set_buffersize(&self, n_32bit: u32) -> Result<(), Error> {
-        if n_32bit > 4096 {
+        if n_32bit > 16_384 {
             return Err(Error::BufferTooLong);
         }
         self.i2s.rxtxd.maxcnt.write(|w| unsafe { w.bits(n_32bit) });
