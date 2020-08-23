@@ -2,7 +2,7 @@
 #![no_main]
 
 // I2S `controller mode` demo
-// Generates Morse code audio signals from text, playing back over I2S
+// Generates Morse code audio signals for text from UART, playing back over I2S
 // Tested with nRF52840-DK and a UDA1334a DAC
 
 use embedded_hal::digital::v2::InputPin;
@@ -20,6 +20,9 @@ use {
         gpio::{Input, Level, Pin, PullUp},
         gpiote::*,
         i2s::*,
+        pac::{TIMER0, UARTE0},
+        timer::Timer,
+        uarte::*,
     },
     nrf52840_hal as hal,
     rtic::cyccnt::U32Ext,
@@ -38,10 +41,13 @@ const APP: () = {
         queue: Option<Queue<bool, U256>>,
         producer: Producer<'static, bool, U256>,
         consumer: Consumer<'static, bool, U256>,
+        #[init(5_000_000)]
+        speed: u32,
+        uarte: Uarte<UARTE0>,
+        uarte_timer: Timer<TIMER0>,
         gpiote: Gpiote,
         btn1: Pin<Input<PullUp>>,
         btn2: Pin<Input<PullUp>>,
-        btn3: Pin<Input<PullUp>>,
     }
 
     #[init(resources = [queue, signal_buf, mute_buf], spawn = [tick])]
@@ -53,12 +59,8 @@ const APP: () = {
         rtt_init_print!();
 
         let p0 = hal::gpio::p0::Parts::new(ctx.device.P0);
-        let btn1 = p0.p0_11.into_pullup_input().degrade();
-        let btn2 = p0.p0_12.into_pullup_input().degrade();
-        let led1 = p0.p0_13.into_push_pull_output(Level::High).degrade();
-        let btn3 = p0.p0_24.into_pullup_input().degrade();
-        let btn4 = p0.p0_25.into_pullup_input().degrade();
 
+        // Configure I2S controller
         let mck_pin = p0.p0_28.into_push_pull_output(Level::Low).degrade();
         let sck_pin = p0.p0_29.into_push_pull_output(Level::Low).degrade();
         let lrck_pin = p0.p0_31.into_push_pull_output(Level::Low).degrade();
@@ -72,9 +74,7 @@ const APP: () = {
             None,
             Some(&sdout_pin),
         );
-        i2s.enable_interrupt(I2SEvent::Stopped)
-            .tx_buffer(&ctx.resources.mute_buf[..])
-            .ok();
+        i2s.tx_buffer(&ctx.resources.mute_buf[..]).ok();
         i2s.enable().start();
 
         let signal_buf = ctx.resources.signal_buf;
@@ -84,16 +84,36 @@ const APP: () = {
             signal_buf[2 * x + 1] = triangle_wave(x as i32, len, 2048, 0, 1) as i16;
         }
 
+        // Configure LED and buttons
+        let led1 = p0.p0_13.into_push_pull_output(Level::High).degrade();
+        let btn1 = p0.p0_11.into_pullup_input().degrade();
+        let btn2 = p0.p0_12.into_pullup_input().degrade();
+
         let gpiote = Gpiote::new(ctx.device.GPIOTE);
         gpiote.channel0().output_pin(led1).init_high();
         gpiote.port().input_pin(&btn1).low();
         gpiote.port().input_pin(&btn2).low();
-        gpiote.port().input_pin(&btn3).low();
-        gpiote.port().input_pin(&btn4).low();
         gpiote.port().enable_interrupt();
+
+        // Configure the onboard USB CDC UARTE
+        let uarte = Uarte::new(
+            ctx.device.UARTE0,
+            Pins {
+                txd: p0.p0_06.into_push_pull_output(Level::High).degrade(),
+                rxd: p0.p0_08.into_floating_input().degrade(),
+                cts: None,
+                rts: None,
+            },
+            Parity::EXCLUDED,
+            Baudrate::BAUD115200,
+        );
 
         *ctx.resources.queue = Some(Queue::new());
         let (producer, consumer) = ctx.resources.queue.as_mut().unwrap().split();
+
+        rprintln!("Morse code generator");
+        rprintln!("Send me text over UART @ 115_200 baud");
+        rprintln!("Press button 1 to slow down or button 2 to speed up");
 
         ctx.spawn.tick().ok();
 
@@ -104,74 +124,73 @@ const APP: () = {
             gpiote,
             btn1,
             btn2,
-            btn3,
+            uarte,
+            uarte_timer: Timer::new(ctx.device.TIMER0),
         }
     }
-    #[idle]
-    fn idle(_: idle::Context) -> ! {
-        rprintln!("Press a button...");
+    #[idle(resources=[uarte, uarte_timer, producer])]
+    fn idle(ctx: idle::Context) -> ! {
+        let idle::Resources {
+            uarte,
+            uarte_timer,
+            producer,
+        } = ctx.resources;
+        let uarte_rx_buf = &mut [0u8; 255][..];
         loop {
-            cortex_m::asm::wfi();
+            match uarte.read_timeout(uarte_rx_buf, uarte_timer, 200_000) {
+                Err(hal::uarte::Error::Timeout(n)) if n > 0 => {
+                    if let Ok(msg) = core::str::from_utf8(&uarte_rx_buf[0..n]) {
+                        rprintln!("{}", msg);
+                        for action in encode(msg) {
+                            for _ in 0..action.duration {
+                                producer.enqueue(action.state == State::On).ok();
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
         }
     }
 
-    #[task(binds = I2S, resources = [i2s])]
-    fn on_i2s(ctx: on_i2s::Context) {
-        let i2s = ctx.resources.i2s;
-        if i2s.is_event_triggered(I2SEvent::Stopped) {
-            i2s.reset_event(I2SEvent::Stopped);
-            rprintln!("I2S transmission was stopped");
-        }
-    }
-
-    #[task(binds = GPIOTE, resources = [gpiote], schedule = [debounce])]
-    fn on_gpiote(ctx: on_gpiote::Context) {
-        ctx.resources.gpiote.reset_events();
-        ctx.schedule.debounce(ctx.start + 3_000_000.cycles()).ok();
-    }
-
-    #[task(resources = [gpiote, consumer, i2s, signal_buf, mute_buf], schedule = [tick])]
+    #[task(resources = [consumer, i2s, signal_buf, mute_buf, gpiote, speed], schedule = [tick])]
     fn tick(ctx: tick::Context) {
         let i2s = ctx.resources.i2s;
-        if let Some(on) = ctx.resources.consumer.dequeue() {
-            if on {
-                i2s.tx_buffer(&ctx.resources.signal_buf[..]).ok();
-                ctx.resources.gpiote.channel0().clear();
-            } else {
-                i2s.tx_buffer(&ctx.resources.mute_buf[..]).ok();
-                ctx.resources.gpiote.channel0().set();
+        if let Some(is_on) = ctx.resources.consumer.dequeue() {
+            match is_on {
+                true => {
+                    i2s.tx_buffer(&ctx.resources.signal_buf[..]).ok();
+                    ctx.resources.gpiote.channel0().clear();
+                }
+                false => {
+                    i2s.tx_buffer(&ctx.resources.mute_buf[..]).ok();
+                    ctx.resources.gpiote.channel0().set();
+                }
             }
         } else {
             i2s.tx_buffer(&ctx.resources.mute_buf[..]).ok();
             ctx.resources.gpiote.channel0().set();
         }
-        ctx.schedule.tick(ctx.scheduled + 5_000_000.cycles()).ok();
+        ctx.schedule
+            .tick(ctx.scheduled + ctx.resources.speed.cycles())
+            .ok();
     }
 
-    #[task(resources = [btn1, btn2, btn3, i2s, producer])]
+    #[task(binds = GPIOTE, resources = [gpiote, speed], schedule = [debounce])]
+    fn on_gpiote(ctx: on_gpiote::Context) {
+        ctx.resources.gpiote.reset_events();
+        ctx.schedule.debounce(ctx.start + 3_000_000.cycles()).ok();
+    }
+
+    #[task(resources = [btn1, btn2, i2s, speed])]
     fn debounce(ctx: debounce::Context) {
-        let msg = if ctx.resources.btn1.is_low().unwrap() {
-            Some("Radioactivity")
-        } else if ctx.resources.btn2.is_low().unwrap() {
-            Some("Is in the air for you and me")
-        } else {
-            None
-        };
-        if let Some(m) = msg {
-            rprintln!("{}", m);
-            for action in encode(m) {
-                for _ in 0..action.duration {
-                    ctx.resources
-                        .producer
-                        .enqueue(action.state == State::On)
-                        .ok();
-                }
-            }
+        if ctx.resources.btn1.is_low().unwrap() {
+            rprintln!("Go slower");
+            *ctx.resources.speed += 600_000;
         }
-        if ctx.resources.btn3.is_low().unwrap() {
-            ctx.resources.i2s.stop();
-        } else {
-            ctx.resources.i2s.start();
+        if ctx.resources.btn2.is_low().unwrap() {
+            rprintln!("Go faster");
+            *ctx.resources.speed -= 600_000;
         }
     }
 
