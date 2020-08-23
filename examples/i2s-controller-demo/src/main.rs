@@ -135,9 +135,19 @@ const APP: () = {
             uarte_timer,
             producer,
         } = ctx.resources;
-        let uarte_rx_buf = &mut [0u8; 255][..];
+        let uarte_rx_buf = &mut [0u8; 32][..];
         loop {
             match uarte.read_timeout(uarte_rx_buf, uarte_timer, 200_000) {
+                Ok(_) => {
+                    if let Ok(msg) = core::str::from_utf8(&uarte_rx_buf[..]) {
+                        rprintln!("{}", msg);
+                        for action in encode(msg) {
+                            for _ in 0..action.duration {
+                                producer.enqueue(action.state == State::On).ok();
+                            }
+                        }
+                    }
+                }
                 Err(hal::uarte::Error::Timeout(n)) if n > 0 => {
                     if let Ok(msg) = core::str::from_utf8(&uarte_rx_buf[0..n]) {
                         rprintln!("{}", msg);
