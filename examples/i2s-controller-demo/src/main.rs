@@ -5,7 +5,7 @@
 // Generates Morse code audio signals for text from UART, playing back over I2S
 // Tested with nRF52840-DK and a UDA1334a DAC
 
-use embedded_hal::digital::v2::InputPin;
+use embedded_hal::digital::v2::{InputPin, OutputPin};
 use heapless::{
     consts::*,
     spsc::{Consumer, Producer, Queue},
@@ -17,7 +17,7 @@ use {
         sync::atomic::{compiler_fence, Ordering},
     },
     hal::{
-        gpio::{Input, Level, Pin, PullUp},
+        gpio::{Input, Level, Output, Pin, PullUp, PushPull},
         gpiote::*,
         i2s::*,
         pac::{TIMER0, UARTE0},
@@ -48,6 +48,7 @@ const APP: () = {
         gpiote: Gpiote,
         btn1: Pin<Input<PullUp>>,
         btn2: Pin<Input<PullUp>>,
+        led: Pin<Output<PushPull>>,
     }
 
     #[init(resources = [queue, signal_buf, mute_buf], spawn = [tick])]
@@ -85,13 +86,10 @@ const APP: () = {
             signal_buf[2 * x + 1] = triangle_wave(x as i32, len, 2048, 0, 1) as i16;
         }
 
-        // Configure LED and buttons
-        let led1 = p0.p0_13.into_push_pull_output(Level::High).degrade();
+        // Configure buttons
         let btn1 = p0.p0_11.into_pullup_input().degrade();
         let btn2 = p0.p0_12.into_pullup_input().degrade();
-
         let gpiote = Gpiote::new(ctx.device.GPIOTE);
-        gpiote.channel0().output_pin(led1).init_high();
         gpiote.port().input_pin(&btn1).low();
         gpiote.port().input_pin(&btn2).low();
         gpiote.port().enable_interrupt();
@@ -125,6 +123,7 @@ const APP: () = {
             gpiote,
             btn1,
             btn2,
+            led: p0.p0_13.into_push_pull_output(Level::High).degrade(),
             uarte,
             uarte_timer: Timer::new(ctx.device.TIMER0),
         }
@@ -165,21 +164,19 @@ const APP: () = {
         }
     }
 
-    #[task(resources = [consumer, i2s, signal_buf, mute_buf, gpiote, speed], schedule = [tick])]
+    #[task(resources = [consumer, i2s, signal_buf, mute_buf, led, speed], schedule = [tick])]
     fn tick(ctx: tick::Context) {
         let i2s = ctx.resources.i2s;
         match ctx.resources.consumer.dequeue() {
             Some(State::On) => {
                 // Move TX pointer to signal buffer (sound ON)
                 i2s.tx_buffer(&ctx.resources.signal_buf[..]).ok();
-                // Set LED on
-                ctx.resources.gpiote.channel0().clear();
+                ctx.resources.led.set_low().ok();
             }
             _ => {
                 // Move TX pointer to silent buffer (sound OFF)
                 i2s.tx_buffer(&ctx.resources.mute_buf[..]).ok();
-                // Set LED off
-                ctx.resources.gpiote.channel0().set();
+                ctx.resources.led.set_high().ok();
             }
         }
         ctx.schedule
