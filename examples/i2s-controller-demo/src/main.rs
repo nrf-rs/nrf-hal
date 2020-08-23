@@ -77,6 +77,7 @@ const APP: () = {
         i2s.tx_buffer(&ctx.resources.mute_buf[..]).ok();
         i2s.enable().start();
 
+        // Fill signal buffer with triangle waveform, 2 channels interleaved
         let signal_buf = ctx.resources.signal_buf;
         let len = signal_buf.len() / 2;
         for x in 0..len {
@@ -128,6 +129,7 @@ const APP: () = {
             uarte_timer: Timer::new(ctx.device.TIMER0),
         }
     }
+
     #[idle(resources=[uarte, uarte_timer, producer])]
     fn idle(ctx: idle::Context) -> ! {
         let idle::Resources {
@@ -166,20 +168,19 @@ const APP: () = {
     #[task(resources = [consumer, i2s, signal_buf, mute_buf, gpiote, speed], schedule = [tick])]
     fn tick(ctx: tick::Context) {
         let i2s = ctx.resources.i2s;
-        if let Some(state) = ctx.resources.consumer.dequeue() {
-            match state {
-                State::On => {
-                    i2s.tx_buffer(&ctx.resources.signal_buf[..]).ok();
-                    ctx.resources.gpiote.channel0().clear();
-                }
-                State::Off => {
-                    i2s.tx_buffer(&ctx.resources.mute_buf[..]).ok();
-                    ctx.resources.gpiote.channel0().set();
-                }
+        match ctx.resources.consumer.dequeue() {
+            Some(State::On) => {
+                // Move TX pointer to signal buffer (sound ON)
+                i2s.tx_buffer(&ctx.resources.signal_buf[..]).ok();
+                // Set LED on
+                ctx.resources.gpiote.channel0().clear();
             }
-        } else {
-            i2s.tx_buffer(&ctx.resources.mute_buf[..]).ok();
-            ctx.resources.gpiote.channel0().set();
+            _ => {
+                // Move TX pointer to silent buffer (sound OFF)
+                i2s.tx_buffer(&ctx.resources.mute_buf[..]).ok();
+                // Set LED off
+                ctx.resources.gpiote.channel0().set();
+            }
         }
         ctx.schedule
             .tick(ctx.scheduled + ctx.resources.speed.cycles())
