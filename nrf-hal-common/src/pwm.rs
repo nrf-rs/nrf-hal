@@ -2,6 +2,7 @@
 //!
 //! The pulse with modulation (PWM) module enables the generation of pulse width modulated signals on GPIO.
 
+use core::cell::RefCell;
 use core::sync::atomic::{compiler_fence, Ordering};
 
 #[cfg(any(feature = "52833", feature = "52840"))]
@@ -23,7 +24,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Pwm<T: Instance> {
     pwm: T,
-    duty: [u16; 4],
+    duty: RefCell<[u16; 4]>,
 }
 
 impl<T> Pwm<T>
@@ -33,7 +34,7 @@ where
     /// Takes ownership of the peripheral and applies sane defaults.
     pub fn new(pwm: T) -> Pwm<T> {
         compiler_fence(Ordering::SeqCst);
-        let duty = [0u16; 4];
+        let duty = RefCell::new([0u16; 4]);
         pwm.enable.write(|w| w.enable().enabled());
         pwm.mode.write(|w| w.updown().up());
         pwm.prescaler.write(|w| w.prescaler().div_1());
@@ -272,7 +273,7 @@ where
     // Internal helper function that returns 15 bit duty cycle value.
     #[inline(always)]
     fn duty_on_value(&self, index: usize) -> u16 {
-        let val = self.duty[index];
+        let val = self.duty.borrow()[index];
         let is_inverted = (val >> 15) & 1 == 0;
         match is_inverted {
             false => val,
@@ -283,7 +284,7 @@ where
     // Internal helper function that returns 15 bit inverted duty cycle value.
     #[inline(always)]
     fn duty_off_value(&self, index: usize) -> u16 {
-        let val = self.duty[index];
+        let val = self.duty.borrow()[index];
         let is_inverted = (val >> 15) & 1 == 0;
         match is_inverted {
             false => self.max_duty() - val,
@@ -294,9 +295,9 @@ where
     /// Sets duty cycle (15 bit) for all PWM channels.
     pub fn set_duty_on_common(&self, duty: u16) {
         compiler_fence(Ordering::SeqCst);
-        unsafe {
-            *(self.duty.as_ptr() as *mut u16) = duty.min(self.max_duty()) & 0x7FFF;
-        }
+        self.duty
+            .borrow_mut()
+            .copy_from_slice(&[duty.min(self.max_duty()) & 0x7FFF; 4][..]);
         self.one_shot();
         self.set_load_mode(LoadMode::Common);
         self.pwm
@@ -310,9 +311,9 @@ where
     /// Sets inverted duty cycle (15 bit) for all PWM channels.   
     pub fn set_duty_off_common(&self, duty: u16) {
         compiler_fence(Ordering::SeqCst);
-        unsafe {
-            *(self.duty.as_ptr() as *mut u16) = duty.min(self.max_duty()) | 0x8000;
-        }
+        self.duty
+            .borrow_mut()
+            .copy_from_slice(&[duty.min(self.max_duty()) | 0x8000; 4][..]);
         self.one_shot();
         self.set_load_mode(LoadMode::Common);
         self.pwm
@@ -338,10 +339,11 @@ where
     /// Sets duty cycle (15 bit) for a PWM group.
     pub fn set_duty_on_group(&self, group: Group, duty: u16) {
         compiler_fence(Ordering::SeqCst);
-        unsafe {
-            *(self.duty.as_ptr().offset(group.into()) as *mut u16) =
-                duty.min(self.max_duty()) & 0x7FFF;
-        }
+        // unsafe {
+        //     *(self.duty.as_ptr().offset(group.into()) as *mut u16) =
+        //         duty.min(self.max_duty()) & 0x7FFF;
+        // }
+        self.duty.borrow_mut()[usize::from(group)] = duty.min(self.max_duty()) & 0x7FFF;
         self.one_shot();
         self.set_load_mode(LoadMode::Grouped);
         self.pwm
@@ -355,10 +357,7 @@ where
     /// Sets inverted duty cycle (15 bit) for a PWM group.
     pub fn set_duty_off_group(&self, group: Group, duty: u16) {
         compiler_fence(Ordering::SeqCst);
-        unsafe {
-            *(self.duty.as_ptr().offset(group.into()) as *mut u16) =
-                duty.min(self.max_duty()) | 0x8000;
-        }
+        self.duty.borrow_mut()[usize::from(group)] = duty.min(self.max_duty()) | 0x8000;
         self.one_shot();
         self.set_load_mode(LoadMode::Grouped);
         self.pwm
@@ -384,13 +383,10 @@ where
     /// Sets duty cycle (15 bit) for a PWM channel.    
     pub fn set_duty_on(&self, channel: Channel, duty: u16) {
         compiler_fence(Ordering::SeqCst);
-        unsafe {
-            *(self.duty.as_ptr().offset(channel.into()) as *mut u16) =
-                duty.min(self.max_duty()) & 0x7FFF;
-        }
+        self.duty.borrow_mut()[usize::from(channel)] = duty.min(self.max_duty()) & 0x7FFF;
         self.one_shot();
         self.set_load_mode(LoadMode::Individual);
-        if self.load_seq(Seq::Seq0, &self.duty).is_ok() {
+        if self.load_seq(Seq::Seq0, &*self.duty.borrow()).is_ok() {
             self.start_seq(Seq::Seq0);
         }
     }
@@ -398,13 +394,10 @@ where
     /// Sets inverted duty cycle (15 bit) for a PWM channel.
     pub fn set_duty_off(&self, channel: Channel, duty: u16) {
         compiler_fence(Ordering::SeqCst);
-        unsafe {
-            *(self.duty.as_ptr().offset(channel.into()) as *mut u16) =
-                duty.min(self.max_duty()) | 0x8000;
-        }
+        self.duty.borrow_mut()[usize::from(channel)] = duty.min(self.max_duty()) | 0x8000;
         self.one_shot();
         self.set_load_mode(LoadMode::Individual);
-        if self.load_seq(Seq::Seq0, &self.duty).is_ok() {
+        if self.load_seq(Seq::Seq0, &*self.duty.borrow()).is_ok() {
             self.start_seq(Seq::Seq0);
         }
     }
@@ -870,11 +863,6 @@ pub enum Channel {
     C2,
     C3,
 }
-impl From<Channel> for isize {
-    fn from(variant: Channel) -> Self {
-        variant as _
-    }
-}
 impl From<Channel> for usize {
     fn from(variant: Channel) -> Self {
         variant as _
@@ -885,11 +873,6 @@ impl From<Channel> for usize {
 pub enum Group {
     G0,
     G1,
-}
-impl From<Group> for isize {
-    fn from(variant: Group) -> Self {
-        variant as _
-    }
 }
 impl From<Group> for usize {
     fn from(variant: Group) -> Self {
