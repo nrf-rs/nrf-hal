@@ -70,7 +70,7 @@ where
 
     /// Sets the PWM clock prescaler.
     #[inline(always)]
-    pub fn get_prescaler(&self) -> Prescaler {
+    pub fn prescaler(&self) -> Prescaler {
         match self.pwm.prescaler.read().prescaler().bits() {
             0 => Prescaler::Div1,
             1 => Prescaler::Div2,
@@ -94,14 +94,14 @@ where
     }
     /// Returns the maximum duty cycle value.
     #[inline(always)]
-    pub fn get_max_duty(&self) -> u16 {
+    pub fn max_duty(&self) -> u16 {
         self.pwm.countertop.read().countertop().bits()
     }
 
     /// Sets the PWM output frequency.
     #[inline(always)]
     pub fn set_period(&self, freq: Hertz) -> &Self {
-        let duty = match self.get_prescaler() {
+        let duty = match self.prescaler() {
             Prescaler::Div1 => 16_000_000u32 / freq.0,
             Prescaler::Div2 => 8_000_000u32 / freq.0,
             Prescaler::Div4 => 4_000_000u32 / freq.0,
@@ -111,7 +111,7 @@ where
             Prescaler::Div64 => 250_000u32 / freq.0,
             Prescaler::Div128 => 125_000u32 / freq.0,
         };
-        match self.get_counter_mode() {
+        match self.counter_mode() {
             CounterMode::Up => self.set_max_duty(duty.min(32767) as u16),
             CounterMode::UpAndDown => self.set_max_duty((duty / 2).min(32767) as u16),
         };
@@ -120,9 +120,9 @@ where
 
     /// Returns the PWM output frequency.
     #[inline(always)]
-    pub fn get_period(&self) -> Hertz {
-        let max_duty = self.get_max_duty() as u32;
-        let freq = match self.get_prescaler() {
+    pub fn period(&self) -> Hertz {
+        let max_duty = self.max_duty() as u32;
+        let freq = match self.prescaler() {
             Prescaler::Div1 => 16_000_000u32 / max_duty,
             Prescaler::Div2 => 8_000_000u32 / max_duty,
             Prescaler::Div4 => 4_000_000u32 / max_duty,
@@ -132,7 +132,7 @@ where
             Prescaler::Div64 => 250_000u32 / max_duty,
             Prescaler::Div128 => 125_000u32 / max_duty,
         };
-        match self.get_counter_mode() {
+        match self.counter_mode() {
             CounterMode::Up => freq.hz(),
             CounterMode::UpAndDown => (freq / 2).hz(),
         }
@@ -227,7 +227,7 @@ where
 
     /// Returns how a sequence is read from RAM and is spread to the compare register.
     #[inline(always)]
-    pub fn get_load_mode(&self) -> LoadMode {
+    pub fn load_mode(&self) -> LoadMode {
         match self.pwm.decoder.read().load().bits() {
             0 => LoadMode::Common,
             1 => LoadMode::Grouped,
@@ -246,7 +246,7 @@ where
 
     /// Returns selected operating mode of the wave counter.    
     #[inline(always)]
-    pub fn get_counter_mode(&self) -> CounterMode {
+    pub fn counter_mode(&self) -> CounterMode {
         match self.pwm.mode.read().updown().bit() {
             false => CounterMode::Up,
             true => CounterMode::UpAndDown,
@@ -262,7 +262,7 @@ where
 
     /// Returns selected source for advancing the active sequence.
     #[inline(always)]
-    pub fn get_step_mode(&self) -> StepMode {
+    pub fn step_mode(&self) -> StepMode {
         match self.pwm.decoder.read().mode().bit() {
             false => StepMode::Auto,
             true => StepMode::NextStep,
@@ -271,22 +271,22 @@ where
 
     // Internal helper function that returns 15 bit duty cycle value.
     #[inline(always)]
-    fn get_duty_on_value(&self, index: usize) -> u16 {
+    fn duty_on_value(&self, index: usize) -> u16 {
         let val = self.duty[index];
         let is_inverted = (val >> 15) & 1 == 0;
         match is_inverted {
             false => val,
-            true => self.get_max_duty() - (val & 0x7FFF),
+            true => self.max_duty() - (val & 0x7FFF),
         }
     }
 
     // Internal helper function that returns 15 bit inverted duty cycle value.
     #[inline(always)]
-    fn get_duty_off_value(&self, index: usize) -> u16 {
+    fn duty_off_value(&self, index: usize) -> u16 {
         let val = self.duty[index];
         let is_inverted = (val >> 15) & 1 == 0;
         match is_inverted {
-            false => self.get_max_duty() - val,
+            false => self.max_duty() - val,
             true => val & 0x7FFF,
         }
     }
@@ -295,7 +295,7 @@ where
     pub fn set_duty_on_common(&self, duty: u16) {
         compiler_fence(Ordering::SeqCst);
         unsafe {
-            *(self.duty.as_ptr() as *mut u16) = duty.min(self.get_max_duty()) & 0x7FFF;
+            *(self.duty.as_ptr() as *mut u16) = duty.min(self.max_duty()) & 0x7FFF;
         }
         self.one_shot();
         self.set_load_mode(LoadMode::Common);
@@ -311,7 +311,7 @@ where
     pub fn set_duty_off_common(&self, duty: u16) {
         compiler_fence(Ordering::SeqCst);
         unsafe {
-            *(self.duty.as_ptr() as *mut u16) = duty.min(self.get_max_duty()) | 0x8000;
+            *(self.duty.as_ptr() as *mut u16) = duty.min(self.max_duty()) | 0x8000;
         }
         self.one_shot();
         self.set_load_mode(LoadMode::Common);
@@ -325,14 +325,14 @@ where
 
     /// Returns the common duty cycle value for all PWM channels in `Common` load mode.
     #[inline(always)]
-    pub fn get_duty_on_common(&self) -> u16 {
-        self.get_duty_on_value(0)
+    pub fn duty_on_common(&self) -> u16 {
+        self.duty_on_value(0)
     }
 
     /// Returns the inverted common duty cycle value for all PWM channels in `Common` load mode.
     #[inline(always)]
-    pub fn get_duty_off_common(&self) -> u16 {
-        self.get_duty_off_value(0)
+    pub fn duty_off_common(&self) -> u16 {
+        self.duty_off_value(0)
     }
 
     /// Sets duty cycle (15 bit) for a PWM group.
@@ -340,7 +340,7 @@ where
         compiler_fence(Ordering::SeqCst);
         unsafe {
             *(self.duty.as_ptr().offset(group.into()) as *mut u16) =
-                duty.min(self.get_max_duty()) & 0x7FFF;
+                duty.min(self.max_duty()) & 0x7FFF;
         }
         self.one_shot();
         self.set_load_mode(LoadMode::Grouped);
@@ -357,7 +357,7 @@ where
         compiler_fence(Ordering::SeqCst);
         unsafe {
             *(self.duty.as_ptr().offset(group.into()) as *mut u16) =
-                duty.min(self.get_max_duty()) | 0x8000;
+                duty.min(self.max_duty()) | 0x8000;
         }
         self.one_shot();
         self.set_load_mode(LoadMode::Grouped);
@@ -371,14 +371,14 @@ where
 
     /// Returns duty cycle value for a PWM group.    
     #[inline(always)]
-    pub fn get_duty_on_group(&self, group: Group) -> u16 {
-        self.get_duty_on_value(usize::from(group))
+    pub fn duty_on_group(&self, group: Group) -> u16 {
+        self.duty_on_value(usize::from(group))
     }
 
     /// Returns inverted duty cycle value for a PWM group.
     #[inline(always)]
-    pub fn get_duty_off_group(&self, group: Group) -> u16 {
-        self.get_duty_off_value(usize::from(group))
+    pub fn duty_off_group(&self, group: Group) -> u16 {
+        self.duty_off_value(usize::from(group))
     }
 
     /// Sets duty cycle (15 bit) for a PWM channel.    
@@ -386,7 +386,7 @@ where
         compiler_fence(Ordering::SeqCst);
         unsafe {
             *(self.duty.as_ptr().offset(channel.into()) as *mut u16) =
-                duty.min(self.get_max_duty()) & 0x7FFF;
+                duty.min(self.max_duty()) & 0x7FFF;
         }
         self.one_shot();
         self.set_load_mode(LoadMode::Individual);
@@ -400,7 +400,7 @@ where
         compiler_fence(Ordering::SeqCst);
         unsafe {
             *(self.duty.as_ptr().offset(channel.into()) as *mut u16) =
-                duty.min(self.get_max_duty()) | 0x8000;
+                duty.min(self.max_duty()) | 0x8000;
         }
         self.one_shot();
         self.set_load_mode(LoadMode::Individual);
@@ -411,14 +411,14 @@ where
 
     /// Returns the duty cycle value for a PWM channel.        
     #[inline(always)]
-    pub fn get_duty_on(&self, channel: Channel) -> u16 {
-        self.get_duty_on_value(usize::from(channel))
+    pub fn duty_on(&self, channel: Channel) -> u16 {
+        self.duty_on_value(usize::from(channel))
     }
 
     /// Returns the inverted duty cycle value for a PWM group.
     #[inline(always)]
-    pub fn get_duty_off(&self, channel: Channel) -> u16 {
-        self.get_duty_off_value(usize::from(channel))
+    pub fn duty_off(&self, channel: Channel) -> u16 {
+        self.duty_off_value(usize::from(channel))
     }
 
     /// Sets number of playbacks of sequences.
@@ -713,7 +713,7 @@ impl<T: Instance> embedded_hal::Pwm for Pwm<T> {
     }
 
     fn get_duty(&self, channel: Self::Channel) -> Self::Duty {
-        self.get_duty_on(channel)
+        self.duty_on(channel)
     }
 
     fn set_duty(&mut self, channel: Self::Channel, duty: Self::Duty) {
@@ -721,11 +721,11 @@ impl<T: Instance> embedded_hal::Pwm for Pwm<T> {
     }
 
     fn get_max_duty(&self) -> Self::Duty {
-        self.get_max_duty()
+        self.max_duty()
     }
 
     fn get_period(&self) -> Self::Time {
-        self.get_period()
+        self.period()
     }
 
     fn set_period<P>(&mut self, period: P)
@@ -756,8 +756,8 @@ impl<'a, T: Instance> PwmChannel<'a, T> {
         self.pwm.disable_channel(self.channel);
     }
 
-    pub fn get_max_duty(&self) -> u16 {
-        self.pwm.get_max_duty()
+    pub fn max_duty(&self) -> u16 {
+        self.pwm.max_duty()
     }
     pub fn set_duty(&self, duty: u16) {
         self.pwm.set_duty_on(self.channel, duty);
@@ -768,11 +768,11 @@ impl<'a, T: Instance> PwmChannel<'a, T> {
     pub fn set_duty_off(&self, duty: u16) {
         self.pwm.set_duty_off(self.channel, duty);
     }
-    pub fn get_duty_on(&self) -> u16 {
-        self.pwm.get_duty_on(self.channel)
+    pub fn duty_on(&self) -> u16 {
+        self.pwm.duty_on(self.channel)
     }
-    pub fn get_duty_off(&self) -> u16 {
-        self.pwm.get_duty_off(self.channel)
+    pub fn duty_off(&self) -> u16 {
+        self.pwm.duty_off(self.channel)
     }
 }
 
@@ -788,11 +788,11 @@ impl<'a, T: Instance> embedded_hal::PwmPin for PwmChannel<'a, T> {
     }
 
     fn get_duty(&self) -> Self::Duty {
-        self.get_duty_on()
+        self.duty_on()
     }
 
     fn get_max_duty(&self) -> Self::Duty {
-        self.get_max_duty()
+        self.max_duty()
     }
 
     fn set_duty(&mut self, duty: u16) {
@@ -819,8 +819,8 @@ impl<'a, T: Instance> PwmGroup<'a, T> {
     pub fn disable(&self) {
         self.pwm.disable_group(self.group);
     }
-    pub fn get_max_duty(&self) -> u16 {
-        self.pwm.get_max_duty()
+    pub fn max_duty(&self) -> u16 {
+        self.pwm.max_duty()
     }
     pub fn set_duty(&self, duty: u16) {
         self.pwm.set_duty_on_group(self.group, duty);
@@ -831,11 +831,11 @@ impl<'a, T: Instance> PwmGroup<'a, T> {
     pub fn set_duty_off(&self, duty: u16) {
         self.pwm.set_duty_off_group(self.group, duty);
     }
-    pub fn get_duty_on(&self) -> u16 {
-        self.pwm.get_duty_on_group(self.group)
+    pub fn duty_on(&self) -> u16 {
+        self.pwm.duty_on_group(self.group)
     }
-    pub fn get_duty_off(&self) -> u16 {
-        self.pwm.get_duty_off_group(self.group)
+    pub fn duty_off(&self) -> u16 {
+        self.pwm.duty_off_group(self.group)
     }
 }
 
@@ -851,11 +851,11 @@ impl<'a, T: Instance> embedded_hal::PwmPin for PwmGroup<'a, T> {
     }
 
     fn get_duty(&self) -> Self::Duty {
-        self.get_duty_on()
+        self.duty_on()
     }
 
     fn get_max_duty(&self) -> Self::Duty {
-        self.get_max_duty()
+        self.max_duty()
     }
 
     fn set_duty(&mut self, duty: u16) {
