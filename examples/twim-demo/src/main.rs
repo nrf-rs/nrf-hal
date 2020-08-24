@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+#[allow(unused_imports)]
+use embedded_hal::blocking::i2c::{Read, Write};
 use embedded_hal::digital::v2::InputPin;
 use {
     core::{
@@ -18,7 +20,7 @@ use {
     rtt_target::{rprintln, rtt_init_print},
 };
 
-#[rtic::app(device = crate::hal::pac, peripherals = true,  monotonic = rtic::cyccnt::CYCCNT)]
+#[rtic::app(device = crate::hal::pac, peripherals = true, monotonic = rtic::cyccnt::CYCCNT)]
 const APP: () = {
     struct Resources {
         twim: Twim<TWIM0>,
@@ -91,8 +93,7 @@ const APP: () = {
         }
         if ctx.resources.btn2.is_low().unwrap() {
             rprintln!("\nWRITE to address 0x1A");
-            let mut tx_buf = [0u8; 8];
-            tx_buf.copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+            let tx_buf = [1, 2, 3, 4, 5, 6, 7, 8];
             let res = twim.write(0x1A, &tx_buf[..]);
             rprintln!("Result: {:?}\n{:?}", res, tx_buf);
         }
@@ -104,8 +105,7 @@ const APP: () = {
         }
         if ctx.resources.btn4.is_low().unwrap() {
             rprintln!("\nWRITE to address 0x1B");
-            let mut tx_buf = [0u8; 4];
-            tx_buf.copy_from_slice(&[9, 10, 11, 12]);
+            let tx_buf = [9, 10, 11, 12];
             let res = twim.write(0x1B, &tx_buf[..]);
             rprintln!("Result: {:?}\n{:?}", res, tx_buf);
         }
