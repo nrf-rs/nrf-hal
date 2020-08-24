@@ -339,10 +339,6 @@ where
     /// Sets duty cycle (15 bit) for a PWM group.
     pub fn set_duty_on_group(&self, group: Group, duty: u16) {
         compiler_fence(Ordering::SeqCst);
-        // unsafe {
-        //     *(self.duty.as_ptr().offset(group.into()) as *mut u16) =
-        //         duty.min(self.max_duty()) & 0x7FFF;
-        // }
         self.duty.borrow_mut()[usize::from(group)] = duty.min(self.max_duty()) & 0x7FFF;
         self.one_shot();
         self.set_load_mode(LoadMode::Grouped);
