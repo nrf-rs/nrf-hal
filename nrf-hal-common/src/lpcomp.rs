@@ -22,7 +22,8 @@ pub struct LpComp {
 }
 
 impl LpComp {
-    /// Takes ownership of the `LPCOMP` peripheral, returning a safe wrapper.
+    /// Takes ownership of the `LPCOMP` peripheral, returning a safe wrapper
+    /// using specified input pin and a default Vref of Vdd/2.
     pub fn new<P: LpCompInputPin>(lpcomp: LPCOMP, input_pin: &P) -> Self {
         lpcomp.psel.write(|w| w.psel().variant(input_pin.ain()));
         lpcomp
