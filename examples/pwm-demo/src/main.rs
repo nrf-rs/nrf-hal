@@ -117,7 +117,7 @@ const APP: () = {
         let status = ctx.resources.status;
 
         let pwm = ctx.resources.pwm;
-        let max_duty = pwm.get_max_duty();
+        let max_duty = pwm.max_duty();
         let (ch0, ch1, ch2, ch3) = pwm.split_channels();
         let (grp0, grp1) = pwm.split_groups();
 
