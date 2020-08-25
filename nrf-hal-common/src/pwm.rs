@@ -293,6 +293,7 @@ where
     }
 
     /// Sets duty cycle (15 bit) for all PWM channels.
+    /// Will replace any ongoing sequence playback.
     pub fn set_duty_on_common(&self, duty: u16) {
         compiler_fence(Ordering::SeqCst);
         self.duty
@@ -308,7 +309,8 @@ where
         self.start_seq(Seq::Seq0);
     }
 
-    /// Sets inverted duty cycle (15 bit) for all PWM channels.   
+    /// Sets inverted duty cycle (15 bit) for all PWM channels.
+    /// Will replace any ongoing sequence playback.
     pub fn set_duty_off_common(&self, duty: u16) {
         compiler_fence(Ordering::SeqCst);
         self.duty
@@ -337,6 +339,7 @@ where
     }
 
     /// Sets duty cycle (15 bit) for a PWM group.
+    /// Will replace any ongoing sequence playback.
     pub fn set_duty_on_group(&self, group: Group, duty: u16) {
         compiler_fence(Ordering::SeqCst);
         self.duty.borrow_mut()[usize::from(group)] = duty.min(self.max_duty()) & 0x7FFF;
@@ -351,6 +354,7 @@ where
     }
 
     /// Sets inverted duty cycle (15 bit) for a PWM group.
+    /// Will replace any ongoing sequence playback.
     pub fn set_duty_off_group(&self, group: Group, duty: u16) {
         compiler_fence(Ordering::SeqCst);
         self.duty.borrow_mut()[usize::from(group)] = duty.min(self.max_duty()) | 0x8000;
@@ -376,7 +380,8 @@ where
         self.duty_off_value(usize::from(group))
     }
 
-    /// Sets duty cycle (15 bit) for a PWM channel.    
+    /// Sets duty cycle (15 bit) for a PWM channel.
+    /// Will replace any ongoing sequence playback and the other channels will return to their previously set value.
     pub fn set_duty_on(&self, channel: Channel, duty: u16) {
         compiler_fence(Ordering::SeqCst);
         self.duty.borrow_mut()[usize::from(channel)] = duty.min(self.max_duty()) & 0x7FFF;
@@ -388,6 +393,7 @@ where
     }
 
     /// Sets inverted duty cycle (15 bit) for a PWM channel.
+    /// Will replace any ongoing sequence playback and the other channels will return to their previously set value.
     pub fn set_duty_off(&self, channel: Channel, duty: u16) {
         compiler_fence(Ordering::SeqCst);
         self.duty.borrow_mut()[usize::from(channel)] = duty.min(self.max_duty()) | 0x8000;
@@ -466,7 +472,7 @@ where
     }
 
     /// Loads a sequence buffer.
-    /// NOTE: `buf` must live until the sequence is done playing.
+    /// NOTE: `buf` must live until the sequence is done playing, or it might play a corrupted sequence.
     pub fn load_seq(&self, seq: Seq, buf: &[u16]) -> Result<(), Error> {
         if (buf.as_ptr() as usize) < SRAM_LOWER || (buf.as_ptr() as usize) > SRAM_UPPER {
             return Err(Error::DMABufferNotInDataMemory);
