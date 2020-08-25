@@ -16,6 +16,8 @@ members = [
   "examples/lpcomp-demo",
   "examples/qdec-demo",
   "examples/comp-demo",
+  "examples/twim-demo",
+  "examples/twis-demo",
 ]
 
 [profile.dev]
