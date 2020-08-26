@@ -18,6 +18,7 @@ members = [
   "examples/comp-demo",
   "examples/i2s-controller-demo",
   "examples/i2s-peripheral-demo",
+  "examples/pwm-demo",
   "examples/twim-demo",
   "examples/twis-demo",
 ]
