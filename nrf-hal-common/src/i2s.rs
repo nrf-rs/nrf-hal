@@ -303,11 +303,11 @@ impl I2S {
 
     /// Sets the receive buffer RAM start address.
     #[inline(always)]
-    pub fn set_rx_ptr(&self, addr: u32) -> Result<(), Error> {
+    pub unsafe fn set_rx_ptr(&self, addr: u32) -> Result<(), Error> {
         if (addr as usize) < SRAM_LOWER || (addr as usize) > SRAM_UPPER {
             return Err(Error::DMABufferNotInDataMemory);
         }
-        self.i2s.rxd.ptr.write(|w| unsafe { w.ptr().bits(addr) });
+        self.i2s.rxd.ptr.write(|w| w.ptr().bits(addr));
         Ok(())
     }
 
