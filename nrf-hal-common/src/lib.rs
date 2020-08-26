@@ -41,6 +41,8 @@ pub mod gpiote;
 pub mod lpcomp;
 #[cfg(not(feature = "9160"))]
 pub mod ppi;
+#[cfg(any(feature = "52833", feature = "52840"))]
+pub mod pwm;
 #[cfg(not(any(feature = "51", feature = "9160")))]
 pub mod qdec;
 #[cfg(not(feature = "9160"))]
