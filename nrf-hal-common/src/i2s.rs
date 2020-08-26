@@ -18,7 +18,7 @@ pub struct I2S {
 }
 
 impl I2S {
-    /// Takes ownership of the raw I2S peripheral, returning a safe wrapper i controller mode.
+    /// Takes ownership of the raw I2S peripheral, returning a safe wrapper in controller mode.
     pub fn new_controller(
         i2s: I2S_PAC,
         mck_pin: Option<&Pin<Output<PushPull>>>,
@@ -172,14 +172,14 @@ impl I2S {
 
     /// Enables/disables I2S transmission (TX).
     #[inline(always)]
-    pub fn tx_enabled(&self, enabled: bool) -> &Self {
+    pub fn set_tx_enabled(&self, enabled: bool) -> &Self {
         self.i2s.config.txen.write(|w| w.txen().bit(enabled));
         self
     }
 
     /// Enables/disables I2S reception (RX).
     #[inline(always)]
-    pub fn rx_enabled(&self, enabled: bool) -> &Self {
+    pub fn set_rx_enabled(&self, enabled: bool) -> &Self {
         self.i2s.config.rxen.write(|w| w.rxen().bit(enabled));
         self
     }
@@ -242,6 +242,7 @@ impl I2S {
     }
 
     /// Sets the transmit data buffer (TX).
+    /// NOTE: The TX buffer must live until the transfer is done, or corrupted data will be transmitted.
     #[inline(always)]
     pub fn tx_buffer<B: I2SBuffer + ?Sized>(&self, buf: &B) -> Result<(), Error> {
         if (buf.ptr() as usize) < SRAM_LOWER || (buf.ptr() as usize) > SRAM_UPPER {
