@@ -17,6 +17,9 @@ pub struct I2S {
     i2s: I2S_PAC,
 }
 
+// I2S EasyDMA MAXCNT bit length = 14
+const MAX_DMA_MAXCNT: u32 = 16_384;
+
 impl I2S {
     /// Takes ownership of the raw I2S peripheral, returning a safe wrapper in controller mode.
     pub fn new_controller(
@@ -249,7 +252,7 @@ impl I2S {
             return Err(Error::DMABufferNotInDataMemory);
         }
 
-        if buf.maxcnt() > 16_384 {
+        if buf.maxcnt() > MAX_DMA_MAXCNT {
             return Err(Error::BufferTooLong);
         }
 
@@ -272,7 +275,7 @@ impl I2S {
             return Err(Error::DMABufferNotInDataMemory);
         }
 
-        if buf.maxcnt() > 16_384 {
+        if buf.maxcnt() > MAX_DMA_MAXCNT {
             return Err(Error::BufferTooLong);
         }
 
@@ -311,7 +314,7 @@ impl I2S {
     /// Sets the size (in 32bit words) of the receive and transmit buffers.
     #[inline(always)]
     pub fn set_buffersize(&self, n_32bit: u32) -> Result<(), Error> {
-        if n_32bit > 16_384 {
+        if n_32bit > MAX_DMA_MAXCNT {
             return Err(Error::BufferTooLong);
         }
         self.i2s.rxtxd.maxcnt.write(|w| unsafe { w.bits(n_32bit) });
