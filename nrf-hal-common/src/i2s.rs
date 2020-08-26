@@ -267,7 +267,7 @@ impl I2S {
 
     /// Sets the receive data buffer (RX).
     #[inline(always)]
-    pub fn rx_buffer<B: I2SBuffer + ?Sized>(&self, buf: &mut B) -> Result<(), Error> {
+    pub fn rx_buffer<B: I2SBuffer + ?Sized>(&self, buf: &'static mut B) -> Result<(), Error> {
         if (buf.ptr() as usize) < SRAM_LOWER || (buf.ptr() as usize) > SRAM_UPPER {
             return Err(Error::DMABufferNotInDataMemory);
         }
