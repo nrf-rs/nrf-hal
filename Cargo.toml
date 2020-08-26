@@ -13,10 +13,16 @@ members = [
   "examples/ppi-demo",
   "examples/gpiote-demo",
   "examples/wdt-demo",
+  "examples/lpcomp-demo",
   "examples/qdec-demo",
   "examples/comp-demo",
+<<<<<<< HEAD
   "examples/i2s-controller-demo",
   "examples/i2s-peripheral-demo",
+=======
+  "examples/twim-demo",
+  "examples/twis-demo",
+>>>>>>> master
 ]
 
 [profile.dev]
