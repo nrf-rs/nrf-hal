@@ -6,7 +6,7 @@ fn main() {
         // that early.
         if env::var("TARGET").unwrap() == "thumbv6m-none-eabi" {
             eprintln!(
-                "the nRF HAL does not support the `thumbv6m-none-eabi` target; \
+                "this nRF device does not support the `thumbv6m-none-eabi` target; \
                 build for `thumbv7em-none-eabi(hf)` instead"
             );
             process::exit(1);
