@@ -313,11 +313,11 @@ impl I2S {
 
     /// Sets the size (in 32bit words) of the receive and transmit buffers.
     #[inline(always)]
-    pub fn set_buffersize(&self, n_32bit: u32) -> Result<(), Error> {
+    pub unsafe fn set_buffersize(&self, n_32bit: u32) -> Result<(), Error> {
         if n_32bit > MAX_DMA_MAXCNT {
             return Err(Error::BufferTooLong);
         }
-        self.i2s.rxtxd.maxcnt.write(|w| unsafe { w.bits(n_32bit) });
+        self.i2s.rxtxd.maxcnt.write(|w| w.bits(n_32bit));
         Ok(())
     }
 
