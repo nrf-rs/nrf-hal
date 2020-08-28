@@ -63,11 +63,11 @@ fn main() -> ! {
 
     // This will write 8 bytes, then shift out ORC
 
-    // Note :     spi.read( &mut cs.degrade(), reference_data, &mut readbuf )
-    //            will fail because reference data is in flash, the copy to
-    //            an array will move it to RAM.
+    // Note: `spi.transfer_split_uneven(&mut cs.degrade(), reference_data, &mut readbuf)`
+    //       will fail because reference data is in flash, the copy to an array
+    //       will move it to RAM.
 
-    match spi.read(&mut cs.degrade(), &test_vec1, &mut readbuf) {
+    match spi.transfer_split_uneven(&mut cs.degrade(), &test_vec1, &mut readbuf) {
         Ok(_) => {
             for i in 0..test_vec1.len() {
                 tests_ok &= test_vec1[i] == readbuf[i];

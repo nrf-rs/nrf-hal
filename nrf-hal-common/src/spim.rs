@@ -220,19 +220,6 @@ where
         Ok(())
     }
 
-    /// Read from an SPI slave.
-    ///
-    /// This method is deprecated. Consider using `transfer` or `transfer_split`.
-    #[inline(always)]
-    pub fn read(
-        &mut self,
-        chip_select: &mut Pin<Output<PushPull>>,
-        tx_buffer: &[u8],
-        rx_buffer: &mut [u8],
-    ) -> Result<(), Error> {
-        self.transfer_split_uneven(chip_select, tx_buffer, rx_buffer)
-    }
-
     /// Read and write from a SPI slave, using a single buffer.
     ///
     /// This method implements a complete read transaction, which consists of
