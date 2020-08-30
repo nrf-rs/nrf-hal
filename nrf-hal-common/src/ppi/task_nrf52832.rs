@@ -1,5 +1,9 @@
 use crate::ppi::Task;
 
+// Task Impls for PPI channel groups
+impl Task for crate::pac::ppi::tasks_chg::EN {}
+impl Task for crate::pac::ppi::tasks_chg::DIS {}
+
 // Task Impls
 //
 // To reproduce, in the pac crate, search
