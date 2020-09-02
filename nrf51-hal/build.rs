@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 fn main() {
     let target = env::var("TARGET").unwrap();
-    if !target.starts_with("thumbv6") {
+    if target.starts_with("thumbv7") || target.starts_with("thumbv8") {
         panic!(
             "nrf51-hal only supports thumbv6 targets (attempting to build for `{}`)",
             target
