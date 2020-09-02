@@ -21,7 +21,7 @@ cargo build --manifest-path nrf52840-hal/Cargo.toml
 # Build all the example projects.
 
 echo Building examples/ccm-demo...
-cargo build --manifest-path examples/ccm-demo/Cargo.toml --features=52810
+cargo build --manifest-path examples/ccm-demo/Cargo.toml --features=52810 --target thumbv7em-none-eabi
 cargo build --manifest-path examples/ccm-demo/Cargo.toml --features=52832
 cargo build --manifest-path examples/ccm-demo/Cargo.toml --features=52833
 cargo build --manifest-path examples/ccm-demo/Cargo.toml --features=52840
@@ -30,11 +30,11 @@ echo Building examples/comp-demo...
 cargo build --manifest-path examples/comp-demo/Cargo.toml
 
 echo Building examples/ecb-demo...
-cargo build --manifest-path examples/ecb-demo/Cargo.toml --features=52810
+cargo build --manifest-path examples/ecb-demo/Cargo.toml --features=52810 --target thumbv7em-none-eabi
 cargo build --manifest-path examples/ecb-demo/Cargo.toml --features=52832
 cargo build --manifest-path examples/ecb-demo/Cargo.toml --features=52833
 cargo build --manifest-path examples/ecb-demo/Cargo.toml --features=52840
-cargo build --manifest-path examples/ecb-demo/Cargo.toml --features=51
+cargo build --manifest-path examples/ecb-demo/Cargo.toml --features=51 --target thumbv6m-none-eabi
 
 echo Building examples/gpiote-demo...
 cargo build --manifest-path examples/gpiote-demo/Cargo.toml
@@ -50,8 +50,8 @@ echo Building examples/lpcomp-demo...
 cargo build --manifest-path examples/lpcomp-demo/Cargo.toml
 
 echo Building examples/ppi-demo...
-cargo build --manifest-path examples/ppi-demo/Cargo.toml --features=51
-cargo build --manifest-path examples/ppi-demo/Cargo.toml --features=52810
+cargo build --manifest-path examples/ppi-demo/Cargo.toml --features=51 --target thumbv6m-none-eabi
+cargo build --manifest-path examples/ppi-demo/Cargo.toml --features=52810 --target thumbv7em-none-eabi
 cargo build --manifest-path examples/ppi-demo/Cargo.toml --features=52832
 cargo build --manifest-path examples/ppi-demo/Cargo.toml --features=52833
 cargo build --manifest-path examples/ppi-demo/Cargo.toml --features=52840
