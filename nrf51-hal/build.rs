@@ -4,6 +4,14 @@ use std::io::Write;
 use std::path::PathBuf;
 
 fn main() {
+    let target = env::var("TARGET").unwrap();
+    if target.starts_with("thumbv7") || target.starts_with("thumbv8") {
+        panic!(
+            "nrf51-hal only supports thumbv6 targets (attempting to build for `{}`)",
+            target
+        );
+    }
+
     if let Some((flash, mem)) = memory_sizes() {
         let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
 
