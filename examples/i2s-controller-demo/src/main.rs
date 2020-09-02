@@ -33,10 +33,7 @@ use {
 #[rtic::app(device = crate::hal::pac, peripherals = true, monotonic = rtic::cyccnt::CYCCNT)]
 const APP: () = {
     struct Resources {
-        // i2s: hal::i2s::I2S,
-        // #[init([0; 32])]
         signal_buf: pin::Pin<&'static [i16]>,
-        // #[init([0; 32])]
         mute_buf: pin::Pin<&'static [i16]>,
         #[init(None)]
         queue: Option<Queue<State, U256>>,
@@ -57,6 +54,7 @@ const APP: () = {
     fn init(mut ctx: init::Context) -> init::LateResources {
         static mut MUTE_BUF: [i16; 32] = [0i16; 32];
         static mut SIGNAL_BUF: [i16; 32] = [0i16; 32];
+
         // Fill signal buffer with triangle waveform, 2 channels interleaved
         let len = SIGNAL_BUF.len() / 2;
         for x in 0..len {
