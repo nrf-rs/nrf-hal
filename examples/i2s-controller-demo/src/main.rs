@@ -14,6 +14,7 @@ use small_morse::{encode, State};
 use {
     core::{
         panic::PanicInfo,
+        pin,
         sync::atomic::{compiler_fence, Ordering},
     },
     hal::{
@@ -32,11 +33,11 @@ use {
 #[rtic::app(device = crate::hal::pac, peripherals = true, monotonic = rtic::cyccnt::CYCCNT)]
 const APP: () = {
     struct Resources {
-        i2s: hal::i2s::I2S,
-        #[init([0; 32])]
-        signal_buf: [i16; 32],
-        #[init([0; 32])]
-        mute_buf: [i16; 32],
+        // i2s: hal::i2s::I2S,
+        // #[init([0; 32])]
+        signal_buf: pin::Pin<&'static [i16]>,
+        // #[init([0; 32])]
+        mute_buf: pin::Pin<&'static [i16]>,
         #[init(None)]
         queue: Option<Queue<State, U256>>,
         producer: Producer<'static, State, U256>,
@@ -49,10 +50,20 @@ const APP: () = {
         btn1: Pin<Input<PullUp>>,
         btn2: Pin<Input<PullUp>>,
         led: Pin<Output<PushPull>>,
+        transfer: Option<hal::i2s::Transfer<&'static [i16]>>,
     }
 
-    #[init(resources = [queue, signal_buf, mute_buf], spawn = [tick])]
+    #[init(resources = [queue], spawn = [tick])]
     fn init(mut ctx: init::Context) -> init::LateResources {
+        static mut MUTE_BUF: [i16; 32] = [0i16; 32];
+        static mut SIGNAL_BUF: [i16; 32] = [0i16; 32];
+        // Fill signal buffer with triangle waveform, 2 channels interleaved
+        let len = SIGNAL_BUF.len() / 2;
+        for x in 0..len {
+            SIGNAL_BUF[2 * x] = triangle_wave(x as i32, len, 2048, 0, 1) as i16;
+            SIGNAL_BUF[2 * x + 1] = triangle_wave(x as i32, len, 2048, 0, 1) as i16;
+        }
+
         let _clocks = hal::clocks::Clocks::new(ctx.device.CLOCK).enable_ext_hfosc();
         // Enable the monotonic timer (CYCCNT)
         ctx.core.DCB.enable_trace();
@@ -75,16 +86,7 @@ const APP: () = {
             None,
             Some(&sdout_pin),
         );
-        i2s.tx_buffer(&ctx.resources.mute_buf[..]).ok();
-        i2s.enable().start();
-
-        // Fill signal buffer with triangle waveform, 2 channels interleaved
-        let signal_buf = ctx.resources.signal_buf;
-        let len = signal_buf.len() / 2;
-        for x in 0..len {
-            signal_buf[2 * x] = triangle_wave(x as i32, len, 2048, 0, 1) as i16;
-            signal_buf[2 * x + 1] = triangle_wave(x as i32, len, 2048, 0, 1) as i16;
-        }
+        i2s.start();
 
         // Configure buttons
         let btn1 = p0.p0_11.into_pullup_input().degrade();
@@ -117,7 +119,6 @@ const APP: () = {
         ctx.spawn.tick().ok();
 
         init::LateResources {
-            i2s,
             producer,
             consumer,
             gpiote,
@@ -126,6 +127,9 @@ const APP: () = {
             led: p0.p0_13.into_push_pull_output(Level::High).degrade(),
             uarte,
             uarte_timer: Timer::new(ctx.device.TIMER0),
+            transfer: i2s.tx(pin::Pin::new(&MUTE_BUF[..])).ok(),
+            signal_buf: pin::Pin::new(&SIGNAL_BUF[..]),
+            mute_buf: pin::Pin::new(&MUTE_BUF[..]),
         }
     }
 
@@ -150,7 +154,7 @@ const APP: () = {
                     }
                 }
                 Err(hal::uarte::Error::Timeout(n)) if n > 0 => {
-                    if let Ok(msg) = core::str::from_utf8(&uarte_rx_buf[0..n]) {
+                    if let Ok(msg) = core::str::from_utf8(&uarte_rx_buf[..n]) {
                         rprintln!("{}", msg);
                         for action in encode(msg) {
                             for _ in 0..action.duration {
@@ -164,18 +168,18 @@ const APP: () = {
         }
     }
 
-    #[task(resources = [consumer, i2s, signal_buf, mute_buf, led, speed], schedule = [tick])]
+    #[task(resources = [consumer, transfer, signal_buf, mute_buf, led, speed], schedule = [tick])]
     fn tick(ctx: tick::Context) {
-        let i2s = ctx.resources.i2s;
+        let (_buf, i2s) = ctx.resources.transfer.take().unwrap().wait();
         match ctx.resources.consumer.dequeue() {
             Some(State::On) => {
                 // Move TX pointer to signal buffer (sound ON)
-                i2s.tx_buffer(&ctx.resources.signal_buf[..]).ok();
+                *ctx.resources.transfer = i2s.tx(*ctx.resources.signal_buf).ok();
                 ctx.resources.led.set_low().ok();
             }
             _ => {
                 // Move TX pointer to silent buffer (sound OFF)
-                i2s.tx_buffer(&ctx.resources.mute_buf[..]).ok();
+                *ctx.resources.transfer = i2s.tx(*ctx.resources.mute_buf).ok();
                 ctx.resources.led.set_high().ok();
             }
         }
@@ -190,7 +194,7 @@ const APP: () = {
         ctx.schedule.debounce(ctx.start + 3_000_000.cycles()).ok();
     }
 
-    #[task(resources = [btn1, btn2, i2s, speed])]
+    #[task(resources = [btn1, btn2, speed])]
     fn debounce(ctx: debounce::Context) {
         if ctx.resources.btn1.is_low().unwrap() {
             rprintln!("Go slower");

@@ -10,7 +10,11 @@ use crate::{
     pac::generic::Reg,
     target_constants::{SRAM_LOWER, SRAM_UPPER},
 };
-use core::sync::atomic::{compiler_fence, Ordering};
+use core::{
+    ops::{Deref, DerefMut},
+    sync::atomic::{compiler_fence, Ordering},
+};
+
 use i2s::{_EVENTS_RXPTRUPD, _EVENTS_STOPPED, _EVENTS_TXPTRUPD, _TASKS_START, _TASKS_STOP};
 
 pub struct I2S {
@@ -80,10 +84,11 @@ impl I2S {
             });
         }
 
+        i2s.enable.write(|w| w.enable().enabled());
         Self { i2s }
     }
 
-    /// Takes ownership of the raw I2S peripheral, returning a safe wrapper i peripheral mode.
+    /// Takes ownership of the raw I2S peripheral, returning a safe wrapper in peripheral mode.
     pub fn new_peripheral(
         i2s: I2S_PAC,
         mck_pin: Option<&Pin<Input<Floating>>>,
@@ -161,16 +166,19 @@ impl I2S {
 
     /// Starts I2S transfer.
     #[inline(always)]
-    pub fn start(&self) {
+    pub fn start(&self) -> &Self {
+        self.enable();
         self.i2s.tasks_start.write(|w| unsafe { w.bits(1) });
+        self
     }
 
     /// Stops the I2S transfer and waits until it has stopped.
     #[inline(always)]
-    pub fn stop(&self) {
+    pub fn stop(&self) -> &Self {
         compiler_fence(Ordering::SeqCst);
         self.i2s.tasks_stop.write(|w| unsafe { w.bits(1) });
         while self.i2s.events_stopped.read().bits() == 0 {}
+        self
     }
 
     /// Enables/disables I2S transmission (TX).
@@ -244,51 +252,125 @@ impl I2S {
         self
     }
 
-    /// Sets the transmit data buffer (TX).
-    /// NOTE: The TX buffer must live until the transfer is done, or corrupted data will be transmitted.
+    /// Returns the I2S channel configuation.
     #[inline(always)]
-    pub fn tx_buffer<B: I2SBuffer + ?Sized>(&self, buf: &B) -> Result<(), Error> {
-        if (buf.ptr() as usize) < SRAM_LOWER || (buf.ptr() as usize) > SRAM_UPPER {
+    pub fn channels(&self) -> Channels {
+        match self.i2s.config.channels.read().bits() {
+            0 => Channels::Stereo,
+            1 => Channels::Left,
+            _ => Channels::Right,
+        }
+    }
+
+    /// Receives data into the given `buffer` until it's filled.
+    /// Returns a value that represents the in-progress DMA transfer.
+    #[allow(unused_mut)]
+    pub fn rx<Word, B>(mut self, mut buffer: core::pin::Pin<B>) -> Result<Transfer<B>, Error>
+    where
+        Word: SupportedWordSize,
+        B: DerefMut + 'static,
+        B::Target: AsMut<[Word]> + Unpin + I2SBuffer,
+    {
+        if buffer.as_mut().maxcnt() > MAX_DMA_MAXCNT {
+            return Err(Error::BufferTooLong);
+        }
+        self.i2s
+            .rxd
+            .ptr
+            .write(|w| unsafe { w.ptr().bits(buffer.as_mut().ptr()) });
+        self.i2s
+            .rxtxd
+            .maxcnt
+            .write(|w| unsafe { w.bits(buffer.as_mut().maxcnt()) });
+        Ok(Transfer {
+            inner: Some(Inner { buffer, i2s: self }),
+        })
+    }
+
+    /// Full duplex DMA transfer.
+    /// Transmits the given `tx_buffer` while simultaneously receiving data
+    /// into the given `rx_buffer` until it is filled. The buffers must be of equal size.
+    /// Returns a value that represents the in-progress DMA transfer.
+    #[allow(unused_mut)]
+    pub fn transfer<Word, TxB, RxB>(
+        mut self,
+        tx_buffer: core::pin::Pin<TxB>,
+        mut rx_buffer: core::pin::Pin<RxB>,
+    ) -> Result<TransferFullDuplex<TxB, RxB>, Error>
+    where
+        Word: SupportedWordSize,
+        TxB: Deref + 'static,
+        TxB::Target: AsRef<[Word]> + I2SBuffer,
+        RxB: DerefMut + 'static,
+        RxB::Target: AsMut<[Word]> + Unpin + I2SBuffer,
+    {
+        if (tx_buffer.as_ref().ptr() as usize) < SRAM_LOWER
+            || (tx_buffer.as_ref().ptr() as usize) > SRAM_UPPER
+        {
             return Err(Error::DMABufferNotInDataMemory);
         }
-
-        if buf.maxcnt() > MAX_DMA_MAXCNT {
+        if tx_buffer.as_ref().maxcnt() != rx_buffer.as_mut().maxcnt() {
+            return Err(Error::BuffersDontMatch);
+        }
+        if tx_buffer.as_ref().maxcnt() > MAX_DMA_MAXCNT {
             return Err(Error::BufferTooLong);
         }
 
         self.i2s
             .txd
             .ptr
-            .write(|w| unsafe { w.ptr().bits(buf.ptr()) });
+            .write(|w| unsafe { w.ptr().bits(tx_buffer.as_ref().ptr()) });
+        self.i2s
+            .rxd
+            .ptr
+            .write(|w| unsafe { w.ptr().bits(rx_buffer.as_mut().ptr()) });
         self.i2s
             .rxtxd
             .maxcnt
-            .write(|w| unsafe { w.bits(buf.maxcnt()) });
+            .write(|w| unsafe { w.bits(rx_buffer.as_mut().maxcnt()) });
 
-        Ok(())
+        self.start();
+
+        Ok(TransferFullDuplex {
+            inner: Some(InnerFullDuplex {
+                tx_buffer,
+                rx_buffer,
+                i2s: self,
+            }),
+        })
     }
 
-    /// Sets the receive data buffer (RX).
-    #[inline(always)]
-    pub fn rx_buffer<B: I2SBuffer + ?Sized>(&self, buf: &'static mut B) -> Result<(), Error> {
-        if (buf.ptr() as usize) < SRAM_LOWER || (buf.ptr() as usize) > SRAM_UPPER {
+    /// Transmits the given `tx_buffer`.
+    /// Returns a value that represents the in-progress DMA transfer.
+    #[allow(unused_mut)]
+    pub fn tx<Word, B>(mut self, buffer: core::pin::Pin<B>) -> Result<Transfer<B>, Error>
+    where
+        Word: SupportedWordSize,
+        B: Deref + 'static,
+        B::Target: AsRef<[Word]> + I2SBuffer,
+    {
+        if (buffer.as_ref().ptr() as usize) < SRAM_LOWER
+            || (buffer.as_ref().ptr() as usize) > SRAM_UPPER
+        {
             return Err(Error::DMABufferNotInDataMemory);
         }
 
-        if buf.maxcnt() > MAX_DMA_MAXCNT {
+        if buffer.as_ref().maxcnt() > MAX_DMA_MAXCNT {
             return Err(Error::BufferTooLong);
         }
 
         self.i2s
-            .rxd
+            .txd
             .ptr
-            .write(|w| unsafe { w.ptr().bits(buf.ptr()) });
+            .write(|w| unsafe { w.ptr().bits(buffer.as_ref().ptr()) });
         self.i2s
             .rxtxd
             .maxcnt
-            .write(|w| unsafe { w.bits(buf.maxcnt()) });
+            .write(|w| unsafe { w.bits(buffer.as_ref().maxcnt()) });
 
-        Ok(())
+        Ok(Transfer {
+            inner: Some(Inner { buffer, i2s: self }),
+        })
     }
 
     /// Sets the transmit buffer RAM start address.
@@ -404,6 +486,7 @@ impl I2S {
 pub enum Error {
     DMABufferNotInDataMemory,
     BufferTooLong,
+    BuffersDontMatch,
 }
 
 /// I2S Mode
@@ -501,9 +584,9 @@ impl From<Format> for bool {
 /// Enable channels.
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum Channels {
+    Stereo,
     Left,
     Right,
-    Stereo,
 }
 impl From<Channels> for u8 {
     fn from(variant: Channels) -> Self {
@@ -520,11 +603,12 @@ pub enum I2SEvent {
 }
 
 /// Trait to represent valid sample buffers.
-pub trait I2SBuffer {
+pub trait I2SBuffer: private::Sealed {
     fn ptr(&self) -> u32;
     fn maxcnt(&self) -> u32;
 }
 
+impl private::Sealed for [i8] {}
 impl I2SBuffer for [i8] {
     fn ptr(&self) -> u32 {
         self.as_ptr() as u32
@@ -534,6 +618,7 @@ impl I2SBuffer for [i8] {
     }
 }
 
+impl private::Sealed for [i16] {}
 impl I2SBuffer for [i16] {
     fn ptr(&self) -> u32 {
         self.as_ptr() as u32
@@ -543,6 +628,7 @@ impl I2SBuffer for [i16] {
     }
 }
 
+impl private::Sealed for [i32] {}
 impl I2SBuffer for [i32] {
     fn ptr(&self) -> u32 {
         self.as_ptr() as u32
@@ -552,7 +638,18 @@ impl I2SBuffer for [i32] {
     }
 }
 
+impl private::Sealed for [u8] {}
 impl I2SBuffer for [u8] {
+    fn ptr(&self) -> u32 {
+        self.as_ptr() as u32
+    }
+    fn maxcnt(&self) -> u32 {
+        self.len() as u32 / 8
+    }
+}
+
+impl private::Sealed for [u16] {}
+impl I2SBuffer for [u16] {
     fn ptr(&self) -> u32 {
         self.as_ptr() as u32
     }
@@ -561,7 +658,8 @@ impl I2SBuffer for [u8] {
     }
 }
 
-impl I2SBuffer for [u16] {
+impl private::Sealed for [u32] {}
+impl I2SBuffer for [u32] {
     fn ptr(&self) -> u32 {
         self.as_ptr() as u32
     }
@@ -570,11 +668,89 @@ impl I2SBuffer for [u16] {
     }
 }
 
-impl I2SBuffer for [u32] {
-    fn ptr(&self) -> u32 {
-        self.as_ptr() as u32
+/// A DMA transfer
+pub struct Transfer<B> {
+    inner: Option<Inner<B>>,
+}
+
+struct Inner<B> {
+    buffer: core::pin::Pin<B>,
+    i2s: I2S,
+}
+
+impl<B> Transfer<B> {
+    /// Blocks until the transfer is done and returns the buffer.
+    pub fn wait(mut self) -> (core::pin::Pin<B>, I2S) {
+        let inner = self
+            .inner
+            .take()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        while !(inner.i2s.is_event_triggered(I2SEvent::RxPtrUpdated)
+            || inner.i2s.is_event_triggered(I2SEvent::TxPtrUpdated))
+        {}
+        compiler_fence(Ordering::Acquire);
+        (inner.buffer, inner.i2s)
     }
-    fn maxcnt(&self) -> u32 {
-        self.len() as u32
+}
+
+impl<B> Drop for Transfer<B> {
+    fn drop(&mut self) {
+        if let Some(inner) = self.inner.as_mut() {
+            inner.i2s.stop();
+            compiler_fence(Ordering::Acquire);
+        }
     }
+}
+/// A full duplex DMA transfer
+pub struct TransferFullDuplex<TxB, RxB> {
+    inner: Option<InnerFullDuplex<TxB, RxB>>,
+}
+
+struct InnerFullDuplex<TxB, RxB> {
+    tx_buffer: core::pin::Pin<TxB>,
+    rx_buffer: core::pin::Pin<RxB>,
+    i2s: I2S,
+}
+
+impl<TxB, RxB> TransferFullDuplex<TxB, RxB> {
+    /// Blocks until the transfer is done and returns the buffer.
+    pub fn wait(mut self) -> (core::pin::Pin<TxB>, core::pin::Pin<RxB>, I2S) {
+        let inner = self
+            .inner
+            .take()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        while !(inner.i2s.is_event_triggered(I2SEvent::RxPtrUpdated)
+            || inner.i2s.is_event_triggered(I2SEvent::TxPtrUpdated))
+        {}
+        compiler_fence(Ordering::Acquire);
+        (inner.tx_buffer, inner.rx_buffer, inner.i2s)
+    }
+}
+
+impl<TxB, RxB> Drop for TransferFullDuplex<TxB, RxB> {
+    fn drop(&mut self) {
+        if let Some(inner) = self.inner.as_mut() {
+            inner.i2s.stop();
+            compiler_fence(Ordering::Acquire);
+        }
+    }
+}
+
+pub trait SupportedWordSize: private::Sealed {}
+impl private::Sealed for i8 {}
+impl SupportedWordSize for i8 {}
+impl private::Sealed for i16 {}
+impl SupportedWordSize for i16 {}
+impl private::Sealed for i32 {}
+impl SupportedWordSize for i32 {}
+impl private::Sealed for u8 {}
+impl SupportedWordSize for u8 {}
+impl private::Sealed for u16 {}
+impl SupportedWordSize for u16 {}
+impl private::Sealed for u32 {}
+impl SupportedWordSize for u32 {}
+
+mod private {
+    /// Prevents code outside of the parent module from implementing traits.
+    pub trait Sealed {}
 }
