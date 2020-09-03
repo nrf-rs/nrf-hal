@@ -8,7 +8,6 @@ use embedded_hal::blocking::spi::Write;
 use {
     core::{
         panic::PanicInfo,
-        pin,
         sync::atomic::{compiler_fence, Ordering},
     },
     hal::{
@@ -30,7 +29,7 @@ const RED: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x10, 0xFF];
 const APP: () = {
     struct Resources {
         rgb: Spim<SPIM0>,
-        transfer: Option<hal::i2s::Transfer<&'static mut [i16]>>,
+        transfer: Option<Transfer<&'static mut [i16]>>,
     }
 
     #[init]
@@ -57,8 +56,6 @@ const APP: () = {
             None,
         );
         i2s.enable_interrupt(I2SEvent::RxPtrUpdated).start();
-        let rx_buf = pin::Pin::new(&mut RX_BUF[..]);
-        let transfer = i2s.rx(rx_buf).ok();
 
         // Configure APA102 RGB LED control
         let p1 = hal::gpio::p1::Parts::new(ctx.device.P1);
@@ -79,7 +76,10 @@ const APP: () = {
             },
             0,
         );
-        init::LateResources { rgb, transfer }
+        init::LateResources {
+            rgb,
+            transfer: i2s.rx(&mut RX_BUF[..]).ok(),
+        }
     }
 
     #[task(binds = I2S, resources = [rgb, transfer])]

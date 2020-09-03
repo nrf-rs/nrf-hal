@@ -14,7 +14,6 @@ use small_morse::{encode, State};
 use {
     core::{
         panic::PanicInfo,
-        pin,
         sync::atomic::{compiler_fence, Ordering},
     },
     hal::{
@@ -33,8 +32,8 @@ use {
 #[rtic::app(device = crate::hal::pac, peripherals = true, monotonic = rtic::cyccnt::CYCCNT)]
 const APP: () = {
     struct Resources {
-        signal_buf: pin::Pin<&'static [i16]>,
-        mute_buf: pin::Pin<&'static [i16]>,
+        signal_buf: &'static [i16],
+        mute_buf: &'static [i16],
         #[init(None)]
         queue: Option<Queue<State, U256>>,
         producer: Producer<'static, State, U256>,
@@ -47,7 +46,7 @@ const APP: () = {
         btn1: Pin<Input<PullUp>>,
         btn2: Pin<Input<PullUp>>,
         led: Pin<Output<PushPull>>,
-        transfer: Option<hal::i2s::Transfer<&'static [i16]>>,
+        transfer: Option<Transfer<&'static [i16]>>,
     }
 
     #[init(resources = [queue], spawn = [tick])]
@@ -125,9 +124,9 @@ const APP: () = {
             led: p0.p0_13.into_push_pull_output(Level::High).degrade(),
             uarte,
             uarte_timer: Timer::new(ctx.device.TIMER0),
-            transfer: i2s.tx(pin::Pin::new(&MUTE_BUF[..])).ok(),
-            signal_buf: pin::Pin::new(&SIGNAL_BUF[..]),
-            mute_buf: pin::Pin::new(&MUTE_BUF[..]),
+            transfer: i2s.tx(&MUTE_BUF[..]).ok(),
+            signal_buf: &SIGNAL_BUF[..],
+            mute_buf: &MUTE_BUF[..],
         }
     }
 

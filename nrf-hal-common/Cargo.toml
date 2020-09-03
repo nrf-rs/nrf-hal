@@ -25,6 +25,10 @@ fixed = "1.0.0"
 rand_core = "0.5.1"
 cfg-if = "0.1.10"
 
+[dependencies.stable_deref_trait]
+version = "1.2.0"
+default-features = false
+
 [dependencies.void]
 default-features = false
 version = "1.0.2"
