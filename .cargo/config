@@ -1,8 +1,8 @@
+[alias]
+xtask = "run -p xtask --"
+
 [target.'cfg(all(target_arch = "arm", target_os = "none"))']
 runner = 'arm-none-eabi-gdb'
 rustflags = [
     "-C", "link-arg=-Tlink.x",
 ]
-
-[build]
-target = "thumbv7em-none-eabihf"

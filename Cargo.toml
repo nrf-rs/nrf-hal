@@ -1,26 +1,12 @@
 [workspace]
 members = [
+  "xtask",
   "nrf52810-hal",
   "nrf52832-hal",
   "nrf52833-hal",
   "nrf52840-hal",
   "nrf9160-hal",
-  "examples/rtic-demo",
-  "examples/spi-demo",
-  "examples/twi-ssd1306",
-  "examples/ecb-demo",
-  "examples/ccm-demo",
-  "examples/ppi-demo",
-  "examples/gpiote-demo",
-  "examples/wdt-demo",
-  "examples/lpcomp-demo",
-  "examples/qdec-demo",
-  "examples/comp-demo",
-  "examples/i2s-controller-demo",
-  "examples/i2s-peripheral-demo",
-  "examples/pwm-demo",
-  "examples/twim-demo",
-  "examples/twis-demo",
+  "examples/*",
 ]
 
 [profile.dev]

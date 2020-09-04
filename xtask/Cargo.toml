@@ -1,0 +1,10 @@
+[package]
+name = "xtask"
+version = "0.0.0"
+authors = ["Jonas Schievink <jonas.schievink@ferrous-systems.com>"]
+edition = "2018"
+publish = false
+
+[[test]]
+name = "ci"
+harness = false
