@@ -29,12 +29,12 @@ const RED: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x10, 0xFF];
 const APP: () = {
     struct Resources {
         rgb: Spim<SPIM0>,
-        transfer: Option<Transfer<&'static mut [i16]>>,
+        transfer: Option<Transfer<&'static mut [i16; 128]>>,
     }
 
     #[init]
     fn init(ctx: init::Context) -> init::LateResources {
-        static mut RX_BUF: [i16; 128] = [0i16; 128];
+        static mut RX_BUF: [i16; 128] = [0; 128];
 
         let _clocks = hal::clocks::Clocks::new(ctx.device.CLOCK).enable_ext_hfosc();
         rtt_init_print!();
@@ -78,7 +78,7 @@ const APP: () = {
         );
         init::LateResources {
             rgb,
-            transfer: i2s.rx(&mut RX_BUF[..]).ok(),
+            transfer: i2s.rx(RX_BUF).ok(),
         }
     }
 
@@ -87,7 +87,7 @@ const APP: () = {
         let (rx_buf, i2s) = ctx.resources.transfer.take().unwrap().wait();
         if i2s.is_event_triggered(I2SEvent::RxPtrUpdated) {
             i2s.reset_event(I2SEvent::RxPtrUpdated);
-            // Calculate mono summed average of received buffer
+            //Calculate mono summed average of received buffer
             let avg = (rx_buf.iter().map(|x| (*x).abs() as u32).sum::<u32>() / rx_buf.len() as u32)
                 as u16;
             let color = match avg {
