@@ -2,10 +2,9 @@
 #![no_main]
 
 // I2S `peripheral mode` demo
-// RMS level indicator using an RGB LED (APA102 on ItsyBitsy nRF52840)
+// Signal average level indicator using an RGB LED (APA102 on ItsyBitsy nRF52840)
 
 use embedded_hal::blocking::spi::Write;
-use m::Float;
 use {
     core::{
         panic::PanicInfo,
@@ -29,14 +28,14 @@ const RED: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x10, 0xFF];
 #[rtic::app(device = crate::hal::pac, peripherals = true)]
 const APP: () = {
     struct Resources {
-        i2s: I2S,
-        #[init([0; 128])]
-        rx_buf: [i16; 128],
         rgb: Spim<SPIM0>,
+        transfer: Option<Transfer<&'static mut [i16; 128]>>,
     }
 
-    #[init(resources = [rx_buf])]
+    #[init]
     fn init(ctx: init::Context) -> init::LateResources {
+        static mut RX_BUF: [i16; 128] = [0; 128];
+
         let _clocks = hal::clocks::Clocks::new(ctx.device.CLOCK).enable_ext_hfosc();
         rtt_init_print!();
         rprintln!("Play me some audio...");
@@ -56,10 +55,7 @@ const APP: () = {
             Some(&sdin_pin),
             None,
         );
-        i2s.enable_interrupt(I2SEvent::RxPtrUpdated)
-            .rx_buffer(&mut ctx.resources.rx_buf[..])
-            .ok();
-        i2s.enable().start();
+        i2s.enable_interrupt(I2SEvent::RxPtrUpdated).start();
 
         // Configure APA102 RGB LED control
         let p1 = hal::gpio::p1::Parts::new(ctx.device.P1);
@@ -80,28 +76,29 @@ const APP: () = {
             },
             0,
         );
-
-        init::LateResources { i2s, rgb }
+        init::LateResources {
+            rgb,
+            transfer: i2s.rx(RX_BUF).ok(),
+        }
     }
 
-    #[task(binds = I2S, resources = [i2s, rx_buf, rgb])]
+    #[task(binds = I2S, resources = [rgb, transfer])]
     fn on_i2s(ctx: on_i2s::Context) {
-        let on_i2s::Resources { i2s, rx_buf, rgb } = ctx.resources;
+        let (rx_buf, i2s) = ctx.resources.transfer.take().unwrap().wait();
         if i2s.is_event_triggered(I2SEvent::RxPtrUpdated) {
             i2s.reset_event(I2SEvent::RxPtrUpdated);
-            // Calculate mono summed RMS of received buffer
-            let rms = Float::sqrt(
-                (rx_buf.iter().map(|x| *x as i32).map(|x| x * x).sum::<i32>() / rx_buf.len() as i32)
-                    as f32,
-            ) as u16;
-            let color = match rms {
+            //Calculate mono summed average of received buffer
+            let avg = (rx_buf.iter().map(|x| (*x).abs() as u32).sum::<u32>() / rx_buf.len() as u32)
+                as u16;
+            let color = match avg {
                 0..=4 => &OFF,
                 5..=10_337 => &GREEN,
                 10_338..=16_383 => &ORANGE,
                 _ => &RED,
             };
-            <Spim<SPIM0> as Write<u8>>::write(rgb, color).ok();
+            <Spim<SPIM0> as Write<u8>>::write(ctx.resources.rgb, color).ok();
         }
+        *ctx.resources.transfer = i2s.rx(rx_buf).ok();
     }
 };
 

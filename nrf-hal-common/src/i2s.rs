@@ -11,6 +11,8 @@ use crate::{
     target_constants::{SRAM_LOWER, SRAM_UPPER},
 };
 use core::sync::atomic::{compiler_fence, Ordering};
+use embedded_dma::*;
+
 use i2s::{_EVENTS_RXPTRUPD, _EVENTS_STOPPED, _EVENTS_TXPTRUPD, _TASKS_START, _TASKS_STOP};
 
 pub struct I2S {
@@ -18,7 +20,7 @@ pub struct I2S {
 }
 
 // I2S EasyDMA MAXCNT bit length = 14
-const MAX_DMA_MAXCNT: u32 = 16_384;
+const MAX_DMA_MAXCNT: u32 = 1 << 14;
 
 impl I2S {
     /// Takes ownership of the raw I2S peripheral, returning a safe wrapper in controller mode.
@@ -80,10 +82,11 @@ impl I2S {
             });
         }
 
+        i2s.enable.write(|w| w.enable().enabled());
         Self { i2s }
     }
 
-    /// Takes ownership of the raw I2S peripheral, returning a safe wrapper i peripheral mode.
+    /// Takes ownership of the raw I2S peripheral, returning a safe wrapper in peripheral mode.
     pub fn new_peripheral(
         i2s: I2S_PAC,
         mck_pin: Option<&Pin<Input<Floating>>>,
@@ -161,16 +164,19 @@ impl I2S {
 
     /// Starts I2S transfer.
     #[inline(always)]
-    pub fn start(&self) {
+    pub fn start(&self) -> &Self {
+        self.enable();
         self.i2s.tasks_start.write(|w| unsafe { w.bits(1) });
+        self
     }
 
     /// Stops the I2S transfer and waits until it has stopped.
     #[inline(always)]
-    pub fn stop(&self) {
+    pub fn stop(&self) -> &Self {
         compiler_fence(Ordering::SeqCst);
         self.i2s.tasks_stop.write(|w| unsafe { w.bits(1) });
         while self.i2s.events_stopped.read().bits() == 0 {}
+        self
     }
 
     /// Enables/disables I2S transmission (TX).
@@ -244,51 +250,108 @@ impl I2S {
         self
     }
 
-    /// Sets the transmit data buffer (TX).
-    /// NOTE: The TX buffer must live until the transfer is done, or corrupted data will be transmitted.
+    /// Returns the I2S channel configuation.
     #[inline(always)]
-    pub fn tx_buffer<B: I2SBuffer + ?Sized>(&self, buf: &B) -> Result<(), Error> {
-        if (buf.ptr() as usize) < SRAM_LOWER || (buf.ptr() as usize) > SRAM_UPPER {
-            return Err(Error::DMABufferNotInDataMemory);
+    pub fn channels(&self) -> Channels {
+        match self.i2s.config.channels.read().bits() {
+            0 => Channels::Stereo,
+            1 => Channels::Left,
+            _ => Channels::Right,
         }
-
-        if buf.maxcnt() > MAX_DMA_MAXCNT {
+    }
+    /// Receives data into the given `buffer` until it's filled.
+    /// Returns a value that represents the in-progress DMA transfer.
+    #[allow(unused_mut)]
+    pub fn rx<W, B>(mut self, mut buffer: B) -> Result<Transfer<B>, Error>
+    where
+        B: WriteBuffer<Word = W>,
+    {
+        let (ptr, len) = unsafe { buffer.write_buffer() };
+        let maxcnt = (len / (core::mem::size_of::<u32>() / core::mem::size_of::<W>())) as u32;
+        if maxcnt > MAX_DMA_MAXCNT {
             return Err(Error::BufferTooLong);
+        }
+        self.i2s
+            .rxd
+            .ptr
+            .write(|w| unsafe { w.ptr().bits(ptr as u32) });
+        self.i2s.rxtxd.maxcnt.write(|w| unsafe { w.bits(maxcnt) });
+        Ok(Transfer {
+            inner: Some(Inner { buffer, i2s: self }),
+        })
+    }
+
+    /// Full duplex DMA transfer.
+    /// Transmits the given `tx_buffer` while simultaneously receiving data
+    /// into the given `rx_buffer` until it is filled. The buffers must be of equal size.
+    /// Returns a value that represents the in-progress DMA transfer.
+    #[allow(unused_mut)]
+    pub fn transfer<W, TxB, RxB>(
+        mut self,
+        tx_buffer: TxB,
+        mut rx_buffer: RxB,
+    ) -> Result<TransferFullDuplex<TxB, RxB>, Error>
+    where
+        TxB: ReadBuffer<Word = W>,
+        RxB: WriteBuffer<Word = W>,
+    {
+        let (rx_ptr, rx_len) = unsafe { rx_buffer.write_buffer() };
+        let (tx_ptr, tx_len) = unsafe { tx_buffer.read_buffer() };
+        let maxcnt = (tx_len / (core::mem::size_of::<u32>() / core::mem::size_of::<W>())) as u32;
+        if tx_len != rx_len {
+            return Err(Error::BuffersDontMatch);
+        }
+        if maxcnt > MAX_DMA_MAXCNT {
+            return Err(Error::BufferTooLong);
+        }
+        if (tx_ptr as usize) < SRAM_LOWER || (tx_ptr as usize) > SRAM_UPPER {
+            return Err(Error::DMABufferNotInDataMemory);
         }
 
         self.i2s
             .txd
             .ptr
-            .write(|w| unsafe { w.ptr().bits(buf.ptr()) });
-        self.i2s
-            .rxtxd
-            .maxcnt
-            .write(|w| unsafe { w.bits(buf.maxcnt()) });
-
-        Ok(())
-    }
-
-    /// Sets the receive data buffer (RX).
-    #[inline(always)]
-    pub fn rx_buffer<B: I2SBuffer + ?Sized>(&self, buf: &'static mut B) -> Result<(), Error> {
-        if (buf.ptr() as usize) < SRAM_LOWER || (buf.ptr() as usize) > SRAM_UPPER {
-            return Err(Error::DMABufferNotInDataMemory);
-        }
-
-        if buf.maxcnt() > MAX_DMA_MAXCNT {
-            return Err(Error::BufferTooLong);
-        }
-
+            .write(|w| unsafe { w.ptr().bits(tx_ptr as u32) });
         self.i2s
             .rxd
             .ptr
-            .write(|w| unsafe { w.ptr().bits(buf.ptr()) });
-        self.i2s
-            .rxtxd
-            .maxcnt
-            .write(|w| unsafe { w.bits(buf.maxcnt()) });
+            .write(|w| unsafe { w.ptr().bits(rx_ptr as u32) });
+        self.i2s.rxtxd.maxcnt.write(|w| unsafe { w.bits(maxcnt) });
 
-        Ok(())
+        Ok(TransferFullDuplex {
+            inner: Some(InnerFullDuplex {
+                tx_buffer,
+                rx_buffer,
+                i2s: self,
+            }),
+        })
+    }
+
+    /// Transmits the given `tx_buffer`.
+    /// Returns a value that represents the in-progress DMA transfer.
+    #[allow(unused_mut)]
+    pub fn tx<W, B>(mut self, buffer: B) -> Result<Transfer<B>, Error>
+    where
+        B: ReadBuffer<Word = W>,
+    {
+        let (ptr, len) = unsafe { buffer.read_buffer() };
+        let maxcnt = (len / (core::mem::size_of::<u32>() / core::mem::size_of::<W>())) as u32;
+        if maxcnt > MAX_DMA_MAXCNT {
+            return Err(Error::BufferTooLong);
+        }
+        if (ptr as usize) < SRAM_LOWER || (ptr as usize) > SRAM_UPPER {
+            return Err(Error::DMABufferNotInDataMemory);
+        }
+
+        self.i2s
+            .txd
+            .ptr
+            .write(|w| unsafe { w.ptr().bits(ptr as u32) });
+        self.i2s.rxtxd.maxcnt.write(|w| unsafe { w.bits(maxcnt) });
+
+        Ok(Transfer {
+            inner: Some(Inner { buffer, i2s: self }),
+        })
     }
 
     /// Sets the transmit buffer RAM start address.
@@ -404,6 +467,7 @@ impl I2S {
 pub enum Error {
     DMABufferNotInDataMemory,
     BufferTooLong,
+    BuffersDontMatch,
 }
 
 /// I2S Mode
@@ -501,9 +565,9 @@ impl From<Format> for bool {
 /// Enable channels.
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum Channels {
+    Stereo,
     Left,
     Right,
-    Stereo,
 }
 impl From<Channels> for u8 {
     fn from(variant: Channels) -> Self {
@@ -519,62 +583,70 @@ pub enum I2SEvent {
     Stopped,
 }
 
-/// Trait to represent valid sample buffers.
-pub trait I2SBuffer {
-    fn ptr(&self) -> u32;
-    fn maxcnt(&self) -> u32;
+/// A DMA transfer
+pub struct Transfer<B> {
+    inner: Option<Inner<B>>,
 }
 
-impl I2SBuffer for [i8] {
-    fn ptr(&self) -> u32 {
-        self.as_ptr() as u32
-    }
-    fn maxcnt(&self) -> u32 {
-        self.len() as u32 / 4
-    }
+struct Inner<B> {
+    buffer: B,
+    i2s: I2S,
 }
 
-impl I2SBuffer for [i16] {
-    fn ptr(&self) -> u32 {
-        self.as_ptr() as u32
-    }
-    fn maxcnt(&self) -> u32 {
-        self.len() as u32 / 2
-    }
-}
-
-impl I2SBuffer for [i32] {
-    fn ptr(&self) -> u32 {
-        self.as_ptr() as u32
-    }
-    fn maxcnt(&self) -> u32 {
-        self.len() as u32
+impl<B> Transfer<B> {
+    /// Blocks until the transfer is done and returns the buffer.
+    pub fn wait(mut self) -> (B, I2S) {
+        let inner = self
+            .inner
+            .take()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        while !(inner.i2s.is_event_triggered(I2SEvent::RxPtrUpdated)
+            || inner.i2s.is_event_triggered(I2SEvent::TxPtrUpdated))
+        {}
+        compiler_fence(Ordering::Acquire);
+        (inner.buffer, inner.i2s)
     }
 }
 
-impl I2SBuffer for [u8] {
-    fn ptr(&self) -> u32 {
-        self.as_ptr() as u32
+impl<B> Drop for Transfer<B> {
+    fn drop(&mut self) {
+        if let Some(inner) = self.inner.as_mut() {
+            inner.i2s.stop();
+            compiler_fence(Ordering::Acquire);
+        }
     }
-    fn maxcnt(&self) -> u32 {
-        self.len() as u32 / 4
+}
+/// A full duplex DMA transfer
+pub struct TransferFullDuplex<TxB, RxB> {
+    inner: Option<InnerFullDuplex<TxB, RxB>>,
+}
+
+struct InnerFullDuplex<TxB, RxB> {
+    tx_buffer: TxB,
+    rx_buffer: RxB,
+    i2s: I2S,
+}
+
+impl<TxB, RxB> TransferFullDuplex<TxB, RxB> {
+    /// Blocks until the transfer is done and returns the buffer.
+    pub fn wait(mut self) -> (TxB, RxB, I2S) {
+        let inner = self
+            .inner
+            .take()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        while !(inner.i2s.is_event_triggered(I2SEvent::RxPtrUpdated)
+            || inner.i2s.is_event_triggered(I2SEvent::TxPtrUpdated))
+        {}
+        compiler_fence(Ordering::Acquire);
+        (inner.tx_buffer, inner.rx_buffer, inner.i2s)
     }
 }
 
-impl I2SBuffer for [u16] {
-    fn ptr(&self) -> u32 {
-        self.as_ptr() as u32
-    }
-    fn maxcnt(&self) -> u32 {
-        self.len() as u32 / 2
-    }
-}
-
-impl I2SBuffer for [u32] {
-    fn ptr(&self) -> u32 {
-        self.as_ptr() as u32
-    }
-    fn maxcnt(&self) -> u32 {
-        self.len() as u32
+impl<TxB, RxB> Drop for TransferFullDuplex<TxB, RxB> {
+    fn drop(&mut self) {
+        if let Some(inner) = self.inner.as_mut() {
+            inner.i2s.stop();
+            compiler_fence(Ordering::Acquire);
+        }
     }
 }
