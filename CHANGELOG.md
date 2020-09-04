@@ -1,16 +1,49 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+
+- Derive more traits for `gpio::{Level, Port}` ([#185]).
+- COMP module ([#189]).
+- QDEC module ([#188]).
+- LPCOMP module ([#195]).
+- TWIS module ([#196]).
+- PWM module ([#200]).
+- I2S module ([#201]).
+
+### Fixes
+
+- Refuse to build nRF52+ HALs for thumbv6m targets ([#203]).
+- Refuse to build `nrf52810-hal` for hard-float targets, and `nrf51-hal` for thumbv7+ targets
+  ([#206]).
+
+### Breaking Changes
+
+- Remove `Spi::read` ([#190]).
+
+[#185]: https://github.com/nrf-rs/nrf-hal/pull/185
+[#188]: https://github.com/nrf-rs/nrf-hal/pull/188
+[#189]: https://github.com/nrf-rs/nrf-hal/pull/189
+[#195]: https://github.com/nrf-rs/nrf-hal/pull/195
+[#196]: https://github.com/nrf-rs/nrf-hal/pull/196
+[#200]: https://github.com/nrf-rs/nrf-hal/pull/200
+[#201]: https://github.com/nrf-rs/nrf-hal/pull/201
+[#203]: https://github.com/nrf-rs/nrf-hal/pull/203
+[#190]: https://github.com/nrf-rs/nrf-hal/pull/190
+[#206]: https://github.com/nrf-rs/nrf-hal/pull/206
+
 ## [0.11.1]
 
 ### New Features
 
-- Add support for the Watchdog Timer peripheral ([#175])
-- Support VDD source for the ADC ([#181])
+- Add support for the Watchdog Timer peripheral ([#175]).
+- Support VDD source for the ADC ([#181]).
 
 ### Fixes
 
-- Renamed RTFM examples to RTIC examples ([#183])
-- Updated comment style ([#180])
+- Renamed RTFM examples to RTIC examples ([#183]).
+- Updated comment style ([#180]).
 
 ### Breaking Changes
 
