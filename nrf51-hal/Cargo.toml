@@ -1,6 +1,6 @@
 [package]
 name = "nrf51-hal"
-version = "0.11.0"
+version = "0.11.1"
 edition = "2018"
 description = "HAL for nRF51 microcontrollers"
 repository = "https://github.com/nrf-rs/nrf-hal"
@@ -23,7 +23,7 @@ nrf51 = "0.9.0"
 path = "../nrf-hal-common"
 default-features = false
 features = ["51"]
-version = "0.11.0"
+version = "=0.11.1"
 
 [dependencies.embedded-hal]
 features = ["unproven"]
