@@ -9,6 +9,8 @@
 //! On nRF52 devices, there is also a fork task endpoint, where the user can configure one more task
 //! to be triggered by the same event, even fixed PPI channels have a configurable fork task.
 
+use crate::pac::generic::Reg;
+use crate::pac::ppi::tasks_chg::{_DIS, _EN};
 use crate::pac::PPI;
 use cfg_if::cfg_if;
 
@@ -52,8 +54,12 @@ mod sealed {
     }
 
     pub trait NotFixed {}
+
+    pub trait ChannelGroup {
+        const CHG: usize;
+    }
 }
-use sealed::{Channel, Event, NotFixed, Task};
+use sealed::{Channel, ChannelGroup, Event, NotFixed, Task};
 
 pub struct TaskAddr(pub(crate) u32);
 pub struct EventAddr(pub(crate) u32);
@@ -81,6 +87,20 @@ pub trait ConfigurablePpi {
     /// Sets the event that will trigger the chosen task(s). The user must provide a reference to
     /// the event.
     fn set_event_endpoint<E: Event>(&mut self, event: &E);
+}
+
+/// Trait for a PPI channel group.
+pub trait PpiChannelGroup {
+    /// Returns reference to tasks_chg[x].en endpoint for enabling channel group.
+    fn task_enable(&self) -> &Reg<u32, _EN>;
+    /// Returns reference to tasks_chg[x].dis endpoint for disabling channel group.
+    fn task_disable(&self) -> &Reg<u32, _DIS>;
+    /// Sets bitmask for PPI channels which shall be included in this channel group.
+    fn set_channels(&self, mask: u32);
+    /// Enables this channel group.
+    fn enable(&self);
+    /// Disables this channel group.
+    fn disable(&self);
 }
 
 // All unsafe `ptr` calls only uses registers atomically, and only changes the resources owned by
@@ -128,6 +148,32 @@ impl<P: Channel + NotFixed> ConfigurablePpi for P {
     }
 }
 
+impl<G: ChannelGroup> PpiChannelGroup for G {
+    #[inline(always)]
+    fn task_enable(&self) -> &Reg<u32, _EN> {
+        let regs = unsafe { &*PPI::ptr() };
+        &regs.tasks_chg[Self::CHG].en
+    }
+    #[inline(always)]
+    fn task_disable(&self) -> &Reg<u32, _DIS> {
+        let regs = unsafe { &*PPI::ptr() };
+        &regs.tasks_chg[Self::CHG].dis
+    }
+    #[inline(always)]
+    fn set_channels(&self, mask: u32) {
+        let regs = unsafe { &*PPI::ptr() };
+        regs.chg[Self::CHG].write(|w| unsafe { w.bits(mask) });
+    }
+    #[inline(always)]
+    fn enable(&self) {
+        self.task_enable().write(|w| unsafe { w.bits(1) });
+    }
+    #[inline(always)]
+    fn disable(&self) {
+        self.task_disable().write(|w| unsafe { w.bits(1) });
+    }
+}
+
 macro_rules! ppi {
     (
         not_fixed: [ $(
@@ -135,6 +181,9 @@ macro_rules! ppi {
             ($ppix:ident, $PpixType:ident, $ch:expr),)+
         ],
         fixed: [$(($ppix_fixed:ident, $PpixTypeFixed:ident, $ch_fixed:expr),)+],
+        groups: [$(
+            $(#[$chgattr:meta])*
+            ($chgx:ident, $ChgxType:ident, $chg:expr),)+],
     ) => {
 
         $(
@@ -164,6 +213,19 @@ macro_rules! ppi {
             }
         )+
 
+        $(
+            /// Channel groups.
+            $(#[$chgattr])*
+            pub struct $ChgxType {
+                _private: (),
+            }
+
+            $(#[$chgattr])*
+            impl ChannelGroup for $ChgxType {
+                const CHG: usize = $chg;
+            }
+        )*
+
         /// Type that abstracts all the PPI channels.
         pub struct Parts {
             $(
@@ -173,6 +235,10 @@ macro_rules! ppi {
             $(
                 pub $ppix_fixed: $PpixTypeFixed,
             )+
+            $(
+                $(#[$chgattr])*
+                pub $chgx: $ChgxType,
+            )*
         }
 
         impl Parts {
@@ -191,6 +257,12 @@ macro_rules! ppi {
                             _private: (),
                         },
                     )+
+                    $(
+                        $(#[$chgattr])*
+                        $chgx: $ChgxType {
+                            _private: (),
+                        },
+                    )*
                 }
             }
         }
@@ -237,5 +309,15 @@ ppi!(
         (ppi29, Ppi29, 29),
         (ppi30, Ppi30, 30),
         (ppi31, Ppi31, 31),
+    ],
+    groups: [
+        (chg0, Chg0, 0),
+        (chg1, Chg1, 1),
+        (chg2, Chg2, 2),
+        (chg3, Chg3, 3),
+        #[cfg(not(feature = "51"))]
+        (chg4, Chg4, 4),
+        #[cfg(not(feature = "51"))]
+        (chg5, Chg5, 5),
     ],
 );
