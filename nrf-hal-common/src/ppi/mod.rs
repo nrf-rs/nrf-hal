@@ -93,7 +93,7 @@ pub trait ConfigurablePpi {
 pub trait PpiChannelGroup {
     /// Returns reference to `tasks_chg[x].en` endpoint for enabling channel group.
     fn task_enable(&self) -> &Reg<u32, _EN>;
-    /// Returns reference to tasks_chg[x].dis endpoint for disabling channel group.
+    /// Returns reference to `tasks_chg[x].dis` endpoint for disabling channel group.
     fn task_disable(&self) -> &Reg<u32, _DIS>;
     /// Sets bitmask for PPI channels which shall be included in this channel group.
     fn set_channels(&self, mask: u32);
