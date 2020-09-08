@@ -28,6 +28,9 @@ fn main() {
     // We execute from the `xtask` dir, so `cd ..` so that we can find `examples` etc.
     env::set_current_dir("..").unwrap();
 
+    // Make sure all the tomls are formatted in a way that's compatible with our tooling.
+    xtask::bump_versions("0.0.0", true);
+
     // Build-test every HAL.
     for (hal, target) in HALS {
         let mut cargo = Command::new("cargo");
