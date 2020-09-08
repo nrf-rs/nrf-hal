@@ -9,10 +9,7 @@ use crate::pac::{
 };
 
 #[cfg(not(feature = "9160"))]
-use crate::pac::{
-    timer0::RegisterBlock as RegBlock0, timer3::RegisterBlock as RegBlock3, Interrupt, TIMER0,
-    TIMER1, TIMER2,
-};
+use crate::pac::{timer0::RegisterBlock as RegBlock0, Interrupt, TIMER0, TIMER1, TIMER2};
 
 use cast::u32;
 use embedded_hal::{
@@ -24,7 +21,7 @@ use nb::{self, block};
 use void::{unreachable, Void};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-use crate::pac::{TIMER3, TIMER4};
+use crate::pac::{timer3::RegisterBlock as RegBlock3, TIMER3, TIMER4};
 
 use core::marker::PhantomData;
 
