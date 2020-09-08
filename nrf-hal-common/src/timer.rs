@@ -3,10 +3,13 @@
 //! See product specification, chapter 24.
 
 #[cfg(feature = "9160")]
-use crate::pac::{Interrupt, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1, TIMER2_NS as TIMER2};
+use crate::pac::{
+    timer0_ns::RegisterBlock as RegBlock0, Interrupt, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1,
+    TIMER2_NS as TIMER2,
+};
 
 #[cfg(not(feature = "9160"))]
-use crate::pac::{Interrupt, TIMER0, TIMER1, TIMER2};
+use crate::pac::{timer0::RegisterBlock as RegBlock0, Interrupt, TIMER0, TIMER1, TIMER2};
 
 use cast::u32;
 use embedded_hal::{
@@ -19,6 +22,15 @@ use void::{unreachable, Void};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::{TIMER3, TIMER4};
+
+// The 832 and 840 expose TIMER3 and TIMER for as timer3::RegisterBlock...
+#[cfg(any(feature = "52832", feature = "52840"))]
+use crate::pac::timer3::RegisterBlock as RegBlock3;
+
+// ...but the 833 exposes them as timer0::RegisterBlock. This might be a bug
+// in the PAC, and could be fixed later. For now, it is equivalent anyway.
+#[cfg(feature = "52833")]
+use crate::pac::timer0::RegisterBlock as RegBlock3;
 
 use core::marker::PhantomData;
 
@@ -231,135 +243,172 @@ where
     }
 }
 
-/// Implemented by all `timer0::TIMER` instances.
-pub trait Instance {
+/// Implemented by all TIMER* instances.
+pub trait Instance: sealed::Sealed {
     /// This interrupt associated with this RTC instance.
     const INTERRUPT: Interrupt;
 
+    fn as_timer0(&self) -> &RegBlock0;
+
     fn timer_start<Time>(&self, cycles: Time)
     where
-        Time: Into<u32>;
+        Time: Into<u32>,
+    {
+        // If the following sequence of events occurs, the COMPARE event will be
+        // set here:
+        // 1. `start` is called.
+        // 2. The timer runs out but `wait` is _not_ called.
+        // 3. `start` is called again
+        //
+        // If that happens, then we need to reset the event here explicitly, as
+        // nothing else this method does will reset the event, and if it's still
+        // active after this method exits, then the next call to `wait` will
+        // return immediately, no matter how much time has actually passed.
+        self.as_timer0().events_compare[0].reset();
 
-    fn timer_reset_event(&self);
+        // Configure timer to trigger EVENTS_COMPARE when given number of cycles
+        // is reached.
+        #[cfg(not(feature = "51"))]
+        self.as_timer0().cc[0].write(|w|
+            // The timer mode was set to 32 bits above, so all possible values
+            // of `cycles` are valid.
+            unsafe { w.cc().bits(cycles.into()) });
 
-    fn timer_cancel(&self);
+        #[cfg(feature = "51")]
+        self.as_timer0().cc[0].write(|w| unsafe { w.bits(cycles.into()) });
 
-    fn timer_running(&self) -> bool;
+        // Clear the counter value.
+        self.as_timer0().tasks_clear.write(|w| unsafe { w.bits(1) });
 
-    fn read_counter(&self) -> u32;
+        // Start the timer.
+        self.as_timer0().tasks_start.write(|w| unsafe { w.bits(1) });
+    }
 
-    fn disable_interrupt(&self);
+    fn timer_reset_event(&self) {
+        self.as_timer0().events_compare[0].write(|w| w);
+    }
 
-    fn enable_interrupt(&self);
+    fn timer_cancel(&self) {
+        self.as_timer0().tasks_stop.write(|w| unsafe { w.bits(1) });
+        self.timer_reset_event();
+    }
 
-    fn set_shorts_periodic(&self);
+    fn timer_running(&self) -> bool {
+        self.as_timer0().events_compare[0].read().bits() == 0
+    }
 
-    fn set_shorts_oneshot(&self);
+    fn read_counter(&self) -> u32 {
+        self.as_timer0().tasks_capture[1].write(|w| unsafe { w.bits(1) });
+        self.as_timer0().cc[1].read().bits()
+    }
 
-    fn set_periodic(&self);
+    fn disable_interrupt(&self) {
+        self.as_timer0()
+            .intenclr
+            .modify(|_, w| w.compare0().clear());
+    }
 
-    fn set_oneshot(&self);
-}
+    fn enable_interrupt(&self) {
+        self.as_timer0().intenset.modify(|_, w| w.compare0().set());
+    }
 
-macro_rules! impl_instance {
-    ($($name:ident,)*) => {
-        $(
-            impl Instance for $name {
-                const INTERRUPT: Interrupt = Interrupt::$name;
+    fn set_shorts_periodic(&self) {
+        self.as_timer0()
+            .shorts
+            .write(|w| w.compare0_clear().enabled().compare0_stop().disabled());
+    }
 
-                fn timer_start<Time>(&self, cycles: Time)
-                where
-                    Time: Into<u32>,
-                {
-                    // If the following sequence of events occurs, the COMPARE event will be
-                    // set here:
-                    // 1. `start` is called.
-                    // 2. The timer runs out but `wait` is _not_ called.
-                    // 3. `start` is called again
-                    //
-                    // If that happens, then we need to reset the event here explicitly, as
-                    // nothing else this method does will reset the event, and if it's still
-                    // active after this method exits, then the next call to `wait` will
-                    // return immediately, no matter how much time has actually passed.
-                    self.events_compare[0].reset();
+    fn set_shorts_oneshot(&self) {
+        self.as_timer0()
+            .shorts
+            .write(|w| w.compare0_clear().enabled().compare0_stop().enabled());
+    }
 
-                    // Configure timer to trigger EVENTS_COMPARE when given number of cycles
-                    // is reached.
-                    #[cfg(not(feature = "51"))]
-                    self.cc[0].write(|w|
-                        // The timer mode was set to 32 bits above, so all possible values
-                        // of `cycles` are valid.
-                        unsafe { w.cc().bits(cycles.into()) });
+    fn set_periodic(&self) {
+        self.set_shorts_periodic();
+        self.as_timer0().prescaler.write(
+            |w| unsafe { w.prescaler().bits(4) }, // 1 MHz
+        );
+        self.as_timer0().bitmode.write(|w| w.bitmode()._32bit());
+    }
 
-                    #[cfg(feature = "51")]
-                    self.cc[0].write(|w| unsafe { w.bits(cycles.into())} );
-
-                    // Clear the counter value.
-                    self.tasks_clear.write(|w| unsafe { w.bits(1) });
-
-                    // Start the timer.
-                    self.tasks_start.write(|w| unsafe { w.bits(1) });
-                }
-
-                fn timer_reset_event(&self) {
-                    self.events_compare[0].write(|w| w);
-                }
-
-                fn timer_cancel(&self) {
-                    self.tasks_stop.write(|w| unsafe { w.bits(1) });
-                    self.timer_reset_event();
-                }
-
-                fn timer_running(&self) -> bool {
-                    self.events_compare[0].read().bits() == 0
-                }
-
-                fn read_counter(&self) -> u32 {
-                    self.tasks_capture[1].write(|w| unsafe { w.bits(1) });
-                    self.cc[1].read().bits()
-                }
-
-                fn disable_interrupt(&self) {
-                    self.intenclr.modify(|_, w| w.compare0().clear());
-                }
-
-                fn enable_interrupt(&self) {
-                    self.intenset.modify(|_, w| w.compare0().set());
-                }
-
-                fn set_shorts_periodic(&self) {
-                    self
-                    .shorts
-                    .write(|w| w.compare0_clear().enabled().compare0_stop().disabled());
-                }
-
-                fn set_shorts_oneshot(&self) {
-                    self
-                    .shorts
-                    .write(|w| w.compare0_clear().enabled().compare0_stop().enabled());
-                }
-
-                fn set_periodic(&self) {
-                    self.set_shorts_periodic();
-                    self.prescaler.write(
-                        |w| unsafe { w.prescaler().bits(4) }, // 1 MHz
-                    );
-                    self.bitmode.write(|w| w.bitmode()._32bit());
-                }
-
-                fn set_oneshot(&self) {
-                    self.set_shorts_oneshot();
-                    self.prescaler.write(
-                        |w| unsafe { w.prescaler().bits(4) }, // 1 MHz
-                    );
-                    self.bitmode.write(|w| w.bitmode()._32bit());
-                }
-            }
-        )*
+    fn set_oneshot(&self) {
+        self.set_shorts_oneshot();
+        self.as_timer0().prescaler.write(
+            |w| unsafe { w.prescaler().bits(4) }, // 1 MHz
+        );
+        self.as_timer0().bitmode.write(|w| w.bitmode()._32bit());
     }
 }
 
-impl_instance!(TIMER0, TIMER1, TIMER2,);
+impl Instance for TIMER0 {
+    const INTERRUPT: Interrupt = Interrupt::TIMER0;
+
+    #[inline(always)]
+    fn as_timer0(&self) -> &RegBlock0 {
+        self
+    }
+}
+
+impl Instance for TIMER1 {
+    const INTERRUPT: Interrupt = Interrupt::TIMER1;
+
+    #[inline(always)]
+    fn as_timer0(&self) -> &RegBlock0 {
+        self
+    }
+}
+
+impl Instance for TIMER2 {
+    const INTERRUPT: Interrupt = Interrupt::TIMER2;
+
+    #[inline(always)]
+    fn as_timer0(&self) -> &RegBlock0 {
+        self
+    }
+}
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-impl_instance!(TIMER3, TIMER4,);
+impl Instance for TIMER3 {
+    const INTERRUPT: Interrupt = Interrupt::TIMER3;
+
+    #[inline(always)]
+    fn as_timer0(&self) -> &RegBlock0 {
+        let rb: &RegBlock3 = self;
+        let rb_ptr: *const RegBlock3 = rb;
+
+        // SAFETY: TIMER0 and TIMER3 register layouts are identical, except
+        // that TIMER3 has 6 CC registers, while TIMER0 has 4. There is
+        // appropriate padding to allow other operations to work correctly
+        unsafe { &*rb_ptr.cast() }
+    }
+}
+
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+impl Instance for TIMER4 {
+    const INTERRUPT: Interrupt = Interrupt::TIMER4;
+
+    #[inline(always)]
+    fn as_timer0(&self) -> &RegBlock0 {
+        let rb: &RegBlock3 = self;
+        let rb_ptr: *const RegBlock3 = rb;
+
+        // SAFETY: TIMER0 and TIMER3 register layouts are identical, except
+        // that TIMER3 has 6 CC registers, while TIMER0 has 4. There is
+        // appropriate padding to allow other operations to work correctly
+        unsafe { &*rb_ptr.cast() }
+    }
+}
+
+mod sealed {
+    pub trait Sealed {}
+    impl Sealed for super::TIMER0 {}
+    impl Sealed for super::TIMER1 {}
+    impl Sealed for super::TIMER2 {}
+
+    #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+    impl Sealed for super::TIMER3 {}
+
+    #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+    impl Sealed for super::TIMER4 {}
+}
