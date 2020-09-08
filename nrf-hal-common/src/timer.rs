@@ -21,7 +21,16 @@ use nb::{self, block};
 use void::{unreachable, Void};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-use crate::pac::{timer3::RegisterBlock as RegBlock3, TIMER3, TIMER4};
+use crate::pac::{TIMER3, TIMER4};
+
+// The 832 and 840 expose TIMER3 and TIMER for as timer3::RegisterBlock...
+#[cfg(any(feature = "52832", feature = "52840"))]
+use crate::pac::timer3::RegisterBlock as RegBlock3;
+
+// ...but the 833 exposes them as timer0::RegisterBlock. This might be a bug
+// in the PAC, and could be fixed later. For now, it is equivalent anyway.
+#[cfg(feature = "52833")]
+use crate::pac::timer0::RegisterBlock as RegBlock3;
 
 use core::marker::PhantomData;
 
