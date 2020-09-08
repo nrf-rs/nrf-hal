@@ -3,10 +3,16 @@
 //! See product specification, chapter 24.
 
 #[cfg(feature = "9160")]
-use crate::pac::{Interrupt, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1, TIMER2_NS as TIMER2};
+use crate::pac::{
+    timer0_ns::RegisterBlock as RegBlock0, Interrupt, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1,
+    TIMER2_NS as TIMER2,
+};
 
 #[cfg(not(feature = "9160"))]
-use crate::pac::{Interrupt, TIMER0, TIMER1, TIMER2};
+use crate::pac::{
+    timer0::RegisterBlock as RegBlock0, timer3::RegisterBlock as RegBlock3, Interrupt, TIMER0,
+    TIMER1, TIMER2,
+};
 
 use cast::u32;
 use embedded_hal::{
@@ -19,8 +25,6 @@ use void::{unreachable, Void};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::{TIMER3, TIMER4};
-
-use crate::pac;
 
 use core::marker::PhantomData;
 
@@ -238,7 +242,7 @@ pub trait Instance: sealed::Sealed {
     /// This interrupt associated with this RTC instance.
     const INTERRUPT: Interrupt;
 
-    fn as_timer0(&self) -> &pac::timer0::RegisterBlock;
+    fn as_timer0(&self) -> &RegBlock0;
 
     fn timer_start<Time>(&self, cycles: Time)
     where
@@ -335,7 +339,7 @@ impl Instance for TIMER0 {
     const INTERRUPT: Interrupt = Interrupt::TIMER0;
 
     #[inline(always)]
-    fn as_timer0(&self) -> &pac::timer0::RegisterBlock {
+    fn as_timer0(&self) -> &RegBlock0 {
         self
     }
 }
@@ -344,7 +348,7 @@ impl Instance for TIMER1 {
     const INTERRUPT: Interrupt = Interrupt::TIMER1;
 
     #[inline(always)]
-    fn as_timer0(&self) -> &pac::timer0::RegisterBlock {
+    fn as_timer0(&self) -> &RegBlock0 {
         self
     }
 }
@@ -353,7 +357,7 @@ impl Instance for TIMER2 {
     const INTERRUPT: Interrupt = Interrupt::TIMER2;
 
     #[inline(always)]
-    fn as_timer0(&self) -> &pac::timer0::RegisterBlock {
+    fn as_timer0(&self) -> &RegBlock0 {
         self
     }
 }
@@ -363,9 +367,9 @@ impl Instance for TIMER3 {
     const INTERRUPT: Interrupt = Interrupt::TIMER3;
 
     #[inline(always)]
-    fn as_timer0(&self) -> &pac::timer0::RegisterBlock {
-        let rb: &pac::timer3::RegisterBlock = self;
-        let rb_ptr: *const pac::timer3::RegisterBlock = rb;
+    fn as_timer0(&self) -> &RegBlock0 {
+        let rb: &RegBlock3 = self;
+        let rb_ptr: *const RegBlock3 = rb;
 
         // SAFETY: TIMER0 and TIMER3 register layouts are identical, except
         // that TIMER3 has 6 CC registers, while TIMER0 has 4. There is
@@ -379,9 +383,9 @@ impl Instance for TIMER4 {
     const INTERRUPT: Interrupt = Interrupt::TIMER4;
 
     #[inline(always)]
-    fn as_timer0(&self) -> &pac::timer0::RegisterBlock {
-        let rb: &pac::timer3::RegisterBlock = self;
-        let rb_ptr: *const pac::timer3::RegisterBlock = rb;
+    fn as_timer0(&self) -> &RegBlock0 {
+        let rb: &RegBlock3 = self;
+        let rb_ptr: *const RegBlock3 = rb;
 
         // SAFETY: TIMER0 and TIMER3 register layouts are identical, except
         // that TIMER3 has 6 CC registers, while TIMER0 has 4. There is
