@@ -22,6 +22,7 @@
 ### Breaking Changes
 
 - Remove `Spi::read` ([#190]).
+- Seal the `timer::Instance` trait ([#214]).
 
 [#185]: https://github.com/nrf-rs/nrf-hal/pull/185
 [#188]: https://github.com/nrf-rs/nrf-hal/pull/188
@@ -34,6 +35,7 @@
 [#190]: https://github.com/nrf-rs/nrf-hal/pull/190
 [#206]: https://github.com/nrf-rs/nrf-hal/pull/206
 [#217]: https://github.com/nrf-rs/nrf-hal/pull/217
+[#214]: https://github.com/nrf-rs/nrf-hal/pull/214
 
 ## [0.11.1]
 
