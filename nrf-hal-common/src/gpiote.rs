@@ -257,6 +257,15 @@ fn config_channel_event_pin<P: GpioteInputPin>(
             EventPolarity::None => w.mode().event().polarity().none(),
             EventPolarity::Toggle => w.mode().event().polarity().toggle(),
         };
+
+        #[cfg(any(feature = "52833", feature = "52840"))]
+        {
+            match pin.port() {
+                Port::Port0 => w.port().clear_bit(),
+                Port::Port1 => w.port().set_bit(),
+            };
+        }
+
         unsafe { w.psel().bits(pin.pin()) }
     });
 }

@@ -17,6 +17,7 @@
 - Refuse to build nRF52+ HALs for thumbv6m targets ([#203]).
 - Refuse to build `nrf52810-hal` for hard-float targets, and `nrf51-hal` for thumbv7+ targets
   ([#206]).
+- GPIOTE Port 1 and 0 differentiation for nRF52833 and nRF52840 ([#217])
 
 ### Breaking Changes
 
@@ -32,6 +33,7 @@
 [#203]: https://github.com/nrf-rs/nrf-hal/pull/203
 [#190]: https://github.com/nrf-rs/nrf-hal/pull/190
 [#206]: https://github.com/nrf-rs/nrf-hal/pull/206
+[#217]: https://github.com/nrf-rs/nrf-hal/pull/217
 
 ## [0.11.1]
 
