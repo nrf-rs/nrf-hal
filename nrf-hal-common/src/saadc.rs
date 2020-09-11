@@ -1,6 +1,7 @@
 //! HAL interface to the SAADC peripheral.
 //!
-//! example usage:
+//! Example usage:
+//!
 //! ```no_run
 //! # use nrf_hal_common as hal;
 //! # use hal::pac::{saadc, SAADC};
@@ -48,6 +49,7 @@ pub use saadc::{
 // Issue: https://github.com/nrf-rs/nrf-hal/issues/82
 
 /// Interface for the SAADC peripheral.
+///
 /// External analog channels supported by the SAADC implement the `Channel` trait.
 /// Currently, use of only one channel is allowed.
 pub struct Saadc(SAADC);
@@ -93,6 +95,7 @@ impl Saadc {
 }
 
 /// Used to configure the SAADC peripheral.
+///
 /// See the documentation of the `Default` impl for suitable default values.
 pub struct SaadcConfig {
     /// Output resolution in bits.
