@@ -32,7 +32,6 @@ use crate::pac::{saadc_ns as saadc, SAADC_NS as SAADC};
 #[cfg(not(feature = "9160"))]
 use crate::pac::{saadc, SAADC};
 
-use crate::gpio::{Floating, Input};
 use core::{
     hint::unreachable_unchecked,
     sync::atomic::{compiler_fence, Ordering::SeqCst},
@@ -217,9 +216,9 @@ where
 }
 
 macro_rules! channel_mappings {
-    ($($n:expr => $pin:path),*) => {
+    ( $($n:expr => $pin:ident,)*) => {
         $(
-            impl Channel<Saadc> for $pin {
+            impl<STATE> Channel<Saadc> for crate::gpio::p0::$pin<STATE> {
                 type ID = u8;
 
                 fn channel() -> <Self as embedded_hal::adc::Channel<Saadc>>::ID {
@@ -232,27 +231,35 @@ macro_rules! channel_mappings {
 
 #[cfg(feature = "9160")]
 channel_mappings! {
-    0 => crate::gpio::p0::P0_13<Input<Floating>>,
-    1 => crate::gpio::p0::P0_14<Input<Floating>>,
-    2 => crate::gpio::p0::P0_15<Input<Floating>>,
-    3 => crate::gpio::p0::P0_16<Input<Floating>>,
-    4 => crate::gpio::p0::P0_17<Input<Floating>>,
-    5 => crate::gpio::p0::P0_18<Input<Floating>>,
-    6 => crate::gpio::p0::P0_19<Input<Floating>>,
-    7 => crate::gpio::p0::P0_20<Input<Floating>>
+    0 => P0_13,
+    1 => P0_14,
+    2 => P0_15,
+    3 => P0_16,
+    4 => P0_17,
+    5 => P0_18,
+    6 => P0_19,
+    7 => P0_20,
 }
 
 #[cfg(not(feature = "9160"))]
 channel_mappings! {
-    0 => crate::gpio::p0::P0_02<Input<Floating>>,
-    1 => crate::gpio::p0::P0_03<Input<Floating>>,
-    2 => crate::gpio::p0::P0_04<Input<Floating>>,
-    3 => crate::gpio::p0::P0_05<Input<Floating>>,
-    4 => crate::gpio::p0::P0_28<Input<Floating>>,
-    5 => crate::gpio::p0::P0_29<Input<Floating>>,
-    6 => crate::gpio::p0::P0_30<Input<Floating>>,
-    7 => crate::gpio::p0::P0_31<Input<Floating>>,
-    8 => InternalVdd
+    0 => P0_02,
+    1 => P0_03,
+    2 => P0_04,
+    3 => P0_05,
+    4 => P0_28,
+    5 => P0_29,
+    6 => P0_30,
+    7 => P0_31,
+}
+
+#[cfg(not(feature = "9160"))]
+impl Channel<Saadc> for InternalVdd {
+    type ID = u8;
+
+    fn channel() -> <Self as embedded_hal::adc::Channel<Saadc>>::ID {
+        8
+    }
 }
 
 #[cfg(not(feature = "9160"))]
