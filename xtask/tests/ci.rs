@@ -47,6 +47,24 @@ fn main() {
         );
     }
 
+    // Build/Run doc-tests in `nrf-hal-common` for each chip.
+    for (hal, _) in HALS {
+        let feature = hal.trim_start_matches("nrf").trim_end_matches("-hal");
+
+        let mut cargo = Command::new("cargo");
+        let status = cargo
+            .current_dir("nrf-hal-common")
+            .args(&["test", "--features", feature])
+            .status()
+            .map_err(|e| format!("could not execute {:?}: {}", cargo, e))
+            .unwrap();
+        assert!(
+            status.success(),
+            "command exited with error status: {:?}",
+            cargo
+        );
+    }
+
     // Build-test every example with each supported feature.
     for (example, features) in EXAMPLES {
         // Features are exclusive (they select the target chip), so we test each one

@@ -1,4 +1,30 @@
 //! HAL interface to the SAADC peripheral.
+//!
+//! Example usage:
+//!
+#![cfg_attr(feature = "52840", doc = "```no_run")]
+#![cfg_attr(not(feature = "52840"), doc = "```ignore")]
+//! # use nrf_hal_common as hal;
+//! # use hal::pac::{saadc, SAADC};
+//! // subsititute `hal` with the HAL of your board, e.g. `nrf52840_hal`
+//! use hal::{
+//!    pac::Peripherals,
+//!    prelude::*,
+//!    gpio::p0::Parts as P0Parts,
+//!    saadc::{SaadcConfig, Saadc},
+//! };
+//!
+//! let board = Peripherals::take().unwrap();
+//! let gpios = P0Parts::new(board.P0);
+//!
+//! // initialize saadc interface
+//! let saadc_config = SaadcConfig::default();
+//! let mut saadc = Saadc::new(board.SAADC, saadc_config);
+//! let mut saadc_pin = gpios.p0_02; // the pin your analog device is connected to
+//!
+//! // blocking read from saadc for `saadc_config.time` microseconds
+//! let _saadc_result = saadc.read(&mut saadc_pin);
+//! ```
 
 #[cfg(feature = "9160")]
 use crate::pac::{saadc_ns as saadc, SAADC_NS as SAADC};
@@ -23,6 +49,10 @@ pub use saadc::{
 // multiple channels should work (See "scan mode" in the datasheet).
 // Issue: https://github.com/nrf-rs/nrf-hal/issues/82
 
+/// Interface for the SAADC peripheral.
+///
+/// External analog channels supported by the SAADC implement the `Channel` trait.
+/// Currently, use of only one channel is allowed.
 pub struct Saadc(SAADC);
 
 impl Saadc {
@@ -65,18 +95,59 @@ impl Saadc {
     }
 }
 
+/// Used to configure the SAADC peripheral.
+///
+/// See the documentation of the `Default` impl for suitable default values.
 pub struct SaadcConfig {
+    /// Output resolution in bits.
     pub resolution: Resolution,
+    /// Average 2^`oversample` input samples before transferring the result into memory.
     pub oversample: Oversample,
+    /// Reference voltage of the SAADC input.
     pub reference: Reference,
+    /// Gain used to control the effective input range of the SAADC.
     pub gain: Gain,
+    /// Positive channel resistor control.
     pub resistor: Resistor,
+    /// Acquisition time in microseconds.
     pub time: Time,
 }
 
-// 0 volts reads as 0, VDD volts reads as u16::MAX
+/// Default SAADC configuration. 0 volts reads as 0, VDD volts reads as `u16::MAX`.
+/// The returned SaadcConfig is configured with the following values:
+///
+#[cfg_attr(feature = "52840", doc = "```")]
+#[cfg_attr(not(feature = "52840"), doc = "```ignore")]
+/// # use nrf_hal_common::saadc::SaadcConfig;
+/// # use nrf_hal_common::pac::{saadc, SAADC};
+/// # use saadc::{
+/// #    ch::config::{GAIN_A as Gain, REFSEL_A as Reference, RESP_A as Resistor, TACQ_A as Time},
+/// #    oversample::OVERSAMPLE_A as Oversample,
+/// #    resolution::VAL_A as Resolution,
+/// # };
+/// # let saadc =
+/// SaadcConfig {
+///     resolution: Resolution::_14BIT,
+///     oversample: Oversample::OVER8X,
+///     reference: Reference::VDD1_4,
+///     gain: Gain::GAIN1_4,
+///     resistor: Resistor::BYPASS,
+///     time: Time::_20US,
+/// };
+/// #
+/// # // ensure default values haven't changed
+/// # let test_saadc = SaadcConfig::default();
+/// # assert_eq!(saadc.resolution, test_saadc.resolution);
+/// # assert_eq!(saadc.oversample, test_saadc.oversample);
+/// # assert_eq!(saadc.reference, test_saadc.reference);
+/// # assert_eq!(saadc.gain, test_saadc.gain);
+/// # assert_eq!(saadc.resistor, test_saadc.resistor);
+/// # assert_eq!(saadc.time, test_saadc.time);
+/// # ()
+/// ```
 impl Default for SaadcConfig {
     fn default() -> Self {
+        // Note: do not forget to update the docs above if you change values here
         SaadcConfig {
             resolution: Resolution::_14BIT,
             oversample: Oversample::OVER8X,
@@ -93,6 +164,9 @@ where
     PIN: Channel<Saadc, ID = u8>,
 {
     type Error = ();
+
+    /// Sample channel `PIN` for the configured ADC acquisition time in differential input mode.
+    /// Note that this is a blocking operation.
     fn read(&mut self, _pin: &mut PIN) -> nb::Result<i16, Self::Error> {
         match PIN::channel() {
             0 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input0()),
