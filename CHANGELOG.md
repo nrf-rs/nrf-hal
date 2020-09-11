@@ -23,6 +23,7 @@
 
 - Remove `Spi::read` ([#190]).
 - Seal the `timer::Instance` trait ([#214]).
+- Make GPIOs start in a `Disconnected` state instead of `Input<Floating>` ([#220]).
 
 [#185]: https://github.com/nrf-rs/nrf-hal/pull/185
 [#188]: https://github.com/nrf-rs/nrf-hal/pull/188
@@ -36,6 +37,7 @@
 [#206]: https://github.com/nrf-rs/nrf-hal/pull/206
 [#217]: https://github.com/nrf-rs/nrf-hal/pull/217
 [#214]: https://github.com/nrf-rs/nrf-hal/pull/214
+[#220]: https://github.com/nrf-rs/nrf-hal/pull/220
 
 ## [0.11.1]
 
