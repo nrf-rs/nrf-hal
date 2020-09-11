@@ -2,7 +2,8 @@
 //!
 //! Example usage:
 //!
-//! ```no_run
+#![cfg_attr(feature = "52840", doc = "```no_run")]
+#![cfg_attr(not(feature = "52840"), doc = "```ignore")]
 //! # use nrf_hal_common as hal;
 //! # use hal::pac::{saadc, SAADC};
 //! // subsititute `hal` with the HAL of your board, e.g. `nrf52840_hal`
@@ -115,7 +116,8 @@ pub struct SaadcConfig {
 /// Default SAADC configuration. 0 volts reads as 0, VDD volts reads as `u16::MAX`.
 /// The returned SaadcConfig is configured with the following values:
 ///
-/// ```rust
+#[cfg_attr(feature = "52840", doc = "```")]
+#[cfg_attr(not(feature = "52840"), doc = "```ignore")]
 /// # use nrf_hal_common::saadc::SaadcConfig;
 /// # use nrf_hal_common::pac::{saadc, SAADC};
 /// # use saadc::{
