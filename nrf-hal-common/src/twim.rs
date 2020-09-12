@@ -16,8 +16,11 @@ use crate::pac::{twim0, P0, TWIM0};
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::TWIM1;
 
+#[cfg(any(feature = "52833", feature = "52840"))]
+use crate::pac::P1;
+
 use crate::{
-    gpio::{Floating, Input, Pin},
+    gpio::{Floating, Input, Pin, Port},
     slice_in_ram, slice_in_ram_or,
     target_constants::{EASY_DMA_SIZE, FORCE_COPY_BUFFER_SIZE},
 };
@@ -48,8 +51,13 @@ where
         // the pins through the raw peripheral API. All of the following is
         // safe, as we own the pins now and have exclusive access to their
         // registers.
-        for &pin in &[pins.scl.pin(), pins.sda.pin()] {
-            unsafe { &*P0::ptr() }.pin_cnf[pin as usize].write(|w| {
+        for &pin in &[&pins.scl, &pins.sda] {
+            let port_ptr = match pin.port() {
+                Port::Port0 => P0::ptr(),
+                #[cfg(any(feature = "52833", feature = "52840"))]
+                Port::Port1 => P1::ptr(),
+            };
+            unsafe { &*port_ptr }.pin_cnf[pin.pin() as usize].write(|w| {
                 w.dir()
                     .input()
                     .input()
