@@ -18,6 +18,7 @@
 - Refuse to build `nrf52810-hal` for hard-float targets, and `nrf51-hal` for thumbv7+ targets
   ([#206]).
 - GPIOTE Port 1 and 0 differentiation for nRF52833 and nRF52840 ([#217])
+- Correct TWIM port initialization for P1 pins ([#221]).
 
 ### Breaking Changes
 
@@ -38,6 +39,7 @@
 [#217]: https://github.com/nrf-rs/nrf-hal/pull/217
 [#214]: https://github.com/nrf-rs/nrf-hal/pull/214
 [#220]: https://github.com/nrf-rs/nrf-hal/pull/220
+[#221]: https://github.com/nrf-rs/nrf-hal/pull/221
 
 ## [0.11.1]
 
