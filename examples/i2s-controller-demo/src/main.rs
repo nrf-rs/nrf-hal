@@ -5,6 +5,7 @@
 // Generates Morse code audio signals for text from UART, playing back over I2S
 // Tested with nRF52840-DK and a UDA1334a DAC
 
+use aligned::{Aligned, A4};
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 use heapless::{
     consts::*,
@@ -51,8 +52,9 @@ const APP: () = {
 
     #[init(resources = [queue], spawn = [tick])]
     fn init(mut ctx: init::Context) -> init::LateResources {
-        static mut MUTE_BUF: [i16; 32] = [0i16; 32];
-        static mut SIGNAL_BUF: [i16; 32] = [0i16; 32];
+        // The I2S buffer address must be 4 byte aligned.
+        static mut MUTE_BUF: Aligned<A4, [i16; 32]> = Aligned([0i16; 32]);
+        static mut SIGNAL_BUF: Aligned<A4, [i16; 32]> = Aligned([0i16; 32]);
 
         // Fill signal buffer with triangle waveform, 2 channels interleaved
         let len = SIGNAL_BUF.len() / 2;
