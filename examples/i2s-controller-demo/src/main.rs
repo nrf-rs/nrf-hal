@@ -33,8 +33,8 @@ use {
 #[rtic::app(device = crate::hal::pac, peripherals = true, monotonic = rtic::cyccnt::CYCCNT)]
 const APP: () = {
     struct Resources {
-        signal_buf: &'static [i16],
-        mute_buf: &'static [i16],
+        signal_buf: &'static [i16; 32],
+        mute_buf: &'static [i16; 32],
         #[init(None)]
         queue: Option<Queue<State, U256>>,
         producer: Producer<'static, State, U256>,
@@ -47,7 +47,7 @@ const APP: () = {
         btn1: Pin<Input<PullUp>>,
         btn2: Pin<Input<PullUp>>,
         led: Pin<Output<PushPull>>,
-        transfer: Option<Transfer<&'static [i16]>>,
+        transfer: Option<Transfer<&'static [i16; 32]>>,
     }
 
     #[init(resources = [queue], spawn = [tick])]
@@ -74,8 +74,8 @@ const APP: () = {
         // Configure I2S controller
         let mck_pin = p0.p0_28.into_push_pull_output(Level::Low).degrade();
         let sck_pin = p0.p0_29.into_push_pull_output(Level::Low).degrade();
-        let lrck_pin = p0.p0_31.into_push_pull_output(Level::Low).degrade();
         let sdout_pin = p0.p0_30.into_push_pull_output(Level::Low).degrade();
+        let lrck_pin = p0.p0_31.into_push_pull_output(Level::Low).degrade();
 
         let i2s = I2S::new_controller(
             ctx.device.I2S,
@@ -126,9 +126,9 @@ const APP: () = {
             led: p0.p0_13.into_push_pull_output(Level::High).degrade(),
             uarte,
             uarte_timer: Timer::new(ctx.device.TIMER0),
-            transfer: i2s.tx(&MUTE_BUF[..]).ok(),
-            signal_buf: &SIGNAL_BUF[..],
-            mute_buf: &MUTE_BUF[..],
+            transfer: i2s.tx(&**MUTE_BUF).ok(),
+            signal_buf: &**SIGNAL_BUF,
+            mute_buf: &**MUTE_BUF,
         }
     }
 

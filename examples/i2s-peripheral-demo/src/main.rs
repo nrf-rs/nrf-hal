@@ -30,7 +30,7 @@ const RED: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x10, 0xFF];
 const APP: () = {
     struct Resources {
         rgb: Spim<SPIM0>,
-        transfer: Option<Transfer<&'static mut [i16]>>,
+        transfer: Option<Transfer<&'static mut [i16; 128]>>,
     }
 
     #[init]
@@ -80,7 +80,7 @@ const APP: () = {
         );
         init::LateResources {
             rgb,
-            transfer: i2s.rx(&mut RX_BUF[..]).ok(),
+            transfer: i2s.rx(&mut **RX_BUF).ok(),
         }
     }
 
