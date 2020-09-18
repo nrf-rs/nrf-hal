@@ -270,7 +270,7 @@ impl I2S {
         B: WriteBuffer<Word = W>,
     {
         let (ptr, len) = unsafe { buffer.write_buffer() };
-        if ptr as u32 & 3 != 0 {
+        if ptr as u32 % 4 != 0 {
             return Err(Error::BufferMisaligned);
         }
         let maxcnt = (len / (core::mem::size_of::<u32>() / core::mem::size_of::<W>())) as u32;
@@ -305,7 +305,7 @@ impl I2S {
     {
         let (rx_ptr, rx_len) = unsafe { rx_buffer.write_buffer() };
         let (tx_ptr, tx_len) = unsafe { tx_buffer.read_buffer() };
-        if tx_ptr as u32 & 3 != 0 || rx_ptr as u32 & 3 != 0 {
+        if tx_ptr as u32 % 4 != 0 || rx_ptr as u32 % 4 != 0 {
             return Err(Error::BufferMisaligned);
         }
         let maxcnt = (tx_len / (core::mem::size_of::<u32>() / core::mem::size_of::<W>())) as u32;
@@ -348,7 +348,7 @@ impl I2S {
         B: ReadBuffer<Word = W>,
     {
         let (ptr, len) = unsafe { buffer.read_buffer() };
-        if ptr as u32 & 3 != 0 {
+        if ptr as u32 % 4 != 0 {
             return Err(Error::BufferMisaligned);
         }
         let maxcnt = (len / (core::mem::size_of::<u32>() / core::mem::size_of::<W>())) as u32;
