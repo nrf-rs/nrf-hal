@@ -20,6 +20,9 @@ use {
     rtt_target::{rprintln, rtt_init_print},
 };
 
+#[repr(align(4))]
+struct Aligned<T: ?Sized>(T);
+
 const OFF: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF];
 const GREEN: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x10, 0x00, 0xFF];
 const ORANGE: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x10, 0x10, 0xFF];
@@ -34,7 +37,8 @@ const APP: () = {
 
     #[init]
     fn init(ctx: init::Context) -> init::LateResources {
-        static mut RX_BUF: [i16; 128] = [0; 128];
+        // The I2S buffer address must be 4 byte aligned.
+        static mut RX_BUF: Aligned<[i16; 128]> = Aligned([0; 128]);
 
         let _clocks = hal::clocks::Clocks::new(ctx.device.CLOCK).enable_ext_hfosc();
         rtt_init_print!();
@@ -78,7 +82,7 @@ const APP: () = {
         );
         init::LateResources {
             rgb,
-            transfer: i2s.rx(RX_BUF).ok(),
+            transfer: i2s.rx(&mut RX_BUF.0).ok(),
         }
     }
 
@@ -87,7 +91,7 @@ const APP: () = {
         let (rx_buf, i2s) = ctx.resources.transfer.take().unwrap().wait();
         if i2s.is_event_triggered(I2SEvent::RxPtrUpdated) {
             i2s.reset_event(I2SEvent::RxPtrUpdated);
-            //Calculate mono summed average of received buffer
+            // Calculate mono summed average of received buffer
             let avg = (rx_buf.iter().map(|x| (*x).abs() as u32).sum::<u32>() / rx_buf.len() as u32)
                 as u16;
             let color = match avg {

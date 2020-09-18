@@ -259,14 +259,20 @@ impl I2S {
             _ => Channels::Right,
         }
     }
+
     /// Receives data into the given `buffer` until it's filled.
+    /// Buffer address must be 4 byte aligned and located in RAM.
     /// Returns a value that represents the in-progress DMA transfer.
     #[allow(unused_mut)]
     pub fn rx<W, B>(mut self, mut buffer: B) -> Result<Transfer<B>, Error>
     where
+        W: SupportedWordSize,
         B: WriteBuffer<Word = W>,
     {
         let (ptr, len) = unsafe { buffer.write_buffer() };
+        if ptr as u32 % 4 != 0 {
+            return Err(Error::BufferMisaligned);
+        }
         let maxcnt = (len / (core::mem::size_of::<u32>() / core::mem::size_of::<W>())) as u32;
         if maxcnt > MAX_DMA_MAXCNT {
             return Err(Error::BufferTooLong);
@@ -283,7 +289,8 @@ impl I2S {
 
     /// Full duplex DMA transfer.
     /// Transmits the given `tx_buffer` while simultaneously receiving data
-    /// into the given `rx_buffer` until it is filled. The buffers must be of equal size.
+    /// into the given `rx_buffer` until it is filled.
+    /// The buffers must be of equal size and their addresses must be 4 byte aligned and located in RAM.
     /// Returns a value that represents the in-progress DMA transfer.
     #[allow(unused_mut)]
     pub fn transfer<W, TxB, RxB>(
@@ -292,11 +299,15 @@ impl I2S {
         mut rx_buffer: RxB,
     ) -> Result<TransferFullDuplex<TxB, RxB>, Error>
     where
+        W: SupportedWordSize,
         TxB: ReadBuffer<Word = W>,
         RxB: WriteBuffer<Word = W>,
     {
         let (rx_ptr, rx_len) = unsafe { rx_buffer.write_buffer() };
         let (tx_ptr, tx_len) = unsafe { tx_buffer.read_buffer() };
+        if tx_ptr as u32 % 4 != 0 || rx_ptr as u32 % 4 != 0 {
+            return Err(Error::BufferMisaligned);
+        }
         let maxcnt = (tx_len / (core::mem::size_of::<u32>() / core::mem::size_of::<W>())) as u32;
         if tx_len != rx_len {
             return Err(Error::BuffersDontMatch);
@@ -328,13 +339,18 @@ impl I2S {
     }
 
     /// Transmits the given `tx_buffer`.
+    /// Buffer address must be 4 byte aligned and located in RAM.
     /// Returns a value that represents the in-progress DMA transfer.
     #[allow(unused_mut)]
     pub fn tx<W, B>(mut self, buffer: B) -> Result<Transfer<B>, Error>
     where
+        W: SupportedWordSize,
         B: ReadBuffer<Word = W>,
     {
         let (ptr, len) = unsafe { buffer.read_buffer() };
+        if ptr as u32 % 4 != 0 {
+            return Err(Error::BufferMisaligned);
+        }
         let maxcnt = (len / (core::mem::size_of::<u32>() / core::mem::size_of::<W>())) as u32;
         if maxcnt > MAX_DMA_MAXCNT {
             return Err(Error::BufferTooLong);
@@ -468,6 +484,7 @@ pub enum Error {
     DMABufferNotInDataMemory,
     BufferTooLong,
     BuffersDontMatch,
+    BufferMisaligned,
 }
 
 /// I2S Mode
@@ -649,4 +666,23 @@ impl<TxB, RxB> Drop for TransferFullDuplex<TxB, RxB> {
             compiler_fence(Ordering::Acquire);
         }
     }
+}
+
+pub trait SupportedWordSize: private::Sealed {}
+impl private::Sealed for i8 {}
+impl SupportedWordSize for i8 {}
+impl private::Sealed for u8 {}
+impl SupportedWordSize for u8 {}
+impl private::Sealed for i16 {}
+impl SupportedWordSize for i16 {}
+impl private::Sealed for u16 {}
+impl SupportedWordSize for u16 {}
+impl private::Sealed for i32 {}
+impl SupportedWordSize for i32 {}
+impl private::Sealed for u32 {}
+impl SupportedWordSize for u32 {}
+
+mod private {
+    /// Prevents code outside of the parent module from implementing traits.
+    pub trait Sealed {}
 }

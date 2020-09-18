@@ -29,11 +29,14 @@ use {
     rtt_target::{rprintln, rtt_init_print},
 };
 
+#[repr(align(4))]
+struct Aligned<T: ?Sized>(T);
+
 #[rtic::app(device = crate::hal::pac, peripherals = true, monotonic = rtic::cyccnt::CYCCNT)]
 const APP: () = {
     struct Resources {
-        signal_buf: &'static [i16],
-        mute_buf: &'static [i16],
+        signal_buf: &'static [i16; 32],
+        mute_buf: &'static [i16; 32],
         #[init(None)]
         queue: Option<Queue<State, U256>>,
         producer: Producer<'static, State, U256>,
@@ -46,19 +49,20 @@ const APP: () = {
         btn1: Pin<Input<PullUp>>,
         btn2: Pin<Input<PullUp>>,
         led: Pin<Output<PushPull>>,
-        transfer: Option<Transfer<&'static [i16]>>,
+        transfer: Option<Transfer<&'static [i16; 32]>>,
     }
 
     #[init(resources = [queue], spawn = [tick])]
     fn init(mut ctx: init::Context) -> init::LateResources {
-        static mut MUTE_BUF: [i16; 32] = [0i16; 32];
-        static mut SIGNAL_BUF: [i16; 32] = [0i16; 32];
+        // The I2S buffer address must be 4 byte aligned.
+        static mut MUTE_BUF: Aligned<[i16; 32]> = Aligned([0i16; 32]);
+        static mut SIGNAL_BUF: Aligned<[i16; 32]> = Aligned([0i16; 32]);
 
         // Fill signal buffer with triangle waveform, 2 channels interleaved
-        let len = SIGNAL_BUF.len() / 2;
+        let len = SIGNAL_BUF.0.len() / 2;
         for x in 0..len {
-            SIGNAL_BUF[2 * x] = triangle_wave(x as i32, len, 2048, 0, 1) as i16;
-            SIGNAL_BUF[2 * x + 1] = triangle_wave(x as i32, len, 2048, 0, 1) as i16;
+            SIGNAL_BUF.0[2 * x] = triangle_wave(x as i32, len, 2048, 0, 1) as i16;
+            SIGNAL_BUF.0[2 * x + 1] = triangle_wave(x as i32, len, 2048, 0, 1) as i16;
         }
 
         let _clocks = hal::clocks::Clocks::new(ctx.device.CLOCK).enable_ext_hfosc();
@@ -72,8 +76,8 @@ const APP: () = {
         // Configure I2S controller
         let mck_pin = p0.p0_28.into_push_pull_output(Level::Low).degrade();
         let sck_pin = p0.p0_29.into_push_pull_output(Level::Low).degrade();
-        let lrck_pin = p0.p0_31.into_push_pull_output(Level::Low).degrade();
         let sdout_pin = p0.p0_30.into_push_pull_output(Level::Low).degrade();
+        let lrck_pin = p0.p0_31.into_push_pull_output(Level::Low).degrade();
 
         let i2s = I2S::new_controller(
             ctx.device.I2S,
@@ -124,9 +128,9 @@ const APP: () = {
             led: p0.p0_13.into_push_pull_output(Level::High).degrade(),
             uarte,
             uarte_timer: Timer::new(ctx.device.TIMER0),
-            transfer: i2s.tx(&MUTE_BUF[..]).ok(),
-            signal_buf: &SIGNAL_BUF[..],
-            mute_buf: &MUTE_BUF[..],
+            transfer: i2s.tx(&MUTE_BUF.0).ok(),
+            signal_buf: &SIGNAL_BUF.0,
+            mute_buf: &MUTE_BUF.0,
         }
     }
 
