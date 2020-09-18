@@ -4,7 +4,6 @@
 // I2S `peripheral mode` demo
 // Signal average level indicator using an RGB LED (APA102 on ItsyBitsy nRF52840)
 
-use aligned::{Aligned, A4};
 use embedded_hal::blocking::spi::Write;
 use {
     core::{
@@ -21,6 +20,9 @@ use {
     rtt_target::{rprintln, rtt_init_print},
 };
 
+#[repr(align(4))]
+struct Aligned<T: ?Sized>(T);
+
 const OFF: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF];
 const GREEN: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x10, 0x00, 0xFF];
 const ORANGE: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x10, 0x10, 0xFF];
@@ -36,7 +38,7 @@ const APP: () = {
     #[init]
     fn init(ctx: init::Context) -> init::LateResources {
         // The I2S buffer address must be 4 byte aligned.
-        static mut RX_BUF: Aligned<A4, [i16; 128]> = Aligned([0; 128]);
+        static mut RX_BUF: Aligned<[i16; 128]> = Aligned([0; 128]);
 
         let _clocks = hal::clocks::Clocks::new(ctx.device.CLOCK).enable_ext_hfosc();
         rtt_init_print!();
@@ -80,7 +82,7 @@ const APP: () = {
         );
         init::LateResources {
             rgb,
-            transfer: i2s.rx(&mut **RX_BUF).ok(),
+            transfer: i2s.rx(&mut RX_BUF.0).ok(),
         }
     }
 

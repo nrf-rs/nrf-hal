@@ -5,7 +5,6 @@
 // Generates Morse code audio signals for text from UART, playing back over I2S
 // Tested with nRF52840-DK and a UDA1334a DAC
 
-use aligned::{Aligned, A4};
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 use heapless::{
     consts::*,
@@ -30,6 +29,9 @@ use {
     rtt_target::{rprintln, rtt_init_print},
 };
 
+#[repr(align(4))]
+struct Aligned<T: ?Sized>(T);
+
 #[rtic::app(device = crate::hal::pac, peripherals = true, monotonic = rtic::cyccnt::CYCCNT)]
 const APP: () = {
     struct Resources {
@@ -53,14 +55,14 @@ const APP: () = {
     #[init(resources = [queue], spawn = [tick])]
     fn init(mut ctx: init::Context) -> init::LateResources {
         // The I2S buffer address must be 4 byte aligned.
-        static mut MUTE_BUF: Aligned<A4, [i16; 32]> = Aligned([0i16; 32]);
-        static mut SIGNAL_BUF: Aligned<A4, [i16; 32]> = Aligned([0i16; 32]);
+        static mut MUTE_BUF: Aligned<[i16; 32]> = Aligned([0i16; 32]);
+        static mut SIGNAL_BUF: Aligned<[i16; 32]> = Aligned([0i16; 32]);
 
         // Fill signal buffer with triangle waveform, 2 channels interleaved
-        let len = SIGNAL_BUF.len() / 2;
+        let len = SIGNAL_BUF.0.len() / 2;
         for x in 0..len {
-            SIGNAL_BUF[2 * x] = triangle_wave(x as i32, len, 2048, 0, 1) as i16;
-            SIGNAL_BUF[2 * x + 1] = triangle_wave(x as i32, len, 2048, 0, 1) as i16;
+            SIGNAL_BUF.0[2 * x] = triangle_wave(x as i32, len, 2048, 0, 1) as i16;
+            SIGNAL_BUF.0[2 * x + 1] = triangle_wave(x as i32, len, 2048, 0, 1) as i16;
         }
 
         let _clocks = hal::clocks::Clocks::new(ctx.device.CLOCK).enable_ext_hfosc();
@@ -126,9 +128,9 @@ const APP: () = {
             led: p0.p0_13.into_push_pull_output(Level::High).degrade(),
             uarte,
             uarte_timer: Timer::new(ctx.device.TIMER0),
-            transfer: i2s.tx(&**MUTE_BUF).ok(),
-            signal_buf: &**SIGNAL_BUF,
-            mute_buf: &**MUTE_BUF,
+            transfer: i2s.tx(&MUTE_BUF.0).ok(),
+            signal_buf: &SIGNAL_BUF.0,
+            mute_buf: &MUTE_BUF.0,
         }
     }
 
