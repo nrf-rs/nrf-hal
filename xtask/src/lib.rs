@@ -22,6 +22,7 @@ pub static EXAMPLES: &[(&str, &[&str])] = &[
     ("qdec-demo", &[]),
     ("rtic-demo", &["51", "52810", "52832", "52840"]),
     ("spi-demo", &[]),
+    ("spis-demo", &[]),
     ("twi-ssd1306", &["52832", "52840"]),
     ("twim-demo", &[]),
     ("twis-demo", &[]),
