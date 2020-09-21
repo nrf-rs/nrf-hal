@@ -297,34 +297,6 @@ where
         &self.0.tasks_release
     }
 
-    /// Receives data into the given `buffer` until it's filled.
-    /// Buffer must be located in RAM.
-    /// Returns a value that represents the in-progress DMA transfer.
-    #[allow(unused_mut)]
-    pub fn rx<W, B>(mut self, mut buffer: B) -> Result<Transfer<T, B>, Error>
-    where
-        B: WriteBuffer<Word = W>,
-    {
-        let (ptr, len) = unsafe { buffer.write_buffer() };
-        let maxcnt = len * core::mem::size_of::<W>();
-        if maxcnt > EASY_DMA_SIZE {
-            return Err(Error::BufferTooLong);
-        }
-        self.0
-            .rxd
-            .ptr
-            .write(|w| unsafe { w.ptr().bits(ptr as u32) });
-        self.0
-            .rxd
-            .maxcnt
-            .write(|w| unsafe { w.bits(maxcnt as u32) });
-
-        self.release();
-        Ok(Transfer {
-            inner: Some(Inner { buffer, spis: self }),
-        })
-    }
-
     /// Full duplex DMA transfer.
     /// Transmits the given buffer while simultaneously receiving data into the same buffer until it is filled.
     /// Buffer must be located in RAM.
@@ -412,37 +384,6 @@ where
                 rx_buffer,
                 spis: self,
             }),
-        })
-    }
-
-    /// Transmits the given `tx_buffer`. Buffer must be located in RAM.
-    /// Returns a value that represents the in-progress DMA transfer.
-    #[allow(unused_mut)]
-    pub fn tx<W, B>(mut self, buffer: B) -> Result<Transfer<T, B>, Error>
-    where
-        B: ReadBuffer<Word = W>,
-    {
-        let (ptr, len) = unsafe { buffer.read_buffer() };
-        let maxcnt = len * core::mem::size_of::<W>();
-        if maxcnt > EASY_DMA_SIZE {
-            return Err(Error::BufferTooLong);
-        }
-        if (ptr as usize) < SRAM_LOWER || (ptr as usize) > SRAM_UPPER {
-            return Err(Error::DMABufferNotInDataMemory);
-        }
-
-        self.0
-            .txd
-            .ptr
-            .write(|w| unsafe { w.ptr().bits(ptr as u32) });
-        self.0
-            .txd
-            .maxcnt
-            .write(|w| unsafe { w.bits(maxcnt as u32) });
-
-        self.release();
-        Ok(Transfer {
-            inner: Some(Inner { buffer, spis: self }),
         })
     }
 
