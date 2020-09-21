@@ -12,6 +12,7 @@
 - PWM module ([#200]).
 - I2S module ([#201]).
 - SPIS module ([#226]).
+- Add support for the nRF52811.
 
 ### Fixes
 
