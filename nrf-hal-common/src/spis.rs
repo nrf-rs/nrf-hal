@@ -470,6 +470,7 @@ impl<T: Instance, B> Transfer<T, B> {
             .take()
             .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
         while !inner.spis.is_done() {}
+        inner.spis.acquire();
         compiler_fence(Ordering::Acquire);
         (inner.buffer, inner.spis)
     }
@@ -513,6 +514,7 @@ impl<T: Instance, TxB, RxB> TransferSplit<T, TxB, RxB> {
             .take()
             .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
         while !inner.spis.is_done() {}
+        inner.spis.acquire();
         compiler_fence(Ordering::Acquire);
         (inner.tx_buffer, inner.rx_buffer, inner.spis)
     }
