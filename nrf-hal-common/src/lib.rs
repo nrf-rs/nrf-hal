@@ -57,6 +57,8 @@ pub mod saadc;
 pub mod spi;
 #[cfg(not(feature = "51"))]
 pub mod spim;
+#[cfg(not(feature = "51"))]
+pub mod spis;
 #[cfg(not(feature = "9160"))]
 pub mod temp;
 pub mod time;
