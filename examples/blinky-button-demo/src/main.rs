@@ -1,11 +1,11 @@
 #![no_main]
 #![no_std]
 
-use core::sync::atomic::{AtomicUsize, Ordering};
 use embedded_hal::digital::v2::InputPin;
 use embedded_hal::digital::v2::OutputPin;
 use nrf52832_hal as hal;
 use nrf52832_hal::gpio::Level;
+use rtt_target::{rprintln, rtt_init_print};
 
 #[panic_handler] // panicking behavior
 fn panic(_: &core::panic::PanicInfo) -> ! {
