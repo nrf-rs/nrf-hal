@@ -1,6 +1,9 @@
 #![no_std]
 #![no_main]
 
+// Demo for the SPIS module, transmitting the current buffer contents while receiving new data.
+// Press button to zero the buffer.
+
 use {
     core::{
         panic::PanicInfo,

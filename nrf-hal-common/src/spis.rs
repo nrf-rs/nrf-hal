@@ -407,7 +407,7 @@ where
 
         self.release();
         Ok(TransferSplit {
-            inner: Some(InnerFullDuplex {
+            inner: Some(InnerSplit {
                 tx_buffer,
                 rx_buffer,
                 spis: self,
@@ -496,10 +496,10 @@ impl<T: Instance, B> Drop for Transfer<T, B> {
 }
 /// A full duplex DMA transfer
 pub struct TransferSplit<T: Instance, TxB, RxB> {
-    inner: Option<InnerFullDuplex<T, TxB, RxB>>,
+    inner: Option<InnerSplit<T, TxB, RxB>>,
 }
 
-struct InnerFullDuplex<T: Instance, TxB, RxB> {
+struct InnerSplit<T: Instance, TxB, RxB> {
     tx_buffer: TxB,
     rx_buffer: RxB,
     spis: Spis<T>,
