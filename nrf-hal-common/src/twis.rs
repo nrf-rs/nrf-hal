@@ -1,27 +1,36 @@
 //! HAL interface to the TWIS peripheral.
 //!
 
-use core::ops::Deref;
-use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
+use core::{
+    ops::Deref,
+    sync::atomic::{compiler_fence, Ordering::SeqCst},
+};
 
-use crate::pac::{twis0, P0, TWIS0};
+#[cfg(feature = "9160")]
+use crate::pac::{
+    twis0_ns::{self as twis0, _EVENTS_READ, _EVENTS_STOPPED, _EVENTS_WRITE, _TASKS_STOP},
+    P0_NS as P0, TWIS0_NS as TWIS0,
+};
+
+#[cfg(not(feature = "9160"))]
+use crate::pac::{
+    twis0::{self, _EVENTS_READ, _EVENTS_STOPPED, _EVENTS_WRITE, _TASKS_STOP},
+    P0, TWIS0,
+};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::TWIS1;
 
-use crate::pac::{
-    generic::Reg,
-    twis0::{_EVENTS_READ, _EVENTS_STOPPED, _EVENTS_WRITE, _TASKS_STOP},
-};
-
 use crate::{
     gpio::{Floating, Input, Pin},
+    pac::{generic::Reg, Interrupt},
     slice_in_ram_or,
-    target_constants::EASY_DMA_SIZE,
+    target_constants::{EASY_DMA_SIZE, SRAM_LOWER, SRAM_UPPER},
 };
+use embedded_dma::*;
 
 /// Interface to a TWIS instance.
-pub struct Twis<T>(T);
+pub struct Twis<T: Instance>(T);
 
 impl<T> Twis<T>
 where
@@ -295,7 +304,7 @@ pub struct Pins {
     pub sda: Pin<Input<Floating>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum Error {
     TxBufferTooLong,
     RxBufferTooLong,
@@ -314,9 +323,27 @@ pub enum TwiEvent {
 }
 
 /// Implemented by all TWIS instances
-pub trait Instance: Deref<Target = twis0::RegisterBlock> {}
+pub trait Instance: sealed::Sealed + Deref<Target = twis0::RegisterBlock> {
+    const INTERRUPT: Interrupt;
+}
 
-impl Instance for TWIS0 {}
+impl Instance for TWIS0 {
+    #[cfg(not(any(feature = "9160", feature = "52810")))]
+    const INTERRUPT: Interrupt = Interrupt::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0;
+    #[cfg(feature = "9160")]
+    const INTERRUPT: Interrupt = Interrupt::UARTE0_SPIM0_SPIS0_TWIM0_TWIS0;
+    #[cfg(feature = "52810")]
+    const INTERRUPT: Interrupt = Interrupt::TWIM0_TWIS0_TWI0;
+}
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-impl Instance for TWIS1 {}
+impl Instance for TWIS1 {
+    const INTERRUPT: Interrupt = Interrupt::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1;
+}
+
+mod sealed {
+    pub trait Sealed {}
+    impl Sealed for super::TWIS0 {}
+    #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+    impl Sealed for super::TWIS1 {}
+}
