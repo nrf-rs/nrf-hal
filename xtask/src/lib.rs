@@ -10,6 +10,7 @@ pub static HALS: &[(&str, &str)] = &[
 ];
 
 pub static EXAMPLES: &[(&str, &[&str])] = &[
+    ("blinky-button-demo", &[]),
     ("ccm-demo", &["52810", "52832", "52833", "52840"]),
     ("comp-demo", &[]),
     ("ecb-demo", &["51", "52810", "52832", "52833", "52840"]),
