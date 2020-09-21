@@ -977,13 +977,13 @@ pub trait Instance: private::Sealed {}
 
 impl Instance for PWM0 {}
 
-#[cfg(not(any(feature = "52810")))]
+#[cfg(not(any(feature = "52810", feature = "52811")))]
 impl Instance for PWM1 {}
 
-#[cfg(not(any(feature = "52810")))]
+#[cfg(not(any(feature = "52810", feature = "52811")))]
 impl Instance for PWM2 {}
 
-#[cfg(not(any(feature = "52810", feature = "52832")))]
+#[cfg(not(any(feature = "52810", feature = "52811", feature = "52832")))]
 impl Instance for PWM3 {}
 
 mod private {
@@ -991,12 +991,12 @@ mod private {
 
     impl Sealed for crate::pwm::PWM0 {}
 
-    #[cfg(not(any(feature = "52810")))]
+    #[cfg(not(any(feature = "52810", feature = "52811")))]
     impl Sealed for crate::pwm::PWM1 {}
 
-    #[cfg(not(any(feature = "52810")))]
+    #[cfg(not(any(feature = "52810", feature = "52811")))]
     impl Sealed for crate::pwm::PWM2 {}
 
-    #[cfg(not(any(feature = "52810", feature = "52832")))]
+    #[cfg(not(any(feature = "52810", feature = "52811", feature = "52832")))]
     impl Sealed for crate::pwm::PWM3 {}
 }

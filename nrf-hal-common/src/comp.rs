@@ -293,7 +293,7 @@ comp_ref_pins! {
     P0_31<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE7,
 }
 
-#[cfg(not(feature = "52810"))]
+#[cfg(not(any(feature = "52811", feature = "52810")))]
 comp_input_pins! {
     P0_02<Input<Floating>> => PSEL_A::ANALOGINPUT0,
     P0_03<Input<Floating>> => PSEL_A::ANALOGINPUT1,
@@ -302,10 +302,10 @@ comp_input_pins! {
     P0_28<Input<Floating>> => PSEL_A::ANALOGINPUT4,
     P0_29<Input<Floating>> => PSEL_A::ANALOGINPUT5,
     P0_30<Input<Floating>> => PSEL_A::ANALOGINPUT6,
-    P0_31<Input<Floating>> => PSEL_A::ANALOGINPUT7,
+    P0_31<Input<Floating>> => PSEL_A::ANALOGINPUT6,
 }
 
-#[cfg(feature = "52810")]
+#[cfg(any(feature = "52811", feature = "52810"))]
 comp_input_pins! {
     P0_02<Input<Floating>> => PSEL_A::ANALOGINPUT0,
     P0_03<Input<Floating>> => PSEL_A::ANALOGINPUT1,
