@@ -61,7 +61,6 @@ const APP: () = {
         ctx.resources.gpiote.reset_events();
         rprintln!("Reset buffer");
         let (buf, spis) = ctx.resources.transfer.take().unwrap().wait();
-        spis.acquire(); // Acquire the SPIS semaphore to be able to safely update `buf`
         buf.copy_from_slice(&[0; 8][..]);
         rprintln!("{:?}", buf);
         *ctx.resources.transfer = spis.transfer(buf).ok();
