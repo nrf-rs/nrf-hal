@@ -156,7 +156,7 @@ where
     /// Requests acquiring the SPIS semaphore and waits until acquired.
     #[inline(always)]
     pub fn acquire(&self) -> &Self {
-        self.enable();
+        compiler_fence(Ordering::SeqCst);
         self.0.tasks_acquire.write(|w| unsafe { w.bits(1) });
         while self.0.events_acquired.read().bits() == 0 {}
         self
@@ -311,6 +311,7 @@ where
         if maxcnt > EASY_DMA_SIZE {
             return Err(Error::BufferTooLong);
         }
+        compiler_fence(Ordering::SeqCst);
         self.0
             .txd
             .ptr
@@ -359,7 +360,7 @@ where
         if (tx_ptr as usize) < SRAM_LOWER || (tx_ptr as usize) > SRAM_UPPER {
             return Err(Error::DMABufferNotInDataMemory);
         }
-
+        compiler_fence(Ordering::SeqCst);
         self.0
             .txd
             .ptr
@@ -406,13 +407,13 @@ struct Inner<T: Instance, B> {
 impl<T: Instance, B> Transfer<T, B> {
     /// Blocks until the transfer is done and returns the buffer.
     pub fn wait(mut self) -> (B, Spis<T>) {
+        compiler_fence(Ordering::SeqCst);
         let inner = self
             .inner
             .take()
             .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
         while !inner.spis.is_done() {}
         inner.spis.acquire();
-        compiler_fence(Ordering::Acquire);
         (inner.buffer, inner.spis)
     }
 
@@ -430,9 +431,9 @@ impl<T: Instance, B> Transfer<T, B> {
 impl<T: Instance, B> Drop for Transfer<T, B> {
     fn drop(&mut self) {
         if let Some(inner) = self.inner.as_mut() {
+            compiler_fence(Ordering::SeqCst);
             while !inner.spis.is_done() {}
             inner.spis.disable();
-            compiler_fence(Ordering::Acquire);
         }
     }
 }
@@ -450,13 +451,13 @@ struct InnerSplit<T: Instance, TxB, RxB> {
 impl<T: Instance, TxB, RxB> TransferSplit<T, TxB, RxB> {
     /// Blocks until the transfer is done and returns the buffer.
     pub fn wait(mut self) -> (TxB, RxB, Spis<T>) {
+        compiler_fence(Ordering::SeqCst);
         let inner = self
             .inner
             .take()
             .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
         while !inner.spis.is_done() {}
         inner.spis.acquire();
-        compiler_fence(Ordering::Acquire);
         (inner.tx_buffer, inner.rx_buffer, inner.spis)
     }
 
@@ -474,9 +475,9 @@ impl<T: Instance, TxB, RxB> TransferSplit<T, TxB, RxB> {
 impl<T: Instance, TxB, RxB> Drop for TransferSplit<T, TxB, RxB> {
     fn drop(&mut self) {
         if let Some(inner) = self.inner.as_mut() {
+            compiler_fence(Ordering::SeqCst);
             while !inner.spis.is_done() {}
             inner.spis.disable();
-            compiler_fence(Ordering::Acquire);
         }
     }
 }
