@@ -16,7 +16,7 @@ keywords = ["arm", "cortex-m", "nrf52", "hal", "nrf52811"]
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-nrf52811-pac = { git = "https://github.com/nrf-rs/nrf52811-pac" }
+nrf52811-pac = "0.9.0"
 
 [dependencies.nrf-hal-common]
 path = "../nrf-hal-common"
