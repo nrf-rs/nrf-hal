@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 cortex-m = "0.6.2"
+cortex-m-rt = "0.6.12"
 rtt-target = {version = "0.2.0", features = ["cortex-m"] }
 nrf52832-hal = { features = ["rt"], path = "../../nrf52832-hal" }
 
