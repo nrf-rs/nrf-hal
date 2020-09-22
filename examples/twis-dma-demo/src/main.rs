@@ -1,6 +1,9 @@
 #![no_std]
 #![no_main]
 
+// Demo of using non-blocking DMA transactions with the
+// TWIS (Two Wire Interface/I2C in peripheral mode) module.
+
 use {
     core::{
         panic::PanicInfo,
