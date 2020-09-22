@@ -19,6 +19,7 @@ use crate::{
     target_constants::{SRAM_LOWER, SRAM_UPPER},
     time::*,
 };
+use embedded_dma::*;
 
 /// A safe wrapper around the raw peripheral.
 #[derive(Debug)]
@@ -473,12 +474,16 @@ where
 
     /// Loads a sequence buffer.
     /// NOTE: `buf` must live until the sequence is done playing, or it might play a corrupted sequence.
-    pub fn load_seq(&self, seq: Seq, buf: &[u16]) -> Result<(), Error> {
-        if (buf.as_ptr() as usize) < SRAM_LOWER || (buf.as_ptr() as usize) > SRAM_UPPER {
+    pub fn load_seq<W, B>(&self, seq: Seq, buf: B) -> Result<(), Error>
+    where
+        B: ReadBuffer<Word = W>,
+    {
+        let (ptr, len) = unsafe { buf.read_buffer() };
+        if (ptr as usize) < SRAM_LOWER || (ptr as usize) > SRAM_UPPER {
             return Err(Error::DMABufferNotInDataMemory);
         }
 
-        if buf.len() > 32_768 {
+        if len > (1 << 15) / core::mem::size_of::<W>() {
             return Err(Error::BufferTooLong);
         }
 
@@ -486,24 +491,12 @@ where
 
         match seq {
             Seq::Seq0 => {
-                self.pwm
-                    .seq0
-                    .ptr
-                    .write(|w| unsafe { w.bits(buf.as_ptr() as u32) });
-                self.pwm
-                    .seq0
-                    .cnt
-                    .write(|w| unsafe { w.bits(buf.len() as u32) });
+                self.pwm.seq0.ptr.write(|w| unsafe { w.bits(ptr as u32) });
+                self.pwm.seq0.cnt.write(|w| unsafe { w.bits(len as u32) });
             }
             Seq::Seq1 => {
-                self.pwm
-                    .seq1
-                    .ptr
-                    .write(|w| unsafe { w.bits(buf.as_ptr() as u32) });
-                self.pwm
-                    .seq1
-                    .cnt
-                    .write(|w| unsafe { w.bits(buf.len() as u32) });
+                self.pwm.seq1.ptr.write(|w| unsafe { w.bits(ptr as u32) });
+                self.pwm.seq1.cnt.write(|w| unsafe { w.bits(len as u32) });
             }
         }
         Ok(())
