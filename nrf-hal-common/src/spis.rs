@@ -182,8 +182,8 @@ where
 
     /// Enables interrupt for specified event.
     #[inline(always)]
-    pub fn enable_interrupt(&self, command: SpisEvent) -> &Self {
-        self.spis.intenset.modify(|_r, w| match command {
+    pub fn enable_interrupt(&self, event: SpisEvent) -> &Self {
+        self.spis.intenset.modify(|_r, w| match event {
             SpisEvent::Acquired => w.acquired().set_bit(),
             SpisEvent::End => w.end().set_bit(),
             SpisEvent::EndRx => w.endrx().set_bit(),
@@ -193,8 +193,8 @@ where
 
     /// Disables interrupt for specified event.
     #[inline(always)]
-    pub fn disable_interrupt(&self, command: SpisEvent) -> &Self {
-        self.spis.intenclr.write(|w| match command {
+    pub fn disable_interrupt(&self, event: SpisEvent) -> &Self {
+        self.spis.intenclr.write(|w| match event {
             SpisEvent::Acquired => w.acquired().set_bit(),
             SpisEvent::End => w.end().set_bit(),
             SpisEvent::EndRx => w.endrx().set_bit(),
