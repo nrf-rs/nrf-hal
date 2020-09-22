@@ -41,7 +41,8 @@ impl<T> Spis<T>
 where
     T: Instance,
 {
-    /// Takes ownership of the raw SPIS peripheral, returning a safe wrapper.
+    /// Takes ownership of the raw SPIS peripheral and relevant pins,
+    /// returning a safe wrapper.
     pub fn new(spis: T, pins: Pins) -> Self {
         spis.psel.sck.write(|w| {
             unsafe { w.pin().bits(pins.sck.pin()) };
@@ -166,11 +167,20 @@ where
         self
     }
 
-    /// Requests acquiring the SPIS semaphore.
+    /// Requests acquiring the SPIS semaphore, returning an error if not
+    /// possible.
+    ///
+    /// Note: The semaphore will still be requested, and will be made
+    /// available at a later point.
     #[inline(always)]
-    pub fn try_acquire(&self) -> &Self {
+    pub fn try_acquire(&self) -> Result<&Self, Error> {
+        compiler_fence(Ordering::SeqCst);
         self.spis.tasks_acquire.write(|w| unsafe { w.bits(1) });
-        self
+        if self.spis.events_acquired.read().bits() != 0 {
+            Ok(self)
+        } else {
+            Err(Error::SemaphoreNotAvailable)
+        }
     }
 
     /// Releases the SPIS semaphore, enabling the SPIS to acquire it.
@@ -566,6 +576,7 @@ pub enum Mode {
 pub enum Error {
     DMABufferNotInDataMemory,
     BufferTooLong,
+    SemaphoreNotAvailable,
 }
 
 /// GPIO pins for SPIS interface.
