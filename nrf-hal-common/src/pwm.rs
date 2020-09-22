@@ -2,22 +2,22 @@
 //!
 //! The pulse with modulation (PWM) module enables the generation of pulse width modulated signals on GPIO.
 
-use core::cell::RefCell;
-use core::sync::atomic::{compiler_fence, Ordering};
-
-#[cfg(any(feature = "52833", feature = "52840"))]
+#[cfg(not(feature = "52810"))]
 use crate::{
-    gpio::{Output, Pin, Port, PushPull},
-    pac::{
-        generic::Reg,
-        pwm0::{
-            _EVENTS_LOOPSDONE, _EVENTS_PWMPERIODEND, _EVENTS_SEQEND, _EVENTS_SEQSTARTED,
-            _EVENTS_STOPPED, _TASKS_NEXTSTEP, _TASKS_SEQSTART, _TASKS_STOP,
-        },
-        PWM0, PWM1, PWM2, PWM3,
-    },
+    gpio::Port,
+    pac::PWM3,
+    pac::{PWM1, PWM2},
+};
+use crate::{
+    gpio::{Output, Pin, PushPull},
+    pac::{generic::Reg, pwm0::*, Interrupt, PWM0},
     target_constants::{SRAM_LOWER, SRAM_UPPER},
     time::*,
+};
+use core::{
+    cell::RefCell,
+    ops::Deref,
+    sync::atomic::{compiler_fence, Ordering},
 };
 use embedded_dma::*;
 
@@ -474,16 +474,16 @@ where
 
     /// Loads a sequence buffer.
     /// NOTE: `buf` must live until the sequence is done playing, or it might play a corrupted sequence.
-    pub fn load_seq<W, B>(&self, seq: Seq, buf: B) -> Result<(), Error>
+    pub fn load_seq<B>(&self, seq: Seq, buf: B) -> Result<(), Error>
     where
-        B: ReadBuffer<Word = W>,
+        B: ReadBuffer<Word = u16>,
     {
         let (ptr, len) = unsafe { buf.read_buffer() };
         if (ptr as usize) < SRAM_LOWER || (ptr as usize) > SRAM_UPPER {
             return Err(Error::DMABufferNotInDataMemory);
         }
 
-        if len > (1 << 15) / core::mem::size_of::<W>() {
+        if len > (1 << 15) / core::mem::size_of::<u16>() {
             return Err(Error::BufferTooLong);
         }
 
@@ -637,14 +637,12 @@ where
     }
 
     /// Returns reference to `Seq0 Start` task endpoint for PPI.
-    #[cfg(any(feature = "52833", feature = "52840"))]
     #[inline(always)]
     pub fn task_start_seq0(&self) -> &Reg<u32, _TASKS_SEQSTART> {
         &self.pwm.tasks_seqstart[0]
     }
 
     /// Returns reference to `Seq1 Started` task endpoint for PPI.
-    #[cfg(any(feature = "52833", feature = "52840"))]
     #[inline(always)]
     pub fn task_start_seq1(&self) -> &Reg<u32, _TASKS_SEQSTART> {
         &self.pwm.tasks_seqstart[1]
@@ -966,30 +964,33 @@ pub enum Error {
     BufferTooLong,
 }
 
-pub trait Instance: private::Sealed {}
+pub trait Instance: private::Sealed + Deref<Target = crate::pac::pwm0::RegisterBlock> {
+    const INTERRUPT: Interrupt;
+}
 
-impl Instance for PWM0 {}
-
-#[cfg(not(any(feature = "52810")))]
-impl Instance for PWM1 {}
-
-#[cfg(not(any(feature = "52810")))]
-impl Instance for PWM2 {}
-
-#[cfg(not(any(feature = "52810", feature = "52832")))]
-impl Instance for PWM3 {}
+impl Instance for PWM0 {
+    const INTERRUPT: Interrupt = Interrupt::PWM0;
+}
+#[cfg(not(feature = "52810"))]
+impl Instance for PWM1 {
+    const INTERRUPT: Interrupt = Interrupt::PWM1;
+}
+#[cfg(not(feature = "52810"))]
+impl Instance for PWM2 {
+    const INTERRUPT: Interrupt = Interrupt::PWM2;
+}
+#[cfg(not(feature = "52810"))]
+impl Instance for PWM3 {
+    const INTERRUPT: Interrupt = Interrupt::PWM3;
+}
 
 mod private {
-    pub trait Sealed: core::ops::Deref<Target = crate::pac::pwm0::RegisterBlock> {}
-
+    pub trait Sealed {}
     impl Sealed for crate::pwm::PWM0 {}
-
-    #[cfg(not(any(feature = "52810")))]
+    #[cfg(not(feature = "52810"))]
     impl Sealed for crate::pwm::PWM1 {}
-
-    #[cfg(not(any(feature = "52810")))]
+    #[cfg(not(feature = "52810"))]
     impl Sealed for crate::pwm::PWM2 {}
-
-    #[cfg(not(any(feature = "52810", feature = "52832")))]
+    #[cfg(not(feature = "52810"))]
     impl Sealed for crate::pwm::PWM3 {}
 }
