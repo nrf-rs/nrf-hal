@@ -38,10 +38,12 @@ const APP: () = {
 
         let spis = Spis::new(
             ctx.device.SPIS0,
-            &sck_pin,
-            &cs_pin,
-            Some(&copi_pin),
-            Some(&cipo_pin),
+            Pins {
+                sck: sck_pin,
+                cs: cs_pin,
+                copi: Some(copi_pin),
+                cipo: Some(cipo_pin),
+            },
         );
         spis.enable_interrupt(SpisEvent::End);
 

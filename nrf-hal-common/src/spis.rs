@@ -1,3 +1,7 @@
+//! HAL interface to the SPIS peripheral.
+//!
+//! A module for SPI communication in peripheral mode.
+
 use core::{
     ops::Deref,
     sync::atomic::{compiler_fence, Ordering},
@@ -27,34 +31,32 @@ use crate::{
 };
 use embedded_dma::*;
 
-pub struct Spis<T: Instance>(T);
+/// Interface to a SPIS instance.
+pub struct Spis<T: Instance> {
+    spis: T,
+    pins: Pins,
+}
 
 impl<T> Spis<T>
 where
     T: Instance,
 {
     /// Takes ownership of the raw SPIS peripheral, returning a safe wrapper.
-    pub fn new(
-        spis: T,
-        sck_pin: &Pin<Input<Floating>>,
-        cs_pin: &Pin<Input<Floating>>,
-        copi_pin: Option<&Pin<Input<Floating>>>,
-        cipo_pin: Option<&Pin<Input<Floating>>>,
-    ) -> Self {
+    pub fn new(spis: T, pins: Pins) -> Self {
         spis.psel.sck.write(|w| {
-            unsafe { w.pin().bits(sck_pin.pin()) };
+            unsafe { w.pin().bits(pins.sck.pin()) };
             #[cfg(any(feature = "52833", feature = "52840"))]
-            w.port().bit(sck_pin.port().bit());
+            w.port().bit(pins.sck.port().bit());
             w.connect().connected()
         });
         spis.psel.csn.write(|w| {
-            unsafe { w.pin().bits(cs_pin.pin()) };
+            unsafe { w.pin().bits(pins.cs.pin()) };
             #[cfg(any(feature = "52833", feature = "52840"))]
-            w.port().bit(cs_pin.port().bit());
+            w.port().bit(pins.cs.port().bit());
             w.connect().connected()
         });
 
-        if let Some(p) = copi_pin {
+        if let Some(p) = &pins.copi {
             spis.psel.mosi.write(|w| {
                 unsafe { w.pin().bits(p.pin()) };
                 #[cfg(any(feature = "52833", feature = "52840"))]
@@ -63,7 +65,7 @@ where
             });
         }
 
-        if let Some(p) = cipo_pin {
+        if let Some(p) = &pins.cipo {
             spis.psel.miso.write(|w| {
                 unsafe { w.pin().bits(p.pin()) };
                 #[cfg(any(feature = "52833", feature = "52840"))]
@@ -77,41 +79,43 @@ where
         spis.config
             .modify(|_r, w| w.cpha().bit(Phase::Trailing.into()));
         spis.enable.write(|w| w.enable().enabled());
-        Self(spis)
+        Self { spis, pins }
     }
 
     /// Sets the ´default´ character (character clocked out in case of an ignored transaction).
     #[inline(always)]
     pub fn set_default_char(&self, def: u8) -> &Self {
-        self.0.def.write(|w| unsafe { w.def().bits(def) });
+        self.spis.def.write(|w| unsafe { w.def().bits(def) });
         self
     }
 
     /// Sets the over-read character (character sent on over-read of the transmit buffer).
     #[inline(always)]
     pub fn set_orc(&self, orc: u8) -> &Self {
-        self.0.orc.write(|w| unsafe { w.orc().bits(orc) });
+        self.spis.orc.write(|w| unsafe { w.orc().bits(orc) });
         self
     }
 
     /// Sets bit order.
     #[inline(always)]
     pub fn set_order(&self, order: Order) -> &Self {
-        self.0.config.modify(|_r, w| w.order().bit(order.into()));
+        self.spis.config.modify(|_r, w| w.order().bit(order.into()));
         self
     }
 
     /// Sets serial clock (SCK) polarity.
     #[inline(always)]
     pub fn set_polarity(&self, polarity: Polarity) -> &Self {
-        self.0.config.modify(|_r, w| w.cpol().bit(polarity.into()));
+        self.spis
+            .config
+            .modify(|_r, w| w.cpol().bit(polarity.into()));
         self
     }
 
     /// Sets serial clock (SCK) phase.
     #[inline(always)]
     pub fn set_phase(&self, phase: Phase) -> &Self {
-        self.0.config.modify(|_r, w| w.cpha().bit(phase.into()));
+        self.spis.config.modify(|_r, w| w.cpha().bit(phase.into()));
         self
     }
 
@@ -142,14 +146,14 @@ where
     /// Enables the SPIS instance.
     #[inline(always)]
     pub fn enable(&self) -> &Self {
-        self.0.enable.write(|w| w.enable().enabled());
+        self.spis.enable.write(|w| w.enable().enabled());
         self
     }
 
     /// Disables the SPIS module.
     #[inline(always)]
     pub fn disable(&self) -> &Self {
-        self.0.enable.write(|w| w.enable().disabled());
+        self.spis.enable.write(|w| w.enable().disabled());
         self
     }
 
@@ -157,22 +161,29 @@ where
     #[inline(always)]
     pub fn acquire(&self) -> &Self {
         compiler_fence(Ordering::SeqCst);
-        self.0.tasks_acquire.write(|w| unsafe { w.bits(1) });
-        while self.0.events_acquired.read().bits() == 0 {}
+        self.spis.tasks_acquire.write(|w| unsafe { w.bits(1) });
+        while self.spis.events_acquired.read().bits() == 0 {}
+        self
+    }
+
+    /// Requests acquiring the SPIS semaphore.
+    #[inline(always)]
+    pub fn try_acquire(&self) -> &Self {
+        self.spis.tasks_acquire.write(|w| unsafe { w.bits(1) });
         self
     }
 
     /// Releases the SPIS semaphore, enabling the SPIS to acquire it.
     #[inline(always)]
     pub fn release(&self) -> &Self {
-        self.0.tasks_release.write(|w| unsafe { w.bits(1) });
+        self.spis.tasks_release.write(|w| unsafe { w.bits(1) });
         self
     }
 
     /// Enables interrupt for specified event.
     #[inline(always)]
     pub fn enable_interrupt(&self, command: SpisEvent) -> &Self {
-        self.0.intenset.modify(|_r, w| match command {
+        self.spis.intenset.modify(|_r, w| match command {
             SpisEvent::Acquired => w.acquired().set_bit(),
             SpisEvent::End => w.end().set_bit(),
             SpisEvent::EndRx => w.endrx().set_bit(),
@@ -183,7 +194,7 @@ where
     /// Disables interrupt for specified event.
     #[inline(always)]
     pub fn disable_interrupt(&self, command: SpisEvent) -> &Self {
-        self.0.intenclr.write(|w| match command {
+        self.spis.intenclr.write(|w| match command {
             SpisEvent::Acquired => w.acquired().set_bit(),
             SpisEvent::End => w.end().set_bit(),
             SpisEvent::EndRx => w.endrx().set_bit(),
@@ -194,25 +205,25 @@ where
     /// Automatically acquire the semaphore after transfer has ended.
     #[inline(always)]
     pub fn auto_acquire(&self, enabled: bool) -> &Self {
-        self.0.shorts.write(|w| w.end_acquire().bit(enabled));
+        self.spis.shorts.write(|w| w.end_acquire().bit(enabled));
         self
     }
 
     /// Resets all events.
     #[inline(always)]
     pub fn reset_events(&self) {
-        self.0.events_acquired.reset();
-        self.0.events_end.reset();
-        self.0.events_endrx.reset();
+        self.spis.events_acquired.reset();
+        self.spis.events_end.reset();
+        self.spis.events_endrx.reset();
     }
 
     /// Resets specified event.
     #[inline(always)]
     pub fn reset_event(&self, event: SpisEvent) {
         match event {
-            SpisEvent::Acquired => self.0.events_acquired.reset(),
-            SpisEvent::End => self.0.events_end.reset(),
-            SpisEvent::EndRx => self.0.events_endrx.reset(),
+            SpisEvent::Acquired => self.spis.events_acquired.reset(),
+            SpisEvent::End => self.spis.events_end.reset(),
+            SpisEvent::EndRx => self.spis.events_endrx.reset(),
         };
     }
 
@@ -220,46 +231,46 @@ where
     #[inline(always)]
     pub fn is_event_triggered(&self, event: SpisEvent) -> bool {
         match event {
-            SpisEvent::Acquired => self.0.events_acquired.read().bits() != 0,
-            SpisEvent::End => self.0.events_end.read().bits() != 0,
-            SpisEvent::EndRx => self.0.events_endrx.read().bits() != 0,
+            SpisEvent::Acquired => self.spis.events_acquired.read().bits() != 0,
+            SpisEvent::End => self.spis.events_end.read().bits() != 0,
+            SpisEvent::EndRx => self.spis.events_endrx.read().bits() != 0,
         }
     }
 
     /// Checks if the granted transfer is done.
     #[inline(always)]
     pub fn is_done(&self) -> bool {
-        self.0.events_end.read().bits() != 0 || self.0.events_endrx.read().bits() != 0
+        self.spis.events_end.read().bits() != 0 || self.spis.events_endrx.read().bits() != 0
     }
 
     /// Checks if the semaphore is acquired.
     #[inline(always)]
     pub fn is_acquired(&self) -> bool {
-        self.0.events_acquired.read().bits() != 0
+        self.spis.events_acquired.read().bits() != 0
     }
 
     /// Checks if last transaction overread.
     #[inline(always)]
     pub fn is_overread(&self) -> bool {
-        self.0.status.read().overread().is_present()
+        self.spis.status.read().overread().is_present()
     }
 
     /// Checks if last transaction overflowed.
     #[inline(always)]
     pub fn is_overflow(&self) -> bool {
-        self.0.status.read().overflow().is_present()
+        self.spis.status.read().overflow().is_present()
     }
 
     /// Returns number of bytes received in last granted transaction.
     #[inline(always)]
     pub fn amount(&self) -> u32 {
-        self.0.rxd.amount.read().bits()
+        self.spis.rxd.amount.read().bits()
     }
 
     /// Returns the semaphore status.
     #[inline(always)]
     pub fn semaphore_status(&self) -> SemaphoreStatus {
-        match self.0.semstat.read().bits() {
+        match self.spis.semstat.read().bits() {
             0 => SemaphoreStatus::Free,
             1 => SemaphoreStatus::CPU,
             2 => SemaphoreStatus::SPIS,
@@ -270,31 +281,31 @@ where
     /// Returns reference to `Acquired` event endpoint for PPI.
     #[inline(always)]
     pub fn event_acquired(&self) -> &Reg<u32, _EVENTS_ACQUIRED> {
-        &self.0.events_acquired
+        &self.spis.events_acquired
     }
 
     /// Returns reference to `End` event endpoint for PPI.
     #[inline(always)]
     pub fn event_end(&self) -> &Reg<u32, _EVENTS_END> {
-        &self.0.events_end
+        &self.spis.events_end
     }
 
     /// Returns reference to `EndRx` event endpoint for PPI.
     #[inline(always)]
     pub fn event_end_rx(&self) -> &Reg<u32, _EVENTS_ENDRX> {
-        &self.0.events_endrx
+        &self.spis.events_endrx
     }
 
     /// Returns reference to `Acquire` task endpoint for PPI.
     #[inline(always)]
     pub fn task_acquire(&self) -> &Reg<u32, _TASKS_ACQUIRE> {
-        &self.0.tasks_acquire
+        &self.spis.tasks_acquire
     }
 
     /// Returns reference to `Release` task endpoint for PPI.
     #[inline(always)]
     pub fn task_release(&self) -> &Reg<u32, _TASKS_RELEASE> {
-        &self.0.tasks_release
+        &self.spis.tasks_release
     }
 
     /// Full duplex DMA transfer.
@@ -312,19 +323,19 @@ where
             return Err(Error::BufferTooLong);
         }
         compiler_fence(Ordering::SeqCst);
-        self.0
+        self.spis
             .txd
             .ptr
             .write(|w| unsafe { w.ptr().bits(ptr as u32) });
-        self.0
+        self.spis
             .rxd
             .ptr
             .write(|w| unsafe { w.ptr().bits(ptr as u32) });
-        self.0
+        self.spis
             .txd
             .maxcnt
             .write(|w| unsafe { w.bits(maxcnt as u32) });
-        self.0
+        self.spis
             .rxd
             .maxcnt
             .write(|w| unsafe { w.bits(maxcnt as u32) });
@@ -354,26 +365,26 @@ where
         let (tx_ptr, tx_len) = unsafe { tx_buffer.read_buffer() };
         let rx_maxcnt = rx_len * core::mem::size_of::<RxW>();
         let tx_maxcnt = tx_len * core::mem::size_of::<TxW>();
-        if rx_maxcnt > EASY_DMA_SIZE || tx_maxcnt > EASY_DMA_SIZE {
+        if rx_maxcnt.max(tx_maxcnt) > EASY_DMA_SIZE {
             return Err(Error::BufferTooLong);
         }
         if (tx_ptr as usize) < SRAM_LOWER || (tx_ptr as usize) > SRAM_UPPER {
             return Err(Error::DMABufferNotInDataMemory);
         }
         compiler_fence(Ordering::SeqCst);
-        self.0
+        self.spis
             .txd
             .ptr
             .write(|w| unsafe { w.ptr().bits(tx_ptr as u32) });
-        self.0
+        self.spis
             .rxd
             .ptr
             .write(|w| unsafe { w.ptr().bits(rx_ptr as u32) });
-        self.0
+        self.spis
             .rxd
             .maxcnt
             .write(|w| unsafe { w.bits(rx_maxcnt as u32) });
-        self.0
+        self.spis
             .txd
             .maxcnt
             .write(|w| unsafe { w.bits(tx_maxcnt as u32) });
@@ -389,8 +400,8 @@ where
     }
 
     /// Returns the raw interface to the underlying SPIS peripheral.
-    pub fn free(self) -> T {
-        self.0
+    pub fn free(self) -> (T, Pins) {
+        (self.spis, self.pins)
     }
 }
 
@@ -555,6 +566,20 @@ pub enum Mode {
 pub enum Error {
     DMABufferNotInDataMemory,
     BufferTooLong,
+}
+
+/// GPIO pins for SPIS interface.
+pub struct Pins {
+    /// SPI clock
+    pub sck: Pin<Input<Floating>>,
+    /// Chip select
+    pub cs: Pin<Input<Floating>>,
+    /// COPI Controller out, peripheral in
+    /// None if unused
+    pub copi: Option<Pin<Input<Floating>>>,
+    /// CIPO Controller in, peripheral out
+    /// None if unused
+    pub cipo: Option<Pin<Input<Floating>>>,
 }
 
 mod sealed {
