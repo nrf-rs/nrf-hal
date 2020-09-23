@@ -8,14 +8,10 @@ use crate::ppi::Task;
 //   `^src/(.*)\.rs:pub type (.*) = .*$`
 // Replace (regex):
 //   `impl Task for crate::pac::$1::$2 { }`
-// Find (regex):
-//   `^impl Task for crate::pac::spim0::(.*)$`
-// Replace (regex):
-//   `impl Task for crate::pac::spim1::$1`
-impl Task for crate::pac::spim1::TASKS_START {}
-impl Task for crate::pac::spim1::TASKS_STOP {}
-impl Task for crate::pac::spim1::TASKS_SUSPEND {}
-impl Task for crate::pac::spim1::TASKS_RESUME {}
+impl Task for crate::pac::spim0::TASKS_START {}
+impl Task for crate::pac::spim0::TASKS_STOP {}
+impl Task for crate::pac::spim0::TASKS_SUSPEND {}
+impl Task for crate::pac::spim0::TASKS_RESUME {}
 impl Task for crate::pac::rng::TASKS_START {}
 impl Task for crate::pac::rng::TASKS_STOP {}
 impl Task for crate::pac::timer0::TASKS_START {}
@@ -24,8 +20,8 @@ impl Task for crate::pac::timer0::TASKS_COUNT {}
 impl Task for crate::pac::timer0::TASKS_CLEAR {}
 impl Task for crate::pac::timer0::TASKS_SHUTDOWN {}
 impl Task for crate::pac::timer0::TASKS_CAPTURE {}
-impl Task for crate::pac::spis1::TASKS_ACQUIRE {}
-impl Task for crate::pac::spis1::TASKS_RELEASE {}
+impl Task for crate::pac::spis0::TASKS_ACQUIRE {}
+impl Task for crate::pac::spis0::TASKS_RELEASE {}
 impl Task for crate::pac::uart0::TASKS_STARTRX {}
 impl Task for crate::pac::uart0::TASKS_STOPRX {}
 impl Task for crate::pac::uart0::TASKS_STARTTX {}

@@ -8,16 +8,16 @@ use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 #[cfg(feature = "9160")]
 use crate::pac::{spim0_ns as spim0, SPIM0_NS as SPIM0};
 
-#[cfg(feature = "52811")]
-use crate::pac::{spim1 as spim0, SPIM0, SPIM1};
-
-#[cfg(not(any(feature = "9160", feature = "52811")))]
+#[cfg(not(feature = "9160"))]
 use crate::pac::{spim0, SPIM0};
 
 pub use embedded_hal::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};
 pub use spim0::frequency::FREQUENCY_A as Frequency;
 
 use core::iter::repeat_with;
+
+#[cfg(feature = "52811")]
+use crate::pac::SPIM1;
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::{SPIM1, SPIM2};
