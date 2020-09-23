@@ -302,7 +302,7 @@ comp_input_pins! {
     P0_28<Input<Floating>> => PSEL_A::ANALOGINPUT4,
     P0_29<Input<Floating>> => PSEL_A::ANALOGINPUT5,
     P0_30<Input<Floating>> => PSEL_A::ANALOGINPUT6,
-    P0_31<Input<Floating>> => PSEL_A::ANALOGINPUT6,
+    P0_31<Input<Floating>> => PSEL_A::ANALOGINPUT7,
 }
 
 #[cfg(any(feature = "52811", feature = "52810"))]
