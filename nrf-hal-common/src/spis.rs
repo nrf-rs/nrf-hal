@@ -15,19 +15,14 @@ use crate::pac::{
     SPIS0_NS as SPIS0,
 };
 
-#[cfg(feature = "52811")]
-use crate::pac::{
-    spis1::{
-        self as spis0, _EVENTS_ACQUIRED, _EVENTS_END, _EVENTS_ENDRX, _TASKS_ACQUIRE, _TASKS_RELEASE,
-    },
-    SPIS0, SPIS1,
-};
-
-#[cfg(not(any(feature = "9160", feature = "52811")))]
+#[cfg(not(feature = "9160"))]
 use crate::pac::{
     spis0::{self, _EVENTS_ACQUIRED, _EVENTS_END, _EVENTS_ENDRX, _TASKS_ACQUIRE, _TASKS_RELEASE},
     SPIS0,
 };
+
+#[cfg(feature = "52811")]
+use crate::pac::SPIS1;
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::{SPIS1, SPIS2};
@@ -619,8 +614,10 @@ impl Instance for SPIS0 {
     const INTERRUPT: Interrupt = Interrupt::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0;
     #[cfg(feature = "9160")]
     const INTERRUPT: Interrupt = Interrupt::UARTE0_SPIM0_SPIS0_TWIM0_TWIS0;
-    #[cfg(any(feature = "52811", feature = "52810"))]
+    #[cfg(feature = "52810")]
     const INTERRUPT: Interrupt = Interrupt::SPIM0_SPIS0_SPI0;
+    #[cfg(feature = "52811")]
+    const INTERRUPT: Interrupt = Interrupt::TWIM0_TWIS0_TWI0_SPIM0_SPIS0_SPI0;
 }
 
 #[cfg(not(any(feature = "9160", feature = "52810")))]
@@ -628,7 +625,7 @@ impl Instance for SPIS1 {
     #[cfg(not(feature = "52811"))]
     const INTERRUPT: Interrupt = Interrupt::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1;
     #[cfg(feature = "52811")]
-    const INTERRUPT: Interrupt = Interrupt::TWIM0_TWIS0_TWI0_SPIM1_SPIS1_SPI1;
+    const INTERRUPT: Interrupt = Interrupt::SPIM1_SPIS1_SPI1;
 }
 
 #[cfg(not(any(feature = "9160", feature = "52811", feature = "52810")))]
