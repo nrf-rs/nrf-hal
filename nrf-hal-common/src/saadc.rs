@@ -36,12 +36,17 @@ use core::{
     hint::unreachable_unchecked,
     sync::atomic::{compiler_fence, Ordering::SeqCst},
 };
-use embedded_hal::adc::{Channel, OneShot};
+use embedded_hal::adc::OneShot;
 
 pub use saadc::{
-    ch::config::{GAIN_A as Gain, REFSEL_A as Reference, RESP_A as Resistor, TACQ_A as Time},
+    ch::{
+        config::{GAIN_A as Gain, REFSEL_A as Reference, RESP_A as Resistor, TACQ_A as Time},
+        pseln::PSELN_A as Pseln,
+        pselp::PSELP_A as Pselp,
+    },
     oversample::OVERSAMPLE_A as Oversample,
     resolution::VAL_A as Resolution,
+    RegisterBlock,
 };
 
 // Only 1 channel is allowed right now, a discussion needs to be had as to how
@@ -52,7 +57,9 @@ pub use saadc::{
 ///
 /// External analog channels supported by the SAADC implement the `Channel` trait.
 /// Currently, use of only one channel is allowed.
-pub struct Saadc(SAADC);
+pub struct Saadc {
+    saadc: SAADC,
+}
 
 impl Saadc {
     pub fn new(saadc: SAADC, config: SaadcConfig) -> Self {
@@ -61,10 +68,6 @@ impl Saadc {
         let SaadcConfig {
             resolution,
             oversample,
-            reference,
-            gain,
-            resistor,
-            time,
         } = config;
 
         saadc.enable.write(|w| w.enable().enabled());
@@ -74,7 +77,41 @@ impl Saadc {
             .write(|w| w.oversample().variant(oversample));
         saadc.samplerate.write(|w| w.mode().task());
 
-        saadc.ch[0].config.write(|w| {
+        // Calibrate
+        saadc.tasks_calibrateoffset.write(|w| unsafe { w.bits(1) });
+        while saadc.events_calibratedone.read().bits() == 0 {}
+
+        Saadc { saadc }
+    }
+
+    pub fn channel(&mut self, n: usize) -> Channel {
+        Channel {
+            saadc: &mut self.saadc,
+            channel: n,
+        }
+    }
+}
+
+pub struct Channel<'a> {
+    saadc: &'a mut SAADC,
+    channel: usize,
+}
+
+impl<'a> Channel<'a> {
+    pub fn configure(
+        &mut self,
+        pseln: impl Into<Pseln>,
+        pselp: impl Into<Pselp>,
+        config: SaadcChannelConfig,
+    ) {
+        let SaadcChannelConfig {
+            reference,
+            gain,
+            resistor,
+            time,
+        } = config;
+
+        self.saadc.ch[self.channel].config.write(|w| {
             w.refsel().variant(reference);
             w.gain().variant(gain);
             w.tacq().variant(time);
@@ -84,13 +121,49 @@ impl Saadc {
             w.burst().enabled();
             w
         });
-        saadc.ch[0].pseln.write(|w| w.pseln().nc());
 
-        // Calibrate
-        saadc.tasks_calibrateoffset.write(|w| unsafe { w.bits(1) });
-        while saadc.events_calibratedone.read().bits() == 0 {}
+        self.saadc.ch[self.channel]
+            .pselp
+            .write(|w| w.pselp().variant(pselp.into()));
+        self.saadc.ch[self.channel]
+            .pseln
+            .write(|w| w.pseln().variant(pseln.into()));
+    }
 
-        Saadc(saadc)
+    /// Sample channel `PIN` for the configured ADC acquisition time in differential input mode.
+    /// Note that this is a blocking operation.
+    pub fn read(&mut self) -> nb::Result<i16, ()> {
+        let mut val: i16 = 0;
+        self.saadc
+            .result
+            .ptr
+            .write(|w| unsafe { w.ptr().bits(((&mut val) as *mut _) as u32) });
+        self.saadc
+            .result
+            .maxcnt
+            .write(|w| unsafe { w.maxcnt().bits(1) });
+
+        // Conservative compiler fence to prevent starting the ADC before the
+        // pointer and maxcount have been set.
+        compiler_fence(SeqCst);
+
+        self.saadc.tasks_start.write(|w| w.tasks_start().set_bit());
+        self.saadc
+            .tasks_sample
+            .write(|w| w.tasks_sample().set_bit());
+
+        while self.saadc.events_end.read().bits() == 0 {}
+        self.saadc.events_end.reset();
+
+        // Will only occur if more than one channel has been enabled.
+        if self.saadc.result.amount.read().bits() != 1 {
+            return Err(nb::Error::Other(()));
+        }
+
+        // Second fence to prevent optimizations creating issues with the EasyDMA-modified `val`.
+        compiler_fence(SeqCst);
+
+        Ok(val)
     }
 }
 
@@ -102,6 +175,12 @@ pub struct SaadcConfig {
     pub resolution: Resolution,
     /// Average 2^`oversample` input samples before transferring the result into memory.
     pub oversample: Oversample,
+}
+
+/// Used to configure a single SAADC peripheral channel.
+///
+/// See the documentation of the `Default` impl for suitable default values.
+pub struct SaadcChannelConfig {
     /// Reference voltage of the SAADC input.
     pub reference: Reference,
     /// Gain used to control the effective input range of the SAADC.
@@ -150,6 +229,13 @@ impl Default for SaadcConfig {
         SaadcConfig {
             resolution: Resolution::_14BIT,
             oversample: Oversample::OVER8X,
+        }
+    }
+}
+
+impl Default for SaadcChannelConfig {
+    fn default() -> Self {
+        SaadcChannelConfig {
             reference: Reference::VDD1_4,
             gain: Gain::GAIN1_4,
             resistor: Resistor::BYPASS,
@@ -160,7 +246,7 @@ impl Default for SaadcConfig {
 
 impl<PIN> OneShot<Saadc, i16, PIN> for Saadc
 where
-    PIN: Channel<Saadc, ID = u8>,
+    PIN: embedded_hal::adc::Channel<Saadc, ID = u8>,
 {
     type Error = ();
 
@@ -168,27 +254,27 @@ where
     /// Note that this is a blocking operation.
     fn read(&mut self, _pin: &mut PIN) -> nb::Result<i16, Self::Error> {
         match PIN::channel() {
-            0 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input0()),
-            1 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input1()),
-            2 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input2()),
-            3 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input3()),
-            4 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input4()),
-            5 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input5()),
-            6 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input6()),
-            7 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input7()),
+            0 => self.saadc.ch[0].pselp.write(|w| w.pselp().analog_input0()),
+            1 => self.saadc.ch[0].pselp.write(|w| w.pselp().analog_input1()),
+            2 => self.saadc.ch[0].pselp.write(|w| w.pselp().analog_input2()),
+            3 => self.saadc.ch[0].pselp.write(|w| w.pselp().analog_input3()),
+            4 => self.saadc.ch[0].pselp.write(|w| w.pselp().analog_input4()),
+            5 => self.saadc.ch[0].pselp.write(|w| w.pselp().analog_input5()),
+            6 => self.saadc.ch[0].pselp.write(|w| w.pselp().analog_input6()),
+            7 => self.saadc.ch[0].pselp.write(|w| w.pselp().analog_input7()),
             #[cfg(not(feature = "9160"))]
-            8 => self.0.ch[0].pselp.write(|w| w.pselp().vdd()),
+            8 => self.saadc.ch[0].pselp.write(|w| w.pselp().vdd()),
             // This can never happen the only analog pins have already been defined
             // PAY CLOSE ATTENTION TO ANY CHANGES TO THIS IMPL OR THE `channel_mappings!` MACRO
             _ => unsafe { unreachable_unchecked() },
         }
 
         let mut val: i16 = 0;
-        self.0
+        self.saadc
             .result
             .ptr
             .write(|w| unsafe { w.ptr().bits(((&mut val) as *mut _) as u32) });
-        self.0
+        self.saadc
             .result
             .maxcnt
             .write(|w| unsafe { w.maxcnt().bits(1) });
@@ -197,14 +283,14 @@ where
         // pointer and maxcount have been set.
         compiler_fence(SeqCst);
 
-        self.0.tasks_start.write(|w| unsafe { w.bits(1) });
-        self.0.tasks_sample.write(|w| unsafe { w.bits(1) });
+        self.saadc.tasks_start.write(|w| unsafe { w.bits(1) });
+        self.saadc.tasks_sample.write(|w| unsafe { w.bits(1) });
 
-        while self.0.events_end.read().bits() == 0 {}
-        self.0.events_end.reset();
+        while self.saadc.events_end.read().bits() == 0 {}
+        self.saadc.events_end.reset();
 
         // Will only occur if more than one channel has been enabled.
-        if self.0.result.amount.read().bits() != 1 {
+        if self.saadc.result.amount.read().bits() != 1 {
             return Err(nb::Error::Other(()));
         }
 
@@ -218,7 +304,7 @@ where
 macro_rules! channel_mappings {
     ( $($n:expr => $pin:ident,)*) => {
         $(
-            impl<STATE> Channel<Saadc> for crate::gpio::p0::$pin<STATE> {
+            impl<STATE> embedded_hal::adc::Channel<Saadc> for crate::gpio::p0::$pin<STATE> {
                 type ID = u8;
 
                 fn channel() -> <Self as embedded_hal::adc::Channel<Saadc>>::ID {
@@ -254,7 +340,7 @@ channel_mappings! {
 }
 
 #[cfg(not(feature = "9160"))]
-impl Channel<Saadc> for InternalVdd {
+impl embedded_hal::adc::Channel<Saadc> for InternalVdd {
     type ID = u8;
 
     fn channel() -> <Self as embedded_hal::adc::Channel<Saadc>>::ID {
@@ -265,3 +351,32 @@ impl Channel<Saadc> for InternalVdd {
 #[cfg(not(feature = "9160"))]
 /// Channel that doesn't sample a pin, but the internal VDD voltage.
 pub struct InternalVdd;
+
+macro_rules! psel_mappings {
+    ( $($psel:ident => $pin:ident,)*) => {
+        $(
+            impl<STATE> Into<Pseln> for crate::gpio::p0::$pin<STATE> {
+                fn into(self) -> Pseln {
+                    Pseln::$psel
+                }
+            }
+
+            impl<STATE> Into<Pselp> for crate::gpio::p0::$pin<STATE> {
+                fn into(self) -> Pselp {
+                    Pselp::$psel
+                }
+            }
+        )*
+    };
+}
+
+psel_mappings! {
+    ANALOGINPUT0 => P0_02,
+    ANALOGINPUT1 => P0_03,
+    ANALOGINPUT2 => P0_04,
+    ANALOGINPUT3 => P0_05,
+    ANALOGINPUT4 => P0_28,
+    ANALOGINPUT5 => P0_29,
+    ANALOGINPUT6 => P0_30,
+    ANALOGINPUT7 => P0_31,
+}
