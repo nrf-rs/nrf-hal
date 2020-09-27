@@ -171,13 +171,19 @@ impl<'a> Channel<'a> {
     }
 
     pub fn as_millis(&self, value: i16) -> i32 {
-        let lsbs = match self.saadc.resolution.read().val().variant() {
-            Variant::Val(Resolution::_8BIT) => 255i32,
-            Variant::Val(Resolution::_10BIT) => 1023i32,
-            Variant::Val(Resolution::_12BIT) => 4095i32,
-            Variant::Val(Resolution::_14BIT) => 16383i32,
-            _ => unreachable!(),
+        let mode = match self.saadc.ch[self.channel].config.read().mode().variant() {
+            Mode::SE => 1,
+            Mode::DIFF => 2,
         };
+
+        let lsbs = match self.saadc.resolution.read().val().variant() {
+            Variant::Val(Resolution::_8BIT) => 256,
+            Variant::Val(Resolution::_10BIT) => 1024,
+            Variant::Val(Resolution::_12BIT) => 4096,
+            Variant::Val(Resolution::_14BIT) => 16384,
+            _ => unreachable!(),
+        } / mode
+            - 1;
 
         let gain = match self.saadc.ch[self.channel].config.read().gain().variant() {
             Gain::GAIN1_6 => (1, 6),
