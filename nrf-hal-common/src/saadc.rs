@@ -40,7 +40,10 @@ use embedded_hal::adc::OneShot;
 
 pub use saadc::{
     ch::{
-        config::{GAIN_A as Gain, REFSEL_A as Reference, RESP_A as Resistor, TACQ_A as Time},
+        config::{
+            GAIN_A as Gain, MODE_A as Mode, REFSEL_A as Reference, RESP_A as Resistor,
+            TACQ_A as Time,
+        },
         pseln::PSELN_A as Pseln,
         pselp::PSELP_A as Pselp,
     },
@@ -107,6 +110,7 @@ impl<'a> Channel<'a> {
         let SaadcChannelConfig {
             reference,
             gain,
+            mode,
             resistor,
             time,
         } = config;
@@ -115,7 +119,7 @@ impl<'a> Channel<'a> {
             w.refsel().variant(reference);
             w.gain().variant(gain);
             w.tacq().variant(time);
-            w.mode().se();
+            w.mode().variant(mode);
             w.resp().variant(resistor);
             w.resn().bypass();
             w.burst().enabled();
@@ -213,6 +217,8 @@ pub struct SaadcChannelConfig {
     pub reference: Reference,
     /// Gain used to control the effective input range of the SAADC.
     pub gain: Gain,
+    /// The mode of the differential ADC
+    pub mode: Mode,
     /// Positive channel resistor control.
     pub resistor: Resistor,
     /// Acquisition time in microseconds.
@@ -266,6 +272,7 @@ impl Default for SaadcChannelConfig {
         SaadcChannelConfig {
             reference: Reference::VDD1_4,
             gain: Gain::GAIN1_4,
+            mode: Mode::SE,
             resistor: Resistor::BYPASS,
             time: Time::_20US,
         }
