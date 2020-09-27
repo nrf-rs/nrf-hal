@@ -182,8 +182,7 @@ impl<'a> Channel<'a> {
             Variant::Val(Resolution::_12BIT) => 4096,
             Variant::Val(Resolution::_14BIT) => 16384,
             _ => unreachable!(),
-        } / mode
-            - 1;
+        } / mode;
 
         let gain = match self.saadc.ch[self.channel].config.read().gain().variant() {
             Gain::GAIN1_6 => (1, 6),
