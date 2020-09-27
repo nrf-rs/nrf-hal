@@ -323,14 +323,14 @@ where
     /// Buffer must be located in RAM.
     /// Returns a value that represents the in-progress DMA transfer.
     #[allow(unused_mut)]
-    pub fn transfer<W, B>(mut self, mut buffer: B) -> Result<Transfer<T, B>, Error>
+    pub fn transfer<W, B>(mut self, mut buffer: B) -> Result<Transfer<T, B>, (Error, Spis<T>, B)>
     where
         B: WriteBuffer<Word = W>,
     {
         let (ptr, len) = unsafe { buffer.write_buffer() };
         let maxcnt = len * core::mem::size_of::<W>();
         if maxcnt > EASY_DMA_SIZE {
-            return Err(Error::BufferTooLong);
+            return Err((Error::BufferTooLong, self, buffer));
         }
         compiler_fence(Ordering::SeqCst);
         self.spis
@@ -366,7 +366,7 @@ where
         mut self,
         tx_buffer: TxB,
         mut rx_buffer: RxB,
-    ) -> Result<TransferSplit<T, TxB, RxB>, Error>
+    ) -> Result<TransferSplit<T, TxB, RxB>, (Error, Spis<T>, TxB, RxB)>
     where
         TxB: ReadBuffer<Word = TxW>,
         RxB: WriteBuffer<Word = RxW>,
@@ -376,10 +376,10 @@ where
         let rx_maxcnt = rx_len * core::mem::size_of::<RxW>();
         let tx_maxcnt = tx_len * core::mem::size_of::<TxW>();
         if rx_maxcnt.max(tx_maxcnt) > EASY_DMA_SIZE {
-            return Err(Error::BufferTooLong);
+            return Err((Error::BufferTooLong, self, tx_buffer, rx_buffer));
         }
         if (tx_ptr as usize) < SRAM_LOWER || (tx_ptr as usize) > SRAM_UPPER {
-            return Err(Error::DMABufferNotInDataMemory);
+            return Err((Error::DMABufferNotInDataMemory, self, tx_buffer, rx_buffer));
         }
         compiler_fence(Ordering::SeqCst);
         self.spis
