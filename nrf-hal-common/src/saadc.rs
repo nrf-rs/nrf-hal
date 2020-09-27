@@ -30,7 +30,7 @@
 use crate::pac::{saadc_ns as saadc, SAADC_NS as SAADC};
 
 #[cfg(not(feature = "9160"))]
-use crate::pac::{saadc, SAADC};
+use crate::pac::{generic::Variant, saadc, SAADC};
 
 use core::{
     hint::unreachable_unchecked,
@@ -164,6 +164,34 @@ impl<'a> Channel<'a> {
         compiler_fence(SeqCst);
 
         Ok(val)
+    }
+
+    pub fn as_millis(&self, value: i16) -> i32 {
+        let lsbs = match self.saadc.resolution.read().val().variant() {
+            Variant::Val(Resolution::_8BIT) => 255i32,
+            Variant::Val(Resolution::_10BIT) => 1023i32,
+            Variant::Val(Resolution::_12BIT) => 4095i32,
+            Variant::Val(Resolution::_14BIT) => 16383i32,
+            _ => unreachable!(),
+        };
+
+        let gain = match self.saadc.ch[self.channel].config.read().gain().variant() {
+            Gain::GAIN1_6 => (1, 6),
+            Gain::GAIN1_5 => (1, 5),
+            Gain::GAIN1_4 => (1, 4),
+            Gain::GAIN1_3 => (1, 3),
+            Gain::GAIN1_2 => (1, 2),
+            Gain::GAIN1 => (1, 1),
+            Gain::GAIN2 => (2, 1),
+            Gain::GAIN4 => (4, 1),
+        };
+
+        let reference = match self.saadc.ch[self.channel].config.read().refsel().variant() {
+            Reference::INTERNAL => (3, 5),
+            Reference::VDD1_4 => (33, 40),
+        };
+
+        value as i32 * gain.0 * reference.1 / gain.1 / reference.0 / lsbs
     }
 }
 
