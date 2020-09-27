@@ -9,19 +9,22 @@ use {
         panic::PanicInfo,
         sync::atomic::{compiler_fence, Ordering},
     },
-    hal::{gpio::p0::Parts, pac::TWIS0, twis::*},
+    hal::{gpio::p0::Parts, gpiote::Gpiote, pac::TWIS0, twis::*},
     nrf52840_hal as hal,
     rtt_target::{rprintln, rtt_init_print},
 };
 
+type DmaBuffer = &'static mut [u8; 8];
+
 pub enum TwisTransfer {
-    Running(Transfer<TWIS0, &'static mut [u8; 8]>),
-    Idle((&'static mut [u8; 8], Twis<TWIS0>)),
+    Running(Transfer<TWIS0, DmaBuffer>),
+    Idle((DmaBuffer, Twis<TWIS0>)),
 }
 
 #[rtic::app(device = crate::hal::pac, peripherals = true)]
 const APP: () = {
     struct Resources {
+        gpiote: Gpiote,
         transfer: Option<TwisTransfer>,
     }
 
@@ -42,29 +45,52 @@ const APP: () = {
             .enable_interrupt(TwiEvent::Stopped)
             .enable();
 
+        let btn = p0.p0_29.into_pullup_input().degrade();
+        let gpiote = Gpiote::new(ctx.device.GPIOTE);
+        gpiote.port().input_pin(&btn).low();
+        gpiote.port().enable_interrupt();
+
         init::LateResources {
+            gpiote,
             transfer: Some(TwisTransfer::Idle((BUF, twis))),
         }
     }
 
+    #[task(binds = GPIOTE, resources = [gpiote, transfer])]
+    fn on_gpiote(ctx: on_gpiote::Context) {
+        ctx.resources.gpiote.reset_events();
+        rprintln!("Reset buffer");
+        let transfer = ctx.resources.transfer;
+        let (buf, twis) = match transfer.take().unwrap() {
+            TwisTransfer::Running(t) => t.wait(),
+            TwisTransfer::Idle(t) => t,
+        };
+        buf.copy_from_slice(&[0; 8][..]);
+        rprintln!("{:?}", buf);
+        transfer.replace(TwisTransfer::Idle((buf, twis)));
+    }
+
     #[task(binds = SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0, resources = [transfer])]
     fn on_twis(ctx: on_twis::Context) {
-        let (buf, twis) = match ctx.resources.transfer.take().unwrap() {
+        let transfer = ctx.resources.transfer;
+        let (buf, twis) = match transfer.take().unwrap() {
             TwisTransfer::Running(t) => t.wait(),
             TwisTransfer::Idle(t) => t,
         };
         if twis.is_event_triggered(TwiEvent::Read) {
             twis.reset_event(TwiEvent::Read);
             rprintln!("READ command received");
-            *ctx.resources.transfer = Some(TwisTransfer::Running(twis.tx(buf).unwrap()));
+            let tx = twis.tx(buf).unwrap();
+            transfer.replace(TwisTransfer::Running(tx));
         } else if twis.is_event_triggered(TwiEvent::Write) {
             twis.reset_event(TwiEvent::Write);
             rprintln!("WRITE command received");
-            *ctx.resources.transfer = Some(TwisTransfer::Running(twis.rx(buf).unwrap()));
+            let rx = twis.rx(buf).unwrap();
+            transfer.replace(TwisTransfer::Running(rx));
         } else {
             twis.reset_event(TwiEvent::Stopped);
             rprintln!("{:?}", buf);
-            *ctx.resources.transfer = Some(TwisTransfer::Idle((buf, twis)));
+            transfer.replace(TwisTransfer::Idle((buf, twis)));
         }
     }
 };
