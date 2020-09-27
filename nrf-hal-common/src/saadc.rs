@@ -191,7 +191,7 @@ impl<'a> Channel<'a> {
             Reference::VDD1_4 => (33, 40),
         };
 
-        value as i32 * gain.0 * reference.1 * 1000 / gain.1 / reference.0 / lsbs
+        value as i32 * gain.1 * reference.0 * 1000 / gain.0 / reference.1 / lsbs
     }
 }
 
