@@ -29,6 +29,5 @@ features = ["unproven"]
 version = "0.2.3"
 
 [features]
-doc = []
 rt = ["nrf52811-pac/rt"]
 default = ["rt"]
