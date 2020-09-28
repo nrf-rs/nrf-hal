@@ -21,6 +21,9 @@ use crate::pac::{
     SPIS0,
 };
 
+#[cfg(feature = "52811")]
+use crate::pac::SPIS1;
+
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::{SPIS1, SPIS2};
 
@@ -323,14 +326,14 @@ where
     /// Buffer must be located in RAM.
     /// Returns a value that represents the in-progress DMA transfer.
     #[allow(unused_mut)]
-    pub fn transfer<W, B>(mut self, mut buffer: B) -> Result<Transfer<T, B>, Error>
+    pub fn transfer<W, B>(mut self, mut buffer: B) -> Result<Transfer<T, B>, (Error, Spis<T>, B)>
     where
         B: WriteBuffer<Word = W>,
     {
         let (ptr, len) = unsafe { buffer.write_buffer() };
         let maxcnt = len * core::mem::size_of::<W>();
         if maxcnt > EASY_DMA_SIZE {
-            return Err(Error::BufferTooLong);
+            return Err((Error::BufferTooLong, self, buffer));
         }
         compiler_fence(Ordering::SeqCst);
         self.spis
@@ -366,7 +369,7 @@ where
         mut self,
         tx_buffer: TxB,
         mut rx_buffer: RxB,
-    ) -> Result<TransferSplit<T, TxB, RxB>, Error>
+    ) -> Result<TransferSplit<T, TxB, RxB>, (Error, Spis<T>, TxB, RxB)>
     where
         TxB: ReadBuffer<Word = TxW>,
         RxB: WriteBuffer<Word = RxW>,
@@ -376,10 +379,10 @@ where
         let rx_maxcnt = rx_len * core::mem::size_of::<RxW>();
         let tx_maxcnt = tx_len * core::mem::size_of::<TxW>();
         if rx_maxcnt.max(tx_maxcnt) > EASY_DMA_SIZE {
-            return Err(Error::BufferTooLong);
+            return Err((Error::BufferTooLong, self, tx_buffer, rx_buffer));
         }
         if (tx_ptr as usize) < SRAM_LOWER || (tx_ptr as usize) > SRAM_UPPER {
-            return Err(Error::DMABufferNotInDataMemory);
+            return Err((Error::DMABufferNotInDataMemory, self, tx_buffer, rx_buffer));
         }
         compiler_fence(Ordering::SeqCst);
         self.spis
@@ -598,7 +601,7 @@ mod sealed {
     impl Sealed for super::SPIS0 {}
     #[cfg(not(any(feature = "9160", feature = "52810")))]
     impl Sealed for super::SPIS1 {}
-    #[cfg(not(any(feature = "9160", feature = "52810")))]
+    #[cfg(not(any(feature = "9160", feature = "52811", feature = "52810")))]
     impl Sealed for super::SPIS2 {}
 }
 
@@ -607,20 +610,25 @@ pub trait Instance: sealed::Sealed + Deref<Target = spis0::RegisterBlock> {
 }
 
 impl Instance for SPIS0 {
-    #[cfg(not(any(feature = "9160", feature = "52810")))]
+    #[cfg(not(any(feature = "9160", feature = "52811", feature = "52810")))]
     const INTERRUPT: Interrupt = Interrupt::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0;
     #[cfg(feature = "9160")]
     const INTERRUPT: Interrupt = Interrupt::UARTE0_SPIM0_SPIS0_TWIM0_TWIS0;
     #[cfg(feature = "52810")]
     const INTERRUPT: Interrupt = Interrupt::SPIM0_SPIS0_SPI0;
+    #[cfg(feature = "52811")]
+    const INTERRUPT: Interrupt = Interrupt::TWIM0_TWIS0_TWI0_SPIM0_SPIS0_SPI0;
 }
 
 #[cfg(not(any(feature = "9160", feature = "52810")))]
 impl Instance for SPIS1 {
+    #[cfg(not(feature = "52811"))]
     const INTERRUPT: Interrupt = Interrupt::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1;
+    #[cfg(feature = "52811")]
+    const INTERRUPT: Interrupt = Interrupt::SPIM1_SPIS1_SPI1;
 }
 
-#[cfg(not(any(feature = "9160", feature = "52810")))]
+#[cfg(not(any(feature = "9160", feature = "52811", feature = "52810")))]
 impl Instance for SPIS2 {
     const INTERRUPT: Interrupt = Interrupt::SPIM2_SPIS2_SPI2;
 }

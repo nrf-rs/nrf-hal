@@ -249,7 +249,12 @@ impl Ccm {
         let length_variant = if payload_len <= MAXIMUM_LENGTH_5BITS - MIC_SIZE {
             LENGTH_A::DEFAULT
         } else {
-            #[cfg(any(feature = "52840", feature = "52833", feature = "52810"))]
+            #[cfg(any(
+                feature = "52840",
+                feature = "52833",
+                feature = "52811",
+                feature = "52810"
+            ))]
             // NOTE(unsafe) Any 8bits pattern is safe to write to this register
             self.regs
                 .maxpacketsize
@@ -373,7 +378,12 @@ impl Ccm {
         let length_variant = if payload_len <= MAXIMUM_LENGTH_5BITS {
             LENGTH_A::DEFAULT
         } else {
-            #[cfg(any(feature = "52840", feature = "52833", feature = "52810"))]
+            #[cfg(any(
+                feature = "52840",
+                feature = "52833",
+                feature = "52811",
+                feature = "52810"
+            ))]
             // NOTE(unsafe) Any 8bits pattern is safe to write to this register
             self.regs
                 .maxpacketsize

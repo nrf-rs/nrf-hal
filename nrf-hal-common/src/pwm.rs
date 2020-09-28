@@ -2,7 +2,7 @@
 //!
 //! The pulse with modulation (PWM) module enables the generation of pulse width modulated signals on GPIO.
 
-#[cfg(not(feature = "52810"))]
+#[cfg(not(any(feature = "52810", feature = "52811")))]
 use crate::{
     gpio::Port,
     pac::PWM3,
@@ -971,15 +971,15 @@ pub trait Instance: private::Sealed + Deref<Target = crate::pac::pwm0::RegisterB
 impl Instance for PWM0 {
     const INTERRUPT: Interrupt = Interrupt::PWM0;
 }
-#[cfg(not(feature = "52810"))]
+#[cfg(not(any(feature = "52810", feature = "52811")))]
 impl Instance for PWM1 {
     const INTERRUPT: Interrupt = Interrupt::PWM1;
 }
-#[cfg(not(feature = "52810"))]
+#[cfg(not(any(feature = "52810", feature = "52811")))]
 impl Instance for PWM2 {
     const INTERRUPT: Interrupt = Interrupt::PWM2;
 }
-#[cfg(not(feature = "52810"))]
+#[cfg(not(any(feature = "52810", feature = "52811", feature = "52832")))]
 impl Instance for PWM3 {
     const INTERRUPT: Interrupt = Interrupt::PWM3;
 }
@@ -987,10 +987,13 @@ impl Instance for PWM3 {
 mod private {
     pub trait Sealed {}
     impl Sealed for crate::pwm::PWM0 {}
-    #[cfg(not(feature = "52810"))]
+
+    #[cfg(not(any(feature = "52810", feature = "52811")))]
     impl Sealed for crate::pwm::PWM1 {}
-    #[cfg(not(feature = "52810"))]
+
+    #[cfg(not(any(feature = "52810", feature = "52811")))]
     impl Sealed for crate::pwm::PWM2 {}
-    #[cfg(not(feature = "52810"))]
+
+    #[cfg(not(any(feature = "52810", feature = "52811", feature = "52832")))]
     impl Sealed for crate::pwm::PWM3 {}
 }
