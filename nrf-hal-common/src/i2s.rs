@@ -602,6 +602,7 @@ pub enum I2SEvent {
 
 /// A DMA transfer
 pub struct Transfer<B> {
+    // FIXME: Always `Some`, only using `Option` here to allow moving fields out of `inner`.
     inner: Option<Inner<B>>,
 }
 
@@ -635,6 +636,7 @@ impl<B> Drop for Transfer<B> {
 }
 /// A full duplex DMA transfer
 pub struct TransferFullDuplex<TxB, RxB> {
+    // FIXME: Always `Some`, only using `Option` here to allow moving fields out of `inner`.
     inner: Option<InnerFullDuplex<TxB, RxB>>,
 }
 
