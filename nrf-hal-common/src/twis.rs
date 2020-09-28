@@ -521,7 +521,7 @@ impl<T: Instance, B> Transfer<T, B> {
     pub fn is_done(&mut self) -> bool {
         let inner = self
             .inner
-            .take()
+            .as_mut()
             .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
         inner.twis.is_done();
         true
@@ -530,7 +530,7 @@ impl<T: Instance, B> Transfer<T, B> {
 
 impl<T: Instance, B> Drop for Transfer<T, B> {
     fn drop(&mut self) {
-        if let Some(inner) = self.inner.as_mut() {
+        if let Some(inner) = self.inner.take() {
             compiler_fence(SeqCst);
             inner.twis.stop();
             inner.twis.disable();
