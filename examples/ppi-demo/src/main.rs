@@ -4,6 +4,7 @@
 #[cfg(not(any(
     feature = "51",
     feature = "52810",
+    feature = "52811",
     feature = "52832",
     feature = "52833",
     feature = "52840"
@@ -12,6 +13,7 @@ compile_error!(
     "This example requires one of the following device features enabled:
         51
         52810
+        52811
         52832
         52833
         52840"
@@ -22,6 +24,8 @@ compile_error!(
 pub use nrf51_hal as hal;
 #[cfg(feature = "52810")]
 pub use nrf52810_hal as hal;
+#[cfg(feature = "52811")]
+pub use nrf52811_hal as hal;
 #[cfg(feature = "52832")]
 pub use nrf52832_hal as hal;
 #[cfg(feature = "52833")]

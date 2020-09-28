@@ -12,6 +12,9 @@ pub use nrf51 as pac;
 #[cfg(feature = "52810")]
 pub use nrf52810_pac as pac;
 
+#[cfg(feature = "52811")]
+pub use nrf52811_pac as pac;
+
 #[cfg(feature = "52832")]
 pub use nrf52832_pac as pac;
 
@@ -38,9 +41,9 @@ pub mod ecb;
 pub mod gpio;
 #[cfg(not(feature = "9160"))]
 pub mod gpiote;
-#[cfg(not(any(feature = "51", feature = "52810")))]
+#[cfg(not(any(feature = "51", feature = "52810", feature = "52811")))]
 pub mod i2s;
-#[cfg(not(any(feature = "52810", feature = "9160")))]
+#[cfg(not(any(feature = "52811", feature = "52810", feature = "9160")))]
 pub mod lpcomp;
 #[cfg(not(feature = "9160"))]
 pub mod ppi;
@@ -88,7 +91,12 @@ pub mod prelude {
 }
 
 /// Length of Nordic EasyDMA differs for MCUs
-#[cfg(any(feature = "52810", feature = "52832", feature = "51"))]
+#[cfg(any(
+    feature = "52810",
+    feature = "52811",
+    feature = "52832",
+    feature = "51"
+))]
 pub mod target_constants {
     // NRF52832 8 bits1..0xFF
     pub const EASY_DMA_SIZE: usize = 255;

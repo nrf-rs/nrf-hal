@@ -4,6 +4,7 @@ pub static HALS: &[(&str, &str)] = &[
     ("nrf51-hal", "thumbv6m-none-eabi"),
     ("nrf9160-hal", "thumbv8m.main-none-eabihf"),
     ("nrf52810-hal", "thumbv7em-none-eabi"),
+    ("nrf52811-hal", "thumbv7em-none-eabi"),
     ("nrf52832-hal", "thumbv7em-none-eabihf"),
     ("nrf52833-hal", "thumbv7em-none-eabihf"),
     ("nrf52840-hal", "thumbv7em-none-eabihf"),
@@ -11,17 +12,23 @@ pub static HALS: &[(&str, &str)] = &[
 
 pub static EXAMPLES: &[(&str, &[&str])] = &[
     ("blinky-button-demo", &[]),
-    ("ccm-demo", &["52810", "52832", "52833", "52840"]),
+    ("ccm-demo", &["52810", "52811", "52832", "52833", "52840"]),
     ("comp-demo", &[]),
-    ("ecb-demo", &["51", "52810", "52832", "52833", "52840"]),
+    (
+        "ecb-demo",
+        &["51", "52810", "52811", "52832", "52833", "52840"],
+    ),
     ("gpiote-demo", &[]),
     ("i2s-controller-demo", &[]),
     ("i2s-peripheral-demo", &[]),
     ("lpcomp-demo", &[]),
-    ("ppi-demo", &["51", "52810", "52832", "52833", "52840"]),
+    (
+        "ppi-demo",
+        &["51", "52810", "52811", "52832", "52833", "52840"],
+    ),
     ("pwm-demo", &[]),
     ("qdec-demo", &[]),
-    ("rtic-demo", &["51", "52810", "52832", "52840"]),
+    ("rtic-demo", &["51", "52810", "52811", "52832", "52840"]),
     ("spi-demo", &[]),
     ("spis-demo", &[]),
     ("twi-ssd1306", &["52832", "52840"]),
@@ -33,7 +40,7 @@ pub static EXAMPLES: &[(&str, &[&str])] = &[
 pub fn feature_to_target(feat: &str) -> &str {
     match feat {
         "51" => "thumbv6m-none-eabi",
-        "52810" => "thumbv7em-none-eabi",
+        "52810" | "52811" => "thumbv7em-none-eabi",
         _ if feat.starts_with("52") => "thumbv7em-none-eabihf",
         _ => panic!("unknown Cargo feature `{}`", feat),
     }

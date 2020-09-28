@@ -16,6 +16,9 @@ pub use spim0::frequency::FREQUENCY_A as Frequency;
 
 use core::iter::repeat_with;
 
+#[cfg(feature = "52811")]
+use crate::pac::SPIM1;
+
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::{SPIM1, SPIM2};
 
@@ -395,7 +398,12 @@ pub trait Instance: Deref<Target = spim0::RegisterBlock> {}
 
 impl Instance for SPIM0 {}
 
-#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+#[cfg(any(
+    feature = "52832",
+    feature = "52833",
+    feature = "52840",
+    feature = "52811"
+))]
 impl Instance for SPIM1 {}
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]

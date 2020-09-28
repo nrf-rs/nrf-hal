@@ -21,6 +21,9 @@ use crate::pac::{
     SPIS0,
 };
 
+#[cfg(feature = "52811")]
+use crate::pac::SPIS1;
+
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::{SPIS1, SPIS2};
 
@@ -598,7 +601,7 @@ mod sealed {
     impl Sealed for super::SPIS0 {}
     #[cfg(not(any(feature = "9160", feature = "52810")))]
     impl Sealed for super::SPIS1 {}
-    #[cfg(not(any(feature = "9160", feature = "52810")))]
+    #[cfg(not(any(feature = "9160", feature = "52811", feature = "52810")))]
     impl Sealed for super::SPIS2 {}
 }
 
@@ -607,20 +610,25 @@ pub trait Instance: sealed::Sealed + Deref<Target = spis0::RegisterBlock> {
 }
 
 impl Instance for SPIS0 {
-    #[cfg(not(any(feature = "9160", feature = "52810")))]
+    #[cfg(not(any(feature = "9160", feature = "52811", feature = "52810")))]
     const INTERRUPT: Interrupt = Interrupt::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0;
     #[cfg(feature = "9160")]
     const INTERRUPT: Interrupt = Interrupt::UARTE0_SPIM0_SPIS0_TWIM0_TWIS0;
     #[cfg(feature = "52810")]
     const INTERRUPT: Interrupt = Interrupt::SPIM0_SPIS0_SPI0;
+    #[cfg(feature = "52811")]
+    const INTERRUPT: Interrupt = Interrupt::TWIM0_TWIS0_TWI0_SPIM0_SPIS0_SPI0;
 }
 
 #[cfg(not(any(feature = "9160", feature = "52810")))]
 impl Instance for SPIS1 {
+    #[cfg(not(feature = "52811"))]
     const INTERRUPT: Interrupt = Interrupt::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1;
+    #[cfg(feature = "52811")]
+    const INTERRUPT: Interrupt = Interrupt::SPIM1_SPIS1_SPI1;
 }
 
-#[cfg(not(any(feature = "9160", feature = "52810")))]
+#[cfg(not(any(feature = "9160", feature = "52811", feature = "52810")))]
 impl Instance for SPIS2 {
     const INTERRUPT: Interrupt = Interrupt::SPIM2_SPIS2_SPI2;
 }
