@@ -487,7 +487,7 @@ impl<T: Instance, TxB, RxB> TransferSplit<T, TxB, RxB> {
     pub fn is_done(&mut self) -> bool {
         let inner = self
             .inner
-            .take()
+            .as_mut()
             .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
         inner.spis.is_done()
     }
