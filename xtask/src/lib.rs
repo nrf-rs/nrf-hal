@@ -40,8 +40,7 @@ pub static EXAMPLES: &[(&str, &[&str])] = &[
 pub fn feature_to_target(feat: &str) -> &str {
     match feat {
         "51" => "thumbv6m-none-eabi",
-        "52810" => "thumbv7em-none-eabi",
-        "52811" => "thumbv7em-none-eabi",
+        "52810" | "52811" => "thumbv7em-none-eabi",
         _ if feat.starts_with("52") => "thumbv7em-none-eabihf",
         _ => panic!("unknown Cargo feature `{}`", feat),
     }
