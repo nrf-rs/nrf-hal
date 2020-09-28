@@ -15,6 +15,7 @@ pub use embedded_hal::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_
 pub use spim0::frequency::FREQUENCY_A as Frequency;
 
 use core::iter::repeat_with;
+use core::sync::atomic::Ordering;
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::{SPIM1, SPIM2};
@@ -26,6 +27,11 @@ use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::target_constants::{EASY_DMA_SIZE, FORCE_COPY_BUFFER_SIZE};
 use crate::{slice_in_ram, slice_in_ram_or, DmaSlice};
 use embedded_hal::digital::v2::OutputPin;
+use embedded_dma::*;
+use crate::target_constants::{
+    SRAM_UPPER,
+    SRAM_LOWER,
+};
 
 /// Interface to a SPIM instance.
 ///
@@ -33,7 +39,10 @@ use embedded_hal::digital::v2::OutputPin;
 /// - The SPIM instances share the same address space with instances of SPIS,
 ///   SPI, TWIM, TWIS, and TWI. You need to make sure that conflicting instances
 ///   are disabled before using `Spim`. See product specification, section 15.2.
-pub struct Spim<T>(T);
+pub struct Spim<T> {
+    periph: T,
+    pins: Pins,
+}
 
 impl<T> embedded_hal::blocking::spi::Transfer<u8> for Spim<T>
 where
@@ -94,7 +103,7 @@ where
         self.do_spi_dma_transfer(DmaSlice::from_slice(&buf[..chunk.len()]), DmaSlice::null())
     }
 
-    pub fn new(spim: T, pins: Pins, frequency: Frequency, mode: Mode, orc: u8) -> Self {
+    pub fn new(spim: T, mut pins: Pins, frequency: Frequency, mode: Mode, orc: u8) -> Self {
         // Select pins.
         spim.psel.sck.write(|w| {
             let w = unsafe { w.pin().bits(pins.sck.pin()) };
@@ -103,7 +112,7 @@ where
             w.connect().connected()
         });
 
-        match pins.mosi {
+        match pins.mosi.as_mut() {
             Some(mosi) => spim.psel.mosi.write(|w| {
                 let w = unsafe { w.pin().bits(mosi.pin()) };
                 #[cfg(any(feature = "52843", feature = "52840"))]
@@ -112,7 +121,7 @@ where
             }),
             None => spim.psel.mosi.write(|w| w.connect().disconnected()),
         }
-        match pins.miso {
+        match pins.miso.as_mut() {
             Some(miso) => spim.psel.miso.write(|w| {
                 let w = unsafe { w.pin().bits(miso.pin()) };
                 #[cfg(any(feature = "52843", feature = "52840"))]
@@ -157,20 +166,35 @@ where
             // there.
             unsafe { w.orc().bits(orc) });
 
-        Spim(spim)
+        Spim {
+            periph: spim,
+            pins,
+        }
     }
 
     /// Internal helper function to setup and execute SPIM DMA transfer.
     fn do_spi_dma_transfer(&mut self, tx: DmaSlice, rx: DmaSlice) -> Result<(), Error> {
+        self.start_spi_dma_transfer(&tx, &rx);
+
+        // Wait for END event.
+        //
+        // This event is triggered once both transmitting and receiving are
+        // done.
+        while !self.is_spi_dma_transfer_complete() {}
+
+        self.complete_spi_dma_transfer(&tx, &rx).map(drop)
+    }
+
+    fn start_spi_dma_transfer(&mut self, tx: &DmaSlice, rx: &DmaSlice) {
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
         // before any DMA action has started.
         compiler_fence(SeqCst);
 
         // Set up the DMA write.
-        self.0.txd.ptr.write(|w| unsafe { w.ptr().bits(tx.ptr) });
+        self.periph.txd.ptr.write(|w| unsafe { w.ptr().bits(tx.ptr) });
 
-        self.0.txd.maxcnt.write(|w|
+        self.periph.txd.maxcnt.write(|w|
             // Note that that nrf52840 maxcnt is a wider.
             // type than a u8, so we use a `_` cast rather than a `u8` cast.
             // The MAXCNT field is thus at least 8 bits wide and accepts the full
@@ -178,17 +202,17 @@ where
             unsafe { w.maxcnt().bits(tx.len as _ ) });
 
         // Set up the DMA read.
-        self.0.rxd.ptr.write(|w|
+        self.periph.rxd.ptr.write(|w|
             // This is safe for the same reasons that writing to TXD.PTR is
             // safe. Please refer to the explanation there.
             unsafe { w.ptr().bits(rx.ptr) });
-        self.0.rxd.maxcnt.write(|w|
+        self.periph.rxd.maxcnt.write(|w|
             // This is safe for the same reasons that writing to TXD.MAXCNT is
             // safe. Please refer to the explanation there.
             unsafe { w.maxcnt().bits(rx.len as _) });
 
         // Start SPI transaction.
-        self.0.tasks_start.write(|w|
+        self.periph.tasks_start.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
@@ -196,28 +220,33 @@ where
         // take in to account actions by DMA. The fence has been placed here,
         // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
+    }
 
-        // Wait for END event.
-        //
-        // This event is triggered once both transmitting and receiving are
-        // done.
-        while self.0.events_end.read().bits() == 0 {}
+    #[inline(always)]
+    fn is_spi_dma_transfer_complete(&mut self) -> bool {
+        self.periph.events_end.read().bits() != 0
+    }
 
+    fn complete_spi_dma_transfer(&mut self, tx: &DmaSlice, rx: &DmaSlice) -> Result<(usize, usize), Error> {
         // Reset the event, otherwise it will always read `1` from now on.
-        self.0.events_end.write(|w| w);
+        self.periph.events_end.write(|w| w);
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
         // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
 
-        if self.0.txd.amount.read().bits() != tx.len {
+        let rx_amt = self.periph.rxd.amount.read().bits();
+        let tx_amt = self.periph.txd.amount.read().bits();
+
+        if tx_amt != tx.len {
             return Err(Error::Transmit);
         }
-        if self.0.rxd.amount.read().bits() != rx.len {
+        if rx_amt != rx.len {
             return Err(Error::Receive);
         }
-        Ok(())
+
+        Ok((rx_amt as usize, tx_amt as usize))
     }
 
     /// Read and write from a SPI slave, using a single buffer.
@@ -361,8 +390,41 @@ where
     }
 
     /// Return the raw interface to the underlying SPIM peripheral.
-    pub fn free(self) -> T {
-        self.0
+    pub fn free(self) -> (T, Pins) {
+        (self.periph, self.pins)
+    }
+
+    pub fn dma_transfer_split<TxW, RxW, TxB, RxB>(
+        mut self,
+        tx_buffer: TxB,
+        mut rx_buffer: RxB,
+    ) -> Result<TransferSplit<T, TxB, RxB>, (Self, Error)>
+    where
+        TxB: ReadBuffer<Word = TxW>,
+        RxB: WriteBuffer<Word = RxW>,
+    {
+
+        let tx_dma = rb_to_dma_slice(&tx_buffer);
+        let rx_dma = wb_to_dma_slice(&mut rx_buffer);
+
+        if rx_dma.len.max(tx_dma.len) as usize > EASY_DMA_SIZE {
+            return Err((self, Error::TxBufferTooLong));
+        }
+        if (tx_dma.ptr as usize) < SRAM_LOWER || (tx_dma.ptr as usize) > SRAM_UPPER {
+            return Err((self, Error::DMABufferNotInDataMemory));
+        }
+
+        // tx, rx
+        self.start_spi_dma_transfer(
+            &tx_dma,
+            &rx_dma,
+        );
+
+        Ok(TransferSplit { inner: Some(InnerSplit {
+            tx_buffer,
+            rx_buffer,
+            spim: self,
+        })})
     }
 }
 
@@ -403,3 +465,89 @@ impl Instance for SPIM2 {}
 
 #[cfg(any(feature = "52833", feature = "52840"))]
 impl Instance for SPIM3 {}
+
+pub struct TransferSplit<T: Instance, TxB, RxB>
+where
+    TxB: ReadBuffer,
+    RxB: WriteBuffer,
+{
+    inner: Option<InnerSplit<T, TxB, RxB>>,
+}
+
+pub struct InnerSplit<T: Instance, TxB, RxB>
+where
+    TxB: ReadBuffer,
+    RxB: WriteBuffer,
+{
+    tx_buffer: TxB,
+    rx_buffer: RxB,
+    spim: Spim<T>,
+}
+
+
+#[inline(always)]
+fn rb_to_dma_slice<RB: ReadBuffer>(rb: &RB) -> DmaSlice {
+    let (ptr, len) = unsafe { rb.read_buffer() };
+    DmaSlice {
+        ptr: ptr as usize as u32,
+        len: (len * core::mem::size_of::<RB::Word>()) as u32,
+    }
+}
+
+#[inline(always)]
+fn wb_to_dma_slice<WB: WriteBuffer>(wb: &mut WB) -> DmaSlice {
+    let (ptr, len) = unsafe { wb.write_buffer() };
+    DmaSlice {
+        ptr: ptr as usize as u32,
+        len: (len * core::mem::size_of::<WB::Word>()) as u32,
+    }
+}
+
+impl<T: Instance, TxB, RxB> TransferSplit<T, TxB, RxB>
+where
+    TxB: ReadBuffer,
+    RxB: WriteBuffer,
+{
+    /// Blocks until the transfer is done and returns the buffer.
+    pub fn wait(mut self) -> (TxB, RxB, Spim<T>) {
+        compiler_fence(Ordering::SeqCst);
+
+        let mut inner = self
+            .inner
+            .take()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+
+        while !inner.spim.is_spi_dma_transfer_complete() {}
+
+        // tx, rx
+        inner.spim.complete_spi_dma_transfer(
+            &rb_to_dma_slice(&inner.tx_buffer),
+            &wb_to_dma_slice(&mut inner.rx_buffer),
+        ).ok();
+
+        (inner.tx_buffer, inner.rx_buffer, inner.spim)
+    }
+
+    /// Checks if the granted transfer is done.
+    #[inline(always)]
+    pub fn is_done(&mut self) -> bool {
+        let inner = self
+            .inner
+            .as_mut()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        inner.spim.is_spi_dma_transfer_complete()
+    }
+}
+
+impl<T: Instance, TxB, RxB> Drop for TransferSplit<T, TxB, RxB>
+where
+    TxB: ReadBuffer,
+    RxB: WriteBuffer,
+{
+    fn drop(&mut self) {
+        if let Some(inner) = self.inner.as_mut() {
+            compiler_fence(Ordering::SeqCst);
+            while !inner.spim.is_spi_dma_transfer_complete() {}
+        }
+    }
+}
