@@ -420,6 +420,7 @@ where
 
 /// A DMA transfer
 pub struct Transfer<T: Instance, B> {
+    // FIXME: Always `Some`, only using `Option` here to allow moving fields out of `inner`.
     inner: Option<Inner<T, B>>,
 }
 
@@ -463,6 +464,7 @@ impl<T: Instance, B> Drop for Transfer<T, B> {
 }
 /// A full duplex DMA transfer
 pub struct TransferSplit<T: Instance, TxB, RxB> {
+    // FIXME: Always `Some`, only using `Option` here to allow moving fields out of `inner`.
     inner: Option<InnerSplit<T, TxB, RxB>>,
 }
 
@@ -490,7 +492,7 @@ impl<T: Instance, TxB, RxB> TransferSplit<T, TxB, RxB> {
     pub fn is_done(&mut self) -> bool {
         let inner = self
             .inner
-            .take()
+            .as_mut()
             .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
         inner.spis.is_done()
     }
@@ -498,7 +500,7 @@ impl<T: Instance, TxB, RxB> TransferSplit<T, TxB, RxB> {
 
 impl<T: Instance, TxB, RxB> Drop for TransferSplit<T, TxB, RxB> {
     fn drop(&mut self) {
-        if let Some(inner) = self.inner.as_mut() {
+        if let Some(inner) = self.inner.take() {
             compiler_fence(Ordering::SeqCst);
             while !inner.spis.is_done() {}
             inner.spis.disable();
