@@ -545,7 +545,7 @@ where
     RxB: WriteBuffer,
 {
     fn drop(&mut self) {
-        if let Some(inner) = self.inner.as_mut() {
+        if let Some(mut inner) = self.inner.take() {
             compiler_fence(Ordering::SeqCst);
             while !inner.spim.is_spi_dma_transfer_complete() {}
         }

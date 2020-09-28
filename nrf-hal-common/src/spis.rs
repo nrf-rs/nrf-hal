@@ -495,7 +495,7 @@ impl<T: Instance, TxB, RxB> TransferSplit<T, TxB, RxB> {
 
 impl<T: Instance, TxB, RxB> Drop for TransferSplit<T, TxB, RxB> {
     fn drop(&mut self) {
-        if let Some(inner) = self.inner.as_mut() {
+        if let Some(inner) = self.inner.take() {
             compiler_fence(Ordering::SeqCst);
             while !inner.spis.is_done() {}
             inner.spis.disable();
