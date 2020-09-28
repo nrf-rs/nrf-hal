@@ -544,12 +544,14 @@ pub trait Instance: sealed::Sealed + Deref<Target = twis0::RegisterBlock> {
 }
 
 impl Instance for TWIS0 {
-    #[cfg(not(any(feature = "9160", feature = "52810")))]
+    #[cfg(not(any(feature = "9160", feature = "52810", feature = "52811")))]
     const INTERRUPT: Interrupt = Interrupt::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0;
     #[cfg(feature = "9160")]
     const INTERRUPT: Interrupt = Interrupt::UARTE0_SPIM0_SPIS0_TWIM0_TWIS0;
     #[cfg(feature = "52810")]
     const INTERRUPT: Interrupt = Interrupt::TWIM0_TWIS0_TWI0;
+    #[cfg(feature = "52811")]
+    const INTERRUPT: Interrupt = Interrupt::TWIM0_TWIS0_TWI0_SPIM0_SPIS0_SPI0;
 }
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
