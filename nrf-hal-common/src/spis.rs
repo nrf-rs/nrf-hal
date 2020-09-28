@@ -328,7 +328,7 @@ where
     #[allow(unused_mut)]
     pub fn transfer<W, B>(mut self, mut buffer: B) -> Result<Transfer<T, B>, (Error, Spis<T>, B)>
     where
-        B: WriteBuffer<Word = W>,
+        B: WriteBuffer<Word = W> + 'static,
     {
         let (ptr, len) = unsafe { buffer.write_buffer() };
         let maxcnt = len * core::mem::size_of::<W>();
@@ -371,8 +371,8 @@ where
         mut rx_buffer: RxB,
     ) -> Result<TransferSplit<T, TxB, RxB>, (Error, Spis<T>, TxB, RxB)>
     where
-        TxB: ReadBuffer<Word = TxW>,
-        RxB: WriteBuffer<Word = RxW>,
+        TxB: ReadBuffer<Word = TxW> + 'static,
+        RxB: WriteBuffer<Word = RxW> + 'static,
     {
         let (rx_ptr, rx_len) = unsafe { rx_buffer.write_buffer() };
         let (tx_ptr, tx_len) = unsafe { tx_buffer.read_buffer() };
