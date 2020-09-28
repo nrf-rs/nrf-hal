@@ -400,7 +400,7 @@ where
     #[allow(unused_mut)]
     pub fn rx<W, B>(mut self, mut buffer: B) -> Result<Transfer<T, B>, Error>
     where
-        B: WriteBuffer<Word = W>,
+        B: WriteBuffer<Word = W> + 'static,
     {
         let (ptr, len) = unsafe { buffer.write_buffer() };
         let maxcnt = len * core::mem::size_of::<W>();
@@ -428,7 +428,7 @@ where
     #[allow(unused_mut)]
     pub fn tx<W, B>(mut self, buffer: B) -> Result<Transfer<T, B>, Error>
     where
-        B: ReadBuffer<Word = W>,
+        B: ReadBuffer<Word = W> + 'static,
     {
         let (ptr, len) = unsafe { buffer.read_buffer() };
         let maxcnt = len * core::mem::size_of::<W>();
