@@ -496,6 +496,7 @@ pub enum TwiEvent {
 
 /// A DMA transfer
 pub struct Transfer<T: Instance, B> {
+    // FIXME: Always `Some`, only using `Option` here to allow moving fields out of `inner`.
     inner: Option<Inner<T, B>>,
 }
 
