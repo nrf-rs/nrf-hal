@@ -15,7 +15,7 @@ use crate::{
     time::*,
 };
 use core::{
-    cell::RefCell,
+    cell::Cell,
     ops::Deref,
     sync::atomic::{compiler_fence, Ordering},
 };
@@ -263,7 +263,7 @@ where
     // Internal helper function that returns 15 bit duty cycle value.
     #[inline(always)]
     fn duty_on_value(&self, index: usize) -> u16 {
-        let val = T::buffer().borrow()[index];
+        let val = T::buffer().get()[index];
         let is_inverted = (val >> 15) & 1 == 0;
         match is_inverted {
             false => val,
@@ -274,7 +274,7 @@ where
     // Internal helper function that returns 15 bit inverted duty cycle value.
     #[inline(always)]
     fn duty_off_value(&self, index: usize) -> u16 {
-        let val = T::buffer().borrow()[index];
+        let val = T::buffer().get()[index];
         let is_inverted = (val >> 15) & 1 == 0;
         match is_inverted {
             false => self.max_duty() - val,
@@ -287,7 +287,7 @@ where
     pub fn set_duty_on_common(&self, duty: u16) {
         compiler_fence(Ordering::SeqCst);
         T::buffer()
-            .borrow_mut()
+            .get_mut()
             .copy_from_slice(&[duty.min(self.max_duty()) & 0x7FFF; 4][..]);
         self.one_shot();
         self.set_load_mode(LoadMode::Common);
@@ -304,7 +304,7 @@ where
     pub fn set_duty_off_common(&self, duty: u16) {
         compiler_fence(Ordering::SeqCst);
         T::buffer()
-            .borrow_mut()
+            .get_mut()
             .copy_from_slice(&[duty.min(self.max_duty()) | 0x8000; 4][..]);
         self.one_shot();
         self.set_load_mode(LoadMode::Common);
@@ -332,7 +332,7 @@ where
     /// Will replace any ongoing sequence playback.
     pub fn set_duty_on_group(&self, group: Group, duty: u16) {
         compiler_fence(Ordering::SeqCst);
-        T::buffer().borrow_mut()[usize::from(group)] = duty.min(self.max_duty()) & 0x7FFF;
+        T::buffer().get_mut()[usize::from(group)] = duty.min(self.max_duty()) & 0x7FFF;
         self.one_shot();
         self.set_load_mode(LoadMode::Grouped);
         self.pwm
@@ -347,7 +347,7 @@ where
     /// Will replace any ongoing sequence playback.
     pub fn set_duty_off_group(&self, group: Group, duty: u16) {
         compiler_fence(Ordering::SeqCst);
-        T::buffer().borrow_mut()[usize::from(group)] = duty.min(self.max_duty()) | 0x8000;
+        T::buffer().get_mut()[usize::from(group)] = duty.min(self.max_duty()) | 0x8000;
         self.one_shot();
         self.set_load_mode(LoadMode::Grouped);
         self.pwm
@@ -374,10 +374,10 @@ where
     /// Will replace any ongoing sequence playback and the other channels will return to their previously set value.
     pub fn set_duty_on(&self, channel: Channel, duty: u16) {
         compiler_fence(Ordering::SeqCst);
-        T::buffer().borrow_mut()[usize::from(channel)] = duty.min(self.max_duty()) & 0x7FFF;
+        T::buffer().get_mut()[usize::from(channel)] = duty.min(self.max_duty()) & 0x7FFF;
         self.one_shot();
         self.set_load_mode(LoadMode::Individual);
-        if self.load_seq(Seq::Seq0, T::buffer().borrow()).is_ok() {
+        if self.load_seq(Seq::Seq0, &T::buffer().get()).is_ok() {
             self.start_seq(Seq::Seq0);
         }
     }
@@ -386,10 +386,10 @@ where
     /// Will replace any ongoing sequence playback and the other channels will return to their previously set value.
     pub fn set_duty_off(&self, channel: Channel, duty: u16) {
         compiler_fence(Ordering::SeqCst);
-        T::buffer().borrow_mut()[usize::from(channel)] = duty.min(self.max_duty()) | 0x8000;
+        T::buffer().get_mut()[usize::from(channel)] = duty.min(self.max_duty()) | 0x8000;
         self.one_shot();
         self.set_load_mode(LoadMode::Individual);
-        if self.load_seq(Seq::Seq0, T::buffer().borrow()).is_ok() {
+        if self.load_seq(Seq::Seq0, &T::buffer().get()).is_ok() {
             self.start_seq(Seq::Seq0);
         }
     }
@@ -956,44 +956,44 @@ pub enum Error {
 
 pub trait Instance: private::Sealed + Deref<Target = crate::pac::pwm0::RegisterBlock> {
     const INTERRUPT: Interrupt;
-    fn buffer() -> &'static RefCell<[u16; 4]>;
+    fn buffer() -> &'static mut Cell<[u16; 4]>;
 }
 
-static mut BUF0: RefCell<[u16; 4]> = RefCell::new([0; 4]);
+static mut BUF0: Cell<[u16; 4]> = Cell::new([0; 4]);
 impl Instance for PWM0 {
     const INTERRUPT: Interrupt = Interrupt::PWM0;
-    fn buffer() -> &'static RefCell<[u16; 4]> {
-        unsafe { &BUF0 }
+    fn buffer() -> &'static mut Cell<[u16; 4]> {
+        unsafe { &mut BUF0 }
     }
 }
 
 #[cfg(not(any(feature = "52810", feature = "52811")))]
-static mut BUF1: RefCell<[u16; 4]> = RefCell::new([0; 4]);
+static mut BUF1: Cell<[u16; 4]> = Cell::new([0; 4]);
 #[cfg(not(any(feature = "52810", feature = "52811")))]
 impl Instance for PWM1 {
     const INTERRUPT: Interrupt = Interrupt::PWM1;
-    fn buffer() -> &'static RefCell<[u16; 4]> {
-        unsafe { &BUF1 }
+    fn buffer() -> &'static mut Cell<[u16; 4]> {
+        unsafe { &mut BUF1 }
     }
 }
 
 #[cfg(not(any(feature = "52810", feature = "52811")))]
-static mut BUF2: RefCell<[u16; 4]> = RefCell::new([0; 4]);
+static mut BUF2: Cell<[u16; 4]> = Cell::new([0; 4]);
 #[cfg(not(any(feature = "52810", feature = "52811")))]
 impl Instance for PWM2 {
     const INTERRUPT: Interrupt = Interrupt::PWM2;
-    fn buffer() -> &'static RefCell<[u16; 4]> {
-        unsafe { &BUF2 }
+    fn buffer() -> &'static mut Cell<[u16; 4]> {
+        unsafe { &mut BUF2 }
     }
 }
 
 #[cfg(not(any(feature = "52810", feature = "52811", feature = "52832")))]
-static mut BUF3: RefCell<[u16; 4]> = RefCell::new([0; 4]);
+static mut BUF3: Cell<[u16; 4]> = Cell::new([0; 4]);
 #[cfg(not(any(feature = "52810", feature = "52811", feature = "52832")))]
 impl Instance for PWM3 {
     const INTERRUPT: Interrupt = Interrupt::PWM3;
-    fn buffer() -> &'static RefCell<[u16; 4]> {
-        unsafe { &BUF3 }
+    fn buffer() -> &'static mut Cell<[u16; 4]> {
+        unsafe { &mut BUF3 }
     }
 }
 
