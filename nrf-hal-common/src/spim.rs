@@ -548,9 +548,9 @@ where
     RxB: WriteBuffer,
 {
     fn drop(&mut self) {
-        if let Some(mut inner) = self.inner.take() {
+        if let Some(_inner) = self.inner.take() {
             compiler_fence(Ordering::SeqCst);
-            inner.periph.enable.write(|w| w.enable().disabled());
+            inner.spim.periph.enable.write(|w| w.enable().disabled());
         }
     }
 }
