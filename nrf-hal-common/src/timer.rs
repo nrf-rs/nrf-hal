@@ -35,12 +35,16 @@ use crate::pac::{TIMER3, TIMER4};
 
 // The 832 and 840 expose TIMER3 and TIMER for as timer3::RegisterBlock...
 #[cfg(any(feature = "52832", feature = "52840"))]
-use crate::pac::timer3::RegisterBlock as RegBlock3;
+use crate::pac::timer3::{
+    RegisterBlock as RegBlock3, _EVENTS_COMPARE as EventsCompare3, _TASKS_CAPTURE as TasksCapture3,
+};
 
 // ...but the 833 exposes them as timer0::RegisterBlock. This might be a bug
 // in the PAC, and could be fixed later. For now, it is equivalent anyway.
 #[cfg(feature = "52833")]
-use crate::pac::timer0::RegisterBlock as RegBlock3;
+use crate::pac::timer0::{
+    RegisterBlock as RegBlock3, _EVENTS_COMPARE as EventsCompare3, _TASKS_CAPTURE as TasksCapture3,
+};
 
 use core::marker::PhantomData;
 
@@ -174,19 +178,64 @@ where
         &self.0.as_timer0().tasks_clear
     }
 
-    /// Returns reference to the `CAPTURE` task endpoint for PPI.
-    /// Captures timer value to the given CC register.
+    /// Returns reference to the CC[0] `CAPTURE` task endpoint for PPI.
+    /// Captures timer value to the CC[0] register.
     #[inline(always)]
-    pub fn task_capture(&self, cc: CC) -> &Reg<u32, _TASKS_CAPTURE> {
-        &self.0.as_timer0().tasks_capture[cc as usize]
+    pub fn task_capture_cc0(&self) -> &Reg<u32, _TASKS_CAPTURE> {
+        &self.0.as_timer0().tasks_capture[0]
     }
 
-    /// Returns reference to `COMPARE` event endpoint for PPI.
-    /// Generated when the counter is incremented and then matches the value
-    /// specified in the given CC register
+    /// Returns reference to the CC[1] `CAPTURE` task endpoint for PPI.
+    /// Captures timer value to the CC[1] register.
     #[inline(always)]
-    pub fn event_compare(&self, cc: CC) -> &Reg<u32, _EVENTS_COMPARE> {
-        &self.0.as_timer0().events_compare[cc as usize]
+    pub fn task_capture_cc1(&self) -> &Reg<u32, _TASKS_CAPTURE> {
+        &self.0.as_timer0().tasks_capture[1]
+    }
+
+    /// Returns reference to the CC[2] `CAPTURE` task endpoint for PPI.
+    /// Captures timer value to the CC[2] register.
+    #[inline(always)]
+    pub fn task_capture_cc2(&self) -> &Reg<u32, _TASKS_CAPTURE> {
+        &self.0.as_timer0().tasks_capture[2]
+    }
+
+    /// Returns reference to the CC[3] `CAPTURE` task endpoint for PPI.
+    /// Captures timer value to the CC[3] register.
+    #[inline(always)]
+    pub fn task_capture_cc3(&self) -> &Reg<u32, _TASKS_CAPTURE> {
+        &self.0.as_timer0().tasks_capture[3]
+    }
+
+    /// Returns reference to the CC[0] `COMPARE` event endpoint for PPI.
+    /// Generated when the counter is incremented and then matches the value
+    /// specified in the CC[0] register.
+    #[inline(always)]
+    pub fn event_compare_cc0(&self) -> &Reg<u32, _EVENTS_COMPARE> {
+        &self.0.as_timer0().events_compare[0]
+    }
+
+    /// Returns reference to the CC[1] `COMPARE` event endpoint for PPI.
+    /// Generated when the counter is incremented and then matches the value
+    /// specified in the CC[1] register.
+    #[inline(always)]
+    pub fn event_compare_cc1(&self) -> &Reg<u32, _EVENTS_COMPARE> {
+        &self.0.as_timer0().events_compare[1]
+    }
+
+    /// Returns reference to the CC[2] `COMPARE` event endpoint for PPI.
+    /// Generated when the counter is incremented and then matches the value
+    /// specified in the CC[2] register.
+    #[inline(always)]
+    pub fn event_compare_cc2(&self) -> &Reg<u32, _EVENTS_COMPARE> {
+        &self.0.as_timer0().events_compare[2]
+    }
+
+    /// Returns reference to the CC[3] `COMPARE` event endpoint for PPI.
+    /// Generated when the counter is incremented and then matches the value
+    /// specified in the CC[3] register.
+    #[inline(always)]
+    pub fn event_compare_cc3(&self) -> &Reg<u32, _EVENTS_COMPARE> {
+        &self.0.as_timer0().events_compare[3]
     }
 }
 
@@ -394,15 +443,6 @@ pub trait Instance: sealed::Sealed {
     }
 }
 
-pub enum CC {
-    CC0 = 0,
-    CC1,
-    CC2,
-    CC3,
-    CC4,
-    CC5,
-}
-
 impl Instance for TIMER0 {
     const INTERRUPT: Interrupt = Interrupt::TIMER0;
 
@@ -459,6 +499,69 @@ impl Instance for TIMER4 {
         // that TIMER3 has 6 CC registers, while TIMER0 has 4. There is
         // appropriate padding to allow other operations to work correctly
         unsafe { &*rb_ptr.cast() }
+    }
+}
+
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+/// Adds task- and event PPI endpoint getters for CC[4] and CC[5] on supported instances.
+pub trait ExtendedCCTimer {
+    fn task_capture_cc4(&self) -> &Reg<u32, TasksCapture3>;
+    fn task_capture_cc5(&self) -> &Reg<u32, TasksCapture3>;
+    fn event_compare_cc4(&self) -> &Reg<u32, EventsCompare3>;
+    fn event_compare_cc5(&self) -> &Reg<u32, EventsCompare3>;
+}
+
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+impl ExtendedCCTimer for Timer<TIMER3> {
+    /// Returns reference to the CC[4] `CAPTURE` task endpoint for PPI.
+    #[inline(always)]
+    fn task_capture_cc4(&self) -> &Reg<u32, TasksCapture3> {
+        &self.0.tasks_capture[4]
+    }
+
+    /// Returns reference to the CC[5] `CAPTURE` task endpoint for PPI.
+    #[inline(always)]
+    fn task_capture_cc5(&self) -> &Reg<u32, TasksCapture3> {
+        &self.0.tasks_capture[5]
+    }
+
+    /// Returns reference to the CC[4] `COMPARE` event endpoint for PPI.
+    #[inline(always)]
+    fn event_compare_cc4(&self) -> &Reg<u32, EventsCompare3> {
+        &self.0.events_compare[4]
+    }
+
+    /// Returns reference to the CC[5] `COMPARE` event endpoint for PPI.
+    #[inline(always)]
+    fn event_compare_cc5(&self) -> &Reg<u32, EventsCompare3> {
+        &self.0.events_compare[5]
+    }
+}
+
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+impl ExtendedCCTimer for Timer<TIMER4> {
+    /// Returns reference to the CC[4] `CAPTURE` task endpoint for PPI.
+    #[inline(always)]
+    fn task_capture_cc4(&self) -> &Reg<u32, TasksCapture3> {
+        &self.0.tasks_capture[4]
+    }
+
+    /// Returns reference to the CC[5] `CAPTURE` task endpoint for PPI.
+    #[inline(always)]
+    fn task_capture_cc5(&self) -> &Reg<u32, TasksCapture3> {
+        &self.0.tasks_capture[5]
+    }
+
+    /// Returns reference to the CC[4] `COMPARE` event endpoint for PPI.
+    #[inline(always)]
+    fn event_compare_cc4(&self) -> &Reg<u32, EventsCompare3> {
+        &self.0.events_compare[4]
+    }
+
+    /// Returns reference to the CC[5] `COMPARE` event endpoint for PPI.
+    #[inline(always)]
+    fn event_compare_cc5(&self) -> &Reg<u32, EventsCompare3> {
+        &self.0.events_compare[5]
     }
 }
 
