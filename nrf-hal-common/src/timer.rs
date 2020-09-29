@@ -4,13 +4,23 @@
 
 #[cfg(feature = "9160")]
 use crate::pac::{
-    timer0_ns::RegisterBlock as RegBlock0, Interrupt, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1,
-    TIMER2_NS as TIMER2,
+    generic::Reg,
+    timer0_ns::{
+        RegisterBlock as RegBlock0, _EVENTS_COMPARE, _TASKS_CAPTURE, _TASKS_CLEAR, _TASKS_COUNT,
+        _TASKS_START, _TASKS_STOP,
+    },
+    Interrupt, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1, TIMER2_NS as TIMER2,
 };
 
 #[cfg(not(feature = "9160"))]
-use crate::pac::{timer0::RegisterBlock as RegBlock0, Interrupt, TIMER0, TIMER1, TIMER2};
-
+use crate::pac::{
+    generic::Reg,
+    timer0::{
+        RegisterBlock as RegBlock0, _EVENTS_COMPARE, _TASKS_CAPTURE, _TASKS_CLEAR, _TASKS_COUNT,
+        _TASKS_START, _TASKS_STOP,
+    },
+    Interrupt, TIMER0, TIMER1, TIMER2,
+};
 use cast::u32;
 use embedded_hal::{
     blocking::delay::{DelayMs, DelayUs},
@@ -134,6 +144,43 @@ where
             Ok(_) => {}
             Err(x) => unreachable(x),
         }
+    }
+
+    /// Returns reference to the `START` task endpoint for PPI.
+    /// Starts timer.
+    pub fn task_start(&self) -> &Reg<u32, _TASKS_START> {
+        &self.0.as_timer0().tasks_start
+    }
+
+    /// Returns reference to the `STOP` task endpoint for PPI.
+    /// Stops timer.
+    pub fn task_stop(&self) -> &Reg<u32, _TASKS_STOP> {
+        &self.0.as_timer0().tasks_stop
+    }
+
+    /// Returns reference to the `COUNT` task endpoint for PPI.
+    /// Increments timer (counter mode only).
+    pub fn task_count(&self) -> &Reg<u32, _TASKS_COUNT> {
+        &self.0.as_timer0().tasks_count
+    }
+
+    /// Returns reference to the `CLEAR` task endpoint for PPI.
+    /// Clears timer.
+    pub fn task_clear(&self) -> &Reg<u32, _TASKS_CLEAR> {
+        &self.0.as_timer0().tasks_clear
+    }
+
+    /// Returns reference to the `CAPTURE` task endpoint for PPI.
+    /// Captures timer value to the given CC register.
+    pub fn task_capture(&self, cc: CC) -> &Reg<u32, _TASKS_CAPTURE> {
+        &self.0.as_timer0().tasks_capture[cc as usize]
+    }
+
+    /// Returns reference to `COMPARE` event endpoint for PPI.
+    /// Generated when the counter is incremented and then matches the value
+    /// specified in the given CC register
+    pub fn event_compare(&self, cc: CC) -> &Reg<u32, _EVENTS_COMPARE> {
+        &self.0.as_timer0().events_compare[cc as usize]
     }
 }
 
@@ -339,6 +386,15 @@ pub trait Instance: sealed::Sealed {
         );
         self.as_timer0().bitmode.write(|w| w.bitmode()._32bit());
     }
+}
+
+pub enum CC {
+    CC0 = 0,
+    CC1,
+    CC2,
+    CC3,
+    CC4,
+    CC5,
 }
 
 impl Instance for TIMER0 {
