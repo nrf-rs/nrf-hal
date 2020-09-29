@@ -438,12 +438,22 @@ impl<T: Instance, B> Transfer<T, B> {
         (inner.buffer, inner.spis)
     }
 
+    pub fn bail(mut self) -> (B, Spis<T>) {
+        compiler_fence(Ordering::SeqCst);
+        let inner = self
+            .inner
+            .take()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        inner.spis.disable();
+        (inner.buffer, inner.spis)
+    }
+
     /// Checks if the granted transfer is done.
     #[inline(always)]
     pub fn is_done(&mut self) -> bool {
         let inner = self
             .inner
-            .take()
+            .as_mut()
             .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
         inner.spis.is_done()
     }
@@ -453,7 +463,6 @@ impl<T: Instance, B> Drop for Transfer<T, B> {
     fn drop(&mut self) {
         if let Some(inner) = self.inner.as_mut() {
             compiler_fence(Ordering::SeqCst);
-            while !inner.spis.is_done() {}
             inner.spis.disable();
         }
     }
@@ -482,6 +491,16 @@ impl<T: Instance, TxB, RxB> TransferSplit<T, TxB, RxB> {
         (inner.tx_buffer, inner.rx_buffer, inner.spis)
     }
 
+    pub fn bail(mut self) -> (TxB, RxB, Spis<T>) {
+        compiler_fence(Ordering::SeqCst);
+        let inner = self
+            .inner
+            .take()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        inner.spis.disable();
+        (inner.tx_buffer, inner.rx_buffer, inner.spis)
+    }
+
     /// Checks if the granted transfer is done.
     #[inline(always)]
     pub fn is_done(&mut self) -> bool {
@@ -497,7 +516,6 @@ impl<T: Instance, TxB, RxB> Drop for TransferSplit<T, TxB, RxB> {
     fn drop(&mut self) {
         if let Some(inner) = self.inner.take() {
             compiler_fence(Ordering::SeqCst);
-            while !inner.spis.is_done() {}
             inner.spis.disable();
         }
     }

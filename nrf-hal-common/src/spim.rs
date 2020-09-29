@@ -528,6 +528,9 @@ where
         (inner.tx_buffer, inner.rx_buffer, inner.spim)
     }
 
+    // TODO: We should probably add `bail` method like `spis`, but it would
+    // require thinking about how to clean up, and potentially re-enable.
+
     /// Checks if the granted transfer is done.
     #[inline(always)]
     pub fn is_done(&mut self) -> bool {
@@ -547,7 +550,7 @@ where
     fn drop(&mut self) {
         if let Some(mut inner) = self.inner.take() {
             compiler_fence(Ordering::SeqCst);
-            while !inner.spim.is_spi_dma_transfer_complete() {}
+            inner.periph.enable.write(|w| w.enable().disabled());
         }
     }
 }
