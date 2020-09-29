@@ -18,7 +18,9 @@ pub struct ExternalOscillator;
 pub struct LfOscSynthesized;
 
 /// Low Frequency Clock Started.
-pub struct LfOscStarted;
+pub struct LfOscStarted {
+    _priv: (), // Do not allow to construct this type from the outside.
+}
 
 /// Low Frequency Clock Stopped.
 pub struct LfOscStopped;
@@ -78,7 +80,7 @@ impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
     }
 
     /// Start the Low Frequency clock.
-    pub fn start_lfclk(self) -> Clocks<H, L, LfOscStarted> {
+    pub fn start_lfclk(self) -> (Clocks<H, L, LfOscStarted>, LfOscStarted) {
         self.periph.tasks_lfclkstart.write(|w| unsafe { w.bits(1) });
 
         // Datasheet says this could take 100us from synth source
@@ -88,12 +90,15 @@ impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
             .events_lfclkstarted
             .write(|w| unsafe { w.bits(0) });
 
-        Clocks {
-            hfclk: self.hfclk,
-            lfclk: self.lfclk,
-            lfstat: LfOscStarted,
-            periph: self.periph,
-        }
+        (
+            Clocks {
+                hfclk: self.hfclk,
+                lfclk: self.lfclk,
+                lfstat: LfOscStarted { _priv: () },
+                periph: self.periph,
+            },
+            LfOscStarted { _priv: () },
+        )
     }
 }
 
@@ -107,7 +112,7 @@ pub enum LfOscConfiguration {
 
 impl<H, L> Clocks<H, L, LfOscStarted> {
     /// Stop the Low Frequency clock.
-    pub fn stop_lfclk(self) -> Clocks<H, L, LfOscStopped> {
+    pub fn stop_lfclk(self, _token: LfOscStarted) -> Clocks<H, L, LfOscStopped> {
         self.periph.tasks_lfclkstop.write(|w| unsafe { w.bits(1) });
         Clocks {
             hfclk: self.hfclk,

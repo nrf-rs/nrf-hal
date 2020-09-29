@@ -2,6 +2,8 @@
 
 use core::ops::Deref;
 
+use crate::clocks::LfOscStarted;
+
 #[cfg(feature = "9160")]
 use crate::pac::{rtc0_ns as rtc0, Interrupt, NVIC, RTC0_NS as RTC0, RTC1_NS as RTC1};
 
@@ -22,16 +24,18 @@ pub struct Started;
 pub struct Rtc<T, M> {
     periph: T,
     _mode: M,
+    lfosc: LfOscStarted,
 }
 
 impl<T> Rtc<T, Stopped>
 where
     T: Instance,
 {
-    pub fn new(rtc: T) -> Self {
+    pub fn new(rtc: T, lfosc: LfOscStarted) -> Self {
         Rtc {
             periph: rtc,
             _mode: Stopped,
+            lfosc,
         }
     }
 }
@@ -66,6 +70,7 @@ where
         Rtc {
             periph: self.periph,
             _mode: Started,
+            lfosc: self.lfosc,
         }
     }
 
@@ -77,6 +82,7 @@ where
         Rtc {
             periph: self.periph,
             _mode: Stopped,
+            lfosc: self.lfosc,
         }
     }
 
@@ -222,8 +228,8 @@ where
 
     /// Destructure the high level interface. Does not reset any configuration made
     /// to the given RTC peripheral.
-    pub fn release(self) -> T {
-        self.periph
+    pub fn release(self) -> (T, LfOscStarted) {
+        (self.periph, self.lfosc)
     }
 }
 
