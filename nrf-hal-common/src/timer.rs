@@ -148,30 +148,35 @@ where
 
     /// Returns reference to the `START` task endpoint for PPI.
     /// Starts timer.
+    #[inline(always)]
     pub fn task_start(&self) -> &Reg<u32, _TASKS_START> {
         &self.0.as_timer0().tasks_start
     }
 
     /// Returns reference to the `STOP` task endpoint for PPI.
     /// Stops timer.
+    #[inline(always)]
     pub fn task_stop(&self) -> &Reg<u32, _TASKS_STOP> {
         &self.0.as_timer0().tasks_stop
     }
 
     /// Returns reference to the `COUNT` task endpoint for PPI.
     /// Increments timer (counter mode only).
+    #[inline(always)]
     pub fn task_count(&self) -> &Reg<u32, _TASKS_COUNT> {
         &self.0.as_timer0().tasks_count
     }
 
     /// Returns reference to the `CLEAR` task endpoint for PPI.
     /// Clears timer.
+    #[inline(always)]
     pub fn task_clear(&self) -> &Reg<u32, _TASKS_CLEAR> {
         &self.0.as_timer0().tasks_clear
     }
 
     /// Returns reference to the `CAPTURE` task endpoint for PPI.
     /// Captures timer value to the given CC register.
+    #[inline(always)]
     pub fn task_capture(&self, cc: CC) -> &Reg<u32, _TASKS_CAPTURE> {
         &self.0.as_timer0().tasks_capture[cc as usize]
     }
@@ -179,6 +184,7 @@ where
     /// Returns reference to `COMPARE` event endpoint for PPI.
     /// Generated when the counter is incremented and then matches the value
     /// specified in the given CC register
+    #[inline(always)]
     pub fn event_compare(&self, cc: CC) -> &Reg<u32, _EVENTS_COMPARE> {
         &self.0.as_timer0().events_compare[cc as usize]
     }
