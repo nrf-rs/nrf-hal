@@ -103,12 +103,11 @@ const APP: () = {
 
     #[task(binds = PWM0, resources = [pwm])]
     fn on_pwm(ctx: on_pwm::Context) {
-        let (buf0, buf1, pwm) = ctx.resources.pwm.take().unwrap().split();
-        if pwm.is_event_triggered(PwmEvent::Stopped) {
-            pwm.reset_event(PwmEvent::Stopped);
+        let pwm_seq = ctx.resources.pwm.as_ref().unwrap();
+        if pwm_seq.is_event_triggered(PwmEvent::Stopped) {
+            pwm_seq.reset_event(PwmEvent::Stopped);
             rprintln!("PWM generation was stopped");
         }
-        ctx.resources.pwm.replace(pwm.wrap(buf0, buf1));
     }
 
     #[task(binds = GPIOTE, resources = [gpiote], schedule = [debounce])]

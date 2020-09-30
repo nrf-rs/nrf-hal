@@ -800,7 +800,7 @@ where
         inner.pwm.stop();
     }
 
-    // Starts playing the given sequence.
+    /// Starts playing the given sequence.
     #[inline(always)]
     pub fn start_seq(&self, seq: Seq) {
         let inner = self
@@ -808,6 +808,26 @@ where
             .as_ref()
             .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
         inner.pwm.start_seq(seq);
+    }
+
+    /// Checks if the given event has been triggered.
+    #[inline(always)]
+    pub fn is_event_triggered(&self, event: PwmEvent) -> bool {
+        let inner = self
+            .inner
+            .as_ref()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        inner.pwm.is_event_triggered(event)
+    }
+
+    /// Marks the given event as handled.
+    #[inline(always)]
+    pub fn reset_event(&self, event: PwmEvent) {
+        let inner = self
+            .inner
+            .as_ref()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        inner.pwm.reset_event(event)
     }
 }
 
