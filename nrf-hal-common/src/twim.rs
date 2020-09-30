@@ -94,27 +94,17 @@ where
         Twim(twim)
     }
 
-    /// Write to an I2C slave.
-    ///
-    /// The buffer must have a length of at most 255 bytes on the nRF52832
-    /// and at most 65535 bytes on the nRF52840.
-    pub fn write(&mut self, address: u8, buffer: &[u8]) -> Result<(), Error> {
+    /// Set TX buffer, checking that it is in RAM and has suitable length.
+    unsafe fn set_tx_buffer(&mut self, buffer: &[u8]) -> Result<(), Error> {
         slice_in_ram_or(buffer, Error::DMABufferNotInDataMemory)?;
 
+        if buffer.len() == 0 {
+            return Err(Error::TxBufferZeroLength);
+        }
         if buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
 
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started.
-        compiler_fence(SeqCst);
-
-        self.0
-            .address
-            .write(|w| unsafe { w.address().bits(address) });
-
-        // Set up the DMA write.
         self.0.txd.ptr.write(|w|
             // We're giving the register a pointer to the stack. Since we're
             // waiting for the I2C transaction to end before this stack pointer
@@ -131,6 +121,61 @@ where
             // The MAXCNT field is 8 bits wide and accepts the full range of
             // values.
             unsafe { w.maxcnt().bits(buffer.len() as _) });
+
+        Ok(())
+    }
+
+    /// Set RX buffer, checking that it has suitable length.
+    unsafe fn set_rx_buffer(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
+        // NOTE: RAM slice check is not necessary, as a mutable
+        // slice can only be built from data located in RAM.
+
+        if buffer.len() == 0 {
+            return Err(Error::RxBufferZeroLength);
+        }
+        if buffer.len() > EASY_DMA_SIZE {
+            return Err(Error::RxBufferTooLong);
+        }
+
+        self.0.rxd.ptr.write(|w|
+            // We're giving the register a pointer to the stack. Since we're
+            // waiting for the I2C transaction to end before this stack pointer
+            // becomes invalid, there's nothing wrong here.
+            //
+            // The PTR field is a full 32 bits wide and accepts the full range
+            // of values.
+            unsafe { w.ptr().bits(buffer.as_mut_ptr() as u32) });
+        self.0.rxd.maxcnt.write(|w|
+            // We're giving it the length of the buffer, so no danger of
+            // accessing invalid memory. We have verified that the length of the
+            // buffer fits in an `u8`, so the cast to the type of maxcnt
+            // is also fine.
+            //
+            // Note that that nrf52840 maxcnt is a wider
+            // type than a u8, so we use a `_` cast rather than a `u8` cast.
+            // The MAXCNT field is thus at least 8 bits wide and accepts the
+            // full range of values that fit in a `u8`.
+            unsafe { w.maxcnt().bits(buffer.len() as _) });
+
+        Ok(())
+    }
+
+    /// Write to an I2C slave.
+    ///
+    /// The buffer must have a length of at most 255 bytes on the nRF52832
+    /// and at most 65535 bytes on the nRF52840.
+    pub fn write(&mut self, address: u8, buffer: &[u8]) -> Result<(), Error> {
+        // Conservative compiler fence to prevent optimizations that do not
+        // take in to account actions by DMA. The fence has been placed here,
+        // before any DMA action has started.
+        compiler_fence(SeqCst);
+
+        self.0
+            .address
+            .write(|w| unsafe { w.address().bits(address) });
+
+        // Set up the DMA write.
+        unsafe { self.set_tx_buffer(buffer)? };
 
         // Clear address NACK.
         self.0.errorsrc.write(|w| w.anack().bit(true));
@@ -176,13 +221,6 @@ where
     /// The buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
     pub fn read(&mut self, address: u8, buffer: &mut [u8]) -> Result<(), Error> {
-        // NOTE: RAM slice check is not necessary, as a mutable slice can only be
-        // built from data located in RAM.
-
-        if buffer.len() > EASY_DMA_SIZE {
-            return Err(Error::RxBufferTooLong);
-        }
-
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
         // before any DMA action has started.
@@ -193,25 +231,7 @@ where
             .write(|w| unsafe { w.address().bits(address) });
 
         // Set up the DMA read.
-        self.0.rxd.ptr.write(|w|
-            // We're giving the register a pointer to the stack. Since we're
-            // waiting for the I2C transaction to end before this stack pointer
-            // becomes invalid, there's nothing wrong here.
-            //
-            // The PTR field is a full 32 bits wide and accepts the full range
-            // of values.
-            unsafe { w.ptr().bits(buffer.as_mut_ptr() as u32) });
-        self.0.rxd.maxcnt.write(|w|
-            // We're giving it the length of the buffer, so no danger of
-            // accessing invalid memory. We have verified that the length of the
-            // buffer fits in an `u8`, so the cast to the type of maxcnt
-            // is also fine.
-            //
-            // Note that that nrf52840 maxcnt is a wider
-            // type than a u8, so we use a `_` cast rather than a `u8` cast.
-            // The MAXCNT field is thus at least 8 bits wide and accepts the
-            // full range of values that fit in a `u8`.
-            unsafe { w.maxcnt().bits(buffer.len() as _) });
+        unsafe { self.set_rx_buffer(buffer)? };
 
         // Clear address NACK.
         self.0.errorsrc.write(|w| w.anack().bit(true));
@@ -263,18 +283,6 @@ where
         wr_buffer: &[u8],
         rd_buffer: &mut [u8],
     ) -> Result<(), Error> {
-        // NOTE: RAM slice check for `rd_buffer` is not necessary, as a mutable
-        // slice can only be built from data located in RAM.
-        slice_in_ram_or(wr_buffer, Error::DMABufferNotInDataMemory)?;
-
-        if wr_buffer.len() > EASY_DMA_SIZE {
-            return Err(Error::TxBufferTooLong);
-        }
-
-        if rd_buffer.len() > EASY_DMA_SIZE {
-            return Err(Error::RxBufferTooLong);
-        }
-
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
         // before any DMA action has started.
@@ -284,44 +292,11 @@ where
             .address
             .write(|w| unsafe { w.address().bits(address) });
 
-        // Set up the DMA write.
-        self.0.txd.ptr.write(|w|
-            // We're giving the register a pointer to the stack. Since we're
-            // waiting for the I2C transaction to end before this stack pointer
-            // becomes invalid, there's nothing wrong here.
-            //
-            // The PTR field is a full 32 bits wide and accepts the full range
-            // of values.
-            unsafe { w.ptr().bits(wr_buffer.as_ptr() as u32) });
-        self.0.txd.maxcnt.write(|w|
-            // We're giving it the length of the buffer, so no danger of
-            // accessing invalid memory. We have verified that the length of the
-            // buffer fits in an `u8`, so the cast to `u8` is also fine.
-            //
-            // The MAXCNT field is 8 bits wide and accepts the full range of
-            // values.
-            unsafe { w.maxcnt().bits(wr_buffer.len() as _) });
-
-        // Set up the DMA read.
-        self.0.rxd.ptr.write(|w|
-            // We're giving the register a pointer to the stack. Since we're
-            // waiting for the I2C transaction to end before this stack pointer
-            // becomes invalid, there's nothing wrong here.
-            //
-            // The PTR field is a full 32 bits wide and accepts the full range
-            // of values.
-            unsafe { w.ptr().bits(rd_buffer.as_mut_ptr() as u32) });
-        self.0.rxd.maxcnt.write(|w|
-            // We're giving it the length of the buffer, so no danger of
-            // accessing invalid memory. We have verified that the length of the
-            // buffer fits in an `u8`, so the cast to the type of maxcnt
-            // is also fine.
-            //
-            // Note that that nrf52840 maxcnt is a wider
-            // type than a u8, so we use a `_` cast rather than a `u8` cast.
-            // The MAXCNT field is thus at least 8 bits wide and accepts the
-            // full range of values that fit in a `u8`.
-            unsafe { w.maxcnt().bits(rd_buffer.len() as _) });
+        // Set up DMA buffers.
+        unsafe {
+            self.set_tx_buffer(wr_buffer)?;
+            self.set_rx_buffer(rd_buffer)?;
+        }
 
         // Clear address NACK.
         self.0.errorsrc.write(|w| w.anack().bit(true));
@@ -395,10 +370,6 @@ where
         tx_buffer: &[u8],
         rx_buffer: &mut [u8],
     ) -> Result<(), Error> {
-        if rx_buffer.len() > EASY_DMA_SIZE {
-            return Err(Error::RxBufferTooLong);
-        }
-
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
         // before any DMA action has started.
@@ -409,25 +380,7 @@ where
             .write(|w| unsafe { w.address().bits(address) });
 
         // Set up the DMA read.
-        self.0.rxd.ptr.write(|w|
-            // We're giving the register a pointer to the stack. Since we're
-            // waiting for the I2C transaction to end before this stack pointer
-            // becomes invalid, there's nothing wrong here.
-            //
-            // The PTR field is a full 32 bits wide and accepts the full range
-            // of values.
-            unsafe { w.ptr().bits(rx_buffer.as_mut_ptr() as u32) });
-        self.0.rxd.maxcnt.write(|w|
-            // We're giving it the length of the buffer, so no danger of
-            // accessing invalid memory. We have verified that the length of the
-            // buffer fits in an `u8`, so the cast to the type of maxcnt
-            // is also fine.
-            //
-            // Note that that nrf52840 maxcnt is a wider
-            // type than a u8, so we use a `_` cast rather than a `u8` cast.
-            // The MAXCNT field is thus at least 8 bits wide and accepts the
-            // full range of values that fit in a `u8`.
-            unsafe { w.maxcnt().bits(rx_buffer.len() as _) });
+        unsafe { self.set_rx_buffer(rx_buffer)? };
 
         // Chunk write data.
         let wr_buffer = &mut [0; FORCE_COPY_BUFFER_SIZE][..];
@@ -436,23 +389,7 @@ where
             wr_buffer[..chunk.len()].copy_from_slice(chunk);
 
             // Set up the DMA write.
-            self.0.txd.ptr.write(|w|
-                // We're giving the register a pointer to the stack. Since we're
-                // waiting for the I2C transaction to end before this stack pointer
-                // becomes invalid, there's nothing wrong here.
-                //
-                // The PTR field is a full 32 bits wide and accepts the full range
-                // of values.
-                unsafe { w.ptr().bits(wr_buffer.as_ptr() as u32) });
-
-            self.0.txd.maxcnt.write(|w|
-                // We're giving it the length of the buffer, so no danger of
-                // accessing invalid memory. We have verified that the length of the
-                // buffer fits in an `u8`, so the cast to `u8` is also fine.
-                //
-                // The MAXCNT field is 8 bits wide and accepts the full range of
-                // values.
-                unsafe { w.maxcnt().bits(wr_buffer.len() as _) });
+            unsafe { self.set_tx_buffer(wr_buffer)? };
 
             // Start write operation.
             self.0.tasks_starttx.write(|w|
@@ -572,6 +509,8 @@ pub struct Pins {
 pub enum Error {
     TxBufferTooLong,
     RxBufferTooLong,
+    TxBufferZeroLength,
+    RxBufferZeroLength,
     Transmit,
     Receive,
     DMABufferNotInDataMemory,
