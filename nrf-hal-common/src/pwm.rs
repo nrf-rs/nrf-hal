@@ -461,9 +461,7 @@ where
         self
     }
 
-    /// Loads a sequence buffer.
-    /// NOTE: `buf` must live until the sequence is done playing, or it might play a corrupted sequence.
-    pub fn load_seq<B>(&self, seq: Seq, buf: B) -> Result<(), Error>
+    fn load_seq<B>(&self, seq: Seq, buf: B) -> Result<(), Error>
     where
         B: ReadBuffer<Word = u16> + 'static,
     {
@@ -1094,19 +1092,28 @@ pub enum Error {
 
 pub trait Instance: private::Sealed + Deref<Target = crate::pac::pwm0::RegisterBlock> {
     const INTERRUPT: Interrupt;
+
+    /// Provides access to the associated internal duty buffer for the instance.
     fn buffer() -> &'static mut Cell<[u16; 4]>;
 }
 
+// Internal static duty buffers. One per instance.
 static mut BUF0: Cell<[u16; 4]> = Cell::new([0; 4]);
+#[cfg(not(any(feature = "52810", feature = "52811")))]
+static mut BUF1: Cell<[u16; 4]> = Cell::new([0; 4]);
+#[cfg(not(any(feature = "52810", feature = "52811")))]
+static mut BUF2: Cell<[u16; 4]> = Cell::new([0; 4]);
+#[cfg(not(any(feature = "52810", feature = "52811", feature = "52832")))]
+static mut BUF3: Cell<[u16; 4]> = Cell::new([0; 4]);
+
 impl Instance for PWM0 {
     const INTERRUPT: Interrupt = Interrupt::PWM0;
+    #[inline(always)]
     fn buffer() -> &'static mut Cell<[u16; 4]> {
         unsafe { &mut BUF0 }
     }
 }
 
-#[cfg(not(any(feature = "52810", feature = "52811")))]
-static mut BUF1: Cell<[u16; 4]> = Cell::new([0; 4]);
 #[cfg(not(any(feature = "52810", feature = "52811")))]
 impl Instance for PWM1 {
     const INTERRUPT: Interrupt = Interrupt::PWM1;
@@ -1116,8 +1123,6 @@ impl Instance for PWM1 {
 }
 
 #[cfg(not(any(feature = "52810", feature = "52811")))]
-static mut BUF2: Cell<[u16; 4]> = Cell::new([0; 4]);
-#[cfg(not(any(feature = "52810", feature = "52811")))]
 impl Instance for PWM2 {
     const INTERRUPT: Interrupt = Interrupt::PWM2;
     fn buffer() -> &'static mut Cell<[u16; 4]> {
@@ -1125,8 +1130,6 @@ impl Instance for PWM2 {
     }
 }
 
-#[cfg(not(any(feature = "52810", feature = "52811", feature = "52832")))]
-static mut BUF3: Cell<[u16; 4]> = Cell::new([0; 4]);
 #[cfg(not(any(feature = "52810", feature = "52811", feature = "52832")))]
 impl Instance for PWM3 {
     const INTERRUPT: Interrupt = Interrupt::PWM3;

@@ -42,7 +42,6 @@ const APP: () = {
         btn2: Pin<Input<PullUp>>,
         btn3: Pin<Input<PullUp>>,
         btn4: Pin<Input<PullUp>>,
-        // pwm: Pwm<PWM0>,
         #[init(AppStatus::Idle)]
         status: AppStatus,
         pwm: Option<PwmSeq<PWM0, SeqBuffer, SeqBuffer>>,
@@ -98,7 +97,7 @@ const APP: () = {
     fn idle(_: idle::Context) -> ! {
         rprintln!("Press a button to start a demo");
         loop {
-            cortex_m::asm::nop();
+            cortex_m::asm::wfi();
         }
     }
 
