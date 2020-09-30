@@ -377,7 +377,7 @@ where
         T::buffer().get_mut()[usize::from(channel)] = duty.min(self.max_duty()) & 0x7FFF;
         self.one_shot();
         self.set_load_mode(LoadMode::Individual);
-        if self.load_seq(Seq::Seq0, &T::buffer().get()).is_ok() {
+        if self.load_seq(Seq::Seq0, T::buffer().get_mut()).is_ok() {
             self.start_seq(Seq::Seq0);
         }
     }
@@ -389,7 +389,7 @@ where
         T::buffer().get_mut()[usize::from(channel)] = duty.min(self.max_duty()) | 0x8000;
         self.one_shot();
         self.set_load_mode(LoadMode::Individual);
-        if self.load_seq(Seq::Seq0, &T::buffer().get()).is_ok() {
+        if self.load_seq(Seq::Seq0, T::buffer().get_mut()).is_ok() {
             self.start_seq(Seq::Seq0);
         }
     }
@@ -465,7 +465,7 @@ where
     /// NOTE: `buf` must live until the sequence is done playing, or it might play a corrupted sequence.
     pub fn load_seq<B>(&self, seq: Seq, buf: B) -> Result<(), Error>
     where
-        B: ReadBuffer<Word = u16>,
+        B: ReadBuffer<Word = u16> + 'static,
     {
         let (ptr, len) = unsafe { buf.read_buffer() };
         if (ptr as usize) < SRAM_LOWER || (ptr as usize) > SRAM_UPPER {
@@ -518,6 +518,94 @@ where
         compiler_fence(Ordering::SeqCst);
         self.pwm.tasks_stop.write(|w| w.tasks_stop().set_bit());
         while self.pwm.events_stopped.read().bits() == 0 {}
+    }
+
+    /// Loads the given sequence buffers and optionally (re-)starts sequence playback.
+    /// Returns a `PemSeq`, containing `Pwm<T>` and the buffers.
+    #[allow(unused_mut)]
+    pub fn load<B0, B1>(
+        mut self,
+        seq0_buffer: Option<B0>,
+        seq1_buffer: Option<B1>,
+        start: bool,
+    ) -> Result<PwmSeq<T, B0, B1>, (Error, Pwm<T>, Option<B0>, Option<B1>)>
+    where
+        B0: ReadBuffer<Word = u16> + 'static,
+        B1: ReadBuffer<Word = u16> + 'static,
+    {
+        self.pwm.seq0.cnt.write(|w| unsafe { w.bits(0) });
+        self.pwm.seq1.cnt.write(|w| unsafe { w.bits(0) });
+
+        if let Some(buf) = &seq0_buffer {
+            let (ptr, len) = unsafe { buf.read_buffer() };
+            if (ptr as usize) < SRAM_LOWER || (ptr as usize) > SRAM_UPPER {
+                return Err((
+                    Error::DMABufferNotInDataMemory,
+                    self,
+                    seq0_buffer,
+                    seq1_buffer,
+                ));
+            }
+            if len > (1 << 15) / core::mem::size_of::<u16>() {
+                return Err((Error::BufferTooLong, self, seq0_buffer, seq1_buffer));
+            }
+            compiler_fence(Ordering::SeqCst);
+
+            self.pwm.seq0.ptr.write(|w| unsafe { w.bits(ptr as u32) });
+            self.pwm.seq0.cnt.write(|w| unsafe { w.bits(len as u32) });
+            if start {
+                self.start_seq(Seq::Seq0);
+            }
+        }
+        if let Some(buf) = &seq1_buffer {
+            let (ptr, len) = unsafe { buf.read_buffer() };
+            if (ptr as usize) < SRAM_LOWER || (ptr as usize) > SRAM_UPPER {
+                return Err((
+                    Error::DMABufferNotInDataMemory,
+                    self,
+                    seq0_buffer,
+                    seq1_buffer,
+                ));
+            }
+            if len > (1 << 15) / core::mem::size_of::<u16>() {
+                return Err((Error::BufferTooLong, self, seq0_buffer, seq1_buffer));
+            }
+            compiler_fence(Ordering::SeqCst);
+
+            self.pwm.seq1.ptr.write(|w| unsafe { w.bits(ptr as u32) });
+            self.pwm.seq1.cnt.write(|w| unsafe { w.bits(len as u32) });
+            if start {
+                self.start_seq(Seq::Seq1);
+            }
+        }
+
+        Ok(PwmSeq {
+            inner: Some(Inner {
+                seq0_buffer,
+                seq1_buffer,
+                pwm: self,
+            }),
+        })
+    }
+
+    /// Wraps `Pwm<T>` and the given sequence buffers in a `PwmSeq`, without loading the buffers.
+    #[allow(unused_mut)]
+    pub fn wrap<B0, B1>(
+        mut self,
+        seq0_buffer: Option<B0>,
+        seq1_buffer: Option<B1>,
+    ) -> PwmSeq<T, B0, B1>
+    where
+        B0: ReadBuffer<Word = u16> + 'static,
+        B1: ReadBuffer<Word = u16> + 'static,
+    {
+        PwmSeq {
+            inner: Some(Inner {
+                seq0_buffer,
+                seq1_buffer,
+                pwm: self,
+            }),
+        }
     }
 
     /// Enables interrupt triggering on the specified event.
@@ -672,6 +760,56 @@ where
     /// Consumes `self` and returns back the raw peripheral.
     pub fn free(self) -> T {
         self.pwm
+    }
+}
+
+/// A Pwm sequence wrapper
+#[derive(Debug)]
+pub struct PwmSeq<T: Instance, B0, B1> {
+    inner: Option<Inner<T, B0, B1>>,
+}
+
+#[derive(Debug)]
+struct Inner<T: Instance, B0, B1> {
+    seq0_buffer: Option<B0>,
+    seq1_buffer: Option<B1>,
+    pwm: Pwm<T>,
+}
+
+impl<T: Instance, B0, B1> PwmSeq<T, B0, B1>
+where
+    B0: ReadBuffer<Word = u16> + 'static,
+    B1: ReadBuffer<Word = u16> + 'static,
+{
+    /// Returns the wrapped contents.
+    #[inline(always)]
+    pub fn split(mut self) -> (Option<B0>, Option<B1>, Pwm<T>) {
+        compiler_fence(Ordering::SeqCst);
+        let inner = self
+            .inner
+            .take()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        (inner.seq0_buffer, inner.seq1_buffer, inner.pwm)
+    }
+
+    /// Stops PWM generation.
+    #[inline(always)]
+    pub fn stop(&self) {
+        let inner = self
+            .inner
+            .as_ref()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        inner.pwm.stop();
+    }
+
+    // Starts playing the given sequence.
+    #[inline(always)]
+    pub fn start_seq(&self, seq: Seq) {
+        let inner = self
+            .inner
+            .as_ref()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        inner.pwm.start_seq(seq);
     }
 }
 
