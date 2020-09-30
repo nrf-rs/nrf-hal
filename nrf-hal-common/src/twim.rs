@@ -350,79 +350,26 @@ where
     /// Copy data into RAM and write to an I2C slave, then read data from the slave without
     /// triggering a stop condition between the two.
     ///
+    /// The write buffer must have a length of at most 255 bytes on the nRF52832
+    /// and at most 1024 bytes on the nRF52840.
+    ///
     /// The read buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
     pub fn copy_write_then_read(
         &mut self,
         address: u8,
-        tx_buffer: &[u8],
-        rx_buffer: &mut [u8],
+        wr_buffer: &[u8],
+        rd_buffer: &mut [u8],
     ) -> Result<(), Error> {
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started.
-        compiler_fence(SeqCst);
-
-        self.0
-            .address
-            .write(|w| unsafe { w.address().bits(address) });
-
-        // Set up the DMA read.
-        unsafe { self.set_rx_buffer(rx_buffer)? };
-
-        // Chunk write data.
-        let wr_buffer = &mut [0; FORCE_COPY_BUFFER_SIZE][..];
-        for chunk in tx_buffer.chunks(FORCE_COPY_BUFFER_SIZE) {
-            // Copy chunk into RAM.
-            wr_buffer[..chunk.len()].copy_from_slice(chunk);
-
-            // Set up the DMA write.
-            unsafe { self.set_tx_buffer(wr_buffer)? };
-
-            // Start write operation.
-            self.0.tasks_starttx.write(|w|
-                // `1` is a valid value to write to task registers.
-                unsafe { w.bits(1) });
-
-            // Wait until write operation is about to end.
-            while self.0.events_lasttx.read().bits() == 0 {}
-            self.0.events_lasttx.reset();
-
-            // Check for bad writes.
-            if self.0.txd.amount.read().bits() != wr_buffer.len() as u32 {
-                return Err(Error::Transmit);
-            }
+        if wr_buffer.len() > FORCE_COPY_BUFFER_SIZE {
+            return Err(Error::TxBufferTooLong);
         }
 
-        // Start read operation.
-        self.0.tasks_startrx.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) });
+        // Copy to RAM
+        let wr_ram_buffer = &mut [0; FORCE_COPY_BUFFER_SIZE][..wr_buffer.len()];
+        wr_ram_buffer.copy_from_slice(wr_buffer);
 
-        // Wait until read operation is about to end.
-        while self.0.events_lastrx.read().bits() == 0 {}
-        self.0.events_lastrx.reset();
-
-        // Stop read operation.
-        self.0.tasks_stop.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) });
-
-        // Wait until total operation has ended.
-        while self.0.events_stopped.read().bits() == 0 {}
-        self.0.events_stopped.reset();
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed.
-        compiler_fence(SeqCst);
-
-        // Check for bad reads.
-        if self.0.rxd.amount.read().bits() != rx_buffer.len() as u32 {
-            return Err(Error::Receive);
-        }
-
-        Ok(())
+        self.write_then_read(address, wr_ram_buffer, rd_buffer)
     }
 
     /// Return the raw interface to the underlying TWIM peripheral.
