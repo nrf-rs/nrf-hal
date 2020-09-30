@@ -160,6 +160,41 @@ where
         Ok(())
     }
 
+    fn clear_errorsrc(&mut self) {
+        self.0
+            .errorsrc
+            .write(|w| w.anack().bit(true).dnack().bit(true).overrun().bit(true));
+    }
+
+    /// Get Error instance, if any occurred.
+    fn read_errorsrc(&self) -> Result<(), Error> {
+        let err = self.0.errorsrc.read();
+        if err.anack().is_received() {
+            return Err(Error::AddressNack);
+        }
+        if err.dnack().is_received() {
+            return Err(Error::DataNack);
+        }
+        if err.overrun().is_received() {
+            return Err(Error::DataNack);
+        }
+        Ok(())
+    }
+
+    /// Wait for stop or error
+    fn wait(&mut self) {
+        loop {
+            if self.0.events_stopped.read().bits() != 0 {
+                self.0.events_stopped.reset();
+                break;
+            }
+            if self.0.events_error.read().bits() != 0 {
+                self.0.events_error.reset();
+                self.0.tasks_stop.write(|w| unsafe { w.bits(1) });
+            }
+        }
+    }
+
     /// Write to an I2C slave.
     ///
     /// The buffer must have a length of at most 255 bytes on the nRF52832
@@ -177,37 +212,26 @@ where
         // Set up the DMA write.
         unsafe { self.set_tx_buffer(buffer)? };
 
-        // Clear address NACK.
-        self.0.errorsrc.write(|w| w.anack().bit(true));
+        // Clear events
+        self.0.events_stopped.reset();
+        self.0.events_error.reset();
+        self.0.events_lasttx.reset();
+        self.clear_errorsrc();
 
         // Start write operation.
+        self.0.shorts.write(|w| w.lasttx_stop().enabled());
         self.0.tasks_starttx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
-        // Wait until write operation is about to end.
-        while self.0.events_lasttx.read().bits() == 0
-            && self.0.errorsrc.read().anack().is_not_received()
-        {}
-        self.0.events_lasttx.write(|w| w); // reset event
-
-        // Stop write operation.
-        self.0.tasks_stop.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) });
-
-        // Wait until write operation has ended.
-        while self.0.events_stopped.read().bits() == 0 {}
-        self.0.events_stopped.write(|w| w); // reset event
+        self.wait();
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
         // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
 
-        if self.0.errorsrc.read().anack().is_received() {
-            return Err(Error::AddressNack);
-        }
+        self.read_errorsrc()?;
 
         if self.0.txd.amount.read().bits() != buffer.len() as u32 {
             return Err(Error::Transmit);
@@ -233,37 +257,25 @@ where
         // Set up the DMA read.
         unsafe { self.set_rx_buffer(buffer)? };
 
-        // Clear address NACK.
-        self.0.errorsrc.write(|w| w.anack().bit(true));
+        // Clear events
+        self.0.events_stopped.reset();
+        self.0.events_error.reset();
+        self.clear_errorsrc();
 
         // Start read operation.
+        self.0.shorts.write(|w| w.lastrx_stop().enabled());
         self.0.tasks_startrx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
-        // Wait until read operation is about to end.
-        while self.0.events_lastrx.read().bits() == 0
-            && self.0.errorsrc.read().anack().is_not_received()
-        {}
-        self.0.events_lastrx.write(|w| w); // reset event
-
-        // Stop read operation.
-        self.0.tasks_stop.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) });
-
-        // Wait until read operation has ended.
-        while self.0.events_stopped.read().bits() == 0 {}
-        self.0.events_stopped.write(|w| w); // reset event
+        self.wait();
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
         // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
 
-        if self.0.errorsrc.read().anack().is_received() {
-            return Err(Error::AddressNack);
-        }
+        self.read_errorsrc()?;
 
         if self.0.rxd.amount.read().bits() != buffer.len() as u32 {
             return Err(Error::Receive);
@@ -298,52 +310,28 @@ where
             self.set_rx_buffer(rd_buffer)?;
         }
 
-        // Clear address NACK.
-        self.0.errorsrc.write(|w| w.anack().bit(true));
+        // Clear events
+        self.0.events_stopped.reset();
+        self.0.events_error.reset();
+        self.clear_errorsrc();
 
-        // Start write operation.
+        // Start write+read operation.
+        self.0.shorts.write(|w| {
+            w.lasttx_startrx().enabled();
+            w.lastrx_stop().enabled();
+            w
+        });
         // `1` is a valid value to write to task registers.
         self.0.tasks_starttx.write(|w| unsafe { w.bits(1) });
 
-        // Wait until write operation is about to end.
-        while self.0.events_lasttx.read().bits() == 0
-            && self.0.errorsrc.read().anack().is_not_received()
-        {}
-        self.0.events_lasttx.write(|w| w); // reset event
-
-        // Stop operation if address is NACK.
-        if self.0.errorsrc.read().anack().is_received() {
-            // `1` is a valid value to write to task registers.
-            self.0.tasks_stop.write(|w| unsafe { w.bits(1) });
-            // Wait until operation is stopped
-            while self.0.events_stopped.read().bits() == 0 {}
-            self.0.events_stopped.write(|w| w); // reset event
-            return Err(Error::AddressNack);
-        }
-
-        // Start read operation.
-        // `1` is a valid value to write to task registers.
-        self.0.tasks_startrx.write(|w| unsafe { w.bits(1) });
-
-        // Wait until read operation is about to end.
-        while self.0.events_lastrx.read().bits() == 0 {}
-        self.0.events_lastrx.write(|w| w); // reset event
-
-        // Stop read operation.
-        // `1` is a valid value to write to task registers.
-        self.0.tasks_stop.write(|w| unsafe { w.bits(1) });
-
-        // Wait until total operation has ended.
-        while self.0.events_stopped.read().bits() == 0 {}
-
-        self.0.events_lasttx.write(|w| w); // reset event
-        self.0.events_lastrx.write(|w| w); // reset event
-        self.0.events_stopped.write(|w| w); // reset event
+        self.wait();
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
         // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
+
+        self.read_errorsrc()?;
 
         let bad_write = self.0.txd.amount.read().bits() != wr_buffer.len() as u32;
         let bad_read = self.0.rxd.amount.read().bits() != rd_buffer.len() as u32;
@@ -398,7 +386,7 @@ where
 
             // Wait until write operation is about to end.
             while self.0.events_lasttx.read().bits() == 0 {}
-            self.0.events_lasttx.write(|w| w); // reset event
+            self.0.events_lasttx.reset();
 
             // Check for bad writes.
             if self.0.txd.amount.read().bits() != wr_buffer.len() as u32 {
@@ -413,7 +401,7 @@ where
 
         // Wait until read operation is about to end.
         while self.0.events_lastrx.read().bits() == 0 {}
-        self.0.events_lastrx.write(|w| w); // reset event
+        self.0.events_lastrx.reset();
 
         // Stop read operation.
         self.0.tasks_stop.write(|w|
@@ -422,7 +410,7 @@ where
 
         // Wait until total operation has ended.
         while self.0.events_stopped.read().bits() == 0 {}
-        self.0.events_stopped.write(|w| w); // reset event
+        self.0.events_stopped.reset();
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
@@ -515,6 +503,8 @@ pub enum Error {
     Receive,
     DMABufferNotInDataMemory,
     AddressNack,
+    DataNack,
+    Overrun,
 }
 
 /// Implemented by all TWIM instances
