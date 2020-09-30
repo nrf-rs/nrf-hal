@@ -568,7 +568,7 @@ pub struct Pins {
     pub sda: Pin<Input<Floating>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Error {
     TxBufferTooLong,
     RxBufferTooLong,
