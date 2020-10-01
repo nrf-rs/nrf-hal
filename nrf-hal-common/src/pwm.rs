@@ -531,9 +531,6 @@ where
         B0: ReadBuffer<Word = u16> + 'static,
         B1: ReadBuffer<Word = u16> + 'static,
     {
-        self.pwm.seq0.cnt.write(|w| unsafe { w.bits(0) });
-        self.pwm.seq1.cnt.write(|w| unsafe { w.bits(0) });
-
         if let Some(buf) = &seq0_buffer {
             let (ptr, len) = unsafe { buf.read_buffer() };
             if (ptr as usize) < SRAM_LOWER || (ptr as usize) > SRAM_UPPER {
@@ -548,13 +545,15 @@ where
                 return Err((Error::BufferTooLong, self, seq0_buffer, seq1_buffer));
             }
             compiler_fence(Ordering::SeqCst);
-
             self.pwm.seq0.ptr.write(|w| unsafe { w.bits(ptr as u32) });
             self.pwm.seq0.cnt.write(|w| unsafe { w.bits(len as u32) });
             if start {
                 self.start_seq(Seq::Seq0);
             }
+        } else {
+            self.pwm.seq0.cnt.write(|w| unsafe { w.bits(0) });
         }
+
         if let Some(buf) = &seq1_buffer {
             let (ptr, len) = unsafe { buf.read_buffer() };
             if (ptr as usize) < SRAM_LOWER || (ptr as usize) > SRAM_UPPER {
@@ -569,12 +568,13 @@ where
                 return Err((Error::BufferTooLong, self, seq0_buffer, seq1_buffer));
             }
             compiler_fence(Ordering::SeqCst);
-
             self.pwm.seq1.ptr.write(|w| unsafe { w.bits(ptr as u32) });
             self.pwm.seq1.cnt.write(|w| unsafe { w.bits(len as u32) });
             if start {
                 self.start_seq(Seq::Seq1);
             }
+        } else {
+            self.pwm.seq1.cnt.write(|w| unsafe { w.bits(0) });
         }
 
         Ok(PwmSeq {
