@@ -218,7 +218,7 @@ const APP: () = {
                         pwm.stop();
                         *status = AppStatus::Idle;
                     }
-                    ctx.resources.pwm.replace(pwm.wrap(Some(BUF0), Some(BUF1)));
+                    *ctx.resources.pwm = pwm.load(Some(BUF0), Some(BUF1), false).ok();
                 }
                 _ => {
                     rprintln!("DEMO 3: Manually step through sequence");

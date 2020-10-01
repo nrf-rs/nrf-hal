@@ -586,26 +586,6 @@ where
         })
     }
 
-    /// Wraps `Pwm<T>` and the given sequence buffers in a `PwmSeq`, without loading the buffers.
-    #[allow(unused_mut)]
-    pub fn wrap<B0, B1>(
-        mut self,
-        seq0_buffer: Option<B0>,
-        seq1_buffer: Option<B1>,
-    ) -> PwmSeq<T, B0, B1>
-    where
-        B0: ReadBuffer<Word = u16> + 'static,
-        B1: ReadBuffer<Word = u16> + 'static,
-    {
-        PwmSeq {
-            inner: Some(Inner {
-                seq0_buffer,
-                seq1_buffer,
-                pwm: self,
-            }),
-        }
-    }
-
     /// Enables interrupt triggering on the specified event.
     #[inline(always)]
     pub fn enable_interrupt(&self, event: PwmEvent) -> &Self {
