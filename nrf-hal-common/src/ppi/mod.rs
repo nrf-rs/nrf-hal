@@ -82,7 +82,7 @@ pub trait Ppi {
 }
 
 /// Traits that extends the [Ppi](trait.Ppi.html) trait, marking a channel as fully configurable.
-pub trait ConfigurablePpi {
+pub trait ConfigurablePpi: Ppi {
     /// Sets the task that must be triggered when the configured event occurs. The user must provide
     /// a reference to the task.
     fn set_task_endpoint<T: Task>(&mut self, task: &T);
