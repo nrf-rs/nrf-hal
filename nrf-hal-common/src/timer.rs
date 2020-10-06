@@ -502,8 +502,8 @@ impl Instance for TIMER4 {
     }
 }
 
-#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 /// Adds task- and event PPI endpoint getters for CC[4] and CC[5] on supported instances.
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 pub trait ExtendedCCTimer {
     fn task_capture_cc4(&self) -> &Reg<u32, TasksCapture3>;
     fn task_capture_cc5(&self) -> &Reg<u32, TasksCapture3>;
