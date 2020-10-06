@@ -211,6 +211,8 @@ where
             // safe. Please refer to the explanation there.
             unsafe { w.maxcnt().bits(rx.len as _) });
 
+        self.periph.events_end.write(|w| w);
+
         // Start SPI transaction.
         self.periph.tasks_start.write(|w|
             // `1` is a valid value to write to task registers.
@@ -515,7 +517,7 @@ where
         let mut inner = self
             .inner
             .take()
-            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+            .unwrap();
 
         while !inner.spim.is_spi_dma_transfer_complete() {}
 
@@ -537,7 +539,7 @@ where
         let inner = self
             .inner
             .as_mut()
-            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+            .unwrap();
         inner.spim.is_spi_dma_transfer_complete()
     }
 }

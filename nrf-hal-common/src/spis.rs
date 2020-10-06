@@ -327,6 +327,7 @@ where
     where
         B: WriteBuffer<Word = W>,
     {
+        self.reset_events();
         let (ptr, len) = unsafe { buffer.write_buffer() };
         let maxcnt = len * core::mem::size_of::<W>();
         if maxcnt > EASY_DMA_SIZE {
@@ -371,6 +372,7 @@ where
         TxB: ReadBuffer<Word = TxW>,
         RxB: WriteBuffer<Word = RxW>,
     {
+        self.reset_events();
         let (rx_ptr, rx_len) = unsafe { rx_buffer.write_buffer() };
         let (tx_ptr, tx_len) = unsafe { tx_buffer.read_buffer() };
         let rx_maxcnt = rx_len * core::mem::size_of::<RxW>();
@@ -432,7 +434,7 @@ impl<T: Instance, B> Transfer<T, B> {
         let inner = self
             .inner
             .take()
-            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+            .unwrap();
         while !inner.spis.is_done() {}
         inner.spis.acquire();
         (inner.buffer, inner.spis)
@@ -443,7 +445,7 @@ impl<T: Instance, B> Transfer<T, B> {
         let inner = self
             .inner
             .take()
-            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+            .unwrap();
         inner.spis.disable();
         (inner.buffer, inner.spis)
     }
@@ -454,8 +456,16 @@ impl<T: Instance, B> Transfer<T, B> {
         let inner = self
             .inner
             .as_mut()
-            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+            .unwrap();
         inner.spis.is_done()
+    }
+
+    pub fn is_acquired(&mut self) -> bool {
+        let inner = self
+            .inner
+            .as_mut()
+            .unwrap();
+        inner.spis.semaphore_status() == SemaphoreStatus::CPU
     }
 }
 
@@ -485,7 +495,7 @@ impl<T: Instance, TxB, RxB> TransferSplit<T, TxB, RxB> {
         let inner = self
             .inner
             .take()
-            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+            .unwrap();
         while !inner.spis.is_done() {}
         inner.spis.acquire();
         (inner.tx_buffer, inner.rx_buffer, inner.spis)
@@ -496,7 +506,7 @@ impl<T: Instance, TxB, RxB> TransferSplit<T, TxB, RxB> {
         let inner = self
             .inner
             .take()
-            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+            .unwrap();
         inner.spis.disable();
         (inner.tx_buffer, inner.rx_buffer, inner.spis)
     }
@@ -507,8 +517,16 @@ impl<T: Instance, TxB, RxB> TransferSplit<T, TxB, RxB> {
         let inner = self
             .inner
             .as_mut()
-            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+            .unwrap();
         inner.spis.is_done()
+    }
+
+    pub fn is_acquired(&mut self) -> bool {
+        let inner = self
+            .inner
+            .as_mut()
+            .unwrap();
+        inner.spis.semaphore_status() == SemaphoreStatus::CPU
     }
 }
 
