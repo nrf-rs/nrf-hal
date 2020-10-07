@@ -236,6 +236,20 @@ impl<MODE> Pin<MODE> {
 
         pin
     }
+
+    /// Disconnects the pin.
+    ///
+    /// In disconnected mode the pin cannot be used as input or output.
+    /// It is primarily useful to reduce power usage.
+    pub fn into_disconnected(self) -> Pin<Disconnected> {
+        // Reset value is disconnected.
+        self.block().pin_cnf[self.pin() as usize].reset();
+
+        Pin {
+            _mode: PhantomData,
+            pin_port: self.pin_port,
+        }
+    }
 }
 
 impl<MODE> InputPin for Pin<Input<MODE>> {
@@ -487,6 +501,19 @@ macro_rules! gpio {
                         });
 
                         pin
+                    }
+
+                    /// Disconnects the pin.
+                    ///
+                    /// In disconnected mode the pin cannot be used as input or output.
+                    /// It is primarily useful to reduce power usage.
+                    pub fn into_disconnected(self) -> $PXi<Disconnected> {
+                        // Reset value is disconnected.
+                        unsafe { &(*$PX::ptr()).pin_cnf[$i] }.reset();
+
+                        $PXi {
+                            _mode: PhantomData,
+                        }
                     }
 
                     /// Degrade to a generic pin struct, which can be used with peripherals
