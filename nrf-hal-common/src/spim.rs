@@ -211,7 +211,7 @@ where
             // safe. Please refer to the explanation there.
             unsafe { w.maxcnt().bits(rx.len as _) });
 
-        self.periph.events_end.write(|w| w);
+        self.periph.events_end.write(|w| w.events_end().clear_bit());
 
         // Start SPI transaction.
         self.periph.tasks_start.write(|w|
@@ -231,7 +231,7 @@ where
 
     fn complete_spi_dma_transfer(&mut self, tx: &DmaSlice, rx: &DmaSlice) -> Result<(usize, usize), Error> {
         // Reset the event, otherwise it will always read `1` from now on.
-        self.periph.events_end.write(|w| w);
+        self.periph.events_end.write(|w| w.events_end().clear_bit());
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,

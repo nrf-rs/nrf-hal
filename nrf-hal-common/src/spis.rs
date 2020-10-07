@@ -155,6 +155,7 @@ where
     #[inline(always)]
     pub fn disable(&self) -> &Self {
         self.spis.enable.write(|w| w.enable().disabled());
+        self.reset_events();
         self
     }
 
@@ -162,9 +163,21 @@ where
     #[inline(always)]
     pub fn acquire(&self) -> &Self {
         compiler_fence(Ordering::SeqCst);
-        self.spis.tasks_acquire.write(|w| unsafe { w.bits(1) });
-        while self.spis.events_acquired.read().bits() == 0 {}
-        self
+
+        match self.semaphore_status() {
+            SemaphoreStatus::Free | SemaphoreStatus::SPIS => {
+                self.spis.tasks_acquire.write(|w| unsafe { w.bits(1) });
+                while self.spis.events_acquired.read().bits() == 0 {}
+                self
+            }
+            SemaphoreStatus::CPUPending => {
+                while self.spis.events_acquired.read().bits() == 0 {}
+                self
+            }
+            SemaphoreStatus::CPU => {
+                self
+            }
+        }
     }
 
     /// Requests acquiring the SPIS semaphore, returning an error if not
@@ -175,12 +188,23 @@ where
     #[inline(always)]
     pub fn try_acquire(&self) -> Result<&Self, Error> {
         compiler_fence(Ordering::SeqCst);
-        self.spis.tasks_acquire.write(|w| unsafe { w.bits(1) });
-        if self.spis.events_acquired.read().bits() != 0 {
-            Ok(self)
-        } else {
-            Err(Error::SemaphoreNotAvailable)
+        match self.semaphore_status() {
+            SemaphoreStatus::Free | SemaphoreStatus::SPIS => {
+                self.spis.tasks_acquire.write(|w| unsafe { w.bits(1) });
+                if self.spis.events_acquired.read().bits() != 0 {
+                    Ok(self)
+                } else {
+                    Err(Error::SemaphoreNotAvailable)
+                }
+            }
+            SemaphoreStatus::CPUPending => {
+                Err(Error::SemaphoreNotAvailable)
+            }
+            SemaphoreStatus::CPU => {
+                Ok(self)
+            }
         }
+
     }
 
     /// Releases the SPIS semaphore, enabling the SPIS to acquire it.
@@ -256,7 +280,7 @@ where
     /// Checks if the semaphore is acquired.
     #[inline(always)]
     pub fn is_acquired(&self) -> bool {
-        self.spis.events_acquired.read().bits() != 0
+        self.semaphore_status() == SemaphoreStatus::CPU
     }
 
     /// Checks if last transaction overread.
@@ -275,6 +299,10 @@ where
     #[inline(always)]
     pub fn amount(&self) -> u32 {
         self.spis.rxd.amount.read().bits()
+    }
+
+    pub fn amounts(&self) -> (u32, u32) {
+        (self.spis.rxd.amount.read().bits(), self.spis.txd.amount.read().bits())
     }
 
     /// Returns the semaphore status.
