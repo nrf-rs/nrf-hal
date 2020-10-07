@@ -142,39 +142,41 @@ where
         }
     }
 
-    /// Obtain the state of a given interrupt/event, and optionally clear the event
-    /// if it is set.
-    pub fn get_event_triggered(&mut self, evt: RtcInterrupt, clear_on_read: bool) -> bool {
-        let mut orig = 0;
-        let set_val = if clear_on_read { 0 } else { 1 };
-        match evt {
-            RtcInterrupt::Tick => self.periph.events_tick.modify(|r, w| {
-                orig = r.bits();
-                unsafe { w.bits(set_val) }
-            }),
-            RtcInterrupt::Overflow => self.periph.events_ovrflw.modify(|r, w| {
-                orig = r.bits();
-                unsafe { w.bits(set_val) }
-            }),
-            RtcInterrupt::Compare0 => self.periph.events_compare[0].modify(|r, w| {
-                orig = r.bits();
-                unsafe { w.bits(set_val) }
-            }),
-            RtcInterrupt::Compare1 => self.periph.events_compare[1].modify(|r, w| {
-                orig = r.bits();
-                unsafe { w.bits(set_val) }
-            }),
-            RtcInterrupt::Compare2 => self.periph.events_compare[2].modify(|r, w| {
-                orig = r.bits();
-                unsafe { w.bits(set_val) }
-            }),
-            RtcInterrupt::Compare3 => self.periph.events_compare[3].modify(|r, w| {
-                orig = r.bits();
-                unsafe { w.bits(set_val) }
-            }),
+    /// Checks if the given event has been triggered.
+    pub fn is_event_triggered(&self, evt: RtcInterrupt) -> bool {
+        let orig = match evt {
+            RtcInterrupt::Tick => self.periph.events_tick.read().bits(),
+            RtcInterrupt::Overflow => self.periph.events_ovrflw.read().bits(),
+            RtcInterrupt::Compare0 => self.periph.events_compare[0].read().bits(),
+            RtcInterrupt::Compare1 => self.periph.events_compare[1].read().bits(),
+            RtcInterrupt::Compare2 => self.periph.events_compare[2].read().bits(),
+            RtcInterrupt::Compare3 => self.periph.events_compare[3].read().bits(),
         };
-
         orig == 1
+    }
+
+    /// Resets the given event.
+    pub fn reset_event(&self, evt: RtcInterrupt) {
+        match evt {
+            RtcInterrupt::Tick => {
+                self.periph.events_tick.write(|w| unsafe { w.bits(0) });
+            }
+            RtcInterrupt::Overflow => {
+                self.periph.events_ovrflw.write(|w| unsafe { w.bits(0) });
+            }
+            RtcInterrupt::Compare0 => {
+                self.periph.events_compare[0].write(|w| unsafe { w.bits(0) });
+            }
+            RtcInterrupt::Compare1 => {
+                self.periph.events_compare[1].write(|w| unsafe { w.bits(0) });
+            }
+            RtcInterrupt::Compare2 => {
+                self.periph.events_compare[2].write(|w| unsafe { w.bits(0) });
+            }
+            RtcInterrupt::Compare3 => {
+                self.periph.events_compare[3].write(|w| unsafe { w.bits(0) });
+            }
+        };
     }
 
     /// Set the compare value of a given register. The compare registers have a width
