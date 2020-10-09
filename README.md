@@ -133,7 +133,7 @@ The pulse width modulation demo. This demonstrates various PWM use cases by allo
 
 ### qdec-demo (Sensor Decoding)
 
-The quadrature decoder (QDEC) demo. This peripheral supports buffered decoding of quadrature-encoded sensor signals (typically used for mechanical and optical sensors). The demo reads a byte value from two input pins expected to contain qdec encoded data at a given frequency.
+The quadrature decoder (QDEC) demo. This peripheral supports buffered decoding of quadrature-encoded sensor signals (typically used for mechanical and optical sensors). The demo shows how to use a rotary encoder to trigger an interrupt and update a variable by the amount of rotation. (nRF52840 + Bourns PEC11R rotary encoder)
 
 ### rtic-demo (Concurrency Framework)
 
