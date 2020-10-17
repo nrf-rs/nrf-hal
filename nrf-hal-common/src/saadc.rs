@@ -200,7 +200,7 @@ impl<'a> Channel<'a> {
             Reference::VDD1_4 => (33, 40),
         };
 
-        value as i32 * 1000 * 1000 / lsbs * gain.1 * reference.0 / gain.0 / reference.1
+        (value as i64 * 1000 * 1000 / lsbs * gain.1 * reference.0 / gain.0 / reference.1) as i32
     }
 
     pub fn as_millis(&self, value: i16) -> i32 {
