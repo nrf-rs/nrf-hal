@@ -133,9 +133,13 @@ impl<MODE> Pin<MODE> {
         unsafe { &*ptr }
     }
 
+    pub(crate) fn conf(&self) -> &gpio::PIN_CNF {
+        &self.block().pin_cnf[self.pin() as usize]
+    }
+
     /// Convert the pin to be a floating input
     pub fn into_floating_input(self) -> Pin<Input<Floating>> {
-        self.block().pin_cnf[self.pin() as usize].write(|w| {
+        self.conf().write(|w| {
             w.dir().input();
             w.input().connect();
             w.pull().disabled();
@@ -150,7 +154,7 @@ impl<MODE> Pin<MODE> {
         }
     }
     pub fn into_pullup_input(self) -> Pin<Input<PullUp>> {
-        self.block().pin_cnf[self.pin() as usize].write(|w| {
+        self.conf().write(|w| {
             w.dir().input();
             w.input().connect();
             w.pull().pullup();
@@ -165,7 +169,7 @@ impl<MODE> Pin<MODE> {
         }
     }
     pub fn into_pulldown_input(self) -> Pin<Input<PullDown>> {
-        self.block().pin_cnf[self.pin() as usize].write(|w| {
+        self.conf().write(|w| {
             w.dir().input();
             w.input().connect();
             w.pull().pulldown();
@@ -192,7 +196,7 @@ impl<MODE> Pin<MODE> {
             Level::High => pin.set_high().unwrap(),
         }
 
-        self.block().pin_cnf[self.pin() as usize].write(|w| {
+        self.conf().write(|w| {
             w.dir().output();
             w.input().connect(); // AJM - hack for SPI
             w.pull().disabled();
@@ -224,8 +228,7 @@ impl<MODE> Pin<MODE> {
         }
 
         // This is safe, as we restrict our access to the dedicated register for this pin.
-        let pin_cnf = &self.block().pin_cnf[self.pin() as usize];
-        pin_cnf.write(|w| {
+        self.conf().write(|w| {
             w.dir().output();
             w.input().disconnect();
             w.pull().disabled();
@@ -243,7 +246,7 @@ impl<MODE> Pin<MODE> {
     /// It is primarily useful to reduce power usage.
     pub fn into_disconnected(self) -> Pin<Disconnected> {
         // Reset value is disconnected.
-        self.block().pin_cnf[self.pin() as usize].reset();
+        self.conf().reset();
 
         Pin {
             _mode: PhantomData,

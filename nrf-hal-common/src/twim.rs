@@ -52,12 +52,7 @@ where
         // safe, as we own the pins now and have exclusive access to their
         // registers.
         for &pin in &[&pins.scl, &pins.sda] {
-            let port_ptr = match pin.port() {
-                Port::Port0 => P0::ptr(),
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                Port::Port1 => P1::ptr(),
-            };
-            unsafe { &*port_ptr }.pin_cnf[pin.pin() as usize].write(|w| {
+            pin.conf().write(|w| {
                 w.dir()
                     .input()
                     .input()
