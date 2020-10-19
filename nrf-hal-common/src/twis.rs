@@ -202,7 +202,7 @@ where
         self.0.rxd.amount.read().bits()
     }
 
-    /// Checks if RX buffer overflow was detected, and prevented.
+    /// Checks if RX buffer overflow was detected.
     #[inline(always)]
     pub fn is_overflow(&self) -> bool {
         self.0.errorsrc.read().overflow().bit()
@@ -214,7 +214,7 @@ where
         self.0.errorsrc.read().dnack().bit()
     }
 
-    /// Checks if TX buffer over-read was detected, and prevented.
+    /// Checks if TX buffer over-read was detected and ORC was clocked out.
     #[inline(always)]
     pub fn is_overread(&self) -> bool {
         self.0.errorsrc.read().overread().bit()
@@ -397,8 +397,7 @@ where
 
     /// Receives data into the given `buffer`. Buffer must be located in RAM.
     /// Returns a value that represents the in-progress DMA transfer.
-    #[allow(unused_mut)]
-    pub fn rx<W, B>(mut self, mut buffer: B) -> Result<Transfer<T, B>, Error>
+    pub fn rx<W, B>(self, mut buffer: B) -> Result<Transfer<T, B>, Error>
     where
         B: WriteBuffer<Word = W> + 'static,
     {
@@ -425,8 +424,7 @@ where
 
     /// Transmits data from the given `buffer`. Buffer must be located in RAM.
     /// Returns a value that represents the in-progress DMA transfer.
-    #[allow(unused_mut)]
-    pub fn tx<W, B>(mut self, buffer: B) -> Result<Transfer<T, B>, Error>
+    pub fn tx<W, B>(self, buffer: B) -> Result<Transfer<T, B>, Error>
     where
         B: ReadBuffer<Word = W> + 'static,
     {
