@@ -267,7 +267,7 @@ impl I2S {
     pub fn rx<W, B>(mut self, mut buffer: B) -> Result<Transfer<B>, Error>
     where
         W: SupportedWordSize,
-        B: WriteBuffer<Word = W>,
+        B: WriteBuffer<Word = W> + 'static,
     {
         let (ptr, len) = unsafe { buffer.write_buffer() };
         if ptr as u32 % 4 != 0 {
@@ -300,8 +300,8 @@ impl I2S {
     ) -> Result<TransferFullDuplex<TxB, RxB>, Error>
     where
         W: SupportedWordSize,
-        TxB: ReadBuffer<Word = W>,
-        RxB: WriteBuffer<Word = W>,
+        TxB: ReadBuffer<Word = W> + 'static,
+        RxB: WriteBuffer<Word = W> + 'static,
     {
         let (rx_ptr, rx_len) = unsafe { rx_buffer.write_buffer() };
         let (tx_ptr, tx_len) = unsafe { tx_buffer.read_buffer() };
@@ -345,7 +345,7 @@ impl I2S {
     pub fn tx<W, B>(mut self, buffer: B) -> Result<Transfer<B>, Error>
     where
         W: SupportedWordSize,
-        B: ReadBuffer<Word = W>,
+        B: ReadBuffer<Word = W> + 'static,
     {
         let (ptr, len) = unsafe { buffer.read_buffer() };
         if ptr as u32 % 4 != 0 {
@@ -602,6 +602,7 @@ pub enum I2SEvent {
 
 /// A DMA transfer
 pub struct Transfer<B> {
+    // FIXME: Always `Some`, only using `Option` here to allow moving fields out of `inner`.
     inner: Option<Inner<B>>,
 }
 
@@ -635,6 +636,7 @@ impl<B> Drop for Transfer<B> {
 }
 /// A full duplex DMA transfer
 pub struct TransferFullDuplex<TxB, RxB> {
+    // FIXME: Always `Some`, only using `Option` here to allow moving fields out of `inner`.
     inner: Option<InnerFullDuplex<TxB, RxB>>,
 }
 

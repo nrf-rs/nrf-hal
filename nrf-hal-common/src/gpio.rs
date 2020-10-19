@@ -133,9 +133,13 @@ impl<MODE> Pin<MODE> {
         unsafe { &*ptr }
     }
 
+    pub(crate) fn conf(&self) -> &gpio::PIN_CNF {
+        &self.block().pin_cnf[self.pin() as usize]
+    }
+
     /// Convert the pin to be a floating input
     pub fn into_floating_input(self) -> Pin<Input<Floating>> {
-        self.block().pin_cnf[self.pin() as usize].write(|w| {
+        self.conf().write(|w| {
             w.dir().input();
             w.input().connect();
             w.pull().disabled();
@@ -150,7 +154,7 @@ impl<MODE> Pin<MODE> {
         }
     }
     pub fn into_pullup_input(self) -> Pin<Input<PullUp>> {
-        self.block().pin_cnf[self.pin() as usize].write(|w| {
+        self.conf().write(|w| {
             w.dir().input();
             w.input().connect();
             w.pull().pullup();
@@ -165,7 +169,7 @@ impl<MODE> Pin<MODE> {
         }
     }
     pub fn into_pulldown_input(self) -> Pin<Input<PullDown>> {
-        self.block().pin_cnf[self.pin() as usize].write(|w| {
+        self.conf().write(|w| {
             w.dir().input();
             w.input().connect();
             w.pull().pulldown();
@@ -192,7 +196,7 @@ impl<MODE> Pin<MODE> {
             Level::High => pin.set_high().unwrap(),
         }
 
-        self.block().pin_cnf[self.pin() as usize].write(|w| {
+        self.conf().write(|w| {
             w.dir().output();
             w.input().connect(); // AJM - hack for SPI
             w.pull().disabled();
@@ -224,8 +228,7 @@ impl<MODE> Pin<MODE> {
         }
 
         // This is safe, as we restrict our access to the dedicated register for this pin.
-        let pin_cnf = &self.block().pin_cnf[self.pin() as usize];
-        pin_cnf.write(|w| {
+        self.conf().write(|w| {
             w.dir().output();
             w.input().disconnect();
             w.pull().disabled();
@@ -235,6 +238,20 @@ impl<MODE> Pin<MODE> {
         });
 
         pin
+    }
+
+    /// Disconnects the pin.
+    ///
+    /// In disconnected mode the pin cannot be used as input or output.
+    /// It is primarily useful to reduce power usage.
+    pub fn into_disconnected(self) -> Pin<Disconnected> {
+        // Reset value is disconnected.
+        self.conf().reset();
+
+        Pin {
+            _mode: PhantomData,
+            pin_port: self.pin_port,
+        }
     }
 }
 
@@ -489,6 +506,19 @@ macro_rules! gpio {
                         pin
                     }
 
+                    /// Disconnects the pin.
+                    ///
+                    /// In disconnected mode the pin cannot be used as input or output.
+                    /// It is primarily useful to reduce power usage.
+                    pub fn into_disconnected(self) -> $PXi<Disconnected> {
+                        // Reset value is disconnected.
+                        unsafe { &(*$PX::ptr()).pin_cnf[$i] }.reset();
+
+                        $PXi {
+                            _mode: PhantomData,
+                        }
+                    }
+
                     /// Degrade to a generic pin struct, which can be used with peripherals
                     pub fn degrade(self) -> Pin<MODE> {
                         Pin::new($port_value, $i)
@@ -552,58 +582,58 @@ macro_rules! gpio {
 // 32-bit GPIO port (P0)
 // ===========================================================================
 gpio!(P0, p0, p0, Port::Port0, [
-    P0_00: (p0_00,  0, Input<Disconnected>),
-    P0_01: (p0_01,  1, Input<Disconnected>),
-    P0_02: (p0_02,  2, Input<Disconnected>),
-    P0_03: (p0_03,  3, Input<Disconnected>),
-    P0_04: (p0_04,  4, Input<Disconnected>),
-    P0_05: (p0_05,  5, Input<Disconnected>),
-    P0_06: (p0_06,  6, Input<Disconnected>),
-    P0_07: (p0_07,  7, Input<Disconnected>),
-    P0_08: (p0_08,  8, Input<Disconnected>),
-    P0_09: (p0_09,  9, Input<Disconnected>),
-    P0_10: (p0_10, 10, Input<Disconnected>),
-    P0_11: (p0_11, 11, Input<Disconnected>),
-    P0_12: (p0_12, 12, Input<Disconnected>),
-    P0_13: (p0_13, 13, Input<Disconnected>),
-    P0_14: (p0_14, 14, Input<Disconnected>),
-    P0_15: (p0_15, 15, Input<Disconnected>),
-    P0_16: (p0_16, 16, Input<Disconnected>),
-    P0_17: (p0_17, 17, Input<Disconnected>),
-    P0_18: (p0_18, 18, Input<Disconnected>),
-    P0_19: (p0_19, 19, Input<Disconnected>),
-    P0_20: (p0_20, 20, Input<Disconnected>),
-    P0_21: (p0_21, 21, Input<Disconnected>),
-    P0_22: (p0_22, 22, Input<Disconnected>),
-    P0_23: (p0_23, 23, Input<Disconnected>),
-    P0_24: (p0_24, 24, Input<Disconnected>),
-    P0_25: (p0_25, 25, Input<Disconnected>),
-    P0_26: (p0_26, 26, Input<Disconnected>),
-    P0_27: (p0_27, 27, Input<Disconnected>),
-    P0_28: (p0_28, 28, Input<Disconnected>),
-    P0_29: (p0_29, 29, Input<Disconnected>),
-    P0_30: (p0_30, 30, Input<Disconnected>),
-    P0_31: (p0_31, 31, Input<Disconnected>),
+    P0_00: (p0_00,  0, Disconnected),
+    P0_01: (p0_01,  1, Disconnected),
+    P0_02: (p0_02,  2, Disconnected),
+    P0_03: (p0_03,  3, Disconnected),
+    P0_04: (p0_04,  4, Disconnected),
+    P0_05: (p0_05,  5, Disconnected),
+    P0_06: (p0_06,  6, Disconnected),
+    P0_07: (p0_07,  7, Disconnected),
+    P0_08: (p0_08,  8, Disconnected),
+    P0_09: (p0_09,  9, Disconnected),
+    P0_10: (p0_10, 10, Disconnected),
+    P0_11: (p0_11, 11, Disconnected),
+    P0_12: (p0_12, 12, Disconnected),
+    P0_13: (p0_13, 13, Disconnected),
+    P0_14: (p0_14, 14, Disconnected),
+    P0_15: (p0_15, 15, Disconnected),
+    P0_16: (p0_16, 16, Disconnected),
+    P0_17: (p0_17, 17, Disconnected),
+    P0_18: (p0_18, 18, Disconnected),
+    P0_19: (p0_19, 19, Disconnected),
+    P0_20: (p0_20, 20, Disconnected),
+    P0_21: (p0_21, 21, Disconnected),
+    P0_22: (p0_22, 22, Disconnected),
+    P0_23: (p0_23, 23, Disconnected),
+    P0_24: (p0_24, 24, Disconnected),
+    P0_25: (p0_25, 25, Disconnected),
+    P0_26: (p0_26, 26, Disconnected),
+    P0_27: (p0_27, 27, Disconnected),
+    P0_28: (p0_28, 28, Disconnected),
+    P0_29: (p0_29, 29, Disconnected),
+    P0_30: (p0_30, 30, Disconnected),
+    P0_31: (p0_31, 31, Disconnected),
 ]);
 
 // The p1 types are present in the p0 module generated from the
 // svd, but we want to export them in a p1 module from this crate.
 #[cfg(any(feature = "52833", feature = "52840"))]
 gpio!(P1, p0, p1, Port::Port1, [
-    P1_00: (p1_00,  0, Input<Disconnected>),
-    P1_01: (p1_01,  1, Input<Disconnected>),
-    P1_02: (p1_02,  2, Input<Disconnected>),
-    P1_03: (p1_03,  3, Input<Disconnected>),
-    P1_04: (p1_04,  4, Input<Disconnected>),
-    P1_05: (p1_05,  5, Input<Disconnected>),
-    P1_06: (p1_06,  6, Input<Disconnected>),
-    P1_07: (p1_07,  7, Input<Disconnected>),
-    P1_08: (p1_08,  8, Input<Disconnected>),
-    P1_09: (p1_09,  9, Input<Disconnected>),
-    P1_10: (p1_10, 10, Input<Disconnected>),
-    P1_11: (p1_11, 11, Input<Disconnected>),
-    P1_12: (p1_12, 12, Input<Disconnected>),
-    P1_13: (p1_13, 13, Input<Disconnected>),
-    P1_14: (p1_14, 14, Input<Disconnected>),
-    P1_15: (p1_15, 15, Input<Disconnected>),
+    P1_00: (p1_00,  0, Disconnected),
+    P1_01: (p1_01,  1, Disconnected),
+    P1_02: (p1_02,  2, Disconnected),
+    P1_03: (p1_03,  3, Disconnected),
+    P1_04: (p1_04,  4, Disconnected),
+    P1_05: (p1_05,  5, Disconnected),
+    P1_06: (p1_06,  6, Disconnected),
+    P1_07: (p1_07,  7, Disconnected),
+    P1_08: (p1_08,  8, Disconnected),
+    P1_09: (p1_09,  9, Disconnected),
+    P1_10: (p1_10, 10, Disconnected),
+    P1_11: (p1_11, 11, Disconnected),
+    P1_12: (p1_12, 12, Disconnected),
+    P1_13: (p1_13, 13, Disconnected),
+    P1_14: (p1_14, 14, Disconnected),
+    P1_15: (p1_15, 15, Disconnected),
 ]);
