@@ -8,19 +8,16 @@ use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
 #[cfg(feature = "9160")]
-use crate::pac::{twim0_ns as twim0, P0_NS as P0, TWIM0_NS as TWIM0};
+use crate::pac::{twim0_ns as twim0, TWIM0_NS as TWIM0};
 
 #[cfg(not(feature = "9160"))]
-use crate::pac::{twim0, P0, TWIM0};
+use crate::pac::{twim0, TWIM0};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::TWIM1;
 
-#[cfg(any(feature = "52833", feature = "52840"))]
-use crate::pac::P1;
-
 use crate::{
-    gpio::{Floating, Input, Pin, Port},
+    gpio::{Floating, Input, Pin},
     slice_in_ram, slice_in_ram_or,
     target_constants::{EASY_DMA_SIZE, FORCE_COPY_BUFFER_SIZE},
 };
@@ -107,7 +104,7 @@ where
             //
             // The PTR field is a full 32 bits wide and accepts the full range
             // of values.
-            unsafe { w.ptr().bits(buffer.as_ptr() as u32) });
+            w.ptr().bits(buffer.as_ptr() as u32));
         self.0.txd.maxcnt.write(|w|
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
@@ -115,7 +112,7 @@ where
             //
             // The MAXCNT field is 8 bits wide and accepts the full range of
             // values.
-            unsafe { w.maxcnt().bits(buffer.len() as _) });
+            w.maxcnt().bits(buffer.len() as _));
 
         Ok(())
     }
@@ -139,7 +136,7 @@ where
             //
             // The PTR field is a full 32 bits wide and accepts the full range
             // of values.
-            unsafe { w.ptr().bits(buffer.as_mut_ptr() as u32) });
+            w.ptr().bits(buffer.as_mut_ptr() as u32));
         self.0.rxd.maxcnt.write(|w|
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
@@ -150,7 +147,7 @@ where
             // type than a u8, so we use a `_` cast rather than a `u8` cast.
             // The MAXCNT field is thus at least 8 bits wide and accepts the
             // full range of values that fit in a `u8`.
-            unsafe { w.maxcnt().bits(buffer.len() as _) });
+            w.maxcnt().bits(buffer.len() as _));
 
         Ok(())
     }
