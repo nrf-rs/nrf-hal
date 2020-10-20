@@ -285,7 +285,7 @@ where
     /// Sets duty cycle (15 bit) for all PWM channels.
     /// Will replace any ongoing sequence playback.
     pub fn set_duty_on_common(&self, duty: u16) {
-        let mut buffer = T::buffer().take();
+        let mut buffer = T::buffer().get();
         buffer.copy_from_slice(&[duty.min(self.max_duty()) & 0x7FFF; 4][..]);
         T::buffer().set(buffer);
         self.one_shot();
@@ -301,7 +301,7 @@ where
     /// Sets inverted duty cycle (15 bit) for all PWM channels.
     /// Will replace any ongoing sequence playback.
     pub fn set_duty_off_common(&self, duty: u16) {
-        let mut buffer = T::buffer().take();
+        let mut buffer = T::buffer().get();
         buffer.copy_from_slice(&[duty.min(self.max_duty()) | 0x8000; 4][..]);
         T::buffer().set(buffer);
         self.one_shot();
@@ -329,7 +329,7 @@ where
     /// Sets duty cycle (15 bit) for a PWM group.
     /// Will replace any ongoing sequence playback.
     pub fn set_duty_on_group(&self, group: Group, duty: u16) {
-        let mut buffer = T::buffer().take();
+        let mut buffer = T::buffer().get();
         buffer[usize::from(group)] = duty.min(self.max_duty()) & 0x7FFF;
         T::buffer().set(buffer);
         self.one_shot();
@@ -345,7 +345,7 @@ where
     /// Sets inverted duty cycle (15 bit) for a PWM group.
     /// Will replace any ongoing sequence playback.
     pub fn set_duty_off_group(&self, group: Group, duty: u16) {
-        let mut buffer = T::buffer().take();
+        let mut buffer = T::buffer().get();
         buffer[usize::from(group)] = duty.min(self.max_duty()) | 0x8000;
         T::buffer().set(buffer);
         self.one_shot();
@@ -373,7 +373,7 @@ where
     /// Sets duty cycle (15 bit) for a PWM channel.
     /// Will replace any ongoing sequence playback and the other channels will return to their previously set value.
     pub fn set_duty_on(&self, channel: Channel, duty: u16) {
-        let mut buffer = T::buffer().take();
+        let mut buffer = T::buffer().get();
         buffer[usize::from(channel)] = duty.min(self.max_duty()) & 0x7FFF;
         T::buffer().set(buffer);
         self.one_shot();
@@ -386,7 +386,7 @@ where
     /// Sets inverted duty cycle (15 bit) for a PWM channel.
     /// Will replace any ongoing sequence playback and the other channels will return to their previously set value.
     pub fn set_duty_off(&self, channel: Channel, duty: u16) {
-        let mut buffer = T::buffer().take();
+        let mut buffer = T::buffer().get();
         buffer[usize::from(channel)] = duty.min(self.max_duty()) | 0x8000;
         T::buffer().set(buffer);
         self.one_shot();
