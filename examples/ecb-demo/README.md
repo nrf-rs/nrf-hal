@@ -1,4 +1,8 @@
-# AES electronic codebook mode encryption demo
+# AES electronic codebook mode encryption demo - Encryption
+
+Blocking 128-bit AES encryption of 16 bytes of data using a 16 byte key. Encryption only, no decryption.
+
+## How to run
 
 Choose the microcontroller with one of the following features:
 - 51

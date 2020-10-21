@@ -1,0 +1,11 @@
+# Inter-IC Sound interface "peripheral mode (aka slave mode)" demo - Digital Pins
+
+This demonstrates full duplex communication between a controller and peripheral mode I2S peripheral using the EasyDMA capabilities of the chip. This targets the nrf52840 family of devices.
+
+## How to run 
+
+If using `cargo-embed`, just run
+
+```console
+$ cargo embed --release --target=thumbv7em-none-eabihf
+```
