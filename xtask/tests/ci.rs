@@ -83,18 +83,15 @@ fn main() {
     // Ensure that no examples get added without an entry in EXAMPLES.
     for entry in fs::read_dir("examples").unwrap() {
         let entry = entry.unwrap();
+        let name = entry.file_name();
+        let name = name.to_str().unwrap();
 
-        if entry.file_type().unwrap().is_dir() {
-            let name = entry.file_name();
-            let name = name.to_str().unwrap();
-
-            if EXAMPLES
-                .iter()
-                .find(|(example, ..)| *example == name)
-                .is_none()
-            {
-                panic!("example `{}` is missing an entry in xtask `EXAMPLES`", name);
-            }
+        if EXAMPLES
+            .iter()
+            .find(|(example, ..)| *example == name)
+            .is_none()
+        {
+            panic!("example `{}` is missing an entry in xtask `EXAMPLES`", name);
         }
     }
 }
