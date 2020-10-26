@@ -296,8 +296,14 @@ pub enum Error {
 }
 
 /// Implemented by all TWIM instances.
-pub trait Instance: Deref<Target = twi0::RegisterBlock> {}
+pub trait Instance: Deref<Target = twi0::RegisterBlock> + sealed::Sealed {}
 
+mod sealed {
+    pub trait Sealed {}
+}
+
+impl sealed::Sealed for TWI0 {}
 impl Instance for TWI0 {}
 
+impl sealed::Sealed for TWI1 {}
 impl Instance for TWI1 {}

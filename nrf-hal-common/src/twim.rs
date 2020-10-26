@@ -447,9 +447,18 @@ pub enum Error {
 }
 
 /// Implemented by all TWIM instances
-pub trait Instance: Deref<Target = twim0::RegisterBlock> {}
+pub trait Instance: Deref<Target = twim0::RegisterBlock> + sealed::Sealed {}
 
+mod sealed {
+    pub trait Sealed {}
+}
+
+impl sealed::Sealed for TWIM0 {}
 impl Instance for TWIM0 {}
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-impl Instance for TWIM1 {}
+mod _twim1 {
+    use super::*;
+    impl sealed::Sealed for TWIM1 {}
+    impl Instance for TWIM1 {}
+}

@@ -219,9 +219,13 @@ pub enum Error {
 }
 
 /// Implemented by all RTC instances.
-pub trait Instance: Deref<Target = rtc0::RegisterBlock> {
+pub trait Instance: Deref<Target = rtc0::RegisterBlock> + sealed::Sealed {
     /// The interrupt associated with this RTC instance.
     const INTERRUPT: Interrupt;
+}
+
+mod sealed {
+    pub trait Sealed {}
 }
 
 macro_rules! impl_instance {
@@ -230,6 +234,7 @@ macro_rules! impl_instance {
             impl Instance for $name {
                 const INTERRUPT: Interrupt = Interrupt::$name;
             }
+            impl sealed::Sealed for $name {}
         )*
     }
 }
