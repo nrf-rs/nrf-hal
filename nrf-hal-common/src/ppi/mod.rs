@@ -61,14 +61,17 @@ mod sealed {
     pub trait ChannelGroup {
         const CHG: usize;
     }
+
+    pub trait PpiSealed {}
+    pub trait PpiChannelGroupSealed {}
 }
-use sealed::{Channel, ChannelGroup, Event, NotFixed, Task};
+use sealed::{Channel, ChannelGroup, Event, NotFixed, PpiChannelGroupSealed, PpiSealed, Task};
 
 pub struct TaskAddr(pub(crate) u32);
 pub struct EventAddr(pub(crate) u32);
 
 /// Trait to represent a Programmable Peripheral Interconnect channel.
-pub trait Ppi {
+pub trait Ppi: PpiSealed {
     /// Enables the channel.
     fn enable(&mut self);
 
@@ -93,7 +96,7 @@ pub trait ConfigurablePpi: Ppi {
 }
 
 /// Trait for a PPI channel group.
-pub trait PpiChannelGroup {
+pub trait PpiChannelGroup: PpiChannelGroupSealed {
     /// Returns reference to `tasks_chg[x].en` endpoint for enabling channel group.
     fn task_enable(&self) -> &Reg<u32, _EN>;
     /// Returns reference to `tasks_chg[x].dis` endpoint for disabling channel group.
@@ -108,6 +111,7 @@ pub trait PpiChannelGroup {
 
 // All unsafe `ptr` calls only uses registers atomically, and only changes the resources owned by
 // the type (guaranteed by the abstraction).
+impl<P: Channel> PpiSealed for P {}
 impl<P: Channel> Ppi for P {
     #[inline(always)]
     fn enable(&mut self) {
@@ -151,6 +155,7 @@ impl<P: Channel + NotFixed> ConfigurablePpi for P {
     }
 }
 
+impl<G: ChannelGroup> PpiChannelGroupSealed for G {}
 impl<G: ChannelGroup> PpiChannelGroup for G {
     #[inline(always)]
     fn task_enable(&self) -> &Reg<u32, _EN> {
