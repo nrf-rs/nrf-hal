@@ -314,9 +314,18 @@ pub enum TwiEvent {
 }
 
 /// Implemented by all TWIS instances
-pub trait Instance: Deref<Target = twis0::RegisterBlock> {}
+pub trait Instance: Deref<Target = twis0::RegisterBlock> + sealed::Sealed {}
 
+mod sealed {
+    pub trait Sealed {}
+}
+
+impl sealed::Sealed for TWIS0 {}
 impl Instance for TWIS0 {}
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-impl Instance for TWIS1 {}
+mod _twis1 {
+    use super::*;
+    impl sealed::Sealed for TWIS1 {}
+    impl Instance for TWIS1 {}
+}

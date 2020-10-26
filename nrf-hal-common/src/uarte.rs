@@ -368,9 +368,18 @@ pub enum Error {
     BufferNotInRAM,
 }
 
-pub trait Instance: Deref<Target = uarte0::RegisterBlock> {}
+pub trait Instance: Deref<Target = uarte0::RegisterBlock> + sealed::Sealed {}
 
+mod sealed {
+    pub trait Sealed {}
+}
+
+impl sealed::Sealed for UARTE0 {}
 impl Instance for UARTE0 {}
 
 #[cfg(any(feature = "52833", feature = "52840", feature = "9160"))]
-impl Instance for UARTE1 {}
+mod _uarte1 {
+    use super::*;
+    impl sealed::Sealed for UARTE1 {}
+    impl Instance for UARTE1 {}
+}

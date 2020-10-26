@@ -2,8 +2,8 @@
 //!
 //! The pulse with modulation (PWM) module enables the generation of pulse width modulated signals on GPIO.
 
-use core::cell::RefCell;
 use core::sync::atomic::{compiler_fence, Ordering};
+use core::{cell::RefCell, ops::Deref};
 
 #[cfg(any(feature = "52833", feature = "52840"))]
 use crate::{
@@ -973,7 +973,7 @@ pub enum Error {
     BufferTooLong,
 }
 
-pub trait Instance: private::Sealed {}
+pub trait Instance: Deref<Target = crate::pac::pwm0::RegisterBlock> + sealed::Sealed {}
 
 impl Instance for PWM0 {}
 
@@ -986,8 +986,8 @@ impl Instance for PWM2 {}
 #[cfg(not(any(feature = "52810", feature = "52811", feature = "52832")))]
 impl Instance for PWM3 {}
 
-mod private {
-    pub trait Sealed: core::ops::Deref<Target = crate::pac::pwm0::RegisterBlock> {}
+mod sealed {
+    pub trait Sealed {}
 
     impl Sealed for crate::pwm::PWM0 {}
 
