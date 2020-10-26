@@ -122,6 +122,7 @@ pub struct Pins {
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     Transmit,
     Receive,

@@ -295,6 +295,7 @@ pub struct Pins {
     pub sda: Pin<Input<Floating>>,
 }
 
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum Error {
     TxBufferTooLong,

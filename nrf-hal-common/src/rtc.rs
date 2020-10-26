@@ -213,6 +213,7 @@ where
 
 /// Error types associated with the RTC peripheral interface.
 #[derive(Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Error {
     PrescalerOutOfRange,
     CompareOutOfRange,

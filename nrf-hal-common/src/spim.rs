@@ -384,6 +384,7 @@ pub struct Pins {
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     TxBufferTooLong,
     RxBufferTooLong,

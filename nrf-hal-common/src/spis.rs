@@ -578,6 +578,7 @@ pub enum Mode {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
+#[non_exhaustive]
 pub enum Error {
     DMABufferNotInDataMemory,
     BufferTooLong,

@@ -968,6 +968,7 @@ impl From<StepMode> for bool {
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     DMABufferNotInDataMemory,
     BufferTooLong,

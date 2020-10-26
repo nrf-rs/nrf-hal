@@ -16,6 +16,7 @@ pub use uart0::{baudrate::BAUDRATE_A as Baudrate, config::PARITY_A as Parity};
 pub struct Uart<T>(T);
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {}
 
 impl<T> Uart<T>

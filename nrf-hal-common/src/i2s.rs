@@ -480,6 +480,7 @@ impl I2S {
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     DMABufferNotInDataMemory,
     BufferTooLong,
