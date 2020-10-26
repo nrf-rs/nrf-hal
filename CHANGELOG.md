@@ -37,6 +37,7 @@
 - Seal the `timer::Instance` trait ([#214]).
 - Make GPIOs start in a `Disconnected` state instead of `Input<Floating>` ([#220] [#245]).
 - 🦭 all `Instance` traits ([#255]).
+- 🦭 PPI traits ([#259]).
 - Various TWIM fixes and improvements - removes automatic transfer splitting ([#242]).
 - Remove typestate from RTC to make it easier to use ([#252]).
 
@@ -79,6 +80,7 @@
 [#250]: https://github.com/nrf-rs/nrf-hal/pull/250
 [#252]: https://github.com/nrf-rs/nrf-hal/pull/252
 [#255]: https://github.com/nrf-rs/nrf-hal/pull/255
+[#259]: https://github.com/nrf-rs/nrf-hal/pull/259
 [`cargo-xtask`]: https://github.com/matklad/cargo-xtask
 
 ## [0.11.1]
