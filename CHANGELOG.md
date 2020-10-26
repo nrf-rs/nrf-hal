@@ -40,6 +40,7 @@
 - 🦭 PPI traits ([#259]).
 - Various TWIM fixes and improvements - removes automatic transfer splitting ([#242]).
 - Remove typestate from RTC to make it easier to use ([#252]).
+- Mark error enums as `#[non_exhaustive]` ([#260]).
 
 ### Internal Improvements
 
@@ -81,6 +82,7 @@
 [#252]: https://github.com/nrf-rs/nrf-hal/pull/252
 [#255]: https://github.com/nrf-rs/nrf-hal/pull/255
 [#259]: https://github.com/nrf-rs/nrf-hal/pull/259
+[#260]: https://github.com/nrf-rs/nrf-hal/pull/260
 [`cargo-xtask`]: https://github.com/matklad/cargo-xtask
 
 ## [0.11.1]
