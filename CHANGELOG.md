@@ -21,7 +21,6 @@
 - Improve SAADC docs ([#218]).
 - Update Embed.toml of all examples to new defaults ([#229]).
 - Make `ConfigurablePpi` and subtrait of `Ppi` ([#244]).
-- Release owned `Pins` with `Usart::free()` ([#261])
 
 ### Fixes
 
@@ -41,6 +40,7 @@
 - 🦭 PPI traits ([#259]).
 - Various TWIM fixes and improvements - removes automatic transfer splitting ([#242]).
 - Remove typestate from RTC to make it easier to use ([#252]).
+- Also return owned `Pins` from `Usart::free()` ([#261]).
 
 ### Internal Improvements
 
@@ -82,6 +82,7 @@
 [#252]: https://github.com/nrf-rs/nrf-hal/pull/252
 [#255]: https://github.com/nrf-rs/nrf-hal/pull/255
 [#259]: https://github.com/nrf-rs/nrf-hal/pull/259
+[#261]: https://github.com/nrf-rs/nrf-hal/pull/261
 [`cargo-xtask`]: https://github.com/matklad/cargo-xtask
 
 ## [0.11.1]
