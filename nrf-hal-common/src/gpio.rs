@@ -51,6 +51,15 @@ impl Port {
             Port::Port1 => true,
         }
     }
+
+    #[cfg(any(feature = "52833", feature = "52840"))]
+    pub(crate) fn from_bit(bit: bool) -> Port {
+        if bit {
+            Port::Port1
+        } else {
+            Port::Port0
+        }
+    }
 }
 
 // ===============================================================
@@ -81,7 +90,7 @@ use crate::hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
 use void::Void;
 
 impl<MODE> Pin<MODE> {
-    fn new(port: Port, pin: u8) -> Self {
+    pub(crate) fn new(port: Port, pin: u8) -> Self {
         let port_bits = match port {
             Port::Port0 => 0x00,
             #[cfg(any(feature = "52833", feature = "52840"))]

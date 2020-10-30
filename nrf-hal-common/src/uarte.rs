@@ -19,7 +19,7 @@ use crate::pac::{uarte0_ns as uarte0, UARTE0_NS as UARTE0, UARTE1_NS as UARTE1};
 #[cfg(not(feature = "9160"))]
 use crate::pac::{uarte0, UARTE0};
 
-use crate::gpio::{Floating, Input, Output, Pin, PushPull};
+use crate::gpio::{Floating, Input, Output, Pin, Port, PushPull};
 use crate::prelude::*;
 use crate::slice_in_ram_or;
 use crate::target_constants::EASY_DMA_SIZE;
@@ -36,10 +36,7 @@ pub use uarte0::{baudrate::BAUDRATE_A as Baudrate, config::PARITY_A as Parity};
 ///   are disabled before using `Uarte`. See product specification:
 ///     - nrf52832: Section 15.2
 ///     - nrf52840: Section 6.1.2
-pub struct Uarte<T> {
-    uarte: T,
-    pins: Pins,
-}
+pub struct Uarte<T>(T);
 
 impl<T> Uarte<T>
 where
@@ -96,7 +93,7 @@ where
         // Configure frequency.
         uarte.baudrate.write(|w| w.baudrate().variant(baudrate));
 
-        Uarte { uarte, pins }
+        Uarte(uarte)
     }
 
     /// Write via UARTE.
@@ -119,11 +116,11 @@ where
         compiler_fence(SeqCst);
 
         // Reset the events.
-        self.uarte.events_endtx.reset();
-        self.uarte.events_txstopped.reset();
+        self.0.events_endtx.reset();
+        self.0.events_txstopped.reset();
 
         // Set up the DMA write.
-        self.uarte.txd.ptr.write(|w|
+        self.0.txd.ptr.write(|w|
             // We're giving the register a pointer to the stack. Since we're
             // waiting for the UARTE transaction to end before this stack pointer
             // becomes invalid, there's nothing wrong here.
@@ -131,7 +128,7 @@ where
             // The PTR field is a full 32 bits wide and accepts the full range
             // of values.
             unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) });
-        self.uarte.txd.maxcnt.write(|w|
+        self.0.txd.maxcnt.write(|w|
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
             // buffer fits in an `u8`, so the cast to `u8` is also fine.
@@ -141,7 +138,7 @@ where
             unsafe { w.maxcnt().bits(tx_buffer.len() as _) });
 
         // Start UARTE Transmit transaction.
-        self.uarte.tasks_starttx.write(|w|
+        self.0.tasks_starttx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
@@ -149,8 +146,8 @@ where
         let mut endtx;
         let mut txstopped;
         loop {
-            endtx = self.uarte.events_endtx.read().bits() != 0;
-            txstopped = self.uarte.events_txstopped.read().bits() != 0;
+            endtx = self.0.events_endtx.read().bits() != 0;
+            txstopped = self.0.events_txstopped.read().bits() != 0;
             if endtx || txstopped {
                 break;
             }
@@ -167,7 +164,7 @@ where
 
         // Lower power consumption by disabling the transmitter once we're
         // finished.
-        self.uarte.tasks_stoptx.write(|w|
+        self.0.tasks_stoptx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
@@ -184,11 +181,11 @@ where
         self.start_read(rx_buffer)?;
 
         // Wait for transmission to end.
-        while self.uarte.events_endrx.read().bits() == 0 {}
+        while self.0.events_endrx.read().bits() == 0 {}
 
         self.finalize_read();
 
-        if self.uarte.rxd.amount.read().bits() != rx_buffer.len() as u32 {
+        if self.0.rxd.amount.read().bits() != rx_buffer.len() as u32 {
             return Err(Error::Receive);
         }
 
@@ -229,7 +226,7 @@ where
         let mut timeout_occured = false;
 
         loop {
-            event_complete |= self.uarte.events_endrx.read().bits() != 0;
+            event_complete |= self.0.events_endrx.read().bits() != 0;
             timeout_occured |= timer.wait().is_ok();
             if event_complete || timeout_occured {
                 break;
@@ -244,7 +241,7 @@ where
         // Cleanup, even in the error case.
         self.finalize_read();
 
-        let bytes_read = self.uarte.rxd.amount.read().bits() as usize;
+        let bytes_read = self.0.rxd.amount.read().bits() as usize;
 
         if timeout_occured && !event_complete {
             return Err(Error::Timeout(bytes_read));
@@ -275,7 +272,7 @@ where
         compiler_fence(SeqCst);
 
         // Set up the DMA read
-        self.uarte.rxd.ptr.write(|w|
+        self.0.rxd.ptr.write(|w|
             // We're giving the register a pointer to the stack. Since we're
             // waiting for the UARTE transaction to end before this stack pointer
             // becomes invalid, there's nothing wrong here.
@@ -283,7 +280,7 @@ where
             // The PTR field is a full 32 bits wide and accepts the full range
             // of values.
             unsafe { w.ptr().bits(rx_buffer.as_ptr() as u32) });
-        self.uarte.rxd.maxcnt.write(|w|
+        self.0.rxd.maxcnt.write(|w|
             // We're giving it the length of the buffer, so no danger of
             // accessing invalid memory. We have verified that the length of the
             // buffer fits in an `u8`, so the cast to `u8` is also fine.
@@ -293,7 +290,7 @@ where
             unsafe { w.maxcnt().bits(rx_buffer.len() as _) });
 
         // Start UARTE Receive transaction.
-        self.uarte.tasks_startrx.write(|w|
+        self.0.tasks_startrx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
@@ -303,7 +300,7 @@ where
     /// Finalize a UARTE read transaction by clearing the event.
     fn finalize_read(&mut self) {
         // Reset the event, otherwise it will always read `1` from now on.
-        self.uarte.events_endrx.write(|w| w);
+        self.0.events_endrx.write(|w| w);
 
         // Conservative compiler fence to prevent optimizations that do not
         // take in to account actions by DMA. The fence has been placed here,
@@ -314,26 +311,66 @@ where
     /// Stop an unfinished UART read transaction and flush FIFO to DMA buffer.
     fn cancel_read(&mut self) {
         // Stop reception.
-        self.uarte.tasks_stoprx.write(|w| unsafe { w.bits(1) });
+        self.0.tasks_stoprx.write(|w| unsafe { w.bits(1) });
 
         // Wait for the reception to have stopped.
-        while self.uarte.events_rxto.read().bits() == 0 {}
+        while self.0.events_rxto.read().bits() == 0 {}
 
         // Reset the event flag.
-        self.uarte.events_rxto.write(|w| w);
+        self.0.events_rxto.write(|w| w);
 
         // Ask UART to flush FIFO to DMA buffer.
-        self.uarte.tasks_flushrx.write(|w| unsafe { w.bits(1) });
+        self.0.tasks_flushrx.write(|w| unsafe { w.bits(1) });
 
         // Wait for the flush to complete.
-        while self.uarte.events_endrx.read().bits() == 0 {}
+        while self.0.events_endrx.read().bits() == 0 {}
 
         // The event flag itself is later reset by `finalize_read`.
     }
 
     /// Return the raw interface to the underlying UARTE peripheral.
     pub fn free(self) -> (T, Pins) {
-        (self.uarte, self.pins)
+        let rxd = self.0.psel.rxd.read();
+        let txd = self.0.psel.txd.read();
+        let cts = self.0.psel.cts.read();
+        let rts = self.0.psel.rts.read();
+        (
+            self.0,
+            Pins {
+                #[cfg(any(feature = "52833", feature = "52840"))]
+                rxd: Pin::new(Port::from_bit(rxd.port().bit()), rxd.pin().bits()),
+                #[cfg(not(any(feature = "52833", feature = "52840")))]
+                rxd: Pin::new(Port::Port0, rxd.pin().bits()),
+                #[cfg(any(feature = "52833", feature = "52840"))]
+                txd: Pin::new(Port::from_bit(txd.port().bit()), txd.pin().bits()),
+                #[cfg(not(any(feature = "52833", feature = "52840")))]
+                txd: Pin::new(Port::Port0, txd.pin().bits()),
+                cts: if cts.connect().bit_is_set() {
+                    #[cfg(any(feature = "52833", feature = "52840"))]
+                    {
+                        Some(Pin::new(Port::from_bit(cts.port().bit()), cts.pin().bits()))
+                    }
+                    #[cfg(not(any(feature = "52833", feature = "52840")))]
+                    {
+                        Some(Pin::new(Port::Port0, cts.pin().bits()))
+                    }
+                } else {
+                    None
+                },
+                rts: if rts.connect().bit_is_set() {
+                    #[cfg(any(feature = "52833", feature = "52840"))]
+                    {
+                        Some(Pin::new(Port::from_bit(rts.port().bit()), rts.pin().bits()))
+                    }
+                    #[cfg(not(any(feature = "52833", feature = "52840")))]
+                    {
+                        Some(Pin::new(Port::Port0, rts.pin().bits()))
+                    }
+                } else {
+                    None
+                },
+            },
+        )
     }
 }
 
