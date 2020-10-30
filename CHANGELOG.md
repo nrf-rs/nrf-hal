@@ -21,6 +21,7 @@
 - Improve SAADC docs ([#218]).
 - Update Embed.toml of all examples to new defaults ([#229]).
 - Make `ConfigurablePpi` and subtrait of `Ppi` ([#244]).
+- Release owned `Pins` with `Usart::free()` ([#261])
 
 ### Fixes
 
