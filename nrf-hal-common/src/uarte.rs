@@ -19,7 +19,7 @@ use crate::pac::{uarte0_ns as uarte0, UARTE0_NS as UARTE0, UARTE1_NS as UARTE1};
 #[cfg(not(feature = "9160"))]
 use crate::pac::{uarte0, UARTE0};
 
-use crate::gpio::{Floating, Input, Output, Pin, PushPull};
+use crate::gpio::{Floating, Input, Output, Pin, Port, PushPull};
 use crate::prelude::*;
 use crate::slice_in_ram_or;
 use crate::target_constants::EASY_DMA_SIZE;
@@ -329,8 +329,48 @@ where
     }
 
     /// Return the raw interface to the underlying UARTE peripheral.
-    pub fn free(self) -> T {
-        self.0
+    pub fn free(self) -> (T, Pins) {
+        let rxd = self.0.psel.rxd.read();
+        let txd = self.0.psel.txd.read();
+        let cts = self.0.psel.cts.read();
+        let rts = self.0.psel.rts.read();
+        (
+            self.0,
+            Pins {
+                #[cfg(any(feature = "52833", feature = "52840"))]
+                rxd: Pin::new(Port::from_bit(rxd.port().bit()), rxd.pin().bits()),
+                #[cfg(not(any(feature = "52833", feature = "52840")))]
+                rxd: Pin::new(Port::Port0, rxd.pin().bits()),
+                #[cfg(any(feature = "52833", feature = "52840"))]
+                txd: Pin::new(Port::from_bit(txd.port().bit()), txd.pin().bits()),
+                #[cfg(not(any(feature = "52833", feature = "52840")))]
+                txd: Pin::new(Port::Port0, txd.pin().bits()),
+                cts: if cts.connect().bit_is_set() {
+                    #[cfg(any(feature = "52833", feature = "52840"))]
+                    {
+                        Some(Pin::new(Port::from_bit(cts.port().bit()), cts.pin().bits()))
+                    }
+                    #[cfg(not(any(feature = "52833", feature = "52840")))]
+                    {
+                        Some(Pin::new(Port::Port0, cts.pin().bits()))
+                    }
+                } else {
+                    None
+                },
+                rts: if rts.connect().bit_is_set() {
+                    #[cfg(any(feature = "52833", feature = "52840"))]
+                    {
+                        Some(Pin::new(Port::from_bit(rts.port().bit()), rts.pin().bits()))
+                    }
+                    #[cfg(not(any(feature = "52833", feature = "52840")))]
+                    {
+                        Some(Pin::new(Port::Port0, rts.pin().bits()))
+                    }
+                } else {
+                    None
+                },
+            },
+        )
     }
 }
 
