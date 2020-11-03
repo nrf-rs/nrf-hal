@@ -2,29 +2,29 @@
 //!
 //! The pulse with modulation (PWM) module enables the generation of pulse width modulated signals on GPIO.
 
-use core::sync::atomic::{compiler_fence, Ordering};
-use core::{cell::RefCell, ops::Deref};
-
-#[cfg(any(feature = "52833", feature = "52840"))]
+#[cfg(not(any(feature = "52810", feature = "52811")))]
 use crate::{
-    gpio::{Output, Pin, Port, PushPull},
-    pac::{
-        generic::Reg,
-        pwm0::{
-            _EVENTS_LOOPSDONE, _EVENTS_PWMPERIODEND, _EVENTS_SEQEND, _EVENTS_SEQSTARTED,
-            _EVENTS_STOPPED, _TASKS_NEXTSTEP, _TASKS_SEQSTART, _TASKS_STOP,
-        },
-        PWM0, PWM1, PWM2, PWM3,
-    },
+    gpio::Port,
+    pac::PWM3,
+    pac::{PWM1, PWM2},
+};
+use crate::{
+    gpio::{Output, Pin, PushPull},
+    pac::{generic::Reg, pwm0::*, Interrupt, PWM0},
     target_constants::{SRAM_LOWER, SRAM_UPPER},
     time::*,
 };
+use core::{
+    cell::Cell,
+    ops::Deref,
+    sync::atomic::{compiler_fence, Ordering},
+};
+use embedded_dma::*;
 
 /// A safe wrapper around the raw peripheral.
 #[derive(Debug)]
 pub struct Pwm<T: Instance> {
     pwm: T,
-    duty: RefCell<[u16; 4]>,
 }
 
 impl<T> Pwm<T>
@@ -34,7 +34,6 @@ where
     /// Takes ownership of the peripheral and applies sane defaults.
     pub fn new(pwm: T) -> Pwm<T> {
         compiler_fence(Ordering::SeqCst);
-        let duty = RefCell::new([0u16; 4]);
         pwm.enable.write(|w| w.enable().enabled());
         pwm.mode.write(|w| w.updown().up());
         pwm.prescaler.write(|w| w.prescaler().div_1());
@@ -50,16 +49,7 @@ where
         pwm.seq1.refresh.write(|w| unsafe { w.bits(0) });
         pwm.seq1.enddelay.write(|w| unsafe { w.bits(0) });
 
-        pwm.seq0
-            .ptr
-            .write(|w| unsafe { w.bits(duty.as_ptr() as u32) });
-        pwm.seq0.cnt.write(|w| unsafe { w.bits(4) });
-        pwm.seq1
-            .ptr
-            .write(|w| unsafe { w.bits(duty.as_ptr() as u32) });
-        pwm.seq1.cnt.write(|w| unsafe { w.bits(4) });
-
-        Self { pwm, duty }
+        Self { pwm }
     }
 
     /// Sets the PWM clock prescaler.
@@ -273,7 +263,7 @@ where
     // Internal helper function that returns 15 bit duty cycle value.
     #[inline(always)]
     fn duty_on_value(&self, index: usize) -> u16 {
-        let val = self.duty.borrow()[index];
+        let val = T::buffer().get()[index];
         let is_inverted = (val >> 15) & 1 == 0;
         match is_inverted {
             false => val,
@@ -284,7 +274,7 @@ where
     // Internal helper function that returns 15 bit inverted duty cycle value.
     #[inline(always)]
     fn duty_off_value(&self, index: usize) -> u16 {
-        let val = self.duty.borrow()[index];
+        let val = T::buffer().get()[index];
         let is_inverted = (val >> 15) & 1 == 0;
         match is_inverted {
             false => self.max_duty() - val,
@@ -295,16 +285,15 @@ where
     /// Sets duty cycle (15 bit) for all PWM channels.
     /// Will replace any ongoing sequence playback.
     pub fn set_duty_on_common(&self, duty: u16) {
-        compiler_fence(Ordering::SeqCst);
-        self.duty
-            .borrow_mut()
-            .copy_from_slice(&[duty.min(self.max_duty()) & 0x7FFF; 4][..]);
+        let mut buffer = T::buffer().get();
+        buffer.copy_from_slice(&[duty.min(self.max_duty()) & 0x7FFF; 4][..]);
+        T::buffer().set(buffer);
         self.one_shot();
         self.set_load_mode(LoadMode::Common);
         self.pwm
             .seq0
             .ptr
-            .write(|w| unsafe { w.bits(self.duty.as_ptr() as u32) });
+            .write(|w| unsafe { w.bits(T::buffer().as_ptr() as u32) });
         self.pwm.seq0.cnt.write(|w| unsafe { w.bits(1) });
         self.start_seq(Seq::Seq0);
     }
@@ -312,16 +301,15 @@ where
     /// Sets inverted duty cycle (15 bit) for all PWM channels.
     /// Will replace any ongoing sequence playback.
     pub fn set_duty_off_common(&self, duty: u16) {
-        compiler_fence(Ordering::SeqCst);
-        self.duty
-            .borrow_mut()
-            .copy_from_slice(&[duty.min(self.max_duty()) | 0x8000; 4][..]);
+        let mut buffer = T::buffer().get();
+        buffer.copy_from_slice(&[duty.min(self.max_duty()) | 0x8000; 4][..]);
+        T::buffer().set(buffer);
         self.one_shot();
         self.set_load_mode(LoadMode::Common);
         self.pwm
             .seq0
             .ptr
-            .write(|w| unsafe { w.bits(self.duty.as_ptr() as u32) });
+            .write(|w| unsafe { w.bits(T::buffer().as_ptr() as u32) });
         self.pwm.seq0.cnt.write(|w| unsafe { w.bits(1) });
         self.start_seq(Seq::Seq0);
     }
@@ -341,14 +329,15 @@ where
     /// Sets duty cycle (15 bit) for a PWM group.
     /// Will replace any ongoing sequence playback.
     pub fn set_duty_on_group(&self, group: Group, duty: u16) {
-        compiler_fence(Ordering::SeqCst);
-        self.duty.borrow_mut()[usize::from(group)] = duty.min(self.max_duty()) & 0x7FFF;
+        let mut buffer = T::buffer().get();
+        buffer[usize::from(group)] = duty.min(self.max_duty()) & 0x7FFF;
+        T::buffer().set(buffer);
         self.one_shot();
         self.set_load_mode(LoadMode::Grouped);
         self.pwm
             .seq0
             .ptr
-            .write(|w| unsafe { w.bits(self.duty.as_ptr() as u32) });
+            .write(|w| unsafe { w.bits(T::buffer().as_ptr() as u32) });
         self.pwm.seq0.cnt.write(|w| unsafe { w.bits(2) });
         self.start_seq(Seq::Seq0);
     }
@@ -356,14 +345,15 @@ where
     /// Sets inverted duty cycle (15 bit) for a PWM group.
     /// Will replace any ongoing sequence playback.
     pub fn set_duty_off_group(&self, group: Group, duty: u16) {
-        compiler_fence(Ordering::SeqCst);
-        self.duty.borrow_mut()[usize::from(group)] = duty.min(self.max_duty()) | 0x8000;
+        let mut buffer = T::buffer().get();
+        buffer[usize::from(group)] = duty.min(self.max_duty()) | 0x8000;
+        T::buffer().set(buffer);
         self.one_shot();
         self.set_load_mode(LoadMode::Grouped);
         self.pwm
             .seq0
             .ptr
-            .write(|w| unsafe { w.bits(self.duty.as_ptr() as u32) });
+            .write(|w| unsafe { w.bits(T::buffer().as_ptr() as u32) });
         self.pwm.seq0.cnt.write(|w| unsafe { w.bits(2) });
         self.start_seq(Seq::Seq0);
     }
@@ -383,25 +373,27 @@ where
     /// Sets duty cycle (15 bit) for a PWM channel.
     /// Will replace any ongoing sequence playback and the other channels will return to their previously set value.
     pub fn set_duty_on(&self, channel: Channel, duty: u16) {
-        compiler_fence(Ordering::SeqCst);
-        self.duty.borrow_mut()[usize::from(channel)] = duty.min(self.max_duty()) & 0x7FFF;
+        let mut buffer = T::buffer().get();
+        buffer[usize::from(channel)] = duty.min(self.max_duty()) & 0x7FFF;
+        T::buffer().set(buffer);
         self.one_shot();
         self.set_load_mode(LoadMode::Individual);
-        if self.load_seq(Seq::Seq0, &*self.duty.borrow()).is_ok() {
-            self.start_seq(Seq::Seq0);
-        }
+        self.pwm.seq0.ptr.write(|w| unsafe { w.bits(T::buffer().as_ptr() as u32) });
+        self.pwm.seq0.cnt.write(|w| unsafe { w.bits(4) });
+        self.start_seq(Seq::Seq0); 
     }
 
     /// Sets inverted duty cycle (15 bit) for a PWM channel.
     /// Will replace any ongoing sequence playback and the other channels will return to their previously set value.
     pub fn set_duty_off(&self, channel: Channel, duty: u16) {
-        compiler_fence(Ordering::SeqCst);
-        self.duty.borrow_mut()[usize::from(channel)] = duty.min(self.max_duty()) | 0x8000;
+        let mut buffer = T::buffer().get();
+        buffer[usize::from(channel)] = duty.min(self.max_duty()) | 0x8000;
+        T::buffer().set(buffer);
         self.one_shot();
         self.set_load_mode(LoadMode::Individual);
-        if self.load_seq(Seq::Seq0, &*self.duty.borrow()).is_ok() {
-            self.start_seq(Seq::Seq0);
-        }
+        self.pwm.seq0.ptr.write(|w| unsafe { w.bits(T::buffer().as_ptr() as u32) });
+        self.pwm.seq0.cnt.write(|w| unsafe { w.bits(4) });
+        self.start_seq(Seq::Seq0); 
     }
 
     /// Returns the duty cycle value for a PWM channel.        
@@ -471,49 +463,12 @@ where
         self
     }
 
-    /// Loads a sequence buffer.
-    /// NOTE: `buf` must live until the sequence is done playing, or it might play a corrupted sequence.
-    pub fn load_seq(&self, seq: Seq, buf: &[u16]) -> Result<(), Error> {
-        if (buf.as_ptr() as usize) < SRAM_LOWER || (buf.as_ptr() as usize) > SRAM_UPPER {
-            return Err(Error::DMABufferNotInDataMemory);
-        }
-
-        if buf.len() > 32_768 {
-            return Err(Error::BufferTooLong);
-        }
-
-        compiler_fence(Ordering::SeqCst);
-
-        match seq {
-            Seq::Seq0 => {
-                self.pwm
-                    .seq0
-                    .ptr
-                    .write(|w| unsafe { w.bits(buf.as_ptr() as u32) });
-                self.pwm
-                    .seq0
-                    .cnt
-                    .write(|w| unsafe { w.bits(buf.len() as u32) });
-            }
-            Seq::Seq1 => {
-                self.pwm
-                    .seq1
-                    .ptr
-                    .write(|w| unsafe { w.bits(buf.as_ptr() as u32) });
-                self.pwm
-                    .seq1
-                    .cnt
-                    .write(|w| unsafe { w.bits(buf.len() as u32) });
-            }
-        }
-        Ok(())
-    }
-
     /// Loads the first PWM value on all enabled channels from a sequence and starts playing that sequence.
     /// Causes PWM generation to start if not running.
     #[inline(always)]
     pub fn start_seq(&self, seq: Seq) {
         compiler_fence(Ordering::SeqCst);
+        self.pwm.enable.write(|w| w.enable().enabled());
         self.pwm.tasks_seqstart[usize::from(seq)].write(|w| w.tasks_seqstart().set_bit());
         while self.pwm.events_seqstarted[usize::from(seq)].read().bits() == 0 {}
         self.pwm.events_seqend[0].write(|w| w);
@@ -535,6 +490,74 @@ where
         compiler_fence(Ordering::SeqCst);
         self.pwm.tasks_stop.write(|w| w.tasks_stop().set_bit());
         while self.pwm.events_stopped.read().bits() == 0 {}
+    }
+
+    /// Loads the given sequence buffers and optionally (re-)starts sequence playback.
+    /// Returns a `PemSeq`, containing `Pwm<T>` and the buffers.
+    #[allow(unused_mut)]
+    pub fn load<B0, B1>(
+        mut self,
+        seq0_buffer: Option<B0>,
+        seq1_buffer: Option<B1>,
+        start: bool,
+    ) -> Result<PwmSeq<T, B0, B1>, (Error, Pwm<T>, Option<B0>, Option<B1>)>
+    where
+        B0: ReadBuffer<Word = u16> + 'static,
+        B1: ReadBuffer<Word = u16> + 'static,
+    {
+        if let Some(buf) = &seq0_buffer {
+            let (ptr, len) = unsafe { buf.read_buffer() };
+            if (ptr as usize) < SRAM_LOWER || (ptr as usize) > SRAM_UPPER {
+                return Err((
+                    Error::DMABufferNotInDataMemory,
+                    self,
+                    seq0_buffer,
+                    seq1_buffer,
+                ));
+            }
+            if len > (1 << 15) / core::mem::size_of::<u16>() {
+                return Err((Error::BufferTooLong, self, seq0_buffer, seq1_buffer));
+            }
+            compiler_fence(Ordering::SeqCst);
+            self.pwm.seq0.ptr.write(|w| unsafe { w.bits(ptr as u32) });
+            self.pwm.seq0.cnt.write(|w| unsafe { w.bits(len as u32) });
+            if start {
+                self.start_seq(Seq::Seq0);
+            }
+        } else {
+            self.pwm.seq0.cnt.write(|w| unsafe { w.bits(0) });
+        }
+
+        if let Some(buf) = &seq1_buffer {
+            let (ptr, len) = unsafe { buf.read_buffer() };
+            if (ptr as usize) < SRAM_LOWER || (ptr as usize) > SRAM_UPPER {
+                return Err((
+                    Error::DMABufferNotInDataMemory,
+                    self,
+                    seq0_buffer,
+                    seq1_buffer,
+                ));
+            }
+            if len > (1 << 15) / core::mem::size_of::<u16>() {
+                return Err((Error::BufferTooLong, self, seq0_buffer, seq1_buffer));
+            }
+            compiler_fence(Ordering::SeqCst);
+            self.pwm.seq1.ptr.write(|w| unsafe { w.bits(ptr as u32) });
+            self.pwm.seq1.cnt.write(|w| unsafe { w.bits(len as u32) });
+            if start {
+                self.start_seq(Seq::Seq1);
+            }
+        } else {
+            self.pwm.seq1.cnt.write(|w| unsafe { w.bits(0) });
+        }
+
+        Ok(PwmSeq {
+            inner: Some(Inner {
+                seq0_buffer,
+                seq1_buffer,
+                pwm: self,
+            }),
+        })
     }
 
     /// Enables interrupt triggering on the specified event.
@@ -644,14 +667,12 @@ where
     }
 
     /// Returns reference to `Seq0 Start` task endpoint for PPI.
-    #[cfg(any(feature = "52833", feature = "52840"))]
     #[inline(always)]
     pub fn task_start_seq0(&self) -> &Reg<u32, _TASKS_SEQSTART> {
         &self.pwm.tasks_seqstart[0]
     }
 
     /// Returns reference to `Seq1 Started` task endpoint for PPI.
-    #[cfg(any(feature = "52833", feature = "52840"))]
     #[inline(always)]
     pub fn task_start_seq1(&self) -> &Reg<u32, _TASKS_SEQSTART> {
         &self.pwm.tasks_seqstart[1]
@@ -691,6 +712,76 @@ where
     /// Consumes `self` and returns back the raw peripheral.
     pub fn free(self) -> T {
         self.pwm
+    }
+}
+
+/// A Pwm sequence wrapper
+#[derive(Debug)]
+pub struct PwmSeq<T: Instance, B0, B1> {
+    inner: Option<Inner<T, B0, B1>>,
+}
+
+#[derive(Debug)]
+struct Inner<T: Instance, B0, B1> {
+    seq0_buffer: Option<B0>,
+    seq1_buffer: Option<B1>,
+    pwm: Pwm<T>,
+}
+
+impl<T: Instance, B0, B1> PwmSeq<T, B0, B1>
+where
+    B0: ReadBuffer<Word = u16> + 'static,
+    B1: ReadBuffer<Word = u16> + 'static,
+{
+    /// Returns the wrapped contents.
+    #[inline(always)]
+    pub fn split(mut self) -> (Option<B0>, Option<B1>, Pwm<T>) {
+        compiler_fence(Ordering::SeqCst);
+        let inner = self
+            .inner
+            .take()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        (inner.seq0_buffer, inner.seq1_buffer, inner.pwm)
+    }
+
+    /// Stops PWM generation.
+    #[inline(always)]
+    pub fn stop(&self) {
+        let inner = self
+            .inner
+            .as_ref()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        inner.pwm.stop();
+    }
+
+    /// Starts playing the given sequence.
+    #[inline(always)]
+    pub fn start_seq(&self, seq: Seq) {
+        let inner = self
+            .inner
+            .as_ref()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        inner.pwm.start_seq(seq);
+    }
+
+    /// Checks if the given event has been triggered.
+    #[inline(always)]
+    pub fn is_event_triggered(&self, event: PwmEvent) -> bool {
+        let inner = self
+            .inner
+            .as_ref()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        inner.pwm.is_event_triggered(event)
+    }
+
+    /// Marks the given event as handled.
+    #[inline(always)]
+    pub fn reset_event(&self, event: PwmEvent) {
+        let inner = self
+            .inner
+            .as_ref()
+            .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+        inner.pwm.reset_event(event)
     }
 }
 
@@ -973,22 +1064,56 @@ pub enum Error {
     BufferTooLong,
 }
 
-pub trait Instance: Deref<Target = crate::pac::pwm0::RegisterBlock> + sealed::Sealed {}
+pub trait Instance: sealed::Sealed + Deref<Target = crate::pac::pwm0::RegisterBlock> {
+    const INTERRUPT: Interrupt;
 
-impl Instance for PWM0 {}
+    /// Provides access to the associated internal duty buffer for the instance.
+    fn buffer() -> &'static Cell<[u16; 4]>;
+}
+
+// Internal static duty buffers. One per instance.
+static mut BUF0: Cell<[u16; 4]> = Cell::new([0; 4]);
+#[cfg(not(any(feature = "52810", feature = "52811")))]
+static mut BUF1: Cell<[u16; 4]> = Cell::new([0; 4]);
+#[cfg(not(any(feature = "52810", feature = "52811")))]
+static mut BUF2: Cell<[u16; 4]> = Cell::new([0; 4]);
+#[cfg(not(any(feature = "52810", feature = "52811", feature = "52832")))]
+static mut BUF3: Cell<[u16; 4]> = Cell::new([0; 4]);
+
+impl Instance for PWM0 {
+    const INTERRUPT: Interrupt = Interrupt::PWM0;
+    #[inline(always)]
+    fn buffer() -> &'static Cell<[u16; 4]> {
+         unsafe { &BUF0 }
+    }
+}
 
 #[cfg(not(any(feature = "52810", feature = "52811")))]
-impl Instance for PWM1 {}
+impl Instance for PWM1 {
+    const INTERRUPT: Interrupt = Interrupt::PWM1;
+    fn buffer() -> &'static Cell<[u16; 4]> {
+         unsafe { &BUF1 }
+    }
+}
 
 #[cfg(not(any(feature = "52810", feature = "52811")))]
-impl Instance for PWM2 {}
+impl Instance for PWM2 {
+    const INTERRUPT: Interrupt = Interrupt::PWM2;
+    fn buffer() -> &'static Cell<[u16; 4]> {
+        unsafe { &BUF2 } 
+    }
+}
 
 #[cfg(not(any(feature = "52810", feature = "52811", feature = "52832")))]
-impl Instance for PWM3 {}
+impl Instance for PWM3 {
+    const INTERRUPT: Interrupt = Interrupt::PWM3;
+    fn buffer() -> &'static Cell<[u16; 4]> {
+        unsafe { &BUF3 } 
+    }
+}
 
 mod sealed {
     pub trait Sealed {}
-
     impl Sealed for crate::pwm::PWM0 {}
 
     #[cfg(not(any(feature = "52810", feature = "52811")))]
