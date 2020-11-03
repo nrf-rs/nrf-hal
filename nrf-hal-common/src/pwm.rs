@@ -463,34 +463,6 @@ where
         self
     }
 
-    fn load_seq<B>(&self, seq: Seq, buf: B) -> Result<(), Error>
-    where
-        B: ReadBuffer<Word = u16> + 'static,
-    {
-        let (ptr, len) = unsafe { buf.read_buffer() };
-        if (ptr as usize) < SRAM_LOWER || (ptr as usize) > SRAM_UPPER {
-            return Err(Error::DMABufferNotInDataMemory);
-        }
-
-        if len > (1 << 15) / core::mem::size_of::<u16>() {
-            return Err(Error::BufferTooLong);
-        }
-
-        compiler_fence(Ordering::SeqCst);
-
-        match seq {
-            Seq::Seq0 => {
-                self.pwm.seq0.ptr.write(|w| unsafe { w.bits(ptr as u32) });
-                self.pwm.seq0.cnt.write(|w| unsafe { w.bits(len as u32) });
-            }
-            Seq::Seq1 => {
-                self.pwm.seq1.ptr.write(|w| unsafe { w.bits(ptr as u32) });
-                self.pwm.seq1.cnt.write(|w| unsafe { w.bits(len as u32) });
-            }
-        }
-        Ok(())
-    }
-
     /// Loads the first PWM value on all enabled channels from a sequence and starts playing that sequence.
     /// Causes PWM generation to start if not running.
     #[inline(always)]
@@ -1092,7 +1064,7 @@ pub enum Error {
     BufferTooLong,
 }
 
-pub trait Instance: private::Sealed + Deref<Target = crate::pac::pwm0::RegisterBlock> {
+pub trait Instance: sealed::Sealed + Deref<Target = crate::pac::pwm0::RegisterBlock> {
     const INTERRUPT: Interrupt;
 
     /// Provides access to the associated internal duty buffer for the instance.
@@ -1140,7 +1112,7 @@ impl Instance for PWM3 {
     }
 }
 
-mod private {
+mod sealed {
     pub trait Sealed {}
     impl Sealed for crate::pwm::PWM0 {}
 
