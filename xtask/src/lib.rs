@@ -35,6 +35,7 @@ pub static EXAMPLES: &[(&str, &[&str])] = &[
     ("twi-ssd1306", &["52832", "52840"]),
     ("twim-demo", &[]),
     ("twis-demo", &[]),
+    ("twis-dma-demo", &[]),
     ("wdt-demo", &[]),
 ];
 

@@ -43,7 +43,7 @@ const APP: () = {
         let sda = p0.p0_16.into_floating_input().degrade();
 
         let twis = Twis::new(ctx.device.TWIS0, Pins { scl, sda }, ADDR0);
-        twis.address1(ADDR1) // Add a secondary i2c address
+        twis.set_address1(ADDR1) // Add a secondary i2c address
             .enable_interrupt(TwiEvent::Write) // Trigger interrupt on WRITE command
             .enable_interrupt(TwiEvent::Read) // Trigger interrupt on READ command
             .enable();
@@ -73,11 +73,11 @@ const APP: () = {
             rprintln!("Writing data to controller...");
             match twis.address_match() {
                 ADDR0 => {
-                    let res = twis.tx(&buffer0[..]);
+                    let res = twis.tx_blocking(&buffer0[..]);
                     rprintln!("Result: {:?}\n{:?}", res, buffer0);
                 }
                 ADDR1 => {
-                    let res = twis.tx(&buffer1[..]);
+                    let res = twis.tx_blocking(&buffer1[..]);
                     rprintln!("Result: {:?}\n{:?}", res, buffer1);
                 }
                 _ => unreachable!(),
@@ -90,11 +90,11 @@ const APP: () = {
             rprintln!("Reading data from controller...");
             match twis.address_match() {
                 ADDR0 => {
-                    let res = twis.rx(&mut buffer0[..]);
+                    let res = twis.rx_blocking(&mut buffer0[..]);
                     rprintln!("Result: {:?}\n{:?}", res, buffer0);
                 }
                 ADDR1 => {
-                    let res = twis.rx(&mut buffer1[..]);
+                    let res = twis.rx_blocking(&mut buffer1[..]);
                     rprintln!("Result: {:?}\n{:?}", res, buffer1);
                 }
                 _ => unreachable!(),
