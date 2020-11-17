@@ -87,11 +87,11 @@ where
     }
 
     pub fn enable(&mut self) {
-        twim.enable.write(|w| w.enable().enabled());
+        self.0.enable.write(|w| w.enable().enabled());
     }
 
     pub fn disable(&mut self) {
-        twim.enable.write(|w| w.enable().disabled());
+        self.0.enable.write(|w| w.enable().disabled());
     }
 
     /// Set TX buffer, checking that it is in RAM and has suitable length.
