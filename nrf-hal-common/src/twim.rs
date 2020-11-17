@@ -86,6 +86,14 @@ where
         Twim(twim)
     }
 
+    pub fn enable(&mut self) {
+        twim.enable.write(|w| w.enable().enabled());
+    }
+
+    pub fn disable(&mut self) {
+        twim.enable.write(|w| w.enable().disabled());
+    }
+
     /// Set TX buffer, checking that it is in RAM and has suitable length.
     unsafe fn set_tx_buffer(&mut self, buffer: &[u8]) -> Result<(), Error> {
         slice_in_ram_or(buffer, Error::DMABufferNotInDataMemory)?;
