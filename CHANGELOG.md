@@ -10,23 +10,42 @@
 - LPCOMP module ([#195]).
 - TWIS module ([#196]).
 - PWM module ([#200]).
-- I2S module ([#201]).
-- SPIS module ([#226]).
+- I2S module ([#201] [#209] [#225] [#237]).
+- SPIS module ([#226] [#236]).
 - Add support for the nRF52811 ([#227]).
+- Add PPI channel group tasks ([#212]).
+- Add PPI endpoints for timers ([#239]).
+
+### Enhancements
+
+- Improve SAADC docs ([#218]).
+- Update Embed.toml of all examples to new defaults ([#229]).
+- Make `ConfigurablePpi` and subtrait of `Ppi` ([#244]).
 
 ### Fixes
 
 - Refuse to build nRF52+ HALs for thumbv6m targets ([#203]).
 - Refuse to build `nrf52810-hal` for hard-float targets, and `nrf51-hal` for thumbv7+ targets
   ([#206]).
-- GPIOTE Port 1 and 0 differentiation for nRF52833 and nRF52840 ([#217])
+- Set the correct Port in GPIOTE ([#217] [#248]).
 - Correct TWIM port initialization for P1 pins ([#221]).
+- Fix race condition in RTC event handling ([#243]).
 
 ### Breaking Changes
 
-- Remove `Spi::read` ([#190]).
+- Remove `Spi::read` in favor of `transfer_split_uneven` ([#190]).
 - Seal the `timer::Instance` trait ([#214]).
-- Make GPIOs start in a `Disconnected` state instead of `Input<Floating>` ([#220]).
+- Make GPIOs start in a `Disconnected` state instead of `Input<Floating>` ([#220] [#245]).
+- 🦭 all `Instance` traits ([#255]).
+- 🦭 PPI traits ([#259]).
+- Various TWIM fixes and improvements - removes automatic transfer splitting ([#242]).
+- Remove typestate from RTC to make it easier to use ([#252]).
+- Also return owned `Pins` from `Usart::free()` ([#261]).
+
+### Internal Improvements
+
+- Utilize [`cargo-xtask`] to simplify CI and the release process ([#207] [#210]).
+- Add `conf()` utility function to reduce code duplication in GPIO ([#250]).
 
 [#185]: https://github.com/nrf-rs/nrf-hal/pull/185
 [#188]: https://github.com/nrf-rs/nrf-hal/pull/188
@@ -36,12 +55,35 @@
 [#200]: https://github.com/nrf-rs/nrf-hal/pull/200
 [#201]: https://github.com/nrf-rs/nrf-hal/pull/201
 [#203]: https://github.com/nrf-rs/nrf-hal/pull/203
+[#209]: https://github.com/nrf-rs/nrf-hal/pull/209
 [#190]: https://github.com/nrf-rs/nrf-hal/pull/190
 [#206]: https://github.com/nrf-rs/nrf-hal/pull/206
+[#207]: https://github.com/nrf-rs/nrf-hal/pull/207
+[#210]: https://github.com/nrf-rs/nrf-hal/pull/210
+[#212]: https://github.com/nrf-rs/nrf-hal/pull/212
 [#217]: https://github.com/nrf-rs/nrf-hal/pull/217
 [#214]: https://github.com/nrf-rs/nrf-hal/pull/214
+[#218]: https://github.com/nrf-rs/nrf-hal/pull/218
 [#220]: https://github.com/nrf-rs/nrf-hal/pull/220
 [#221]: https://github.com/nrf-rs/nrf-hal/pull/221
+[#225]: https://github.com/nrf-rs/nrf-hal/pull/225
+[#226]: https://github.com/nrf-rs/nrf-hal/pull/226
+[#227]: https://github.com/nrf-rs/nrf-hal/pull/227
+[#229]: https://github.com/nrf-rs/nrf-hal/pull/229
+[#236]: https://github.com/nrf-rs/nrf-hal/pull/236
+[#237]: https://github.com/nrf-rs/nrf-hal/pull/237
+[#239]: https://github.com/nrf-rs/nrf-hal/pull/239
+[#242]: https://github.com/nrf-rs/nrf-hal/pull/242
+[#243]: https://github.com/nrf-rs/nrf-hal/pull/243
+[#244]: https://github.com/nrf-rs/nrf-hal/pull/244
+[#245]: https://github.com/nrf-rs/nrf-hal/pull/245
+[#248]: https://github.com/nrf-rs/nrf-hal/pull/248
+[#250]: https://github.com/nrf-rs/nrf-hal/pull/250
+[#252]: https://github.com/nrf-rs/nrf-hal/pull/252
+[#255]: https://github.com/nrf-rs/nrf-hal/pull/255
+[#259]: https://github.com/nrf-rs/nrf-hal/pull/259
+[#261]: https://github.com/nrf-rs/nrf-hal/pull/261
+[`cargo-xtask`]: https://github.com/matklad/cargo-xtask
 
 ## [0.11.1]
 

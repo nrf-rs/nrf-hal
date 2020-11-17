@@ -128,8 +128,14 @@ pub enum Error {
 }
 
 /// Trait implemented by all SPI peripheral instances.
-pub trait Instance: Deref<Target = spi0::RegisterBlock> {}
+pub trait Instance: Deref<Target = spi0::RegisterBlock> + sealed::Sealed {}
 
+mod sealed {
+    pub trait Sealed {}
+}
+
+impl sealed::Sealed for SPI0 {}
 impl Instance for SPI0 {}
 
+impl sealed::Sealed for SPI1 {}
 impl Instance for SPI1 {}

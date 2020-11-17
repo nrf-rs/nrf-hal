@@ -553,14 +553,16 @@ impl Instance for TWIS0 {
     const INTERRUPT: Interrupt = Interrupt::TWIM0_TWIS0_TWI0_SPIM0_SPIS0_SPI0;
 }
 
-#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-impl Instance for TWIS1 {
-    const INTERRUPT: Interrupt = Interrupt::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1;
-}
-
 mod sealed {
     pub trait Sealed {}
     impl Sealed for super::TWIS0 {}
-    #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-    impl Sealed for super::TWIS1 {}
+}
+
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+mod _twis1 {
+    use super::*;
+    impl sealed::Sealed for TWIS1 {}
+    impl Instance for TWIS1 {
+        const INTERRUPT: Interrupt = Interrupt::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1;
+    }
 }

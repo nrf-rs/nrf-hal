@@ -24,19 +24,19 @@ fn main() -> ! {
     let clocks = clocks.start_lfclk();
 
     // Run RTC for 1 second
-    let mut rtc = Rtc::new(p.RTC0);
+    let mut rtc = Rtc::new(p.RTC0, 0).unwrap();
     rtc.set_compare(RtcCompareReg::Compare0, 32_768).unwrap();
     rtc.enable_event(RtcInterrupt::Compare0);
 
     rprintln!("Starting RTC");
-    let rtc = rtc.enable_counter();
+    rtc.enable_counter();
 
     rprintln!("Waiting for compare match");
     while !rtc.is_event_triggered(RtcInterrupt::Compare0) {}
     rtc.reset_event(RtcInterrupt::Compare0);
 
     rprintln!("Compare match, stopping RTC");
-    let rtc = rtc.disable_counter();
+    rtc.disable_counter();
 
     rprintln!("Counter stopped at {} ticks", rtc.get_counter());
 

@@ -394,8 +394,13 @@ pub enum Error {
 }
 
 /// Implemented by all SPIM instances.
-pub trait Instance: Deref<Target = spim0::RegisterBlock> {}
+pub trait Instance: Deref<Target = spim0::RegisterBlock> + sealed::Sealed {}
 
+mod sealed {
+    pub trait Sealed {}
+}
+
+impl sealed::Sealed for SPIM0 {}
 impl Instance for SPIM0 {}
 
 #[cfg(any(
@@ -404,10 +409,22 @@ impl Instance for SPIM0 {}
     feature = "52840",
     feature = "52811"
 ))]
-impl Instance for SPIM1 {}
+mod _spim1 {
+    use super::*;
+    impl Instance for SPIM1 {}
+    impl sealed::Sealed for SPIM1 {}
+}
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-impl Instance for SPIM2 {}
+mod _spim2 {
+    use super::*;
+    impl Instance for SPIM2 {}
+    impl sealed::Sealed for SPIM2 {}
+}
 
 #[cfg(any(feature = "52833", feature = "52840"))]
-impl Instance for SPIM3 {}
+mod _spim3 {
+    use super::*;
+    impl Instance for SPIM3 {}
+    impl sealed::Sealed for SPIM3 {}
+}

@@ -47,7 +47,7 @@ pub mod i2s;
 pub mod lpcomp;
 #[cfg(not(feature = "9160"))]
 pub mod ppi;
-#[cfg(any(feature = "52833", feature = "52840"))]
+#[cfg(not(any(feature = "51", feature = "52832", feature = "9160")))]
 pub mod pwm;
 #[cfg(not(any(feature = "51", feature = "9160")))]
 pub mod qdec;

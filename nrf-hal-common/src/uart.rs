@@ -142,6 +142,11 @@ pub struct Pins {
     pub rts: Option<Pin<Output<PushPull>>>,
 }
 
-pub trait Instance: Deref<Target = uart0::RegisterBlock> {}
+pub trait Instance: Deref<Target = uart0::RegisterBlock> + sealed::Sealed {}
 
+mod sealed {
+    pub trait Sealed {}
+}
+
+impl sealed::Sealed for UART0 {}
 impl Instance for UART0 {}
