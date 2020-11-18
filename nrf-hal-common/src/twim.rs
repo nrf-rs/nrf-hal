@@ -86,10 +86,12 @@ where
         Twim(twim)
     }
 
+    /// Enable the instance.
     pub fn enable(&mut self) {
         self.0.enable.write(|w| w.enable().enabled());
     }
 
+    /// Disable the instance.
     pub fn disable(&mut self) {
         self.0.enable.write(|w| w.enable().disabled());
     }
