@@ -86,6 +86,21 @@ where
         Twim(twim)
     }
 
+    /// Disable the instance.
+    /// 
+    /// Disabling the instance will switch off the peripheral leading to a
+    /// considerably lower energy use. However, while the instance is disabled
+    /// it is not possible to use it for communication. The configuration of
+    /// the instance will be retained.
+    pub fn disable(&mut self) {
+        self.0.enable.write(|w| w.enable().disabled());
+    }
+
+    /// Re-enable the instance after it was previously disabled.
+    pub fn enable(&mut self) {
+        self.0.enable.write(|w| w.enable().enabled());
+    }
+
     /// Set TX buffer, checking that it is in RAM and has suitable length.
     unsafe fn set_tx_buffer(&mut self, buffer: &[u8]) -> Result<(), Error> {
         slice_in_ram_or(buffer, Error::DMABufferNotInDataMemory)?;
