@@ -86,7 +86,7 @@ where
         Twim(twim)
     }
 
-    /// Enable the instance.
+    /// Re-enable the instance after it was previously disabled.
     pub fn enable(&mut self) {
         self.0.enable.write(|w| w.enable().enabled());
     }
