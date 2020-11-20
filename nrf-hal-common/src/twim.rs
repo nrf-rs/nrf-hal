@@ -86,14 +86,14 @@ where
         Twim(twim)
     }
 
-    /// Re-enable the instance after it was previously disabled.
-    pub fn enable(&mut self) {
-        self.0.enable.write(|w| w.enable().enabled());
-    }
-
     /// Disable the instance.
     pub fn disable(&mut self) {
         self.0.enable.write(|w| w.enable().disabled());
+    }
+
+    /// Re-enable the instance after it was previously disabled.
+    pub fn enable(&mut self) {
+        self.0.enable.write(|w| w.enable().enabled());
     }
 
     /// Set TX buffer, checking that it is in RAM and has suitable length.
