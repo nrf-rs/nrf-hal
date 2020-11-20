@@ -87,6 +87,11 @@ where
     }
 
     /// Disable the instance.
+    /// 
+    /// Disabling the instance will switch off the peripheral leading to a
+    /// considerably lower energy use. However, while the instance is disabled
+    /// it is not possible to use it for communication. The configuration of
+    /// the instance will be retained.
     pub fn disable(&mut self) {
         self.0.enable.write(|w| w.enable().disabled());
     }
