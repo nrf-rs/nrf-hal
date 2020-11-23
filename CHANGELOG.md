@@ -8,13 +8,14 @@
 - COMP module ([#189]).
 - QDEC module ([#188]).
 - LPCOMP module ([#195]).
-- TWIS module ([#196]).
-- PWM module ([#200]).
+- TWIS module ([#196] [#230]).
+- PWM module ([#200] [#231]).
 - I2S module ([#201] [#209] [#225] [#237]).
 - SPIS module ([#226] [#236]).
 - Add support for the nRF52811 ([#227]).
 - Add PPI channel group tasks ([#212]).
 - Add PPI endpoints for timers ([#239]).
+- Allow disabling and reenabling the TWIM instance ([#266]).
 
 ### Enhancements
 
@@ -70,6 +71,8 @@
 [#226]: https://github.com/nrf-rs/nrf-hal/pull/226
 [#227]: https://github.com/nrf-rs/nrf-hal/pull/227
 [#229]: https://github.com/nrf-rs/nrf-hal/pull/229
+[#230]: https://github.com/nrf-rs/nrf-hal/pull/230
+[#231]: https://github.com/nrf-rs/nrf-hal/pull/231
 [#236]: https://github.com/nrf-rs/nrf-hal/pull/236
 [#237]: https://github.com/nrf-rs/nrf-hal/pull/237
 [#239]: https://github.com/nrf-rs/nrf-hal/pull/239
@@ -83,6 +86,7 @@
 [#255]: https://github.com/nrf-rs/nrf-hal/pull/255
 [#259]: https://github.com/nrf-rs/nrf-hal/pull/259
 [#261]: https://github.com/nrf-rs/nrf-hal/pull/261
+[#266]: https://github.com/nrf-rs/nrf-hal/pull/266
 [`cargo-xtask`]: https://github.com/matklad/cargo-xtask
 
 ## [0.11.1]
