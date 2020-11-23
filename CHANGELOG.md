@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+(no changes)
+
+## [0.12.0]
+
 ### New Features
 
 - Derive more traits for `gpio::{Level, Port}` ([#185]).
@@ -145,3 +149,4 @@ None
 [#172]: https://github.com/nrf-rs/nrf-hal/pull/172
 [0.11.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.11.0
 [0.11.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.11.1
+[0.12.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.12.0

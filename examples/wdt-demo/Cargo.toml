@@ -11,7 +11,7 @@ publish = false
 cortex-m = "0.6.2"
 cortex-m-rtic = "0.5.3"
 rtt-target = {version = "0.2.0", features = ["cortex-m"] }
-nrf52840-hal = { version = "0.11", features = ["rt"], path = "../../nrf52840-hal" }
+nrf52840-hal = { features = ["rt"], path = "../../nrf52840-hal" }
 
 [dependencies.embedded-hal]
 version = "0.2.3"
