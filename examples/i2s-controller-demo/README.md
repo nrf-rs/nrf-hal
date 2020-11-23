@@ -1,6 +1,6 @@
-# Inter-IC Sound interface "controller mode (aka master mode)" - Digital Pins
+# I2S controller demo
 
-This demo generates Morse code audio signals from text received over UART and plays them back over I2S. Tested with nRF52840-DK and a UDA1334a DAC. 
+The Inter-IC Sound interface (I2S) controller mode (aka master mode) demo. This demo generates Morse code audio signals from text received over UART and plays them back over I2S. Tested with nRF52840-DK and a UDA1334a DAC. 
 
 ## How to run 
 

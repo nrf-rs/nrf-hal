@@ -1,6 +1,6 @@
-# Pulse width modulation demo - Digital Pins
+# PWM demo
 
-This demonstrates various PWM use cases by allowing the user to press buttons to change demo modes. This outputs PWM signals to the built in LEDs on the nRF52840-DK.
+The pulse width modulation (PWM) demo allows the user to press buttons to change demo modes. This outputs PWM signals to the built in LEDs on the nRF52840-DK.
 
 ## How to run 
 

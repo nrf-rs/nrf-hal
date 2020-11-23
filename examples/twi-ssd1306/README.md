@@ -1,6 +1,6 @@
-# I2C compatible Two-Wire Interface to OLED Display demo - Digital Pins
+# TWI master with SSD1306 display demo
 
-This demo uses the TWIM (Two-Wire Interface Master) peripheral along with the embedded_graphics library to draw "Hello Rust!" to an SSD1306 OLED screen. Note that you need to set a default feature to get this to compile.
+The I2C compatible Two-Wire Interface Master (TWIM) communicating with an SSD1306 OLED Display demo. This demo uses the TWIM peripheral along with the embedded_graphics library to draw "Hello Rust!" to an SSD1306 OLED screen. Note that you need to set a chip feature to get this to compile.
 
 TWI write example using an SSD1306 OLED display:
 https://cdn-shop.adafruit.com/datasheets/SSD1306.pdf

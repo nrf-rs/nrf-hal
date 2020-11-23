@@ -1,6 +1,6 @@
-# Serial peripheral interface slave (SPIS) - Audio
+# SPI slave demo
 
-Demo for the SPIS module, transmitting the current buffer contents while receiving new data. Press button to zero the buffer.
+The Serial peripheral interface slave (SPIS) demo. This demonstrates the SPIS module, transmitting the current buffer contents while receiving new data. Press the button to zero the buffer.
 
 ## How to run 
 

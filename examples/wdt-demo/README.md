@@ -1,6 +1,6 @@
-# Watchdog timer demo - Timer
+# WDT demo
 
-This demonstrates the how the entire device can be set to automatically reset if certain conditions are not met within a certain period of time. In this case you have to press all 4 buttons at least once within a 5 second period to prevent a reset. 
+This demo uses the watchdog timer (WDT) to show how the entire device can be set to automatically reset if certain conditions are not met within a certain period of time. In this case you have to press all 4 buttons at least once within a 5 second period to prevent a reset. 
 
 > Can you spot an opportunity to crash the program? 
 > 

@@ -1,6 +1,6 @@
-# The cipher block chaining - message authentication code (CCM) mode demo - Encryption
+# CCM encryption demo
 
-This demo initialises a text message of the maximum size of 251 bytes and encrypts and decrypts it, measuring the time it takes. It then repeats the process with smaller and smaller chunks of data to demonstrate how long smaller packets take to process.
+This CCM (cipher block chaining) encryption demo initialises a text message of the maximum size of 251 bytes and encrypts and decrypts it, measuring the time it takes. It then repeats the process with smaller and smaller chunks of data to demonstrate how long smaller packets take to process.
 
 ## How to run
 

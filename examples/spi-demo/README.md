@@ -1,6 +1,6 @@
-# Serial peripheral interface master (SPIM) with EasyDMA demo - Audio
+# SPI master demo
 
-Sends some text out on the SPI peripheral and loops it back on itself to demonstrate full duplex direct-memory-access based SPI data transfer. You'll need a resistor to connect the output to the input. Connect a resistor between pin 22 and 23 on the demo board to feed MOSI directly back to MISO. If all tests pass all four Led (Led1 to Led4) will light up, in case of error only at least one of the Led will remain turned off.
+The Serial peripheral interface master (SPIM) with EasyDMA demo. Sends some text out on the SPI peripheral and loops it back on itself to demonstrate full duplex direct-memory-access based SPI data transfer. You'll need a resistor to connect the output to the input. Connect a resistor between pin 22 and 23 on the demo board to feed MOSI directly back to MISO. If all tests pass all four Led (Led1 to Led4) will light up, in case of error only at least one of the LEDs will remain turned off.
 
 ## HW connections
 

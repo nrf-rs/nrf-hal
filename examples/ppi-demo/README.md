@@ -1,6 +1,6 @@
-# Programmable peripheral interconnect (PPI) demo - Channels
+# PPI demo
 
-The PPI allows peripherals to interact with each other without having to go through the CPU. Note that you need to choose a default feature in order for this demo to build. See above. This demo uses the Bluetooth RADIO peripheral as an example but does nothing special with Bluetooth itself so this is not the demo to learn about that capability.
+The Programmable Peripheral Interconnect (PPI) allows peripherals to interact with each other without having to go through the CPU. Note that you need to choose a chip feature in order for this demo to build. See above. This demo uses the Bluetooth RADIO peripheral as an example but does nothing special with Bluetooth itself so this is not the demo to learn about that capability.
 
 ## How to run 
 

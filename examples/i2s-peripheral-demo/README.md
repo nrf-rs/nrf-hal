@@ -1,6 +1,6 @@
-# Inter-IC Sound interface "peripheral mode (aka slave mode)" demo - Digital Pins
+# I2S peripheral demo
 
-This demonstrates full duplex communication between a controller and peripheral mode I2S peripheral using the EasyDMA capabilities of the chip. This targets the nrf52840 family of devices.
+The Inter-IC Sound interface (I2S) peripheral mode (aka slave mode) demo. This demonstrates full duplex communication between a controller and peripheral mode I2S peripheral using the EasyDMA capabilities of the chip. This targets the nrf52840 family of devices.
 
 ## How to run 
 
