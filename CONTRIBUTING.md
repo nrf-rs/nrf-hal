@@ -44,7 +44,7 @@ In order to release a new version of the HALs, the following steps need to be pe
 * **GitHub Release**: Go to <https://github.com/nrf-rs/nrf-hal/releases> and click the tag you just
   pushed. Click *Edit Tag* and paste the changelog entries for the new version (no *Release Title*
   is necessary). Click *Publish Release*.
-* **Annoucement**: Post a link to the GitHub release in [`#nrf-rs:matrix.org`] and any other places
+* **Announcement**: Post a link to the GitHub release in [`#nrf-rs:matrix.org`] and any other places
   you'd like to announce it.
 
 [`cargo-xtask`]: https://github.com/matklad/cargo-xtask/
