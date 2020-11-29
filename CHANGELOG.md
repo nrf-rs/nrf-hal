@@ -39,13 +39,18 @@
 ### Breaking Changes
 
 - Remove `Spi::read` in favor of `transfer_split_uneven` ([#190]).
-- Seal the `timer::Instance` trait ([#214]).
 - Make GPIOs start in a `Disconnected` state instead of `Input<Floating>` ([#220] [#245]).
-- 🦭 all `Instance` traits ([#255]).
-- 🦭 PPI traits ([#259]).
+- Seal¹ the `timer::Instance` trait ([#214]).
+- Seal¹ all `Instance` traits ([#255]).
+- Seal¹ PPI traits ([#259]).
 - Various TWIM fixes and improvements - removes automatic transfer splitting ([#242]).
 - Remove typestate from RTC to make it easier to use ([#252]).
 - Also return owned `Pins` from `Usart::free()` ([#261]).
+
+¹ _A trait can be sealed by making a private trait a supertrait. That way, no
+  downstream crates can implement it (since they can't name the supertrait).
+  This is just to make sure the trait isn't implemented by types that shouldn't
+  implement it._
 
 ### Internal Improvements
 
