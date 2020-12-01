@@ -54,32 +54,29 @@ fn main() -> ! {
     writeln!(serial, "Hello, World!").unwrap();
     rprintln!("Hello, World!");
 
-    let mut rx_buffer = [0u8];
-    let mut buf = [0u8; 255];
+    let mut rx_buffer = [0u8; 255];
     let mut index = 0;
 
     // basic serial echoing
     loop {
         // read one byte
-        serial.read(&mut rx_buffer).unwrap();
-        // transfer byte to our buffer
-        buf[index] = rx_buffer[0];
+        serial.read(&mut rx_buffer[index .. index + 1]).unwrap();
         index += 1;
 
         // check if we've filled our buffer or a new line byte was sent
-        if index == buf.len() || rx_buffer[0] == '\n' as u8 {
+        if index == rx_buffer.len() || rx_buffer[index - 1] == '\n' as u8 {
             // write buffer back
-            serial.write(&buf).unwrap();
+            serial.write(&rx_buffer).unwrap();
 
             // strip the new line since rprintln automatically adds one
-            if rx_buffer[0] == '\n' as u8 {
-                buf[index - 1] = 0;
+            if rx_buffer[index - 1] == '\n' as u8 {
+                rx_buffer[index - 1] = 0;
             }
             // duplicating messages over rtt to compare results
-            rprintln!("{}", str::from_utf8(&buf).unwrap());
+            rprintln!("{}", str::from_utf8(&rx_buffer).unwrap());
 
             // reset the buffer so we don't have stale data
-            buf.iter_mut().for_each(|m| *m = 0);
+            rx_buffer.iter_mut().for_each(|m| *m = 0);
 
             index = 0;
         }
