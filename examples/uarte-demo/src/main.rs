@@ -11,13 +11,14 @@ use {
     cortex_m_rt::entry,
     hal::gpio::Level,
     nrf52840_hal as hal,
-    rtt_target::{rprintln, rtt_init_print},
+    rtt_target::{rprintln, rprint, rtt_init_print},
 };
 
 #[inline(never)]
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
     cortex_m::interrupt::disable();
+    rprintln!("{}", info);
     loop {
         compiler_fence(Ordering::SeqCst);
     }
@@ -68,12 +69,8 @@ fn main() -> ! {
             // write buffer back
             serial.write(&rx_buffer).unwrap();
 
-            // strip the new line since rprintln automatically adds one
-            if rx_buffer[index - 1] == '\n' as u8 {
-                rx_buffer[index - 1] = 0;
-            }
             // duplicating messages over rtt to compare results
-            rprintln!("{}", str::from_utf8(&rx_buffer).unwrap());
+            rprint!(str::from_utf8(&rx_buffer).unwrap());
 
             // reset the buffer so we don't have stale data
             rx_buffer.iter_mut().for_each(|m| *m = 0);
