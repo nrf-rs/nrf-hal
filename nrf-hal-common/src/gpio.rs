@@ -45,14 +45,14 @@ pub enum Port {
 
 #[cfg(any(feature = "52833", feature = "52840"))]
 impl Port {
-    pub(crate) fn bit(&self) -> bool {
+    pub fn bit(&self) -> bool {
         match self {
             Port::Port0 => false,
             Port::Port1 => true,
         }
     }
 
-    pub(crate) fn from_bit(bit: bool) -> Port {
+    pub fn from_bit(bit: bool) -> Port {
         if bit {
             Port::Port1
         } else {
