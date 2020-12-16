@@ -8,7 +8,9 @@ use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
 #[cfg(feature = "9160")]
-use crate::pac::{twim0_ns as twim0, TWIM0_NS as TWIM0};
+use crate::pac::{
+    twim0_ns as twim0, TWIM0_NS as TWIM0, TWIM1_NS as TWIM1, TWIM2_NS as TWIM2, TWIM3_NS as TWIM3,
+};
 
 #[cfg(not(feature = "9160"))]
 use crate::pac::{twim0, TWIM0};
@@ -87,7 +89,7 @@ where
     }
 
     /// Disable the instance.
-    /// 
+    ///
     /// Disabling the instance will switch off the peripheral leading to a
     /// considerably lower energy use. However, while the instance is disabled
     /// it is not possible to use it for communication. The configuration of
@@ -471,9 +473,28 @@ mod sealed {
 impl sealed::Sealed for TWIM0 {}
 impl Instance for TWIM0 {}
 
-#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+#[cfg(any(
+    feature = "52832",
+    feature = "52833",
+    feature = "52840",
+    feature = "9160"
+))]
 mod _twim1 {
     use super::*;
     impl sealed::Sealed for TWIM1 {}
     impl Instance for TWIM1 {}
+}
+
+#[cfg(feature = "9160")]
+mod _twim2 {
+    use super::*;
+    impl sealed::Sealed for TWIM2 {}
+    impl Instance for TWIM2 {}
+}
+
+#[cfg(feature = "9160")]
+mod _twim3 {
+    use super::*;
+    impl sealed::Sealed for TWIM3 {}
+    impl Instance for TWIM3 {}
 }
