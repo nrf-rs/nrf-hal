@@ -68,13 +68,13 @@ where
         // Select pins.
         twim.psel.scl.write(|w| {
             let w = unsafe { w.pin().bits(pins.scl.pin()) };
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52833", feature = "52840"))]
             let w = w.port().bit(pins.scl.port().bit());
             w.connect().connected()
         });
         twim.psel.sda.write(|w| {
             let w = unsafe { w.pin().bits(pins.sda.pin()) };
-            #[cfg(feature = "52840")]
+            #[cfg(any(feature = "52833", feature = "52840"))]
             let w = w.port().bit(pins.sda.port().bit());
             w.connect().connected()
         });
