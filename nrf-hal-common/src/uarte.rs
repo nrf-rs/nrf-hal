@@ -260,7 +260,7 @@ where
         // This is overly restrictive. See (similar SPIM issue):
         // https://github.com/nrf-rs/nrf52/issues/17
         if rx_buffer.len() > u8::max_value() as usize {
-            return Err(Error::TxBufferTooLong);
+            return Err(Error::RxBufferTooLong);
         }
 
         // NOTE: RAM slice check is not necessary, as a mutable slice can only be
