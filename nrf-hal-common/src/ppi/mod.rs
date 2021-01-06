@@ -82,6 +82,10 @@ pub trait Ppi: PpiSealed {
     /// Sets the fork task that must be triggered when the configured event occurs. The user must
     /// provide a reference to the task.
     fn set_fork_task_endpoint<T: Task>(&mut self, task: &T);
+
+    #[cfg(not(feature = "51"))]
+    /// Clear the fork task endpoint. Previously set task will no longer be triggered.
+    fn clear_fork_task_endpoint(&mut self);
 }
 
 /// Traits that extends the [Ppi](trait.Ppi.html) trait, marking a channel as fully configurable.
@@ -132,6 +136,15 @@ impl<P: Channel> Ppi for P {
         regs.fork[P::CH]
             .tep
             .write(|w| unsafe { w.bits(task.task_addr().0) });
+    }
+
+    #[cfg(not(feature = "51"))]
+    #[inline(always)]
+    fn clear_fork_task_endpoint(&mut self) {
+        let regs = unsafe { &*PPI::ptr() };
+        regs.fork[P::CH]
+            .tep
+            .write(|w| unsafe { w.bits(0) });
     }
 }
 
