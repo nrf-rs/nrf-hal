@@ -370,6 +370,13 @@ where
             },
         )
     }
+
+    // Split into implementations of embedded_hal::serial traits
+    pub fn split(self) -> (UarteTx<T>, UarteRx<T>) {
+        let tx = UarteTx::new();
+        let rx = UarteRx::new();
+        (tx, rx)
+    }
 }
 
 impl<T> fmt::Write for Uarte<T>
@@ -406,18 +413,240 @@ pub enum Error {
     BufferNotInRAM,
 }
 
-pub trait Instance: Deref<Target = uarte0::RegisterBlock> + sealed::Sealed {}
+pub trait Instance: Deref<Target = uarte0::RegisterBlock> + sealed::Sealed {
+    fn ptr() -> *const uarte0::RegisterBlock;
+}
 
 mod sealed {
     pub trait Sealed {}
 }
 
 impl sealed::Sealed for UARTE0 {}
-impl Instance for UARTE0 {}
+impl Instance for UARTE0 {
+    fn ptr() -> *const uarte0::RegisterBlock {
+        UARTE0::ptr()
+    }
+}
 
 #[cfg(any(feature = "52833", feature = "52840", feature = "9160"))]
 mod _uarte1 {
     use super::*;
     impl sealed::Sealed for UARTE1 {}
-    impl Instance for UARTE1 {}
+    impl Instance for UARTE1 {
+        fn ptr() -> *const uarte0::RegisterBlock {
+            UARTE1::ptr()
+        }
+    }
+}
+
+/// Interface for the TX part of a UART instance that can be used independently of the RX part.
+pub struct UarteTx<T> {
+    _marker: core::marker::PhantomData<T>,
+    tx_buf: [u8; 1],
+}
+
+/// Interface for the RX part of a UART instance that can be used independently of the TX part.
+pub struct UarteRx<T> {
+    _marker: core::marker::PhantomData<T>,
+    rx_buf: [u8; 1],
+}
+
+impl<T> UarteTx<T>
+where
+    T: Instance,
+{
+    fn new() -> UarteTx<T> {
+        let tx = UarteTx {
+            _marker: core::marker::PhantomData,
+            tx_buf: [0; 1],
+        };
+        tx
+    }
+}
+
+impl<T> UarteRx<T>
+where
+    T: Instance,
+{
+    fn new() -> UarteRx<T> {
+        let rx = UarteRx {
+            _marker: core::marker::PhantomData,
+            rx_buf: [0; 1],
+        };
+        rx
+    }
+}
+
+pub mod serial {
+
+    ///! Implementation of the embedded_hal::serial::* traits for UartTx and UartRx.
+    use super::*;
+    use embedded_hal::serial;
+    use nb;
+
+    impl<T> serial::Write<u8> for UarteTx<T>
+    where
+        T: Instance,
+    {
+        type Error = Error;
+
+        /// Write a single byte non-blocking. Returns nb::Error::WouldBlock if not yet done.
+        fn write(&mut self, b: u8) -> nb::Result<(), Self::Error> {
+            let uarte = unsafe { &*T::ptr() };
+
+            // If txstarted is set, we are in the process of transmitting.
+            let in_progress = uarte.events_txstarted.read().bits() == 1;
+
+            if in_progress {
+                self.flush()
+            } else {
+                // Start a new transmission, copy value into transmit buffer.
+
+                let tx_buffer = &mut self.tx_buf;
+                tx_buffer[0] = b;
+
+                // Conservative compiler fence to prevent optimizations that do not
+                // take in to account actions by DMA. The fence has been placed here,
+                // before any DMA action has started.
+                compiler_fence(SeqCst);
+
+                // Reset the events.
+                uarte.events_endtx.reset();
+                uarte.events_txstopped.reset();
+
+                // Set up the DMA write.
+                // We're giving the register a pointer to the tx buffer.
+                //
+                // The PTR field is a full 32 bits wide and accepts the full range
+                // of values.
+                uarte
+                    .txd
+                    .ptr
+                    .write(|w| unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) });
+
+                // We're giving it the length of the buffer, so no danger of
+                // accessing invalid memory. We have verified that the length of the
+                // buffer fits in an `u8`, so the cast to `u8` is also fine.
+                //
+                // The MAXCNT field is 8 bits wide and accepts the full range of
+                // values.
+                uarte
+                    .txd
+                    .maxcnt
+                    .write(|w| unsafe { w.maxcnt().bits(tx_buffer.len() as _) });
+
+                // Start UARTE Transmit transaction.
+                // `1` is a valid value to write to task registers.
+                uarte.tasks_starttx.write(|w| unsafe { w.bits(1) });
+                Err(nb::Error::WouldBlock)
+            }
+        }
+
+        /// Flush the TX buffer non-blocking. Returns nb::Error::WouldBlock if not yet flushed.
+        fn flush(&mut self) -> nb::Result<(), Self::Error> {
+            let uarte = unsafe { &*T::ptr() };
+
+            let in_progress = uarte.events_txstarted.read().bits() == 1;
+            let endtx = uarte.events_endtx.read().bits() != 0;
+            let txstopped = uarte.events_txstopped.read().bits() != 0;
+            if in_progress {
+                if endtx || txstopped {
+                    // We are done, cleanup the state.
+                    uarte.events_txstarted.reset();
+                    // Conservative compiler fence to prevent optimizations that do not
+                    // take in to account actions by DMA. The fence has been placed here,
+                    // after all possible DMA actions have completed.
+                    compiler_fence(SeqCst);
+
+                    if txstopped {
+                        return Err(nb::Error::Other(Error::Transmit));
+                    }
+
+                    // Lower power consumption by disabling the transmitter once we're
+                    // finished.
+                    // `1` is a valid value to write to task registers.
+                    uarte.tasks_stoptx.write(|w| unsafe { w.bits(1) });
+                    Ok(())
+                } else {
+                    // Still not done, don't block.
+                    Err(nb::Error::WouldBlock)
+                }
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    impl<T> core::fmt::Write for UarteTx<T>
+    where
+        T: Instance,
+    {
+        fn write_str(&mut self, s: &str) -> fmt::Result {
+            s.as_bytes()
+                .iter()
+                .try_for_each(|c| nb::block!(self.write(*c)))
+                .map_err(|_| core::fmt::Error)
+        }
+    }
+
+    impl<T> serial::Read<u8> for UarteRx<T>
+    where
+        T: Instance,
+    {
+        type Error = Error;
+        fn read(&mut self) -> nb::Result<u8, Self::Error> {
+            let uarte = unsafe { &*T::ptr() };
+
+            compiler_fence(SeqCst);
+
+            let in_progress = uarte.events_rxstarted.read().bits() == 1;
+            if in_progress && uarte.events_endrx.read().bits() == 0 {
+                return Err(nb::Error::WouldBlock);
+            }
+
+            if in_progress {
+                let b = self.rx_buf[0];
+                uarte.events_rxstarted.write(|w| w);
+                uarte.events_endrx.write(|w| w);
+
+                compiler_fence(SeqCst);
+                if uarte.rxd.amount.read().bits() != 1 as u32 {
+                    return Err(nb::Error::Other(Error::Receive));
+                }
+                Ok(b)
+            } else {
+                let rx_buf = &mut self.rx_buf;
+
+                // We're giving the register a pointer to the rx buffer.
+                //
+                // The PTR field is a full 32 bits wide and accepts the full range
+                // of values.
+                uarte
+                    .rxd
+                    .ptr
+                    .write(|w| unsafe { w.ptr().bits(rx_buf.as_ptr() as u32) });
+
+                // We're giving it the length of the buffer, so no danger of
+                // accessing invalid memory.
+                //
+                // The MAXCNT field is at least 8 bits wide and accepts the full
+                // range of values.
+                uarte
+                    .rxd
+                    .maxcnt
+                    .write(|w| unsafe { w.maxcnt().bits(rx_buf.len() as _) });
+
+                // Start UARTE Receive transaction.
+                // `1` is a valid value to write to task registers.
+                uarte.tasks_startrx.write(|w| unsafe { w.bits(1) });
+                // Conservative compiler fence to prevent optimizations that do not
+                // take in to account actions by DMA. The fence has been placed here,
+                // after all possible DMA actions have completed.
+
+                compiler_fence(SeqCst);
+
+                Err(nb::Error::WouldBlock)
+            }
+        }
+    }
 }
