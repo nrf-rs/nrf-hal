@@ -463,6 +463,7 @@ where
     T: Instance,
 {
     fn new(tx_buf: &'a mut [u8]) -> Result<UarteTx<'a, T>, Error> {
+        slice_in_ram_or(tx_buf, Error::BufferNotInRAM)?;
         if tx_buf.len() > 0 {
             Ok(UarteTx {
                 _marker: core::marker::PhantomData,
@@ -479,6 +480,7 @@ where
     T: Instance,
 {
     fn new(rx_buf: &'a mut [u8]) -> Result<UarteRx<'a, T>, Error> {
+        slice_in_ram_or(rx_buf, Error::BufferNotInRAM)?;
         if rx_buf.len() > 0 {
             Ok(UarteRx {
                 _marker: core::marker::PhantomData,
