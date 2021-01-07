@@ -371,11 +371,16 @@ where
         )
     }
 
-    // Split into implementations of embedded_hal::serial traits
-    pub fn split(self) -> (UarteTx<T>, UarteRx<T>) {
-        let tx = UarteTx::new();
-        let rx = UarteRx::new();
-        (tx, rx)
+    // Split into implementations of embedded_hal::serial traits. The buffers passed here must outlive any DMA transfers
+    // that are initiated by the UartTx and UartRx.
+    pub fn split<'a>(
+        self,
+        tx_buf: &'a mut [u8],
+        rx_buf: &'a mut [u8],
+    ) -> Result<(UarteTx<'a, T>, UarteRx<'a, T>), Error> {
+        let tx = UarteTx::new(tx_buf)?;
+        let rx = UarteRx::new(rx_buf)?;
+        Ok((tx, rx))
     }
 }
 
@@ -405,6 +410,8 @@ pub struct Pins {
 
 #[derive(Debug)]
 pub enum Error {
+    TxBufferTooSmall,
+    RxBufferTooSmall,
     TxBufferTooLong,
     RxBufferTooLong,
     Transmit,
@@ -440,40 +447,46 @@ mod _uarte1 {
 }
 
 /// Interface for the TX part of a UART instance that can be used independently of the RX part.
-pub struct UarteTx<T> {
+pub struct UarteTx<'a, T> {
     _marker: core::marker::PhantomData<T>,
-    tx_buf: [u8; 1],
+    tx_buf: &'a mut [u8],
 }
 
 /// Interface for the RX part of a UART instance that can be used independently of the TX part.
-pub struct UarteRx<T> {
+pub struct UarteRx<'a, T> {
     _marker: core::marker::PhantomData<T>,
-    rx_buf: [u8; 1],
+    rx_buf: &'a mut [u8],
 }
 
-impl<T> UarteTx<T>
+impl<'a, T> UarteTx<'a, T>
 where
     T: Instance,
 {
-    fn new() -> UarteTx<T> {
-        let tx = UarteTx {
-            _marker: core::marker::PhantomData,
-            tx_buf: [0; 1],
-        };
-        tx
+    fn new(tx_buf: &'a mut [u8]) -> Result<UarteTx<'a, T>, Error> {
+        if tx_buf.len() > 0 {
+            Ok(UarteTx {
+                _marker: core::marker::PhantomData,
+                tx_buf,
+            })
+        } else {
+            Err(Error::TxBufferTooSmall)
+        }
     }
 }
 
-impl<T> UarteRx<T>
+impl<'a, T> UarteRx<'a, T>
 where
     T: Instance,
 {
-    fn new() -> UarteRx<T> {
-        let rx = UarteRx {
-            _marker: core::marker::PhantomData,
-            rx_buf: [0; 1],
-        };
-        rx
+    fn new(rx_buf: &'a mut [u8]) -> Result<UarteRx<'a, T>, Error> {
+        if rx_buf.len() > 0 {
+            Ok(UarteRx {
+                _marker: core::marker::PhantomData,
+                rx_buf,
+            })
+        } else {
+            Err(Error::RxBufferTooSmall)
+        }
     }
 }
 
@@ -484,7 +497,7 @@ pub mod serial {
     use embedded_hal::serial;
     use nb;
 
-    impl<T> serial::Write<u8> for UarteTx<T>
+    impl<'a, T> serial::Write<u8> for UarteTx<'a, T>
     where
         T: Instance,
     {
@@ -502,8 +515,7 @@ pub mod serial {
             } else {
                 // Start a new transmission, copy value into transmit buffer.
 
-                let tx_buffer = &mut self.tx_buf;
-                tx_buffer[0] = b;
+                self.tx_buf[0] = b;
 
                 // Conservative compiler fence to prevent optimizations that do not
                 // take in to account actions by DMA. The fence has been placed here,
@@ -522,18 +534,13 @@ pub mod serial {
                 uarte
                     .txd
                     .ptr
-                    .write(|w| unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) });
+                    .write(|w| unsafe { w.ptr().bits(self.tx_buf.as_ptr() as u32) });
 
-                // We're giving it the length of the buffer, so no danger of
-                // accessing invalid memory. We have verified that the length of the
-                // buffer fits in an `u8`, so the cast to `u8` is also fine.
+                // We're giving it a length of 1 to transmit 1 byte at a time.
                 //
                 // The MAXCNT field is 8 bits wide and accepts the full range of
                 // values.
-                uarte
-                    .txd
-                    .maxcnt
-                    .write(|w| unsafe { w.maxcnt().bits(tx_buffer.len() as _) });
+                uarte.txd.maxcnt.write(|w| unsafe { w.maxcnt().bits(1) });
 
                 // Start UARTE Transmit transaction.
                 // `1` is a valid value to write to task registers.
@@ -577,7 +584,7 @@ pub mod serial {
         }
     }
 
-    impl<T> core::fmt::Write for UarteTx<T>
+    impl<'a, T> core::fmt::Write for UarteTx<'a, T>
     where
         T: Instance,
     {
@@ -589,7 +596,7 @@ pub mod serial {
         }
     }
 
-    impl<T> serial::Read<u8> for UarteRx<T>
+    impl<'a, T> serial::Read<u8> for UarteRx<'a, T>
     where
         T: Instance,
     {
@@ -615,8 +622,6 @@ pub mod serial {
                 }
                 Ok(b)
             } else {
-                let rx_buf = &mut self.rx_buf;
-
                 // We're giving the register a pointer to the rx buffer.
                 //
                 // The PTR field is a full 32 bits wide and accepts the full range
@@ -624,17 +629,13 @@ pub mod serial {
                 uarte
                     .rxd
                     .ptr
-                    .write(|w| unsafe { w.ptr().bits(rx_buf.as_ptr() as u32) });
+                    .write(|w| unsafe { w.ptr().bits(self.rx_buf.as_ptr() as u32) });
 
-                // We're giving it the length of the buffer, so no danger of
-                // accessing invalid memory.
+                // We're giving it a length of 1 to read only 1 byte.
                 //
                 // The MAXCNT field is at least 8 bits wide and accepts the full
                 // range of values.
-                uarte
-                    .rxd
-                    .maxcnt
-                    .write(|w| unsafe { w.maxcnt().bits(rx_buf.len() as _) });
+                uarte.rxd.maxcnt.write(|w| unsafe { w.maxcnt().bits(1) });
 
                 // Start UARTE Receive transaction.
                 // `1` is a valid value to write to task registers.
