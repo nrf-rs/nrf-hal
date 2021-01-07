@@ -490,13 +490,19 @@ mod _uarte1 {
 }
 
 /// Interface for the TX part of a UART instance that can be used independently of the RX part.
-pub struct UarteTx<'a, T> {
+pub struct UarteTx<'a, T>
+where
+    T: Instance,
+{
     _marker: core::marker::PhantomData<T>,
     tx_buf: &'a mut [u8],
 }
 
 /// Interface for the RX part of a UART instance that can be used independently of the TX part.
-pub struct UarteRx<'a, T> {
+pub struct UarteRx<'a, T>
+where
+    T: Instance,
+{
     _marker: core::marker::PhantomData<T>,
     rx_buf: &'a mut [u8],
 }
@@ -531,6 +537,63 @@ where
             })
         } else {
             Err(Error::RxBufferTooSmall)
+        }
+    }
+}
+
+impl<'a, T> Drop for UarteTx<'a, T>
+where
+    T: Instance,
+{
+    fn drop(&mut self) {
+        let uarte = unsafe { &*T::ptr() };
+
+        let in_progress = uarte.events_txstarted.read().bits() == 1;
+        // Stop any ongoing transmission
+        if in_progress {
+            uarte.tasks_stoptx.write(|w| unsafe { w.bits(1) });
+
+            // Wait for transmitter is stopped.
+            while uarte.events_txstopped.read().bits() == 0 {}
+
+            // Reset events
+            uarte.events_endtx.reset();
+            uarte.events_txstopped.reset();
+
+            // Ensure the above is done
+            compiler_fence(SeqCst);
+        }
+    }
+}
+
+impl<'a, T> Drop for UarteRx<'a, T>
+where
+    T: Instance,
+{
+    fn drop(&mut self) {
+        let uarte = unsafe { &*T::ptr() };
+
+        let in_progress = uarte.events_rxstarted.read().bits() == 1;
+        // Stop any ongoing reception
+        if in_progress {
+            uarte.tasks_stoprx.write(|w| unsafe { w.bits(1) });
+
+            // Wait for receive to be done to ensure memory is untouched.
+            while uarte.events_rxto.read().bits() == 0 {}
+
+            uarte.events_rxto.reset();
+
+            // Flush DMA
+            uarte.tasks_flushrx.write(|w| unsafe { w.bits(1) });
+
+            // Wait for the flush to complete.
+            while uarte.events_endrx.read().bits() == 0 {}
+
+            // Reset events
+            uarte.events_endrx.reset();
+
+            // Ensure the above is done
+            compiler_fence(SeqCst);
         }
     }
 }
