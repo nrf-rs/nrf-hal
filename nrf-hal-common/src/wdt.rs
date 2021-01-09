@@ -214,8 +214,7 @@ where
     #[inline(always)]
     pub fn is_active(&self) -> bool {
         cfg_if! {
-            if #[cfg(feature = "9160")]
-            {
+            if #[cfg(feature = "9160")] {
                 self.wdt.runstatus.read().runstatuswdt().bit_is_set()
             } else {
                 self.wdt.runstatus.read().runstatus().bit_is_set()
