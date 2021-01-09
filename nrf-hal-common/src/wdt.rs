@@ -8,8 +8,7 @@ use cfg_if::cfg_if;
 cfg_if! {
     if #[cfg(feature = "9160")]{
         use crate::pac::WDT_NS as WDT;
-    }
-    else {
+    } else {
         use crate::pac::WDT;
     }
 }
