@@ -221,23 +221,21 @@ impl<'a, P: GpioteInputPin> GpioteChannelEvent<'_, P> {
         config_channel_event_pin(self.gpiote, self.channel, self.pin, EventPolarity::None);
         self
     }
-
-    /// Enables GPIOTE interrupt for pin.
+    /// Enables GPIOTE interrupt for channel.
     pub fn enable_interrupt(&self) -> &Self {
         unsafe {
             self.gpiote
                 .intenset
-                .modify(|r, w| w.bits(r.bits() | self.pin.pin() as u32))
+                .write(|w| w.bits(1 << self.channel))
         }
         self
     }
-
-    /// Disables GPIOTE interrupt for pin.
+    /// Disables GPIOTE interrupt for channel.
     pub fn disable_interrupt(&self) -> &Self {
         unsafe {
             self.gpiote
                 .intenclr
-                .write(|w| w.bits(self.pin.pin() as u32))
+                .write(|w| w.bits(1 << self.channel))
         }
         self
     }
