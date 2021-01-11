@@ -257,9 +257,7 @@ where
     /// Start a UARTE read transaction by setting the control
     /// values and triggering a read task.
     fn start_read(&mut self, rx_buffer: &mut [u8]) -> Result<(), Error> {
-        // This is overly restrictive. See (similar SPIM issue):
-        // https://github.com/nrf-rs/nrf52/issues/17
-        if rx_buffer.len() > u8::max_value() as usize {
+        if rx_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::RxBufferTooLong);
         }
 
