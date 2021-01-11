@@ -3,7 +3,17 @@
 //! This HAL implements a basic watchdog timer with 1..=8 handles.
 //! Once the watchdog has been started, it cannot be stopped.
 
-use crate::pac::WDT;
+use cfg_if::cfg_if;
+
+cfg_if! {
+    if #[cfg(feature = "9160")] {
+        use crate::pac::WDT_NS as WDT;
+    } else {
+        use crate::pac::WDT;
+    }
+}
+
+
 use handles::*;
 
 /// A type state representing a watchdog that has not been started.
@@ -202,7 +212,13 @@ where
     /// Is the watchdog active?
     #[inline(always)]
     pub fn is_active(&self) -> bool {
-        self.wdt.runstatus.read().runstatus().bit_is_set()
+        cfg_if! {
+            if #[cfg(feature = "9160")] {
+                self.wdt.runstatus.read().runstatuswdt().bit_is_set()
+            } else {
+                self.wdt.runstatus.read().runstatus().bit_is_set()
+            }
+        }
     }
 }
 

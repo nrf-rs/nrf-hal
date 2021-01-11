@@ -78,7 +78,6 @@ pub mod uart;
 pub mod uarte;
 #[cfg(not(feature = "9160"))]
 pub mod uicr;
-#[cfg(not(feature = "9160"))]
 pub mod wdt;
 
 pub mod prelude {
