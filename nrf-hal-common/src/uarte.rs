@@ -611,6 +611,7 @@ pub mod serial {
                 if endtx || txstopped {
                     // We are done, cleanup the state.
                     uarte.events_txstarted.reset();
+                    self.written = 0;
                     // Conservative compiler fence to prevent optimizations that do not
                     // take in to account actions by DMA. The fence has been placed here,
                     // after all possible DMA actions have completed.
