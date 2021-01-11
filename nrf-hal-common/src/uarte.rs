@@ -496,7 +496,7 @@ where
 {
     _marker: core::marker::PhantomData<T>,
     tx_buf: &'a mut [u8],
-    written: u16,
+    written: usize,
 }
 
 /// Interface for the RX part of a UART instance that can be used independently of the TX part.
@@ -631,9 +631,8 @@ pub mod serial {
                 return Err(nb::Error::WouldBlock);
             }
 
-            let written = self.written as usize;
-            if written < self.tx_buf.len() {
-                self.tx_buf[written] = b;
+            if self.written < self.tx_buf.len() {
+                self.tx_buf[self.written] = b;
                 self.written += 1;
                 Ok(())
             } else {
@@ -705,7 +704,7 @@ pub mod serial {
                 uarte
                     .txd
                     .maxcnt
-                    .write(|w| unsafe { w.maxcnt().bits(self.written) });
+                    .write(|w| unsafe { w.maxcnt().bits(self.written as _) });
 
                 // Start UARTE Transmit transaction.
                 // `1` is a valid value to write to task registers.
