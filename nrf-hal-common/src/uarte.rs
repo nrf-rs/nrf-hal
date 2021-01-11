@@ -674,6 +674,11 @@ pub mod serial {
                     Err(nb::Error::WouldBlock)
                 }
             } else {
+                // No need to trigger transmit if we don't have anything written
+                if self.written == 0 {
+                    return Ok(());
+                }
+
                 // Conservative compiler fence to prevent optimizations that do not
                 // take in to account actions by DMA. The fence has been placed here,
                 // before any DMA action has started.
