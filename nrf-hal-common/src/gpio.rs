@@ -45,18 +45,10 @@ pub enum Port {
 
 #[cfg(any(feature = "52833", feature = "52840"))]
 impl Port {
-    pub(crate) fn bit(&self) -> bool {
+    fn bit(&self) -> bool {
         match self {
             Port::Port0 => false,
             Port::Port1 => true,
-        }
-    }
-
-    pub(crate) fn from_bit(bit: bool) -> Port {
-        if bit {
-            Port::Port1
-        } else {
-            Port::Port0
         }
     }
 }
@@ -89,11 +81,25 @@ use crate::hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
 use void::Void;
 
 impl<MODE> Pin<MODE> {
-    pub(crate) fn new(port: Port, pin: u8) -> Self {
+    fn new(port: Port, pin: u8) -> Self {
         let port_bits = match port {
             Port::Port0 => 0x00,
             #[cfg(any(feature = "52833", feature = "52840"))]
             Port::Port1 => 0x80,
+        };
+        Self {
+            pin_port: pin | port_bits,
+            _mode: PhantomData,
+        }
+    }
+
+    pub unsafe fn from_psel_bits(psel_bits: u32) -> Self {
+        let pin = (psel_bits & 0x1f) as u8;
+        let port = (psel_bits & 0x20) as u8;
+        let port_bits = match port {
+            #[cfg(any(feature = "52833", feature = "52840"))]
+            0x20 => 0x80,
+            _ => 0x00,
         };
         Self {
             pin_port: pin | port_bits,
@@ -129,6 +135,14 @@ impl<MODE> Pin<MODE> {
         {
             Port::Port0
         }
+    }
+
+    #[inline]
+    pub fn psel_bits(&self) -> u32 {
+        let psel = (self.pin() & 0x1f) as u32;
+        #[cfg(any(feature = "52833", feature = "52840"))]
+        let psel = if self.port().bit() { psel | 0x20 } else { psel };
+        psel
     }
 
     fn block(&self) -> &gpio::RegisterBlock {

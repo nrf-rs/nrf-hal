@@ -3,8 +3,6 @@
 //! The Quadrature decoder (QDEC) provides buffered decoding of quadrature-encoded sensor signals.
 //! It is suitable for mechanical and optical sensors.
 
-#[cfg(any(feature = "52833", feature = "52840"))]
-use crate::gpio::Port;
 use {
     crate::gpio::{Input, Pin, PullUp},
     crate::pac::QDEC,
@@ -28,32 +26,18 @@ impl Qdec {
         sample_period: SamplePeriod,
     ) -> Self {
         qdec.psel.a.write(|w| {
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            match pin_a.port() {
-                Port::Port0 => w.port().clear_bit(),
-                Port::Port1 => w.port().set_bit(),
-            };
-            unsafe { w.pin().bits(pin_a.pin()) };
+            unsafe { w.bits(pin_a.psel_bits()) };
             w.connect().connected()
         });
         qdec.psel.b.write(|w| {
             #[cfg(any(feature = "52833", feature = "52840"))]
-            match pin_b.port() {
-                Port::Port0 => w.port().clear_bit(),
-                Port::Port1 => w.port().set_bit(),
-            };
-            unsafe { w.pin().bits(pin_b.pin()) };
+            unsafe { w.bits(pin_b.psel_bits()) };
             w.connect().connected()
         });
 
         if let Some(p) = &pin_led {
             qdec.psel.led.write(|w| {
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                match p.port() {
-                    Port::Port0 => w.port().clear_bit(),
-                    Port::Port1 => w.port().set_bit(),
-                };
-                unsafe { w.pin().bits(p.pin()) };
+                unsafe { w.bits(p.psel_bits()) };
                 w.connect().connected()
             });
         }

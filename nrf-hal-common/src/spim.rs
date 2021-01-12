@@ -100,26 +100,20 @@ where
     pub fn new(spim: T, pins: Pins, frequency: Frequency, mode: Mode, orc: u8) -> Self {
         // Select pins.
         spim.psel.sck.write(|w| {
-            let w = unsafe { w.pin().bits(pins.sck.pin()) };
-            #[cfg(any(feature = "52843", feature = "52840"))]
-            let w = w.port().bit(pins.sck.port().bit());
+            unsafe { w.bits(pins.sck.psel_bits()) };
             w.connect().connected()
         });
 
         match pins.mosi {
             Some(mosi) => spim.psel.mosi.write(|w| {
-                let w = unsafe { w.pin().bits(mosi.pin()) };
-                #[cfg(any(feature = "52843", feature = "52840"))]
-                let w = w.port().bit(mosi.port().bit());
+                unsafe { w.bits(mosi.psel_bits()) };
                 w.connect().connected()
             }),
             None => spim.psel.mosi.write(|w| w.connect().disconnected()),
         }
         match pins.miso {
             Some(miso) => spim.psel.miso.write(|w| {
-                let w = unsafe { w.pin().bits(miso.pin()) };
-                #[cfg(any(feature = "52843", feature = "52840"))]
-                let w = w.port().bit(miso.port().bit());
+                unsafe { w.bits(miso.psel_bits()) };
                 w.connect().connected()
             }),
             None => spim.psel.miso.write(|w| w.connect().disconnected()),

@@ -4,7 +4,6 @@
 
 #[cfg(not(any(feature = "52810", feature = "52811")))]
 use crate::{
-    gpio::Port,
     pac::PWM3,
     pac::{PWM1, PWM2},
 };
@@ -133,14 +132,7 @@ where
     #[inline(always)]
     pub fn set_output_pin(&self, channel: Channel, pin: &Pin<Output<PushPull>>) -> &Self {
         self.pwm.psel.out[usize::from(channel)].write(|w| {
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            match pin.port() {
-                Port::Port0 => w.port().clear_bit(),
-                Port::Port1 => w.port().set_bit(),
-            };
-            unsafe {
-                w.pin().bits(pin.pin());
-            }
+            unsafe { w.bits(pin.psel_bits()) };
             w.connect().connected()
         });
         self
