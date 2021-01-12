@@ -30,7 +30,6 @@ impl Qdec {
             w.connect().connected()
         });
         qdec.psel.b.write(|w| {
-            #[cfg(any(feature = "52833", feature = "52840"))]
             unsafe { w.bits(pin_b.psel_bits()) };
             w.connect().connected()
         });
