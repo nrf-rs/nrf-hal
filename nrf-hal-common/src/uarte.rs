@@ -596,9 +596,8 @@ where
     }
 }
 
+/// Implementation of the embedded_hal::serial::* and embedded_hal::blocking::serial::*  traits for UartTx and UartRx.
 pub mod serial {
-
-    ///! Implementation of the embedded_hal::serial::* and embedded_hal::blocking::serial::*  traits for UartTx and UartRx.
     use super::*;
     use embedded_hal::blocking::serial as bserial;
     use embedded_hal::serial;
