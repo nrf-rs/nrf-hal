@@ -12,8 +12,6 @@ use embedded_hal::blocking::serial as bserial;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_hal::serial;
 
-use nb;
-
 #[cfg(any(feature = "52833", feature = "52840"))]
 use crate::pac::UARTE1;
 
