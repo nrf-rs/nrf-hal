@@ -43,16 +43,6 @@ pub enum Port {
     Port1,
 }
 
-#[cfg(any(feature = "52833", feature = "52840"))]
-impl Port {
-    fn bit(&self) -> bool {
-        match self {
-            Port::Port0 => false,
-            Port::Port1 => true,
-        }
-    }
-}
-
 // ===============================================================
 // Implement Generic Pins for this port, which allows you to use
 // other peripherals without having to be completely rust-generic
@@ -85,7 +75,7 @@ impl<MODE> Pin<MODE> {
         let port_bits = match port {
             Port::Port0 => 0x00,
             #[cfg(any(feature = "52833", feature = "52840"))]
-            Port::Port1 => 0x80,
+            Port::Port1 => 0x20,
         };
         Self {
             pin_port: pin | port_bits,
@@ -94,15 +84,8 @@ impl<MODE> Pin<MODE> {
     }
 
     pub unsafe fn from_psel_bits(psel_bits: u32) -> Self {
-        let pin = (psel_bits & 0x1f) as u8;
-        let port = (psel_bits & 0x20) as u8;
-        let port_bits = match port {
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            0x20 => 0x80,
-            _ => 0x00,
-        };
         Self {
-            pin_port: pin | port_bits,
+            pin_port: psel_bits as u8,
             _mode: PhantomData,
         }
     }
@@ -111,7 +94,7 @@ impl<MODE> Pin<MODE> {
     pub fn pin(&self) -> u8 {
         #[cfg(any(feature = "52833", feature = "52840"))]
         {
-            self.pin_port & 0x7f
+            self.pin_port & 0x1f
         }
 
         #[cfg(not(any(feature = "52833", feature = "52840")))]
@@ -124,7 +107,7 @@ impl<MODE> Pin<MODE> {
     pub fn port(&self) -> Port {
         #[cfg(any(feature = "52833", feature = "52840"))]
         {
-            if self.pin_port & 0x80 == 0 {
+            if self.pin_port & 0x20 == 0 {
                 Port::Port0
             } else {
                 Port::Port1
@@ -139,10 +122,7 @@ impl<MODE> Pin<MODE> {
 
     #[inline]
     pub fn psel_bits(&self) -> u32 {
-        let psel = (self.pin() & 0x1f) as u32;
-        #[cfg(any(feature = "52833", feature = "52840"))]
-        let psel = if self.port().bit() { psel | 0x20 } else { psel };
-        psel
+        self.pin_port as u32
     }
 
     fn block(&self) -> &gpio::RegisterBlock {
