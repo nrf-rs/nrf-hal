@@ -8,7 +8,11 @@ use core::fmt;
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
+use embedded_hal::blocking::serial as bserial;
 use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::serial;
+
+use nb;
 
 #[cfg(any(feature = "52833", feature = "52840"))]
 use crate::pac::UARTE1;
@@ -559,128 +563,120 @@ where
     }
 }
 
-/// Implementation of the embedded_hal::serial::* and embedded_hal::blocking::serial::*  traits for UartTx and UartRx.
-pub mod serial {
-    use super::*;
-    use embedded_hal::blocking::serial as bserial;
-    use embedded_hal::serial;
-    use nb;
+impl<T> serial::Write<u8> for UarteTx<T>
+where
+    T: Instance,
+{
+    type Error = Error;
 
-    impl<T> serial::Write<u8> for UarteTx<T>
-    where
-        T: Instance,
-    {
-        type Error = Error;
+    /// Write a single byte to the internal buffer. Returns nb::Error::WouldBlock if buffer is full.
+    fn write(&mut self, b: u8) -> nb::Result<(), Self::Error> {
+        let uarte = unsafe { &*T::ptr() };
 
-        /// Write a single byte to the internal buffer. Returns nb::Error::WouldBlock if buffer is full.
-        fn write(&mut self, b: u8) -> nb::Result<(), Self::Error> {
-            let uarte = unsafe { &*T::ptr() };
+        // Prevent writing to buffer while DMA transfer is in progress.
+        if uarte.events_txstarted.read().bits() == 1 {
+            return Err(nb::Error::WouldBlock);
+        }
 
-            // Prevent writing to buffer while DMA transfer is in progress.
-            if uarte.events_txstarted.read().bits() == 1 {
-                return Err(nb::Error::WouldBlock);
-            }
+        if self.written < self.tx_buf.len() {
+            self.tx_buf[self.written] = b;
+            self.written += 1;
+            Ok(())
+        } else {
+            Err(nb::Error::WouldBlock)
+        }
+    }
 
-            if self.written < self.tx_buf.len() {
-                self.tx_buf[self.written] = b;
-                self.written += 1;
+    /// Flush the TX buffer non-blocking. Returns nb::Error::WouldBlock if not yet flushed.
+    fn flush(&mut self) -> nb::Result<(), Self::Error> {
+        let uarte = unsafe { &*T::ptr() };
+
+        // If txstarted is set, we are in the process of transmitting.
+        let in_progress = uarte.events_txstarted.read().bits() == 1;
+
+        if in_progress {
+            let endtx = uarte.events_endtx.read().bits() != 0;
+            let txstopped = uarte.events_txstopped.read().bits() != 0;
+            if endtx || txstopped {
+                // We are done, cleanup the state.
+                uarte.events_txstarted.reset();
+                self.written = 0;
+
+                // Conservative compiler fence to prevent optimizations that do not
+                // take in to account actions by DMA. The fence has been placed here,
+                // after all possible DMA actions have completed.
+                compiler_fence(SeqCst);
+
+                if txstopped {
+                    return Err(nb::Error::Other(Error::Transmit));
+                }
+
+                // Lower power consumption by disabling the transmitter once we're
+                // finished.
+                stop_write(uarte);
+
+                compiler_fence(SeqCst);
                 Ok(())
             } else {
+                // Still not done, don't block.
                 Err(nb::Error::WouldBlock)
             }
-        }
-
-        /// Flush the TX buffer non-blocking. Returns nb::Error::WouldBlock if not yet flushed.
-        fn flush(&mut self) -> nb::Result<(), Self::Error> {
-            let uarte = unsafe { &*T::ptr() };
-
-            // If txstarted is set, we are in the process of transmitting.
-            let in_progress = uarte.events_txstarted.read().bits() == 1;
-
-            if in_progress {
-                let endtx = uarte.events_endtx.read().bits() != 0;
-                let txstopped = uarte.events_txstopped.read().bits() != 0;
-                if endtx || txstopped {
-                    // We are done, cleanup the state.
-                    uarte.events_txstarted.reset();
-                    self.written = 0;
-
-                    // Conservative compiler fence to prevent optimizations that do not
-                    // take in to account actions by DMA. The fence has been placed here,
-                    // after all possible DMA actions have completed.
-                    compiler_fence(SeqCst);
-
-                    if txstopped {
-                        return Err(nb::Error::Other(Error::Transmit));
-                    }
-
-                    // Lower power consumption by disabling the transmitter once we're
-                    // finished.
-                    stop_write(uarte);
-
-                    compiler_fence(SeqCst);
-                    Ok(())
-                } else {
-                    // Still not done, don't block.
-                    Err(nb::Error::WouldBlock)
-                }
-            } else {
-                // No need to trigger transmit if we don't have anything written
-                if self.written == 0 {
-                    return Ok(());
-                }
-
-                start_write(uarte, &self.tx_buf[0..self.written]);
-
-                Err(nb::Error::WouldBlock)
+        } else {
+            // No need to trigger transmit if we don't have anything written
+            if self.written == 0 {
+                return Ok(());
             }
+
+            start_write(uarte, &self.tx_buf[0..self.written]);
+
+            Err(nb::Error::WouldBlock)
         }
     }
+}
 
-    // Auto-implement the blocking variant
-    impl<T> bserial::write::Default<u8> for UarteTx<T> where T: Instance {}
+// Auto-implement the blocking variant
+impl<T> bserial::write::Default<u8> for UarteTx<T> where T: Instance {}
 
-    impl<T> core::fmt::Write for UarteTx<T>
-    where
-        T: Instance,
-    {
-        fn write_str(&mut self, s: &str) -> fmt::Result {
-            s.as_bytes()
-                .iter()
-                .try_for_each(|c| nb::block!(self.write(*c)))
-                .map_err(|_| core::fmt::Error)
-        }
+impl<T> core::fmt::Write for UarteTx<T>
+where
+    T: Instance,
+{
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        s.as_bytes()
+            .iter()
+            .try_for_each(|c| nb::block!(self.write(*c)))
+            .map_err(|_| core::fmt::Error)
     }
+}
 
-    impl<T> serial::Read<u8> for UarteRx<T>
-    where
-        T: Instance,
-    {
-        type Error = Error;
-        fn read(&mut self) -> nb::Result<u8, Self::Error> {
-            let uarte = unsafe { &*T::ptr() };
+impl<T> serial::Read<u8> for UarteRx<T>
+where
+    T: Instance,
+{
+    type Error = Error;
+    fn read(&mut self) -> nb::Result<u8, Self::Error> {
+        let uarte = unsafe { &*T::ptr() };
 
-            compiler_fence(SeqCst);
+        compiler_fence(SeqCst);
 
-            let in_progress = uarte.events_rxstarted.read().bits() == 1;
-            if in_progress && uarte.events_endrx.read().bits() == 0 {
-                return Err(nb::Error::WouldBlock);
+        let in_progress = uarte.events_rxstarted.read().bits() == 1;
+        if in_progress && uarte.events_endrx.read().bits() == 0 {
+            return Err(nb::Error::WouldBlock);
+        }
+
+        if in_progress {
+            let b = self.rx_buf[0];
+            uarte.events_rxstarted.write(|w| w);
+
+            finalize_read(uarte);
+
+            if uarte.rxd.amount.read().bits() != 1 as u32 {
+                return Err(nb::Error::Other(Error::Receive));
             }
-
-            if in_progress {
-                let b = self.rx_buf[0];
-                uarte.events_rxstarted.write(|w| w);
-
-                finalize_read(uarte);
-
-                if uarte.rxd.amount.read().bits() != 1 as u32 {
-                    return Err(nb::Error::Other(Error::Receive));
-                }
-                Ok(b)
-            } else {
-                start_read(&uarte, self.rx_buf)?;
-                Err(nb::Error::WouldBlock)
-            }
+            Ok(b)
+        } else {
+            start_read(&uarte, self.rx_buf)?;
+            Err(nb::Error::WouldBlock)
         }
     }
 }
