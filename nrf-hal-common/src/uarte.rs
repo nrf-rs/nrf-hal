@@ -701,7 +701,7 @@ where
 
         if in_progress {
             let b = self.rx_buf[0];
-            uarte.events_rxstarted.write(|w| w);
+            uarte.events_rxstarted.reset();
 
             finalize_read(uarte);
 
