@@ -174,39 +174,8 @@ where
         // We can only DMA out of RAM.
         slice_in_ram_or(tx_buffer, Error::BufferNotInRAM)?;
 
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started.
-        compiler_fence(SeqCst);
+        start_write(&*self.0, tx_buffer);
 
-        
-        // Set up the DMA write.
-        self.0.txd.ptr.write(|w|
-            // We're giving the register a pointer to the stack. Since we're
-            // waiting for the UARTE transaction to end before this stack pointer
-            // becomes invalid, there's nothing wrong here.
-            //
-            // The PTR field is a full 32 bits wide and accepts the full range
-            // of values.
-            unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) });
-        self.0.txd.maxcnt.write(|w|
-            // We're giving it the length of the buffer, so no danger of
-            // accessing invalid memory. We have verified that the length of the
-            // buffer fits in an `u8`, so the cast to `u8` is also fine.
-            //
-            // The MAXCNT field is 8 bits wide and accepts the full range of
-            // values.
-            unsafe { w.maxcnt().bits(tx_buffer.len() as _) });
-
-        // Reset the event
-        self.0.events_endtx.reset();
-
-        // Start UARTE Transmit transaction.
-        self.0.tasks_starttx.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) });
-
-                   
         // Wait for transmission to end.
         while self.0.events_endtx.read().bits() == 0 {
             // TODO: Do something here which uses less power. Like `wfi`.
@@ -220,17 +189,7 @@ where
         // Reset the event
         self.0.events_txstopped.reset();
 
-        // Lower power consumption by disabling the transmitter once we're
-        // finished.
-        self.0.tasks_stoptx.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) });
-
-        // Wait for transmitter to stop.
-        while self.0.events_txstopped.read().bits() == 0 {
-            // Spin
-        }
-
+        stop_write(&*self.0);
         Ok(())
     }
 
@@ -241,12 +200,12 @@ where
     ///
     /// The buffer must have a length of at most 255 bytes.
     pub fn read(&mut self, rx_buffer: &mut [u8]) -> Result<(), Error> {
-        self.start_read(rx_buffer)?;
+        start_read(&*self.0, rx_buffer)?;
 
         // Wait for transmission to end.
         while self.0.events_endrx.read().bits() == 0 {}
 
-        self.finalize_read();
+        finalize_read(&*self.0);
 
         if self.0.rxd.amount.read().bits() != rx_buffer.len() as u32 {
             return Err(Error::Receive);
@@ -279,7 +238,7 @@ where
         I: timer::Instance,
     {
         // Start the read.
-        self.start_read(rx_buffer)?;
+        start_read(&self.0, rx_buffer)?;
 
         // Start the timeout timer.
         timer.start(cycles);
@@ -298,11 +257,11 @@ where
 
         if !event_complete {
             // Cancel the reception if it did not complete until now.
-            self.cancel_read();
+            cancel_read(&self.0);
         }
 
         // Cleanup, even in the error case.
-        self.finalize_read();
+        finalize_read(&self.0);
 
         let bytes_read = self.0.rxd.amount.read().bits() as usize;
 
@@ -315,78 +274,6 @@ where
         }
 
         Ok(())
-    }
-
-    /// Start a UARTE read transaction by setting the control
-    /// values and triggering a read task.
-    fn start_read(&mut self, rx_buffer: &mut [u8]) -> Result<(), Error> {
-        if rx_buffer.len() > EASY_DMA_SIZE {
-            return Err(Error::RxBufferTooLong);
-        }
-
-        // NOTE: RAM slice check is not necessary, as a mutable slice can only be
-        // built from data located in RAM.
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // before any DMA action has started.
-        compiler_fence(SeqCst);
-
-        // Set up the DMA read
-        self.0.rxd.ptr.write(|w|
-            // We're giving the register a pointer to the stack. Since we're
-            // waiting for the UARTE transaction to end before this stack pointer
-            // becomes invalid, there's nothing wrong here.
-            //
-            // The PTR field is a full 32 bits wide and accepts the full range
-            // of values.
-            unsafe { w.ptr().bits(rx_buffer.as_ptr() as u32) });
-        self.0.rxd.maxcnt.write(|w|
-            // We're giving it the length of the buffer, so no danger of
-            // accessing invalid memory. We have verified that the length of the
-            // buffer fits in an `u8`, so the cast to `u8` is also fine.
-            //
-            // The MAXCNT field is at least 8 bits wide and accepts the full
-            // range of values.
-            unsafe { w.maxcnt().bits(rx_buffer.len() as _) });
-
-        // Start UARTE Receive transaction.
-        self.0.tasks_startrx.write(|w|
-            // `1` is a valid value to write to task registers.
-            unsafe { w.bits(1) });
-
-        Ok(())
-    }
-
-    /// Finalize a UARTE read transaction by clearing the event.
-    fn finalize_read(&mut self) {
-        // Reset the event, otherwise it will always read `1` from now on.
-        self.0.events_endrx.write(|w| w);
-
-        // Conservative compiler fence to prevent optimizations that do not
-        // take in to account actions by DMA. The fence has been placed here,
-        // after all possible DMA actions have completed.
-        compiler_fence(SeqCst);
-    }
-
-    /// Stop an unfinished UART read transaction and flush FIFO to DMA buffer.
-    fn cancel_read(&mut self) {
-        // Stop reception.
-        self.0.tasks_stoprx.write(|w| unsafe { w.bits(1) });
-
-        // Wait for the reception to have stopped.
-        while self.0.events_rxto.read().bits() == 0 {}
-
-        // Reset the event flag.
-        self.0.events_rxto.write(|w| w);
-
-        // Ask UART to flush FIFO to DMA buffer.
-        self.0.tasks_flushrx.write(|w| unsafe { w.bits(1) });
-
-        // Wait for the flush to complete.
-        while self.0.events_endrx.read().bits() == 0 {}
-
-        // The event flag itself is later reset by `finalize_read`.
     }
 
     /// Return the raw interface to the underlying UARTE peripheral.
@@ -414,17 +301,134 @@ where
         )
     }
 
-    // Split into implementations of embedded_hal::serial traits. The size of the slices passed to this method will determine the size of the DMA transfers performed.
-    // that are initiated by the UartTx and UartRx.
-    pub fn split<'a>(
+    /// Split into implementations of embedded_hal::serial traits. The size of the slices passed to this
+    /// method will determine the size of the DMA transfers performed.
+    pub fn split(
         self,
         tx_buf: &'static mut [u8],
         rx_buf: &'static mut [u8],
-    ) -> Result<(UarteTx<'a, T>, UarteRx<'a, T>), Error> {
+    ) -> Result<(UarteTx<T>, UarteRx<T>), Error> {
         let tx = UarteTx::new(tx_buf)?;
         let rx = UarteRx::new(rx_buf)?;
         Ok((tx, rx))
     }
+}
+
+/// Write via UARTE.
+///
+/// This method uses transmits all bytes in `tx_buffer`.
+fn start_write(uarte: &uarte0::RegisterBlock, tx_buffer: &[u8]) {
+    // Conservative compiler fence to prevent optimizations that do not
+    // take in to account actions by DMA. The fence has been placed here,
+    // before any DMA action has started.
+    compiler_fence(SeqCst);
+
+    // Reset the events.
+    uarte.events_endtx.reset();
+    uarte.events_txstopped.reset();
+
+    // Set up the DMA write.
+    uarte.txd.ptr.write(|w|
+        // We're giving the register a pointer to the stack. Since we're
+        // waiting for the UARTE transaction to end before this stack pointer
+        // becomes invalid, there's nothing wrong here.
+        //
+        // The PTR field is a full 32 bits wide and accepts the full range
+        // of values.
+        unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) });
+    uarte.txd.maxcnt.write(|w|
+        // We're giving it the length of the buffer, so no danger of
+        // accessing invalid memory. We have verified that the length of the
+        // buffer fits in an `u8`, so the cast to `u8` is also fine.
+        //
+        // The MAXCNT field is 8 bits wide and accepts the full range of
+        // values.
+        unsafe { w.maxcnt().bits(tx_buffer.len() as _) });
+
+    // Start UARTE Transmit transaction.
+    uarte.tasks_starttx.write(|w|
+        // `1` is a valid value to write to task registers.
+        unsafe { w.bits(1) });
+}
+
+fn stop_write(uarte: &uarte0::RegisterBlock) {
+    // `1` is a valid value to write to task registers.
+    uarte.tasks_stoptx.write(|w| unsafe { w.bits(1) });
+
+    // Wait for transmitter is stopped.
+    while uarte.events_txstopped.read().bits() == 0 {}
+}
+
+/// Start a UARTE read transaction by setting the control
+/// values and triggering a read task.
+fn start_read(uarte: &uarte0::RegisterBlock, rx_buffer: &mut [u8]) -> Result<(), Error> {
+    if rx_buffer.len() > EASY_DMA_SIZE {
+        return Err(Error::RxBufferTooLong);
+    }
+
+    // NOTE: RAM slice check is not necessary, as a mutable slice can only be
+    // built from data located in RAM.
+
+    // Conservative compiler fence to prevent optimizations that do not
+    // take in to account actions by DMA. The fence has been placed here,
+    // before any DMA action has started.
+    compiler_fence(SeqCst);
+
+    // Set up the DMA read
+    uarte.rxd.ptr.write(|w|
+        // We're giving the register a pointer to the stack. Since we're
+        // waiting for the UARTE transaction to end before this stack pointer
+        // becomes invalid, there's nothing wrong here.
+        //
+        // The PTR field is a full 32 bits wide and accepts the full range
+        // of values.
+        unsafe { w.ptr().bits(rx_buffer.as_ptr() as u32) });
+    uarte.rxd.maxcnt.write(|w|
+        // We're giving it the length of the buffer, so no danger of
+        // accessing invalid memory. We have verified that the length of the
+        // buffer fits in an `u8`, so the cast to `u8` is also fine.
+        //
+        // The MAXCNT field is at least 8 bits wide and accepts the full
+        // range of values.
+        unsafe { w.maxcnt().bits(rx_buffer.len() as _) });
+
+    // Start UARTE Receive transaction.
+    uarte.tasks_startrx.write(|w|
+            // `1` is a valid value to write to task registers.
+            unsafe { w.bits(1) });
+
+    Ok(())
+}
+
+/// Stop an unfinished UART read transaction and flush FIFO to DMA buffer.
+fn cancel_read(uarte: &uarte0::RegisterBlock) {
+    // Stop reception.
+    uarte.tasks_stoprx.write(|w| unsafe { w.bits(1) });
+
+    // Wait for the reception to have stopped.
+    while uarte.events_rxto.read().bits() == 0 {}
+
+    // Reset the event flag.
+    uarte.events_rxto.write(|w| w);
+
+    // Ask UART to flush FIFO to DMA buffer.
+    uarte.tasks_flushrx.write(|w| unsafe { w.bits(1) });
+
+    // Wait for the flush to complete.
+    while uarte.events_endrx.read().bits() == 0 {}
+
+    // The event flag itself is later reset by `finalize_read`.
+}
+
+/// Finalize a UARTE read transaction by clearing the event.
+fn finalize_read(uarte: &uarte0::RegisterBlock) {
+    // Reset the event, otherwise it will always read `1` from now on.
+    uarte.events_endrx.write(|w| w);
+
+    // Conservative compiler fence to prevent optimizations that do not
+    // take in to account actions by DMA. The fence has been placed here,
+    // after all possible DMA actions have completed.
+    compiler_fence(SeqCst);
 }
 
 impl<T> fmt::Write for Uarte<T>
@@ -490,30 +494,29 @@ mod _uarte1 {
 }
 
 /// Interface for the TX part of a UART instance that can be used independently of the RX part.
-pub struct UarteTx<'a, T>
+pub struct UarteTx<T>
 where
     T: Instance,
 {
     _marker: core::marker::PhantomData<T>,
-    tx_buf: &'a mut [u8],
+    tx_buf: &'static mut [u8],
     written: usize,
 }
 
 /// Interface for the RX part of a UART instance that can be used independently of the TX part.
-pub struct UarteRx<'a, T>
+pub struct UarteRx<T>
 where
     T: Instance,
 {
     _marker: core::marker::PhantomData<T>,
-    rx_buf: &'a mut [u8],
+    rx_buf: &'static mut [u8],
 }
 
-impl<'a, T> UarteTx<'a, T>
+impl<T> UarteTx<T>
 where
     T: Instance,
 {
-    fn new(tx_buf: &'a mut [u8]) -> Result<UarteTx<'a, T>, Error> {
-        slice_in_ram_or(tx_buf, Error::BufferNotInRAM)?;
+    fn new(tx_buf: &'static mut [u8]) -> Result<UarteTx<T>, Error> {
         if tx_buf.len() == 0 {
             return Err(Error::TxBufferTooSmall);
         }
@@ -530,12 +533,11 @@ where
     }
 }
 
-impl<'a, T> UarteRx<'a, T>
+impl<T> UarteRx<T>
 where
     T: Instance,
 {
-    fn new(rx_buf: &'a mut [u8]) -> Result<UarteRx<'a, T>, Error> {
-        slice_in_ram_or(rx_buf, Error::BufferNotInRAM)?;
+    fn new(rx_buf: &'static mut [u8]) -> Result<UarteRx<T>, Error> {
         if rx_buf.len() == 0 {
             return Err(Error::RxBufferTooSmall);
         }
@@ -551,7 +553,7 @@ where
     }
 }
 
-impl<'a, T> Drop for UarteTx<'a, T>
+impl<T> Drop for UarteTx<T>
 where
     T: Instance,
 {
@@ -561,10 +563,7 @@ where
         let in_progress = uarte.events_txstarted.read().bits() == 1;
         // Stop any ongoing transmission
         if in_progress {
-            uarte.tasks_stoptx.write(|w| unsafe { w.bits(1) });
-
-            // Wait for transmitter is stopped.
-            while uarte.events_txstopped.read().bits() == 0 {}
+            stop_write(uarte);
 
             // Reset events
             uarte.events_endtx.reset();
@@ -576,7 +575,7 @@ where
     }
 }
 
-impl<'a, T> Drop for UarteRx<'a, T>
+impl<T> Drop for UarteRx<T>
 where
     T: Instance,
 {
@@ -586,18 +585,7 @@ where
         let in_progress = uarte.events_rxstarted.read().bits() == 1;
         // Stop any ongoing reception
         if in_progress {
-            uarte.tasks_stoprx.write(|w| unsafe { w.bits(1) });
-
-            // Wait for receive to be done to ensure memory is untouched.
-            while uarte.events_rxto.read().bits() == 0 {}
-
-            uarte.events_rxto.reset();
-
-            // Flush DMA
-            uarte.tasks_flushrx.write(|w| unsafe { w.bits(1) });
-
-            // Wait for the flush to complete.
-            while uarte.events_endrx.read().bits() == 0 {}
+            cancel_read(uarte);
 
             // Reset events
             uarte.events_endrx.reset();
@@ -616,7 +604,7 @@ pub mod serial {
     use embedded_hal::serial;
     use nb;
 
-    impl<'a, T> serial::Write<u8> for UarteTx<'a, T>
+    impl<T> serial::Write<u8> for UarteTx<T>
     where
         T: Instance,
     {
@@ -654,6 +642,7 @@ pub mod serial {
                     // We are done, cleanup the state.
                     uarte.events_txstarted.reset();
                     self.written = 0;
+
                     // Conservative compiler fence to prevent optimizations that do not
                     // take in to account actions by DMA. The fence has been placed here,
                     // after all possible DMA actions have completed.
@@ -665,8 +654,9 @@ pub mod serial {
 
                     // Lower power consumption by disabling the transmitter once we're
                     // finished.
-                    // `1` is a valid value to write to task registers.
-                    uarte.tasks_stoptx.write(|w| unsafe { w.bits(1) });
+                    stop_write(uarte);
+
+                    compiler_fence(SeqCst);
                     Ok(())
                 } else {
                     // Still not done, don't block.
@@ -678,46 +668,17 @@ pub mod serial {
                     return Ok(());
                 }
 
-                // Conservative compiler fence to prevent optimizations that do not
-                // take in to account actions by DMA. The fence has been placed here,
-                // before any DMA action has started.
-                compiler_fence(SeqCst);
+                start_write(uarte, &self.tx_buf[0..self.written]);
 
-                // Reset the events.
-                uarte.events_endtx.reset();
-                uarte.events_txstopped.reset();
-
-                // Set up the DMA write.
-                // We're giving the register a pointer to the tx buffer.
-                //
-                // The PTR field is a full 32 bits wide and accepts the full range
-                // of values.
-                uarte
-                    .txd
-                    .ptr
-                    .write(|w| unsafe { w.ptr().bits(self.tx_buf.as_ptr() as u32) });
-
-                // We're giving it a length of the number of bytes written to the buffer.
-                //
-                // The MAXCNT field is 8 bits wide and accepts the full range of
-                // values.
-                uarte
-                    .txd
-                    .maxcnt
-                    .write(|w| unsafe { w.maxcnt().bits(self.written as _) });
-
-                // Start UARTE Transmit transaction.
-                // `1` is a valid value to write to task registers.
-                uarte.tasks_starttx.write(|w| unsafe { w.bits(1) });
                 Err(nb::Error::WouldBlock)
             }
         }
     }
 
     // Auto-implement the blocking variant
-    impl<'a, T> bserial::write::Default<u8> for UarteTx<'a, T> where T: Instance {}
+    impl<T> bserial::write::Default<u8> for UarteTx<T> where T: Instance {}
 
-    impl<'a, T> core::fmt::Write for UarteTx<'a, T>
+    impl<T> core::fmt::Write for UarteTx<T>
     where
         T: Instance,
     {
@@ -729,7 +690,7 @@ pub mod serial {
         }
     }
 
-    impl<'a, T> serial::Read<u8> for UarteRx<'a, T>
+    impl<T> serial::Read<u8> for UarteRx<T>
     where
         T: Instance,
     {
@@ -747,38 +708,15 @@ pub mod serial {
             if in_progress {
                 let b = self.rx_buf[0];
                 uarte.events_rxstarted.write(|w| w);
-                uarte.events_endrx.write(|w| w);
 
-                compiler_fence(SeqCst);
+                finalize_read(uarte);
+
                 if uarte.rxd.amount.read().bits() != 1 as u32 {
                     return Err(nb::Error::Other(Error::Receive));
                 }
                 Ok(b)
             } else {
-                // We're giving the register a pointer to the rx buffer.
-                //
-                // The PTR field is a full 32 bits wide and accepts the full range
-                // of values.
-                uarte
-                    .rxd
-                    .ptr
-                    .write(|w| unsafe { w.ptr().bits(self.rx_buf.as_ptr() as u32) });
-
-                // We're giving it a length of 1 to read only 1 byte.
-                //
-                // The MAXCNT field is at least 8 bits wide and accepts the full
-                // range of values.
-                uarte.rxd.maxcnt.write(|w| unsafe { w.maxcnt().bits(1) });
-
-                // Start UARTE Receive transaction.
-                // `1` is a valid value to write to task registers.
-                uarte.tasks_startrx.write(|w| unsafe { w.bits(1) });
-                // Conservative compiler fence to prevent optimizations that do not
-                // take in to account actions by DMA. The fence has been placed here,
-                // after all possible DMA actions have completed.
-
-                compiler_fence(SeqCst);
-
+                start_read(&uarte, self.rx_buf)?;
                 Err(nb::Error::WouldBlock)
             }
         }
