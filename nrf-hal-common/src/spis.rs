@@ -48,32 +48,24 @@ where
     /// returning a safe wrapper.
     pub fn new(spis: T, pins: Pins) -> Self {
         spis.psel.sck.write(|w| {
-            unsafe { w.pin().bits(pins.sck.pin()) };
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            w.port().bit(pins.sck.port().bit());
+            unsafe { w.bits(pins.sck.psel_bits()) };
             w.connect().connected()
         });
         spis.psel.csn.write(|w| {
-            unsafe { w.pin().bits(pins.cs.pin()) };
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            w.port().bit(pins.cs.port().bit());
+            unsafe { w.bits(pins.cs.psel_bits()) };
             w.connect().connected()
         });
 
         if let Some(p) = &pins.copi {
             spis.psel.mosi.write(|w| {
-                unsafe { w.pin().bits(p.pin()) };
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                w.port().bit(p.port().bit());
+                unsafe { w.bits(p.psel_bits()) };
                 w.connect().connected()
             });
         }
 
         if let Some(p) = &pins.cipo {
             spis.psel.miso.write(|w| {
-                unsafe { w.pin().bits(p.pin()) };
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                w.port().bit(p.port().bit());
+                unsafe { w.bits(p.psel_bits()) };
                 w.connect().connected()
             });
         }

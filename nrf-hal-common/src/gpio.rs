@@ -43,24 +43,6 @@ pub enum Port {
     Port1,
 }
 
-#[cfg(any(feature = "52833", feature = "52840"))]
-impl Port {
-    pub(crate) fn bit(&self) -> bool {
-        match self {
-            Port::Port0 => false,
-            Port::Port1 => true,
-        }
-    }
-
-    pub(crate) fn from_bit(bit: bool) -> Port {
-        if bit {
-            Port::Port1
-        } else {
-            Port::Port0
-        }
-    }
-}
-
 // ===============================================================
 // Implement Generic Pins for this port, which allows you to use
 // other peripherals without having to be completely rust-generic
@@ -89,14 +71,21 @@ use crate::hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
 use void::Void;
 
 impl<MODE> Pin<MODE> {
-    pub(crate) fn new(port: Port, pin: u8) -> Self {
+    fn new(port: Port, pin: u8) -> Self {
         let port_bits = match port {
             Port::Port0 => 0x00,
             #[cfg(any(feature = "52833", feature = "52840"))]
-            Port::Port1 => 0x80,
+            Port::Port1 => 0x20,
         };
         Self {
             pin_port: pin | port_bits,
+            _mode: PhantomData,
+        }
+    }
+
+    pub unsafe fn from_psel_bits(psel_bits: u32) -> Self {
+        Self {
+            pin_port: psel_bits as u8,
             _mode: PhantomData,
         }
     }
@@ -105,7 +94,7 @@ impl<MODE> Pin<MODE> {
     pub fn pin(&self) -> u8 {
         #[cfg(any(feature = "52833", feature = "52840"))]
         {
-            self.pin_port & 0x7f
+            self.pin_port & 0x1f
         }
 
         #[cfg(not(any(feature = "52833", feature = "52840")))]
@@ -118,7 +107,7 @@ impl<MODE> Pin<MODE> {
     pub fn port(&self) -> Port {
         #[cfg(any(feature = "52833", feature = "52840"))]
         {
-            if self.pin_port & 0x80 == 0 {
+            if self.pin_port & 0x20 == 0 {
                 Port::Port0
             } else {
                 Port::Port1
@@ -129,6 +118,11 @@ impl<MODE> Pin<MODE> {
         {
             Port::Port0
         }
+    }
+
+    #[inline]
+    pub fn psel_bits(&self) -> u32 {
+        self.pin_port as u32
     }
 
     fn block(&self) -> &gpio::RegisterBlock {

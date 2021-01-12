@@ -19,7 +19,7 @@ use crate::pac::{uarte0_ns as uarte0, UARTE0_NS as UARTE0, UARTE1_NS as UARTE1};
 #[cfg(not(feature = "9160"))]
 use crate::pac::{uarte0, UARTE0};
 
-use crate::gpio::{Floating, Input, Output, Pin, Port, PushPull};
+use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::prelude::*;
 use crate::slice_in_ram_or;
 use crate::target_constants::EASY_DMA_SIZE;
@@ -45,25 +45,19 @@ where
     pub fn new(uarte: T, mut pins: Pins, parity: Parity, baudrate: Baudrate) -> Self {
         // Select pins
         uarte.psel.rxd.write(|w| {
-            let w = unsafe { w.pin().bits(pins.rxd.pin()) };
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            let w = w.port().bit(pins.rxd.port().bit());
+            unsafe { w.bits(pins.rxd.psel_bits()) };
             w.connect().connected()
         });
         pins.txd.set_high().unwrap();
         uarte.psel.txd.write(|w| {
-            let w = unsafe { w.pin().bits(pins.txd.pin()) };
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            let w = w.port().bit(pins.txd.port().bit());
+            unsafe { w.bits(pins.txd.psel_bits()) };
             w.connect().connected()
         });
 
         // Optional pins
         uarte.psel.cts.write(|w| {
             if let Some(ref pin) = pins.cts {
-                let w = unsafe { w.pin().bits(pin.pin()) };
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                let w = w.port().bit(pin.port().bit());
+                unsafe { w.bits(pin.psel_bits()) };
                 w.connect().connected()
             } else {
                 w.connect().disconnected()
@@ -72,9 +66,7 @@ where
 
         uarte.psel.rts.write(|w| {
             if let Some(ref pin) = pins.rts {
-                let w = unsafe { w.pin().bits(pin.pin()) };
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                let w = w.port().bit(pin.port().bit());
+                unsafe { w.bits(pin.psel_bits()) };
                 w.connect().connected()
             } else {
                 w.connect().disconnected()
@@ -335,35 +327,15 @@ where
         (
             self.0,
             Pins {
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                rxd: Pin::new(Port::from_bit(rxd.port().bit()), rxd.pin().bits()),
-                #[cfg(not(any(feature = "52833", feature = "52840")))]
-                rxd: Pin::new(Port::Port0, rxd.pin().bits()),
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                txd: Pin::new(Port::from_bit(txd.port().bit()), txd.pin().bits()),
-                #[cfg(not(any(feature = "52833", feature = "52840")))]
-                txd: Pin::new(Port::Port0, txd.pin().bits()),
+                rxd: unsafe { Pin::from_psel_bits(rxd.bits()) },
+                txd: unsafe { Pin::from_psel_bits(txd.bits()) },
                 cts: if cts.connect().bit_is_set() {
-                    #[cfg(any(feature = "52833", feature = "52840"))]
-                    {
-                        Some(Pin::new(Port::from_bit(cts.port().bit()), cts.pin().bits()))
-                    }
-                    #[cfg(not(any(feature = "52833", feature = "52840")))]
-                    {
-                        Some(Pin::new(Port::Port0, cts.pin().bits()))
-                    }
+                    Some(unsafe { Pin::from_psel_bits(cts.bits()) })
                 } else {
                     None
                 },
                 rts: if rts.connect().bit_is_set() {
-                    #[cfg(any(feature = "52833", feature = "52840"))]
-                    {
-                        Some(Pin::new(Port::from_bit(rts.port().bit()), rts.pin().bits()))
-                    }
-                    #[cfg(not(any(feature = "52833", feature = "52840")))]
-                    {
-                        Some(Pin::new(Port::Port0, rts.pin().bits()))
-                    }
+                    Some(unsafe { Pin::from_psel_bits(rts.bits()) })
                 } else {
                     None
                 },

@@ -43,41 +43,31 @@ impl I2S {
 
         if let Some(p) = mck_pin {
             i2s.psel.mck.write(|w| {
-                unsafe { w.pin().bits(p.pin()) };
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                w.port().bit(p.port().bit());
+                unsafe { w.bits(p.psel_bits()) };
                 w.connect().connected()
             });
         }
 
         i2s.psel.sck.write(|w| {
-            unsafe { w.pin().bits(sck_pin.pin()) };
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            w.port().bit(sck_pin.port().bit());
+            unsafe { w.bits(sck_pin.psel_bits()) };
             w.connect().connected()
         });
 
         i2s.psel.lrck.write(|w| {
-            unsafe { w.pin().bits(lrck_pin.pin()) };
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            w.port().bit(lrck_pin.port().bit());
+            unsafe { w.bits(lrck_pin.psel_bits()) };
             w.connect().connected()
         });
 
         if let Some(p) = sdin_pin {
             i2s.psel.sdin.write(|w| {
-                unsafe { w.pin().bits(p.pin()) };
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                w.port().bit(p.port().bit());
+                unsafe { w.bits(p.psel_bits()) };
                 w.connect().connected()
             });
         }
 
         if let Some(p) = sdout_pin {
             i2s.psel.sdout.write(|w| {
-                unsafe { w.pin().bits(p.pin()) };
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                w.port().bit(p.port().bit());
+                unsafe { w.bits(p.psel_bits()) };
                 w.connect().connected()
             });
         }
@@ -105,41 +95,31 @@ impl I2S {
 
         if let Some(p) = mck_pin {
             i2s.psel.mck.write(|w| {
-                unsafe { w.pin().bits(p.pin()) };
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                w.port().bit(p.port().bit());
+                unsafe { w.bits(p.psel_bits()) };
                 w.connect().connected()
             });
         }
 
         i2s.psel.sck.write(|w| {
-            unsafe { w.pin().bits(sck_pin.pin()) };
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            w.port().bit(sck_pin.port().bit());
+            unsafe { w.bits(sck_pin.psel_bits()) };
             w.connect().connected()
         });
 
         i2s.psel.lrck.write(|w| {
-            unsafe { w.pin().bits(lrck_pin.pin()) };
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            w.port().bit(lrck_pin.port().bit());
+            unsafe { w.bits(lrck_pin.psel_bits()) };
             w.connect().connected()
         });
 
         if let Some(p) = sdin_pin {
             i2s.psel.sdin.write(|w| {
-                unsafe { w.pin().bits(p.pin()) };
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                w.port().bit(p.port().bit());
+                unsafe { w.bits(p.psel_bits()) };
                 w.connect().connected()
             });
         }
 
         if let Some(p) = sdout_pin {
             i2s.psel.sdout.write(|w| {
-                unsafe { w.pin().bits(p.pin()) };
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                w.port().bit(p.port().bit());
+                unsafe { w.bits(p.psel_bits()) };
                 w.connect().connected()
             });
         }

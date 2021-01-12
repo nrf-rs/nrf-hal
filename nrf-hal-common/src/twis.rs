@@ -60,15 +60,11 @@ where
         }
 
         twis.psel.scl.write(|w| {
-            let w = unsafe { w.pin().bits(pins.scl.pin()) };
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            let w = w.port().bit(pins.scl.port().bit());
+            unsafe { w.bits(pins.scl.psel_bits()) };
             w.connect().connected()
         });
         twis.psel.sda.write(|w| {
-            let w = unsafe { w.pin().bits(pins.sda.pin()) };
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            let w = w.port().bit(pins.sda.port().bit());
+            unsafe { w.bits(pins.sda.psel_bits()) };
             w.connect().connected()
         });
 
