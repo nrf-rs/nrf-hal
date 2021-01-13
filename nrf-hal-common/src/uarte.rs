@@ -271,7 +271,7 @@ where
     pub fn split(
         self,
         tx_buf: &'static mut [u8],
-        rx_buf: &'static mut [u8],
+        rx_buf: &'static mut [u8; 1],
     ) -> Result<(UarteTx<T>, UarteRx<T>), Error> {
         let tx = UarteTx::new(tx_buf)?;
         let rx = UarteRx::new(rx_buf)?;
@@ -674,7 +674,7 @@ where
         } else {
             // We can only read 1 byte at a time, otherwise ENDTX might not be raised,
             // causing the read to stall forever.
-            start_read(&uarte, &mut self.rx_buf[..1])?;
+            start_read(&uarte, self.rx_buf)?;
             Err(nb::Error::WouldBlock)
         }
     }
