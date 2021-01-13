@@ -145,7 +145,7 @@ where
     ///
     /// The buffer must have a length of at most 255 bytes.
     pub fn read(&mut self, rx_buffer: &mut [u8]) -> Result<(), Error> {
-        start_read(&*self.0, rx_buffer, rx_buffer.len())?;
+        start_read(&*self.0, rx_buffer)?;
 
         // Wait for transmission to end.
         while self.0.events_endrx.read().bits() == 0 {}
@@ -183,7 +183,7 @@ where
         I: timer::Instance,
     {
         // Start the read.
-        start_read(&self.0, rx_buffer, rx_buffer.len())?;
+        start_read(&self.0, rx_buffer)?;
 
         // Start the timeout timer.
         timer.start(cycles);
@@ -326,11 +326,7 @@ fn stop_write(uarte: &uarte0::RegisterBlock) {
 
 /// Start a UARTE read transaction by setting the control
 /// values and triggering a read task.
-fn start_read(
-    uarte: &uarte0::RegisterBlock,
-    rx_buffer: &mut [u8],
-    nbytes: usize,
-) -> Result<(), Error> {
+fn start_read(uarte: &uarte0::RegisterBlock, rx_buffer: &mut [u8]) -> Result<(), Error> {
     if rx_buffer.len() > EASY_DMA_SIZE {
         return Err(Error::RxBufferTooLong);
     }
@@ -359,7 +355,7 @@ fn start_read(
         //
         // The MAXCNT field is at least 8 bits wide and accepts the full
         // range of values.
-        unsafe { w.maxcnt().bits(nbytes.min(rx_buffer.len()) as _) });
+        unsafe { w.maxcnt().bits(rx_buffer.len() as _) });
 
     // Start UARTE Receive transaction.
     uarte.tasks_startrx.write(|w|
@@ -676,7 +672,7 @@ where
             }
             Ok(self.rx_buf[0])
         } else {
-            start_read(&uarte, self.rx_buf, 1)?;
+            start_read(&uarte, &mut self.rx_buf[..1])?;
             Err(nb::Error::WouldBlock)
         }
     }
