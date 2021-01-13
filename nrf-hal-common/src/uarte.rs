@@ -709,6 +709,8 @@ where
             }
             Ok(self.rx_buf[0])
         } else {
+            // We can only read 1 byte at a time, otherwise ENDTX might not be raised,
+            // causing the read to stall forever.
             start_read(&uarte, &mut self.rx_buf[..1])?;
             Err(nb::Error::WouldBlock)
         }
