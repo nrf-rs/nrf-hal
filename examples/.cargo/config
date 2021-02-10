@@ -1,0 +1,5 @@
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+runner = 'arm-none-eabi-gdb'
+rustflags = [
+    "-C", "link-arg=-Tlink.x",
+]
