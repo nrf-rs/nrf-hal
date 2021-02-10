@@ -17,8 +17,8 @@ use nrf52840_hal::{
 };
 
 struct State {
-    uarte: Uarte<UARTE0>,
-    timer: Timer<TIMER0, OneShot>,
+    _uarte: Uarte<UARTE0>,
+    _timer: Timer<TIMER0, OneShot>,
 }
 
 #[defmt_test::tests]
@@ -40,7 +40,7 @@ mod tests {
         let p = unwrap!(pac::Peripherals::take());
         let port0 = p0::Parts::new(p.P0);
 
-        let timer = Timer::one_shot(p.TIMER0);
+        let _timer = Timer::one_shot(p.TIMER0);
 
         let rxd = port0.p0_28.into_floating_input().degrade();
         let txd = port0.p0_29.into_push_pull_output(Level::High).degrade();
@@ -52,11 +52,11 @@ mod tests {
             rts: None,
         };
 
-        let uarte = Uarte::new(p.UARTE0, pins, Parity::EXCLUDED, Baudrate::BAUD9600);
+        let _uarte = Uarte::new(p.UARTE0, pins, Parity::EXCLUDED, Baudrate::BAUD9600);
 
         State {
-            uarte,
-            timer,
+            _uarte,
+            _timer,
         }
     }
 
