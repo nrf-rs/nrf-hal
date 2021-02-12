@@ -9,7 +9,7 @@ name = "gpio-input-floating"
 harness = false
 
 [[test]]
-name = "gpio-input-pull"
+name = "gpio-input-pulled"
 harness = false
 
 [[test]]
