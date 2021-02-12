@@ -19,6 +19,7 @@ struct State {
 
 #[defmt_test::tests]
 mod tests {
+    use cortex_m::asm;
     use defmt::{assert, unwrap};
     use nrf52840_hal::{
         gpio::{p0, Level},
@@ -45,12 +46,16 @@ mod tests {
     #[test]
     fn set_low_is_low(state: &mut State) {
         state.output_pin.set_low().unwrap();
+        // GPIO operations are not instantaneous so a delay is needed
+        asm::delay(100);
         assert!(state.input_pin.is_low().unwrap());
     }
 
     #[test]
     fn set_high_is_high(state: &mut State) {
         state.output_pin.set_high().unwrap();
+        // GPIO operations are not instantaneous so a delay is needed
+        asm::delay(100);
         assert!(state.input_pin.is_high().unwrap());
     }
 }

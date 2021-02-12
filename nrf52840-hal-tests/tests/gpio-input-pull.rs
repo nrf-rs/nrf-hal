@@ -19,6 +19,7 @@ struct State {
 
 #[defmt_test::tests]
 mod tests {
+    use cortex_m::asm;
     use defmt::{assert, unwrap};
     use nrf52840_hal::{gpio::p0, pac, prelude::*};
 
@@ -53,6 +54,8 @@ mod tests {
         let pull_pin = unwrap!(state.pull_pin.take());
 
         let pullup_pin = pull_pin.into_pullup_input();
+        // GPIO re-configuration is not instantaneous so a delay is needed
+        asm::delay(100);
         assert!(state.input_pin.is_high().unwrap());
 
         state.pull_pin = Some(pullup_pin.into_floating_input());
