@@ -5,7 +5,11 @@ publish = false
 version = "0.0.0"
 
 [[test]]
-name = "gpio-input"
+name = "gpio-input-floating"
+harness = false
+
+[[test]]
+name = "gpio-input-pull"
 harness = false
 
 [[test]]
@@ -14,10 +18,6 @@ harness = false
 
 [[test]]
 name = "gpio-output-open-drain"
-harness = false
-
-[[test]]
-name = "gpio-pull"
 harness = false
 
 [[test]]
