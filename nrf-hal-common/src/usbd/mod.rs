@@ -52,8 +52,6 @@ unsafe impl Sync for Buffers {}
 /// USB device implementation.
 pub struct Usbd {
     periph: Mutex<USBD>,
-    // argument passed to `UsbDeviceBuilder.max_packet_size_0`
-    max_packet_size_0: u16,
     unalloc_buffers: &'static mut [u8],
     bufs: Buffers,
     used_in: u8,
@@ -82,7 +80,6 @@ impl Usbd {
     pub fn new_alloc(periph: USBD, endpoint_buffers: &'static mut [u8]) -> UsbBusAllocator<Self> {
         UsbBusAllocator::new(Self {
             periph: Mutex::new(periph),
-            max_packet_size_0: 0,
             unalloc_buffers: endpoint_buffers,
             bufs: Buffers::new(),
             used_in: 0,
@@ -203,11 +200,6 @@ impl UsbBus for Usbd {
         // - 0x88 / 0x08 - Isochronous
 
         // Endpoint directions are allocated individually.
-
-        // store user-supplied value
-        if ep_addr.map(|addr| addr.index()) == Some(0) {
-            self.max_packet_size_0 = max_packet_size;
-        }
 
         let buf = self.alloc_ep_buf(ep_type, max_packet_size)?;
 
@@ -438,21 +430,6 @@ impl UsbBus for Usbd {
             unsafe {
                 epin[i].maxcnt.write(|w| w.maxcnt().bits(buf.len() as u8));
                 epin[i].ptr.write(|w| w.bits(self.bufs.in_bufs[i] as u32));
-            }
-
-            if i == 0 {
-                // EPIN0: a short packet (len < max_packet_size0) indicates the end of the data
-                // stage and must be followed by us responding with an ACK token to an OUT token
-                // sent from the host (AKA the status stage) -- `usb-device` provides no call back
-                // for that so we'll trigger the status stage using a shortcut
-                let is_short_packet = buf.len() < self.max_packet_size_0.into();
-                regs.shorts.modify(|_, w| {
-                    if is_short_packet {
-                        w.ep0datadone_ep0status().set_bit()
-                    } else {
-                        w.ep0datadone_ep0status().clear_bit()
-                    }
-                })
             }
 
             // Kick off device -> host transmission. This starts DMA, so a compiler fence is needed.
