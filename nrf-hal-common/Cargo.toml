@@ -39,7 +39,7 @@ optional = true
 version = "0.9.0"
 
 [dependencies.usb-device]
-version = "0.2.5"
+version = "0.2.7"
 optional = true
 
 [dependencies.nrf52810-pac]
