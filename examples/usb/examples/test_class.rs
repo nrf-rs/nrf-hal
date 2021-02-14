@@ -3,22 +3,11 @@
 
 use panic_semihosting as _;
 
-use cortex_m::peripheral::SCB;
 use cortex_m_rt::entry;
-use nrf52840_hal::gpio::{p0, p1, Level};
-use nrf52840_hal::prelude::*;
-use nrf52840_hal::timer::{OneShot, Timer};
 use nrf52840_hal::usbd::Usbd;
 use nrf52840_hal::clocks::Clocks;
-use nrf52840_pac::{interrupt, Peripherals, TIMER0};
-use usb_device::device::{UsbDeviceBuilder, UsbDeviceState, UsbVidPid};
-use usbd_serial::{SerialPort, USB_CLASS_CDC};
+use nrf52840_pac::Peripherals;
 use usb_device::test_class::TestClass;
-
-#[interrupt]
-fn TIMER0() {
-    SCB::sys_reset();
-}
 
 #[entry]
 fn main() -> ! {

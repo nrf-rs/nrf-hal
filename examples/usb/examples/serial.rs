@@ -3,21 +3,13 @@
 
 use panic_semihosting as _;
 
-use cortex_m::peripheral::SCB;
 use cortex_m_rt::entry;
-use nrf52840_hal::gpio::{p0, p1, Level};
-use nrf52840_hal::prelude::*;
-use nrf52840_hal::timer::{OneShot, Timer};
 use nrf52840_hal::usbd::Usbd;
 use nrf52840_hal::clocks::Clocks;
-use nrf52840_pac::{interrupt, Peripherals, TIMER0};
-use usb_device::device::{UsbDeviceBuilder, UsbDeviceState, UsbVidPid};
+use nrf52840_pac::Peripherals;
+use usb_device::device::{UsbDeviceBuilder, UsbVidPid};
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
-#[interrupt]
-fn TIMER0() {
-    SCB::sys_reset();
-}
 
 #[entry]
 fn main() -> ! {
@@ -44,16 +36,7 @@ fn main() -> ! {
     let clocks = Clocks::new(periph.CLOCK);
     let clocks = clocks.enable_ext_hfosc();
 
-    let mut timer = Timer::one_shot(periph.TIMER0);
     let usbd = periph.USBD;
-    let p0 = p0::Parts::new(periph.P0);
-    let p1 = p1::Parts::new(periph.P1);
-
-    //let mut led = p0.p0_23.into_push_pull_output(Level::High);
-    let btn = p1.p1_00.into_pullup_input();
-    while btn.is_high().unwrap() {}
-
-    let mut led = p0.p0_13.into_push_pull_output(Level::High);
 
     let usb_bus = Usbd::new_alloc(usbd, EP_BUF, &clocks);
     let mut serial = SerialPort::new(&usb_bus);
@@ -62,7 +45,7 @@ fn main() -> ! {
         .manufacturer("Fake company")
         .product("Serial port")
         .serial_number("TEST")
-        .device_class(usbd_serial::USB_CLASS_CDC)
+        .device_class(USB_CLASS_CDC)
         .max_packet_size_0(64) // (makes control transfers 8x faster)
         .build();
 
@@ -75,8 +58,6 @@ fn main() -> ! {
 
         match serial.read(&mut buf) {
             Ok(count) if count > 0 => {
-                led.set_low().ok(); // Turn on
-
                 // Echo back in upper case
                 for c in buf[0..count].iter_mut() {
                     if 0x61 <= *c && *c <= 0x7a {
@@ -96,7 +77,5 @@ fn main() -> ! {
             }
             _ => {}
         }
-
-        led.set_high().ok(); // Turn off
     }
 }
