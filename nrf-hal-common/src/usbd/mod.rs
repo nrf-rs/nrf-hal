@@ -8,10 +8,7 @@
 
 mod errata;
 
-use crate::{
-    clocks::{Clocks, ExternalOscillator},
-    target::USBD,
-};
+use crate::target::USBD;
 use core::sync::atomic::{compiler_fence, Ordering};
 use core::{cell::Cell, mem, ptr, slice};
 use cortex_m::interrupt::{self, Mutex};
@@ -53,7 +50,7 @@ impl Buffers {
 unsafe impl Sync for Buffers {}
 
 /// USB device implementation.
-pub struct Usbd<'c> {
+pub struct Usbd {
     periph: Mutex<USBD>,
     // argument passed to `UsbDeviceBuilder.max_packet_size_0`
     max_packet_size_0: u16,
@@ -70,12 +67,9 @@ pub struct Usbd<'c> {
     /// is finished (or at least DMA from the buffer has finished). While the bit is 1, `write`
     /// returns `WouldBlock`.
     in_bufs_in_use: Mutex<Cell<u16>>,
-
-    // used to freeze `Clocks` and ensure they remain in the `ExternalOscillator` state
-    _clocks: &'c (),
 }
 
-impl<'c> Usbd<'c> {
+impl Usbd {
     /// Creates a new USB bus, taking ownership of the raw peripheral.
     ///
     /// # Parameters
@@ -85,11 +79,7 @@ impl<'c> Usbd<'c> {
     ///   needs to be big enough to accomodate all buffers of all endpoints, or
     ///   `alloc_ep` will fail.
     #[inline]
-    pub fn new_alloc<L, LSTAT>(
-        periph: USBD,
-        endpoint_buffers: &'static mut [u8],
-        _clocks: &'c Clocks<ExternalOscillator, L, LSTAT>,
-    ) -> UsbBusAllocator<Self> {
+    pub fn new_alloc(periph: USBD, endpoint_buffers: &'static mut [u8]) -> UsbBusAllocator<Self> {
         UsbBusAllocator::new(Self {
             periph: Mutex::new(periph),
             max_packet_size_0: 0,
@@ -100,7 +90,6 @@ impl<'c> Usbd<'c> {
             iso_in_used: false,
             iso_out_used: false,
             in_bufs_in_use: Mutex::new(Cell::new(0)),
-            _clocks: &(),
         })
     }
 
@@ -193,7 +182,7 @@ impl<'c> Usbd<'c> {
     }
 }
 
-impl UsbBus for Usbd<'_> {
+impl UsbBus for Usbd {
     fn alloc_ep(
         &mut self,
         ep_dir: UsbDirection,
