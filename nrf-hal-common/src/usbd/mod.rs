@@ -625,14 +625,10 @@ impl UsbBus for Usbd {
 
             // TODO: Check ISO EP
 
-            if out_complete != 0 || in_complete != 0 || ep_setup != 0 {
-                PollResult::Data {
-                    ep_out: out_complete,
-                    ep_in_complete: in_complete,
-                    ep_setup,
-                }
-            } else {
-                PollResult::None
+            PollResult::Data {
+                ep_out: out_complete,
+                ep_in_complete: in_complete,
+                ep_setup,
             }
         })
     }
