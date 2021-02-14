@@ -43,3 +43,12 @@ jobs:
         include:
           - rust_version: stable
             rustflags: --deny warnings
+
+  ci:
+    if: ${{ success() }}
+    # all new jobs must be added to this list
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: CI succeeded
+        run: exit 0
