@@ -5,7 +5,6 @@ use panic_semihosting as _;
 
 use cortex_m::peripheral::SCB;
 use cortex_m_rt::entry;
-use cortex_m_semihosting::hprintln;
 use nrf52840_hal::gpio::{p0, p1, Level};
 use nrf52840_hal::prelude::*;
 use nrf52840_hal::timer::{OneShot, Timer};
@@ -53,7 +52,6 @@ fn main() -> ! {
 
     let mut usb_dev = { test.make_device(&usb_bus) };
 
-    hprintln!("<start>").ok();
     loop {
         if usb_dev.poll(&mut [&mut test]) {
             test.poll();
