@@ -10,7 +10,7 @@ mod errata;
 
 use crate::{
     clocks::{Clocks, ExternalOscillator},
-    pac::USBD,
+    target::USBD,
 };
 use core::sync::atomic::{compiler_fence, Ordering};
 use core::{cell::Cell, mem, ptr, slice};
@@ -470,7 +470,7 @@ impl UsbBus for Usbd<'_> {
                 // stage and must be followed by us responding with an ACK token to an OUT token
                 // sent from the host (AKA the status stage) -- `usb-device` provides no call back
                 // for that so we'll trigger the status stage using a shortcut
-                let is_short_packet = buf.len() < self.max_packet_size_0 as usize;
+                let is_short_packet = buf.len() < self.max_packet_size_0.into();
                 regs.shorts.modify(|_, w| {
                     if is_short_packet {
                         w.ep0datadone_ep0status().set_bit()
@@ -572,7 +572,7 @@ impl UsbBus for Usbd<'_> {
 
             unsafe {
                 if ep_addr.index() == 0 {
-                    regs.tasks_ep0stall.write(|w| w.tasks_ep0stall().bit(stalled));
+                    regs.tasks_ep0stall.write(|w| w.tasks_ep0stall().set_bit());
                 } else {
                     regs.epstall.write(|w| {
                         w.ep()
@@ -607,6 +607,7 @@ impl UsbBus for Usbd<'_> {
             errata::pre_wakeup();
 
             regs.lowpower.write(|w| w.lowpower().force_normal());
+            
         });
     }
 

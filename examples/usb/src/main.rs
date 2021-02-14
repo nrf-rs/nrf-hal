@@ -51,7 +51,6 @@ fn main() -> ! {
     let p1 = p1::Parts::new(periph.P1);
 
     let mut led = p0.p0_23.into_push_pull_output(Level::High);
-
     let btn = p1.p1_00.into_pullup_input();
     while btn.is_high().unwrap() {}
 
@@ -80,11 +79,6 @@ fn main() -> ! {
         if new_state != state {
             hprintln!("{:?} {:#x}", new_state, usb_dev.bus().device_address()).ok();
             state = new_state;
-
-            if state == UsbDeviceState::Configured {
-                serial.write(b"Hello, world!\n").unwrap();
-                serial.flush().unwrap();
-            }
         }
     }
 }
