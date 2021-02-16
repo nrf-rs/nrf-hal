@@ -169,6 +169,10 @@ where
     /// The buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
     pub fn write(&mut self, tx_buffer: &[u8]) -> Result<(), Error> {
+        if tx_buffer.len() == 0 {
+            return Err(Error::TxBufferTooSmall);
+        }
+
         if tx_buffer.len() > EASY_DMA_SIZE {
             return Err(Error::TxBufferTooLong);
         }
@@ -364,6 +368,10 @@ fn stop_write(uarte: &uarte0::RegisterBlock) {
 /// Start a UARTE read transaction by setting the control
 /// values and triggering a read task.
 fn start_read(uarte: &uarte0::RegisterBlock, rx_buffer: &mut [u8]) -> Result<(), Error> {
+    if rx_buffer.len() == 0 {
+        return Err(Error::RxBufferTooSmall);
+    }
+
     if rx_buffer.len() > EASY_DMA_SIZE {
         return Err(Error::RxBufferTooLong);
     }
