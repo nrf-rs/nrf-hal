@@ -63,6 +63,7 @@ enum TransferState {
 struct EP0State {
     direction: UsbDirection,
     in_transfer_state: TransferState,
+    is_set_address: bool,
 }
 
 /// USB device implementation.
@@ -109,6 +110,7 @@ impl<'c> Usbd<'c> {
             ep0_state: Mutex::new(Cell::new(EP0State {
                 direction: UsbDirection::Out,
                 in_transfer_state: TransferState::NoTransfer,
+                is_set_address: false,
             })),
             _clocks: &(),
         })
@@ -191,6 +193,8 @@ impl<'c> Usbd<'c> {
             false => UsbDirection::In,
             true => UsbDirection::Out,
         };
+
+        ep0_state.is_set_address = (buf[0] == 0x00) && (buf[1] == 0x05);
 
         if regs.bmrequesttype.read().direction().is_host_to_device() {
             let ptr = self.bufs.out_bufs[0];
@@ -416,17 +420,25 @@ impl UsbBus for Usbd<'_> {
 
         // A 0-length write to Control EP 0 is a status stage acknowledging a control write xfer
         if ep_addr.index() == 0 && buf.is_empty() {
-            let is_out = interrupt::free(|cs| {
+            let exit = interrupt::free(|cs| {
+                let regs = self.periph.borrow(cs);
+
                 let ep0_state = self.ep0_state.borrow(cs).get();
-                ep0_state.direction == UsbDirection::Out
+
+                if ep0_state.is_set_address {
+                    // Inhibit
+                    return true;
+                }
+
+                if ep0_state.direction == UsbDirection::Out {
+                    regs.tasks_ep0status.write(|w| w.tasks_ep0status().set_bit());
+                    return true;
+                }
+
+                false
             });
 
-            if is_out {
-                interrupt::free(|cs| {
-                    let regs = self.periph.borrow(cs);
-
-                    regs.tasks_ep0status.write(|w| w.tasks_ep0status().set_bit());
-                });
+            if exit {
                 return Ok(0);
             }
         }
@@ -757,14 +769,4 @@ impl UsbBus for Usbd<'_> {
 
         Ok(())
     }
-
-    /// The peripheral handles this for us.
-    ///
-    /// The Reference Manual says:
-    ///
-    /// > Note: The USBD peripheral handles the SetAddress transfer by itself. As a consequence, the
-    /// > software shall not process this command other than updating its state machine (see Device
-    /// > state diagram), nor initiate a status stage. If necessary, the address assigned by the
-    /// > host can be read out from the USBADDR register after the command has been processed.
-    const INHIBIT_SET_ADDRESS_RESPONSE: bool = true;
 }

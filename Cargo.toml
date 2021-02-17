@@ -20,7 +20,3 @@ lto = false
 debug = true
 lto = true
 opt-level = "s"
-
-[patch.crates-io.usb-device]
-git = "https://github.com/unrelentingtech/usb-device.git"
-branch = "inhibit-setaddr-resp"
