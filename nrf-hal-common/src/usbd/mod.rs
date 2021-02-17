@@ -13,7 +13,8 @@ use crate::{
     pac::USBD,
 };
 use core::sync::atomic::{compiler_fence, Ordering};
-use core::{cell::Cell, mem, ptr, slice};
+use core::{cell::Cell, mem, ptr};
+use core::mem::MaybeUninit;
 use cortex_m::interrupt::{self, Mutex};
 use usb_device::{
     bus::{PollResult, UsbBus, UsbBusAllocator},
@@ -68,13 +69,6 @@ pub struct Usbd<'c> {
     used_out: u8,
     iso_in_used: bool,
     iso_out_used: bool,
-    // FIXME: The used flags should probably be collapsed into u16's.
-    /// Keeps track of which IN (device -> host) buffers are currently in use.
-    ///
-    /// The bits for every IN EP are set in `write` and remain 1 until `poll` detects that the write
-    /// is finished (or at least DMA from the buffer has finished). While the bit is 1, `write`
-    /// returns `WouldBlock`.
-    in_bufs_in_use: Mutex<Cell<u16>>,
     ep0_state: Mutex<Cell<EP0State>>,
 
     // used to freeze `Clocks` and ensure they remain in the `ExternalOscillator` state
@@ -105,7 +99,6 @@ impl<'c> Usbd<'c> {
             used_out: 0,
             iso_in_used: false,
             iso_out_used: false,
-            in_bufs_in_use: Mutex::new(Cell::new(0)),
             ep0_state: Mutex::new(Cell::new(EP0State {
                 direction: UsbDirection::Out,
             })),
@@ -415,15 +408,19 @@ impl UsbBus for Usbd<'_> {
 
         // A 0-length write to Control EP 0 is a status stage acknowledging a control write xfer
         if ep_addr.index() == 0 && buf.is_empty() {
-            // There is no need to mark the buffer as used here.
-
-            interrupt::free(|cs| {
-                let regs = self.periph.borrow(cs);
-                regs.tasks_ep0status
-                    .write(|w| w.tasks_ep0status().set_bit());
+            let is_out = interrupt::free(|cs| {
+                let ep0_state = self.ep0_state.borrow(cs).get();
+                ep0_state.direction == UsbDirection::Out
             });
-            // XXX anything else to do?
-            return Ok(0);
+
+            if is_out {
+                interrupt::free(|cs| {
+                    let regs = self.periph.borrow(cs);
+
+                    regs.tasks_ep0status.write(|w| w.tasks_ep0status().set_bit());
+                });
+                return Ok(0);
+            }
         }
 
         let i = ep_addr.index();
@@ -433,33 +430,18 @@ impl UsbBus for Usbd<'_> {
         }
 
         interrupt::free(|cs| {
-            let in_bufs_in_use = self.in_bufs_in_use.borrow(cs);
+            let regs = self.periph.borrow(cs);
 
-            // We cannot use the ENDEPIN event to detect whether it's fine to write to the buffer,
-            // since that is not active when first initializing the peripheral. It also gets cleared
-            // when `poll`ed, and thus would be unavailable here.
-            // We store an additional bitflags in the peripheral wrapper to store which IN buffers are
-            // in use by DMA, and which may be written to.
-            if in_bufs_in_use.get() & (1 << i) != 0 {
+            if regs.epstatus.read().bits() & (1 << i) != 0 {
                 return Err(UsbError::WouldBlock);
             }
 
-            // Mark buffer as "in use".
-            in_bufs_in_use.set(in_bufs_in_use.get() | (1 << i));
-
-            Ok(())
-        })?;
-
-        // Now the target buffer is locked and we can copy the data outside of the critical
-        // sections. If we get interrupted, the buffer can't be acquired (and the code that would
-        // *unlock* the buffer should never be invoked here anyways).
-        let ptr = self.bufs.in_bufs[i];
-        let len = self.bufs.in_lens[i];
-        let slice = unsafe { slice::from_raw_parts_mut(ptr, usize::from(len)) };
-        slice[..buf.len()].copy_from_slice(buf);
-
-        interrupt::free(|cs| {
-            let regs = self.periph.borrow(cs);
+            let mut ram_buf: MaybeUninit<[u8; 64]> = MaybeUninit::uninit();
+            unsafe {
+                let slice = &mut *ram_buf.as_mut_ptr();
+                slice[..buf.len()].copy_from_slice(buf);
+            }
+            let ram_buf = unsafe { ram_buf.assume_init() };
 
             let epin = [
                 &regs.epin0,
@@ -475,8 +457,12 @@ impl UsbBus for Usbd<'_> {
             // Set the buffer length so the right number of bytes are transmitted.
             // Safety: `buf.len()` has been checked to be <= the max buffer length.
             unsafe {
+                if buf.is_empty() {
+                    epin[i].ptr.write(|w| w.bits(0));
+                } else {
+                    epin[i].ptr.write(|w| w.bits(ram_buf.as_ptr() as u32));
+                }
                 epin[i].maxcnt.write(|w| w.maxcnt().bits(buf.len() as u8));
-                epin[i].ptr.write(|w| w.bits(self.bufs.in_bufs[i] as u32));
             }
 
             if i == 0 {
@@ -491,12 +477,21 @@ impl UsbBus for Usbd<'_> {
                     } else {
                         w.ep0datadone_ep0status().clear_bit()
                     }
-                })
+                });
             }
+
+            // Clear ENDEPIN[i] flag
+            regs.events_endepin[i].reset();
 
             // Kick off device -> host transmission. This starts DMA, so a compiler fence is needed.
             dma_start();
             regs.tasks_startepin[i].write(|w| w.tasks_startepin().set_bit());
+            while regs.events_endepin[i].read().events_endepin().bit_is_clear() {}
+            regs.events_endepin[i].reset();
+            dma_end();
+
+            // Clear EPSTATUS.EPIN[i] flag
+            regs.epstatus.write(|w| unsafe { w.bits(1 << i) });
 
             Ok(buf.len())
         })
@@ -525,28 +520,35 @@ impl UsbBus for Usbd<'_> {
 
                     return self.read_control_setup(regs, buf, ep0_state);
                 } else {
-                    // XXX hack!
-                    regs.tasks_ep0status
-                        .write(|w| w.tasks_ep0status().set_bit());
-                    return Ok(0);
+                    // Is the endpoint ready?
+                    if regs.events_ep0datadone.read().events_ep0datadone().bit_is_clear() {
+                        // Not yet ready.
+                        return Err(UsbError::WouldBlock);
+                    }
+                }
+            } else {
+                // Is the endpoint ready?
+                let epdatastatus = regs.epdatastatus.read().bits();
+                if epdatastatus & (1 << (i + 16)) == 0 {
+                    // Not yet ready.
+                    return Err(UsbError::WouldBlock);
                 }
             }
 
-            // Is the endpoint ready? (ie. has DMA finished?)
-            // TODO: ISO
-            if !regs.events_endepout[i]
-                .read()
-                .events_endepout()
-                .bit_is_set()
-            {
-                // Not yet ready.
-                return Err(UsbError::WouldBlock);
+            // Check that the packet fits into the buffer
+            let size = regs.size.epout[i].read().bits();
+            if size as usize > buf.len() {
+                return Err(UsbError::BufferOverflow);
             }
 
-            // the above check indicates the DMA transfer is complete
-            dma_end();
+            // Clear status
+            if i == 0 {
+                regs.events_ep0datadone.reset();
+            } else {
+                regs.epdatastatus.write(|w| unsafe { w.bits(1 << (i + 16)) });
+            }
 
-            regs.events_endepout[i].reset();
+            // We checked that the endpoint has data, time to read it
 
             let epout = [
                 &regs.epout0,
@@ -558,28 +560,26 @@ impl UsbBus for Usbd<'_> {
                 &regs.epout6,
                 &regs.epout7,
             ];
+            epout[i].ptr.write(|w| unsafe { w.bits(buf.as_ptr() as u32) });
+            // MAXCNT must match SIZE
+            epout[i].maxcnt.write(|w| unsafe { w.bits(size) });
 
-            // How much was transferred?
-            // as soon as the DMA transfer is over the peripheral will start receiving new packets
-            // and may overwrite the SIZE register so read the MAXCNT register, which contains the
-            // SIZE of the last OUT packet, instead
-            let len = epout[i].maxcnt.read().maxcnt().bits();
+            dma_start();
+            regs.events_endepout[i].reset();
+            regs.tasks_startepout[i].write(|w| w.tasks_startepout().set_bit());
+            while regs.events_endepout[i].read().events_endepout().bit_is_clear() {}
+            regs.events_endepout[i].reset();
+            dma_end();
 
-            if usize::from(len) > buf.len() {
-                return Err(UsbError::BufferOverflow);
-            }
+            // TODO: ISO
 
-            // Make sure it's smaller than the buffer size.
-            let bufsz = self.bufs.out_lens[i];
-            assert!(len <= bufsz);
+            // Read is complete, clear status flag
+            regs.epdatastatus.write(|w| unsafe { w.bits(1 << (i + 16)) });
 
-            let ptr = self.bufs.out_bufs[i];
+            // Enable the endpoint
+            regs.size.epout[i].reset();
 
-            // Safety: `len` is in bounds and DMA is not writing to the buffer.
-            let slice = unsafe { slice::from_raw_parts(ptr, usize::from(len)) };
-            buf[..usize::from(len)].copy_from_slice(slice);
-
-            Ok(usize::from(len))
+            Ok(size as usize)
         })
     }
 
@@ -629,7 +629,6 @@ impl UsbBus for Usbd<'_> {
 
     fn poll(&self) -> PollResult {
         interrupt::free(|cs| {
-            let in_bufs_in_use = self.in_bufs_in_use.borrow(cs);
             let regs = self.periph.borrow(cs);
 
             if regs.events_usbreset.read().events_usbreset().bit_is_set() {
@@ -651,70 +650,34 @@ impl UsbBus for Usbd<'_> {
             // Check for any finished transmissions.
             let mut in_complete = 0;
             let mut out_complete = 0;
-            for i in 0..=7 {
-                if i == 0 {
-                    if regs
-                        .events_ep0datadone
-                        .read()
-                        .events_ep0datadone()
-                        .bit_is_set()
-                    {
-                        dma_end();
+            if regs.events_ep0datadone.read().events_ep0datadone().bit_is_set() {
+                let ep0_state = self.ep0_state.borrow(cs).get();
+                if ep0_state.direction == UsbDirection::In {
+                    // Clear event, since we must only report this once.
+                    regs.events_ep0datadone.reset();
 
-                        // Clear event, since we must only report this once.
-                        regs.events_ep0datadone.reset();
-                        in_complete |= 1 << i;
-
-                        // The associated buffer is free again.
-                        in_bufs_in_use.set(in_bufs_in_use.get() & !(1 << i));
-                    }
+                    in_complete |= 1;
                 } else {
-                    if regs.events_endepin[i].read().events_endepin().bit_is_set() {
-                        dma_end();
-
-                        // Clear event, since we must only report this once.
-                        regs.events_endepin[i].reset();
-                        in_complete |= 1 << i;
-
-                        // The associated buffer is free again.
-                        in_bufs_in_use.set(in_bufs_in_use.get() & !(1 << i));
-                    }
-
-                    // (see figure 203 of 52840-PS )
-                    // OUT endpoints are buffered; incoming packets will first be copied
-                    // into the peripheral's internal memory (not visible to us). That event is
-                    // reported as an EPDATA event that updates the EPDATASTATUS register
-                    // what we must do at that stage is start a DMA transfer from that hidden
-                    // memory to RAM. we start that transfer right here
-                    let offset = 16 + i;
-                    if regs.epdatastatus.read().bits() & (1 << offset) != 0 {
-                        // MAXCNT must match SIZE
-                        let size = regs.size.epout[i].read().bits();
-                        let epout = [
-                            &regs.epout0,
-                            &regs.epout1,
-                            &regs.epout2,
-                            &regs.epout3,
-                            &regs.epout4,
-                            &regs.epout5,
-                            &regs.epout6,
-                            &regs.epout7,
-                        ];
-                        epout[i].maxcnt.write(|w| unsafe { w.bits(size) });
-                        dma_start();
-                        regs.tasks_startepout[i].write(|w| w.tasks_startepout().set_bit());
-                        // clear flag so we don't start the DMA transfer more than once
-                        regs.epdatastatus.write(|w| unsafe { w.bits(1 << offset) });
-                    }
-                }
-
-                if regs.events_endepout[i]
-                    .read()
-                    .events_endepout()
-                    .bit_is_set()
-                {
                     // Do not clear OUT events, since we have to continue reporting them until the
                     // buffer is read.
+
+                    out_complete |= 1;
+                }
+            }
+            let epdatastatus = regs.epdatastatus.read().bits();
+            for i in 1..=7 {
+                if epdatastatus & (1 << i) != 0 {
+                    // EPDATASTATUS.EPIN[i] is set
+
+                    // Clear event, since we must only report this once.
+                    regs.epdatastatus.write(|w| unsafe { w.bits(1 << i) });
+
+                    in_complete |= 1 << i;
+                }
+                if epdatastatus & (1 << (i + 16)) != 0 {
+                    // EPDATASTATUS.EPOUT[i] is set
+                    // This flag will be cleared in `read()`
+
                     out_complete |= 1 << i;
                 }
             }
