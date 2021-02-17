@@ -52,6 +52,11 @@ impl Buffers {
 
 unsafe impl Sync for Buffers {}
 
+#[derive(Copy, Clone)]
+struct EP0State {
+    direction: UsbDirection,
+}
+
 /// USB device implementation.
 pub struct Usbd<'c> {
     periph: Mutex<USBD>,
@@ -70,6 +75,7 @@ pub struct Usbd<'c> {
     /// is finished (or at least DMA from the buffer has finished). While the bit is 1, `write`
     /// returns `WouldBlock`.
     in_bufs_in_use: Mutex<Cell<u16>>,
+    ep0_state: Mutex<Cell<EP0State>>,
 
     // used to freeze `Clocks` and ensure they remain in the `ExternalOscillator` state
     _clocks: &'c (),
@@ -100,6 +106,9 @@ impl<'c> Usbd<'c> {
             iso_in_used: false,
             iso_out_used: false,
             in_bufs_in_use: Mutex::new(Cell::new(0)),
+            ep0_state: Mutex::new(Cell::new(EP0State {
+                direction: UsbDirection::Out,
+            })),
             _clocks: &(),
         })
     }
@@ -157,7 +166,7 @@ impl<'c> Usbd<'c> {
         }
     }
 
-    fn read_control_setup(&self, regs: &USBD, buf: &mut [u8]) -> usb_device::Result<usize> {
+    fn read_control_setup(&self, regs: &USBD, buf: &mut [u8], ep0_state: &mut EP0State) -> usb_device::Result<usize> {
         const SETUP_LEN: usize = 8;
 
         if buf.len() < SETUP_LEN {
@@ -176,6 +185,11 @@ impl<'c> Usbd<'c> {
         buf[5] = regs.windexh.read().windexh().bits();
         buf[6] = regs.wlengthl.read().wlengthl().bits();
         buf[7] = regs.wlengthh.read().wlengthh().bits();
+
+        ep0_state.direction = match regs.bmrequesttype.read().direction().is_host_to_device() {
+            false => UsbDirection::In,
+            true => UsbDirection::Out,
+        };
 
         if regs.bmrequesttype.read().direction().is_host_to_device() {
             let ptr = self.bufs.out_bufs[0];
@@ -506,7 +520,10 @@ impl UsbBus for Usbd<'_> {
                 // Control setup packet is special, since it is put in registers, not a buffer.
                 if regs.events_ep0setup.read().events_ep0setup().bit_is_set() {
                     regs.events_ep0setup.reset();
-                    return self.read_control_setup(regs, buf);
+
+                    let ep0_state = unsafe { &mut *self.ep0_state.borrow(cs).as_ptr() };
+
+                    return self.read_control_setup(regs, buf, ep0_state);
                 } else {
                     // XXX hack!
                     regs.tasks_ep0status
