@@ -196,7 +196,7 @@ impl<'c> Usbd<'c> {
 
         ep0_state.is_set_address = (buf[0] == 0x00) && (buf[1] == 0x05);
 
-        if regs.bmrequesttype.read().direction().is_host_to_device() {
+        if ep0_state.direction == UsbDirection::Out  {
             let ptr = self.bufs.out_bufs[0];
             let len = self.bufs.out_lens[0];
 
@@ -499,7 +499,9 @@ impl UsbBus for Usbd<'_> {
                     }
                 });
 
-                // Hack: send status stage if the IN transfer is not acknowledged after a few frames
+                // Hack: trigger status stage if the IN transfer is not acknowledged after a few frames,
+                // so record the current frame here; the actual test and status stage activation happens
+                // in the poll method.
                 let frame_counter = regs.framecntr.read().framecntr().bits();
                 let ep0_state = self.ep0_state.borrow(cs);
                 let mut state = ep0_state.get();
