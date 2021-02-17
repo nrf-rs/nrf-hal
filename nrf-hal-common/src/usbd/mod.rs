@@ -54,8 +54,15 @@ impl Buffers {
 unsafe impl Sync for Buffers {}
 
 #[derive(Copy, Clone)]
+enum TransferState {
+    NoTransfer,
+    Started(u16),
+}
+
+#[derive(Copy, Clone)]
 struct EP0State {
     direction: UsbDirection,
+    in_transfer_state: TransferState,
 }
 
 /// USB device implementation.
@@ -101,6 +108,7 @@ impl<'c> Usbd<'c> {
             iso_out_used: false,
             ep0_state: Mutex::new(Cell::new(EP0State {
                 direction: UsbDirection::Out,
+                in_transfer_state: TransferState::NoTransfer,
             })),
             _clocks: &(),
         })
@@ -478,6 +486,13 @@ impl UsbBus for Usbd<'_> {
                         w.ep0datadone_ep0status().clear_bit()
                     }
                 });
+
+                // Hack: send status stage if the IN transfer is not acknowledged after a few frames
+                let frame_counter = regs.framecntr.read().framecntr().bits();
+                let ep0_state = self.ep0_state.borrow(cs);
+                let mut state = ep0_state.get();
+                state.in_transfer_state = TransferState::Started(frame_counter);
+                ep0_state.set(state);
             }
 
             // Clear ENDEPIN[i] flag
@@ -647,6 +662,25 @@ impl UsbBus for Usbd<'_> {
                 }
             }
 
+            if regs.events_sof.read().events_sof().bit_is_set() {
+                regs.events_sof.reset();
+
+                // Check if we have a timeout for EP0 IN transfer
+                let ep0_state = self.ep0_state.borrow(cs);
+                let mut state = ep0_state.get();
+                if let TransferState::Started(counter) = state.in_transfer_state {
+                    let frame_counter = regs.framecntr.read().framecntr().bits();
+                    if frame_counter.wrapping_sub(counter) >= 5 {
+                        // Send a status stage to ACK a pending OUT transfer
+                        regs.tasks_ep0status.write(|w| w.tasks_ep0status().set_bit());
+
+                        // reset the state
+                        state.in_transfer_state = TransferState::NoTransfer;
+                        ep0_state.set(state);
+                    }
+                }
+            }
+
             // Check for any finished transmissions.
             let mut in_complete = 0;
             let mut out_complete = 0;
@@ -657,6 +691,12 @@ impl UsbBus for Usbd<'_> {
                     regs.events_ep0datadone.reset();
 
                     in_complete |= 1;
+
+                    // Reset a timeout for the IN transfer
+                    let ep0_state = self.ep0_state.borrow(cs);
+                    let mut state = ep0_state.get();
+                    state.in_transfer_state = TransferState::NoTransfer;
+                    ep0_state.set(state);
                 } else {
                     // Do not clear OUT events, since we have to continue reporting them until the
                     // buffer is read.
