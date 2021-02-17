@@ -706,6 +706,11 @@ impl UsbBus for Usbd<'_> {
             let mut ep_setup = 0;
             if regs.events_ep0setup.read().events_ep0setup().bit_is_set() {
                 ep_setup = 1;
+
+                // Reset shorts
+                regs.shorts.modify(|_, w| {
+                    w.ep0datadone_ep0status().clear_bit()
+                });
             }
 
             // TODO: Check ISO EP
