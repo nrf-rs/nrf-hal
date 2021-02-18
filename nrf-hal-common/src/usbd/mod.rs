@@ -545,9 +545,12 @@ impl UsbBus for Usbd<'_> {
                 if regs.events_ep0setup.read().events_ep0setup().bit_is_set() {
                     regs.events_ep0setup.reset();
 
-                    let ep0_state = unsafe { &mut *self.ep0_state.borrow(cs).as_ptr() };
+                    let ep0_state = self.ep0_state.borrow(cs);
+                    let mut state = ep0_state.get();
+                    let n = self.read_control_setup(regs, buf, &mut state)?;
+                    ep0_state.set(state);
 
-                    return self.read_control_setup(regs, buf, ep0_state);
+                    return Ok(n)
                 } else {
                     // Is the endpoint ready?
                     if regs.events_ep0datadone.read().events_ep0datadone().bit_is_clear() {
