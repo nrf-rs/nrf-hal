@@ -178,7 +178,7 @@ where
             7 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input7()),
             #[cfg(not(feature = "9160"))]
             8 => self.0.ch[0].pselp.write(|w| w.pselp().vdd()),
-            #[cfg(not(feature = "9160"))]
+            #[cfg(any(feature = "52833", feature = "52840"))]
             13 => self.0.ch[0].pselp.write(|w| w.pselp().vddhdiv5()),
             // This can never happen the only analog pins have already been defined
             // PAY CLOSE ATTENTION TO ANY CHANGES TO THIS IMPL OR THE `channel_mappings!` MACRO
@@ -268,7 +268,7 @@ impl Channel<Saadc> for InternalVdd {
 /// Channel that doesn't sample a pin, but the internal VDD voltage.
 pub struct InternalVdd;
 
-#[cfg(not(feature = "9160"))]
+#[cfg(any(feature = "52833", feature = "52840"))]
 impl Channel<Saadc> for InternalVddHdiv5 {
     type ID = u8;
 
@@ -277,6 +277,6 @@ impl Channel<Saadc> for InternalVddHdiv5 {
     }
 }
 
-#[cfg(not(feature = "9160"))]
+#[cfg(any(feature = "52833", feature = "52840"))]
 /// Channel that doesn't sample a pin, but the internal VDD voltage.
 pub struct InternalVddHdiv5;
