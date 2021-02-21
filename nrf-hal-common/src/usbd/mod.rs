@@ -13,7 +13,7 @@ use crate::{
     pac::USBD,
 };
 use core::sync::atomic::{compiler_fence, Ordering};
-use core::{cell::Cell, mem, ptr};
+use core::cell::Cell;
 use core::mem::MaybeUninit;
 use cortex_m::interrupt::{self, Mutex};
 use usb_device::{
@@ -31,10 +31,6 @@ fn dma_end() {
 }
 
 struct Buffers {
-    // Ptr and size is stored separately to save space
-    in_bufs: [*mut u8; 9],
-    out_bufs: [*mut u8; 9],
-
     // Buffers can be up to 64 Bytes since this is a Full-Speed implementation.
     in_lens: [u8; 9],
     out_lens: [u8; 9],
@@ -43,8 +39,6 @@ struct Buffers {
 impl Buffers {
     fn new() -> Self {
         Self {
-            in_bufs: [ptr::null_mut(); 9],
-            out_bufs: [ptr::null_mut(); 9],
             in_lens: [0; 9],
             out_lens: [0; 9],
         }
@@ -72,7 +66,6 @@ pub struct Usbd<'c> {
     periph: Mutex<USBD>,
     // argument passed to `UsbDeviceBuilder.max_packet_size_0`
     max_packet_size_0: u16,
-    unalloc_buffers: &'static mut [u8],
     bufs: Buffers,
     used_in: u8,
     used_out: u8,
@@ -90,19 +83,14 @@ impl<'c> Usbd<'c> {
     /// # Parameters
     ///
     /// * `periph`: The raw USBD peripheral.
-    /// * `endpoint_buffers`: Backing storage for the endpoint buffers. This
-    ///   needs to be big enough to accomodate all buffers of all endpoints, or
-    ///   `alloc_ep` will fail.
     #[inline]
-    pub fn new_alloc<L, LSTAT>(
+    pub fn new<L, LSTAT>(
         periph: USBD,
-        endpoint_buffers: &'static mut [u8],
         _clocks: &'c Clocks<ExternalOscillator, L, LSTAT>,
     ) -> UsbBusAllocator<Self> {
         UsbBusAllocator::new(Self {
             periph: Mutex::new(periph),
             max_packet_size_0: 0,
-            unalloc_buffers: endpoint_buffers,
             bufs: Buffers::new(),
             used_in: 0,
             used_out: 0,
@@ -121,36 +109,6 @@ impl<'c> Usbd<'c> {
     /// Fetches the address assigned to the device (only valid when device is configured).
     pub fn device_address(&self) -> u8 {
         unsafe { &*USBD::ptr() }.usbaddr.read().addr().bits()
-    }
-
-    fn alloc_ep_buf(
-        &mut self,
-        ep_type: EndpointType,
-        mut size: u16,
-    ) -> usb_device::Result<&'static mut [u8]> {
-        if self.unalloc_buffers.len() < usize::from(size) {
-            Err(UsbError::EndpointMemoryOverflow)
-        } else {
-            if ep_type == EndpointType::Bulk || ep_type == EndpointType::Interrupt {
-                // datasheet: buffer must be 4-byte aligned and its size must be a multiple of 4
-                let rem = self.unalloc_buffers.as_mut_ptr() as usize % 4;
-                if rem != 0 {
-                    let (_padding, remaining) =
-                        mem::replace(&mut self.unalloc_buffers, &mut []).split_at_mut(4 - rem);
-                    self.unalloc_buffers = remaining;
-                }
-
-                let rem = size % 4;
-                if rem != 0 {
-                    size = size + 4 - rem;
-                }
-            }
-            assert!(size <= 64);
-            let (alloc, remaining) =
-                mem::replace(&mut self.unalloc_buffers, &mut []).split_at_mut(size.into());
-            self.unalloc_buffers = remaining;
-            Ok(alloc)
-        }
     }
 
     fn is_used(&self, ep: EndpointAddress) -> bool {
@@ -234,8 +192,6 @@ impl UsbBus for Usbd<'_> {
             self.max_packet_size_0 = max_packet_size;
         }
 
-        let buf = self.alloc_ep_buf(ep_type, max_packet_size)?;
-
         if false {
             unimplemented!(
                 "alloc_ep({:?}, {:?}, {:?}, {}, {})",
@@ -247,15 +203,13 @@ impl UsbBus for Usbd<'_> {
             );
         }
 
-        let (used, bufs, lens) = match ep_dir {
+        let (used, lens) = match ep_dir {
             UsbDirection::In => (
                 &mut self.used_in,
-                &mut self.bufs.in_bufs,
                 &mut self.bufs.in_lens,
             ),
             UsbDirection::Out => (
                 &mut self.used_out,
-                &mut self.bufs.out_bufs,
                 &mut self.bufs.out_lens,
             ),
         };
@@ -271,8 +225,7 @@ impl UsbBus for Usbd<'_> {
                     return Err(UsbError::EndpointOverflow);
                 } else {
                     *flag = true;
-                    bufs[8] = buf.as_mut_ptr();
-                    lens[8] = buf.len() as u8;
+                    lens[8] = max_packet_size as u8;
                     return Ok(EndpointAddress::from_parts(0x08, ep_dir));
                 }
             }
@@ -297,8 +250,7 @@ impl UsbBus for Usbd<'_> {
         }
 
         *used |= 1 << alloc_index;
-        bufs[alloc_index as usize] = buf.as_mut_ptr();
-        lens[alloc_index as usize] = buf.len() as u8;
+        lens[alloc_index as usize] = max_packet_size as u8;
 
         let addr = EndpointAddress::from_parts(alloc_index as usize, ep_dir);
         Ok(addr)

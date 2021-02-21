@@ -22,8 +22,6 @@ fn TIMER0() {
 
 #[entry]
 fn main() -> ! {
-    static mut EP_BUF: [u8; 512] = [0; 512];
-
     let periph = Peripherals::take().unwrap();
     while !periph
         .POWER
@@ -60,7 +58,7 @@ fn main() -> ! {
 
     led.set_low().unwrap();
 
-    let usb_bus = Usbd::new_alloc(usbd, EP_BUF, &clocks);
+    let usb_bus = Usbd::new(usbd, &clocks);
     let mut serial = SerialPort::new(&usb_bus);
 
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x16c0, 0x27dd))
