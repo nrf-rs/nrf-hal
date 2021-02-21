@@ -199,13 +199,6 @@ impl<'c> Usbd<'c> {
         ep0_state.is_set_address = (buf[0] == 0x00) && (buf[1] == 0x05);
 
         if ep0_state.direction == UsbDirection::Out  {
-            let ptr = self.bufs.out_bufs[0];
-            let len = self.bufs.out_lens[0];
-
-            unsafe {
-                regs.epout0.ptr.write(|w| w.bits(ptr as u32));
-                regs.epout0.maxcnt.write(|w| w.bits(u32::from(len)));
-            }
             regs.tasks_ep0rcvout
                 .write(|w| w.tasks_ep0rcvout().set_bit());
         }
