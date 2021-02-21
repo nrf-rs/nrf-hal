@@ -329,52 +329,7 @@ impl UsbBus for Usbd<'_> {
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
 
-            // Neat little hack to work around svd2rust not coalescing these on its own.
-            let epin = [
-                &regs.epin0,
-                &regs.epin1,
-                &regs.epin2,
-                &regs.epin3,
-                &regs.epin4,
-                &regs.epin5,
-                &regs.epin6,
-                &regs.epin7,
-            ];
-            let epout = [
-                &regs.epout0,
-                &regs.epout1,
-                &regs.epout2,
-                &regs.epout3,
-                &regs.epout4,
-                &regs.epout5,
-                &regs.epout6,
-                &regs.epout7,
-            ];
-
             // TODO: Initialize ISO buffers
-            // Initialize all data pointers for the endpoint buffers, since they never change.
-            for i in 0..8 {
-                let in_enabled = self.used_in & (1 << i) != 0;
-                let out_enabled = self.used_out & (1 << i) != 0;
-
-                if in_enabled {
-                    unsafe {
-                        epin[i].ptr.write(|w| w.bits(self.bufs.in_bufs[i] as u32));
-                        epin[i]
-                            .maxcnt
-                            .write(|w| w.bits(u32::from(self.bufs.in_lens[i])));
-                    }
-                }
-
-                if out_enabled {
-                    unsafe {
-                        epout[i].ptr.write(|w| w.bits(self.bufs.out_bufs[i] as u32));
-                        epout[i]
-                            .maxcnt
-                            .write(|w| w.bits(u32::from(self.bufs.out_lens[i])));
-                    }
-                }
-            }
 
             // XXX this is not spec compliant; the endpoints should only be enabled after the device
             // has been put in the Configured state. However, usb-device provides no hook to do that
