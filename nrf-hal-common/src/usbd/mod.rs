@@ -62,6 +62,7 @@ enum TransferState {
 #[derive(Copy, Clone)]
 struct EP0State {
     direction: UsbDirection,
+    remaining_size: u16,
     in_transfer_state: TransferState,
     is_set_address: bool,
 }
@@ -109,6 +110,7 @@ impl<'c> Usbd<'c> {
             iso_out_used: false,
             ep0_state: Mutex::new(Cell::new(EP0State {
                 direction: UsbDirection::Out,
+                remaining_size: 0,
                 in_transfer_state: TransferState::NoTransfer,
                 is_set_address: false,
             })),
@@ -193,7 +195,7 @@ impl<'c> Usbd<'c> {
             false => UsbDirection::In,
             true => UsbDirection::Out,
         };
-
+        ep0_state.remaining_size = (buf[6] as u16) | ((buf[7] as u16) << 8);
         ep0_state.is_set_address = (buf[0] == 0x00) && (buf[1] == 0x05);
 
         if ep0_state.direction == UsbDirection::Out  {
@@ -435,6 +437,14 @@ impl UsbBus for Usbd<'_> {
                     return true;
                 }
 
+                if ep0_state.direction == UsbDirection::In && ep0_state.remaining_size == 0 {
+                    // Device sent all the requested data, no need to send ZLP.
+                    // Host will issue an OUT transfer in this case, device should
+                    // respond with a status stage.
+                    regs.tasks_ep0status.write(|w| w.tasks_ep0status().set_bit());
+                    return true;
+                }
+
                 false
             });
 
@@ -498,6 +508,10 @@ impl UsbBus for Usbd<'_> {
                         w.ep0datadone_ep0status().clear_bit()
                     }
                 });
+
+                let mut ep0_state = self.ep0_state.borrow(cs).get();
+                ep0_state.remaining_size = ep0_state.remaining_size.saturating_sub(buf.len() as u16);
+                self.ep0_state.borrow(cs).set(ep0_state);
 
                 // Hack: trigger status stage if the IN transfer is not acknowledged after a few frames,
                 // so record the current frame here; the actual test and status stage activation happens
