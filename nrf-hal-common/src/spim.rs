@@ -100,26 +100,20 @@ where
     pub fn new(spim: T, pins: Pins, frequency: Frequency, mode: Mode, orc: u8) -> Self {
         // Select pins.
         spim.psel.sck.write(|w| {
-            let w = unsafe { w.pin().bits(pins.sck.pin()) };
-            #[cfg(any(feature = "52843", feature = "52840"))]
-            let w = w.port().bit(pins.sck.port().bit());
+            unsafe { w.bits(pins.sck.psel_bits()) };
             w.connect().connected()
         });
 
         match pins.mosi {
             Some(mosi) => spim.psel.mosi.write(|w| {
-                let w = unsafe { w.pin().bits(mosi.pin()) };
-                #[cfg(any(feature = "52843", feature = "52840"))]
-                let w = w.port().bit(mosi.port().bit());
+                unsafe { w.bits(mosi.psel_bits()) };
                 w.connect().connected()
             }),
             None => spim.psel.mosi.write(|w| w.connect().disconnected()),
         }
         match pins.miso {
             Some(miso) => spim.psel.miso.write(|w| {
-                let w = unsafe { w.pin().bits(miso.pin()) };
-                #[cfg(any(feature = "52843", feature = "52840"))]
-                let w = w.port().bit(miso.port().bit());
+                unsafe { w.bits(miso.psel_bits()) };
                 w.connect().connected()
             }),
             None => spim.psel.miso.write(|w| w.connect().disconnected()),
@@ -394,8 +388,13 @@ pub enum Error {
 }
 
 /// Implemented by all SPIM instances.
-pub trait Instance: Deref<Target = spim0::RegisterBlock> {}
+pub trait Instance: Deref<Target = spim0::RegisterBlock> + sealed::Sealed {}
 
+mod sealed {
+    pub trait Sealed {}
+}
+
+impl sealed::Sealed for SPIM0 {}
 impl Instance for SPIM0 {}
 
 #[cfg(any(
@@ -404,10 +403,22 @@ impl Instance for SPIM0 {}
     feature = "52840",
     feature = "52811"
 ))]
-impl Instance for SPIM1 {}
+mod _spim1 {
+    use super::*;
+    impl Instance for SPIM1 {}
+    impl sealed::Sealed for SPIM1 {}
+}
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-impl Instance for SPIM2 {}
+mod _spim2 {
+    use super::*;
+    impl Instance for SPIM2 {}
+    impl sealed::Sealed for SPIM2 {}
+}
 
 #[cfg(any(feature = "52833", feature = "52840"))]
-impl Instance for SPIM3 {}
+mod _spim3 {
+    use super::*;
+    impl Instance for SPIM3 {}
+    impl sealed::Sealed for SPIM3 {}
+}

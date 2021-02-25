@@ -28,20 +28,21 @@ pub static EXAMPLES: &[(&str, &[&str])] = &[
     ),
     ("pwm-demo", &[]),
     ("qdec-demo", &[]),
+    ("rtc-demo", &[]),
     ("rtic-demo", &["51", "52810", "52811", "52832", "52840"]),
     ("spi-demo", &[]),
     ("spis-demo", &[]),
     ("twi-ssd1306", &["52832", "52840"]),
     ("twim-demo", &[]),
     ("twis-demo", &[]),
+    ("twis-dma-demo", &[]),
     ("wdt-demo", &[]),
 ];
 
 pub fn feature_to_target(feat: &str) -> &str {
     match feat {
         "51" => "thumbv6m-none-eabi",
-        "52810" => "thumbv7em-none-eabi",
-        "52811" => "thumbv7em-none-eabi",
+        "52810" | "52811" => "thumbv7em-none-eabi",
         _ if feat.starts_with("52") => "thumbv7em-none-eabihf",
         _ => panic!("unknown Cargo feature `{}`", feat),
     }

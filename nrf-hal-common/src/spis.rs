@@ -48,32 +48,24 @@ where
     /// returning a safe wrapper.
     pub fn new(spis: T, pins: Pins) -> Self {
         spis.psel.sck.write(|w| {
-            unsafe { w.pin().bits(pins.sck.pin()) };
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            w.port().bit(pins.sck.port().bit());
+            unsafe { w.bits(pins.sck.psel_bits()) };
             w.connect().connected()
         });
         spis.psel.csn.write(|w| {
-            unsafe { w.pin().bits(pins.cs.pin()) };
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            w.port().bit(pins.cs.port().bit());
+            unsafe { w.bits(pins.cs.psel_bits()) };
             w.connect().connected()
         });
 
         if let Some(p) = &pins.copi {
             spis.psel.mosi.write(|w| {
-                unsafe { w.pin().bits(p.pin()) };
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                w.port().bit(p.port().bit());
+                unsafe { w.bits(p.psel_bits()) };
                 w.connect().connected()
             });
         }
 
         if let Some(p) = &pins.cipo {
             spis.psel.miso.write(|w| {
-                unsafe { w.pin().bits(p.pin()) };
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                w.port().bit(p.port().bit());
+                unsafe { w.bits(p.psel_bits()) };
                 w.connect().connected()
             });
         }
@@ -326,14 +318,14 @@ where
     /// Buffer must be located in RAM.
     /// Returns a value that represents the in-progress DMA transfer.
     #[allow(unused_mut)]
-    pub fn transfer<W, B>(mut self, mut buffer: B) -> Result<Transfer<T, B>, Error>
+    pub fn transfer<W, B>(mut self, mut buffer: B) -> Result<Transfer<T, B>, (Error, Spis<T>, B)>
     where
-        B: WriteBuffer<Word = W>,
+        B: WriteBuffer<Word = W> + 'static,
     {
         let (ptr, len) = unsafe { buffer.write_buffer() };
         let maxcnt = len * core::mem::size_of::<W>();
         if maxcnt > EASY_DMA_SIZE {
-            return Err(Error::BufferTooLong);
+            return Err((Error::BufferTooLong, self, buffer));
         }
         compiler_fence(Ordering::SeqCst);
         self.spis
@@ -369,20 +361,20 @@ where
         mut self,
         tx_buffer: TxB,
         mut rx_buffer: RxB,
-    ) -> Result<TransferSplit<T, TxB, RxB>, Error>
+    ) -> Result<TransferSplit<T, TxB, RxB>, (Error, Spis<T>, TxB, RxB)>
     where
-        TxB: ReadBuffer<Word = TxW>,
-        RxB: WriteBuffer<Word = RxW>,
+        TxB: ReadBuffer<Word = TxW> + 'static,
+        RxB: WriteBuffer<Word = RxW> + 'static,
     {
         let (rx_ptr, rx_len) = unsafe { rx_buffer.write_buffer() };
         let (tx_ptr, tx_len) = unsafe { tx_buffer.read_buffer() };
         let rx_maxcnt = rx_len * core::mem::size_of::<RxW>();
         let tx_maxcnt = tx_len * core::mem::size_of::<TxW>();
         if rx_maxcnt.max(tx_maxcnt) > EASY_DMA_SIZE {
-            return Err(Error::BufferTooLong);
+            return Err((Error::BufferTooLong, self, tx_buffer, rx_buffer));
         }
         if (tx_ptr as usize) < SRAM_LOWER || (tx_ptr as usize) > SRAM_UPPER {
-            return Err(Error::DMABufferNotInDataMemory);
+            return Err((Error::DMABufferNotInDataMemory, self, tx_buffer, rx_buffer));
         }
         compiler_fence(Ordering::SeqCst);
         self.spis
@@ -420,6 +412,7 @@ where
 
 /// A DMA transfer
 pub struct Transfer<T: Instance, B> {
+    // FIXME: Always `Some`, only using `Option` here to allow moving fields out of `inner`.
     inner: Option<Inner<T, B>>,
 }
 
@@ -463,6 +456,7 @@ impl<T: Instance, B> Drop for Transfer<T, B> {
 }
 /// A full duplex DMA transfer
 pub struct TransferSplit<T: Instance, TxB, RxB> {
+    // FIXME: Always `Some`, only using `Option` here to allow moving fields out of `inner`.
     inner: Option<InnerSplit<T, TxB, RxB>>,
 }
 
@@ -490,7 +484,7 @@ impl<T: Instance, TxB, RxB> TransferSplit<T, TxB, RxB> {
     pub fn is_done(&mut self) -> bool {
         let inner = self
             .inner
-            .take()
+            .as_mut()
             .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
         inner.spis.is_done()
     }
@@ -498,7 +492,7 @@ impl<T: Instance, TxB, RxB> TransferSplit<T, TxB, RxB> {
 
 impl<T: Instance, TxB, RxB> Drop for TransferSplit<T, TxB, RxB> {
     fn drop(&mut self) {
-        if let Some(inner) = self.inner.as_mut() {
+        if let Some(inner) = self.inner.take() {
             compiler_fence(Ordering::SeqCst);
             while !inner.spis.is_done() {}
             inner.spis.disable();

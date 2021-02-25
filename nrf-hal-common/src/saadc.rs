@@ -27,7 +27,7 @@
 //! ```
 
 #[cfg(feature = "9160")]
-use crate::pac::{saadc_ns as saadc, SAADC_NS as SAADC};
+use crate::pac::{generic::Variant, saadc_ns as saadc, SAADC_NS as SAADC};
 
 #[cfg(not(feature = "9160"))]
 use crate::pac::{generic::Variant, saadc, SAADC};
@@ -151,10 +151,8 @@ impl<'a> Channel<'a> {
         // pointer and maxcount have been set.
         compiler_fence(SeqCst);
 
-        self.saadc.tasks_start.write(|w| w.tasks_start().set_bit());
-        self.saadc
-            .tasks_sample
-            .write(|w| w.tasks_sample().set_bit());
+        self.saadc.tasks_start.write(|w| unsafe { w.bits(1) });
+        self.saadc.tasks_sample.write(|w| unsafe { w.bits(1) });
 
         while self.saadc.events_end.read().bits() == 0 {}
         self.saadc.events_end.reset();
@@ -246,20 +244,12 @@ pub struct SaadcChannelConfig {
 /// SaadcConfig {
 ///     resolution: Resolution::_14BIT,
 ///     oversample: Oversample::OVER8X,
-///     reference: Reference::VDD1_4,
-///     gain: Gain::GAIN1_4,
-///     resistor: Resistor::BYPASS,
-///     time: Time::_20US,
 /// };
 /// #
-/// # // ensure default values haven't changed
+/// # // Ensure default values haven't changed
 /// # let test_saadc = SaadcConfig::default();
 /// # assert_eq!(saadc.resolution, test_saadc.resolution);
 /// # assert_eq!(saadc.oversample, test_saadc.oversample);
-/// # assert_eq!(saadc.reference, test_saadc.reference);
-/// # assert_eq!(saadc.gain, test_saadc.gain);
-/// # assert_eq!(saadc.resistor, test_saadc.resistor);
-/// # assert_eq!(saadc.time, test_saadc.time);
 /// # ()
 /// ```
 impl Default for SaadcConfig {
@@ -272,6 +262,39 @@ impl Default for SaadcConfig {
     }
 }
 
+/// Default SAADC configuration. 0 volts reads as 0, VDD volts reads as `u16::MAX`.
+/// The returned SaadcConfig is configured with the following values:
+///
+/// ```
+/// # use nrf_hal_common::saadc::{SaadcConfig, SaadcChannelConfig};
+/// #[cfg(feature = "9160")]
+/// use nrf_hal_common::pac::{generic::Variant, saadc_ns as saadc, SAADC_NS as SAADC};
+///
+/// #[cfg(not(feature = "9160"))]
+/// use nrf_hal_common::pac::{generic::Variant, saadc, SAADC};
+/// # use saadc::{
+/// #    ch::config::{GAIN_A as Gain, MODE_A as Mode, REFSEL_A as Reference, RESP_A as Resistor, TACQ_A as Time},
+/// #    oversample::OVERSAMPLE_A as Oversample,
+/// #    resolution::VAL_A as Resolution,
+/// # };
+/// # let saadc_channel =
+/// SaadcChannelConfig {
+///     reference: Reference::VDD1_4,
+///     gain: Gain::GAIN1_4,
+///     mode: Mode::SE,
+///     resistor: Resistor::BYPASS,
+///     time: Time::_20US,
+/// };
+/// #
+/// # // ensure default values haven't changed
+/// # let test_saadc_channel = SaadcChannelConfig::default();
+/// # assert_eq!(saadc_channel.reference, test_saadc_channel.reference);
+/// # assert_eq!(saadc_channel.gain, test_saadc_channel.gain);
+/// # assert_eq!(saadc_channel.mode, test_saadc_channel.mode);
+/// # assert_eq!(saadc_channel.resistor, test_saadc_channel.resistor);
+/// # assert_eq!(saadc_channel.time, test_saadc_channel.time);
+/// # ()
+/// ```
 impl Default for SaadcChannelConfig {
     fn default() -> Self {
         SaadcChannelConfig {

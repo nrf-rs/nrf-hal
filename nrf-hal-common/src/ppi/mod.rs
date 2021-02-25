@@ -61,14 +61,17 @@ mod sealed {
     pub trait ChannelGroup {
         const CHG: usize;
     }
+
+    pub trait PpiSealed {}
+    pub trait PpiChannelGroupSealed {}
 }
-use sealed::{Channel, ChannelGroup, Event, NotFixed, Task};
+use sealed::{Channel, ChannelGroup, Event, NotFixed, PpiChannelGroupSealed, PpiSealed, Task};
 
 pub struct TaskAddr(pub(crate) u32);
 pub struct EventAddr(pub(crate) u32);
 
 /// Trait to represent a Programmable Peripheral Interconnect channel.
-pub trait Ppi {
+pub trait Ppi: PpiSealed {
     /// Enables the channel.
     fn enable(&mut self);
 
@@ -79,10 +82,14 @@ pub trait Ppi {
     /// Sets the fork task that must be triggered when the configured event occurs. The user must
     /// provide a reference to the task.
     fn set_fork_task_endpoint<T: Task>(&mut self, task: &T);
+
+    #[cfg(not(feature = "51"))]
+    /// Clear the fork task endpoint. Previously set task will no longer be triggered.
+    fn clear_fork_task_endpoint(&mut self);
 }
 
 /// Traits that extends the [Ppi](trait.Ppi.html) trait, marking a channel as fully configurable.
-pub trait ConfigurablePpi {
+pub trait ConfigurablePpi: Ppi {
     /// Sets the task that must be triggered when the configured event occurs. The user must provide
     /// a reference to the task.
     fn set_task_endpoint<T: Task>(&mut self, task: &T);
@@ -93,7 +100,7 @@ pub trait ConfigurablePpi {
 }
 
 /// Trait for a PPI channel group.
-pub trait PpiChannelGroup {
+pub trait PpiChannelGroup: PpiChannelGroupSealed {
     /// Returns reference to `tasks_chg[x].en` endpoint for enabling channel group.
     fn task_enable(&self) -> &Reg<u32, _EN>;
     /// Returns reference to `tasks_chg[x].dis` endpoint for disabling channel group.
@@ -108,6 +115,7 @@ pub trait PpiChannelGroup {
 
 // All unsafe `ptr` calls only uses registers atomically, and only changes the resources owned by
 // the type (guaranteed by the abstraction).
+impl<P: Channel> PpiSealed for P {}
 impl<P: Channel> Ppi for P {
     #[inline(always)]
     fn enable(&mut self) {
@@ -128,6 +136,15 @@ impl<P: Channel> Ppi for P {
         regs.fork[P::CH]
             .tep
             .write(|w| unsafe { w.bits(task.task_addr().0) });
+    }
+
+    #[cfg(not(feature = "51"))]
+    #[inline(always)]
+    fn clear_fork_task_endpoint(&mut self) {
+        let regs = unsafe { &*PPI::ptr() };
+        regs.fork[P::CH]
+            .tep
+            .write(|w| unsafe { w.bits(0) });
     }
 }
 
@@ -151,6 +168,7 @@ impl<P: Channel + NotFixed> ConfigurablePpi for P {
     }
 }
 
+impl<G: ChannelGroup> PpiChannelGroupSealed for G {}
 impl<G: ChannelGroup> PpiChannelGroup for G {
     #[inline(always)]
     fn task_enable(&self) -> &Reg<u32, _EN> {

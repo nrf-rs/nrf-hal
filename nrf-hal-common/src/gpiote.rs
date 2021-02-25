@@ -221,23 +221,21 @@ impl<'a, P: GpioteInputPin> GpioteChannelEvent<'_, P> {
         config_channel_event_pin(self.gpiote, self.channel, self.pin, EventPolarity::None);
         self
     }
-
-    /// Enables GPIOTE interrupt for pin.
+    /// Enables GPIOTE interrupt for channel.
     pub fn enable_interrupt(&self) -> &Self {
         unsafe {
             self.gpiote
                 .intenset
-                .modify(|r, w| w.bits(r.bits() | self.pin.pin() as u32))
+                .write(|w| w.bits(1 << self.channel))
         }
         self
     }
-
-    /// Disables GPIOTE interrupt for pin.
+    /// Disables GPIOTE interrupt for channel.
     pub fn disable_interrupt(&self) -> &Self {
         unsafe {
             self.gpiote
                 .intenclr
-                .write(|w| w.bits(self.pin.pin() as u32))
+                .write(|w| w.bits(1 << self.channel))
         }
         self
     }
@@ -361,6 +359,15 @@ fn config_channel_task_pin<P: GpioteOutputPin>(
             TaskOutPolarity::Clear => w.polarity().hi_to_lo(),
             TaskOutPolarity::Toggle => w.polarity().toggle(),
         };
+
+        #[cfg(any(feature = "52833", feature = "52840"))]
+        {
+            match pin.port() {
+                Port::Port0 => w.port().clear_bit(),
+                Port::Port1 => w.port().set_bit(),
+            };
+        }
+
         unsafe { w.psel().bits(pin.pin()) }
     });
 }
@@ -421,16 +428,23 @@ impl GpioteInputPin for Pin<Input<Floating>> {
 /// Trait to represent task output pin.
 pub trait GpioteOutputPin {
     fn pin(&self) -> u8;
+    fn port(&self) -> Port;
 }
 
 impl GpioteOutputPin for Pin<Output<OpenDrain>> {
     fn pin(&self) -> u8 {
         self.pin()
     }
+    fn port(&self) -> Port {
+        self.port()
+    }
 }
 
 impl GpioteOutputPin for Pin<Output<PushPull>> {
     fn pin(&self) -> u8 {
         self.pin()
+    }
+    fn port(&self) -> Port {
+        self.port()
     }
 }

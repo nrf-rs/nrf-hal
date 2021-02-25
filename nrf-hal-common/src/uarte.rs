@@ -45,25 +45,19 @@ where
     pub fn new(uarte: T, mut pins: Pins, parity: Parity, baudrate: Baudrate) -> Self {
         // Select pins
         uarte.psel.rxd.write(|w| {
-            let w = unsafe { w.pin().bits(pins.rxd.pin()) };
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            let w = w.port().bit(pins.rxd.port().bit());
+            unsafe { w.bits(pins.rxd.psel_bits()) };
             w.connect().connected()
         });
         pins.txd.set_high().unwrap();
         uarte.psel.txd.write(|w| {
-            let w = unsafe { w.pin().bits(pins.txd.pin()) };
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            let w = w.port().bit(pins.txd.port().bit());
+            unsafe { w.bits(pins.txd.psel_bits()) };
             w.connect().connected()
         });
 
         // Optional pins
         uarte.psel.cts.write(|w| {
             if let Some(ref pin) = pins.cts {
-                let w = unsafe { w.pin().bits(pin.pin()) };
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                let w = w.port().bit(pin.port().bit());
+                unsafe { w.bits(pin.psel_bits()) };
                 w.connect().connected()
             } else {
                 w.connect().disconnected()
@@ -72,9 +66,7 @@ where
 
         uarte.psel.rts.write(|w| {
             if let Some(ref pin) = pins.rts {
-                let w = unsafe { w.pin().bits(pin.pin()) };
-                #[cfg(any(feature = "52833", feature = "52840"))]
-                let w = w.port().bit(pin.port().bit());
+                unsafe { w.bits(pin.psel_bits()) };
                 w.connect().connected()
             } else {
                 w.connect().disconnected()
@@ -257,10 +249,8 @@ where
     /// Start a UARTE read transaction by setting the control
     /// values and triggering a read task.
     fn start_read(&mut self, rx_buffer: &mut [u8]) -> Result<(), Error> {
-        // This is overly restrictive. See (similar SPIM issue):
-        // https://github.com/nrf-rs/nrf52/issues/17
-        if rx_buffer.len() > u8::max_value() as usize {
-            return Err(Error::TxBufferTooLong);
+        if rx_buffer.len() > EASY_DMA_SIZE {
+            return Err(Error::RxBufferTooLong);
         }
 
         // NOTE: RAM slice check is not necessary, as a mutable slice can only be
@@ -329,8 +319,28 @@ where
     }
 
     /// Return the raw interface to the underlying UARTE peripheral.
-    pub fn free(self) -> T {
-        self.0
+    pub fn free(self) -> (T, Pins) {
+        let rxd = self.0.psel.rxd.read();
+        let txd = self.0.psel.txd.read();
+        let cts = self.0.psel.cts.read();
+        let rts = self.0.psel.rts.read();
+        (
+            self.0,
+            Pins {
+                rxd: unsafe { Pin::from_psel_bits(rxd.bits()) },
+                txd: unsafe { Pin::from_psel_bits(txd.bits()) },
+                cts: if cts.connect().bit_is_set() {
+                    Some(unsafe { Pin::from_psel_bits(cts.bits()) })
+                } else {
+                    None
+                },
+                rts: if rts.connect().bit_is_set() {
+                    Some(unsafe { Pin::from_psel_bits(rts.bits()) })
+                } else {
+                    None
+                },
+            },
+        )
     }
 }
 
@@ -368,9 +378,18 @@ pub enum Error {
     BufferNotInRAM,
 }
 
-pub trait Instance: Deref<Target = uarte0::RegisterBlock> {}
+pub trait Instance: Deref<Target = uarte0::RegisterBlock> + sealed::Sealed {}
 
+mod sealed {
+    pub trait Sealed {}
+}
+
+impl sealed::Sealed for UARTE0 {}
 impl Instance for UARTE0 {}
 
 #[cfg(any(feature = "52833", feature = "52840", feature = "9160"))]
-impl Instance for UARTE1 {}
+mod _uarte1 {
+    use super::*;
+    impl sealed::Sealed for UARTE1 {}
+    impl Instance for UARTE1 {}
+}
