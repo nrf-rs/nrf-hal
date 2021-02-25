@@ -168,7 +168,7 @@ impl<'a> Channel<'a> {
         Ok(val)
     }
 
-    pub fn as_millis(&self, value: i16) -> i32 {
+    pub fn as_micros(&self, value: i16) -> i32 {
         let mode = match self.saadc.ch[self.channel].config.read().mode().variant() {
             Mode::SE => 1,
             Mode::DIFF => 2,
@@ -198,7 +198,11 @@ impl<'a> Channel<'a> {
             Reference::VDD1_4 => (33, 40),
         };
 
-        value as i32 * gain.1 * reference.0 * 1000 / gain.0 / reference.1 / lsbs
+        (value as i64 * 1000 * 1000 / lsbs * gain.1 * reference.0 / gain.0 / reference.1) as i32
+    }
+
+    pub fn as_millis(&self, value: i16) -> i32 {
+        self.as_micros(value) / 1000
     }
 }
 
