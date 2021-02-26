@@ -278,5 +278,5 @@ impl Channel<Saadc> for InternalVddHdiv5 {
 }
 
 #[cfg(any(feature = "52833", feature = "52840"))]
-/// Channel that doesn't sample a pin, but the internal VDD voltage.
+/// The voltage on the VDDH pin, divided by 5.
 pub struct InternalVddHdiv5;
