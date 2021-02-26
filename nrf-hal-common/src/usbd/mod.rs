@@ -72,6 +72,7 @@ pub struct Usbd<'c> {
     iso_in_used: bool,
     iso_out_used: bool,
     ep0_state: Mutex<Cell<EP0State>>,
+    busy_in_endpoints: Mutex<Cell<u16>>,
 
     // used to freeze `Clocks` and ensure they remain in the `ExternalOscillator` state
     _clocks: &'c (),
@@ -102,6 +103,7 @@ impl<'c> Usbd<'c> {
                 in_transfer_state: TransferState::NoTransfer,
                 is_set_address: false,
             })),
+            busy_in_endpoints: Mutex::new(Cell::new(0)),
             _clocks: &(),
         })
     }
@@ -303,6 +305,8 @@ impl UsbBus for Usbd<'_> {
                     regs.size.epout[i].reset();
                 }
             }
+
+            self.busy_in_endpoints.borrow(cs).set(0);
         });
     }
 
@@ -361,7 +365,11 @@ impl UsbBus for Usbd<'_> {
 
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
+            let busy_in_endpoints = self.busy_in_endpoints.borrow(cs);
 
+            if busy_in_endpoints.get() & (1 << i) != 0 {
+                return Err(UsbError::WouldBlock);
+            }
             if regs.epstatus.read().bits() & (1 << i) != 0 {
                 return Err(UsbError::WouldBlock);
             }
@@ -435,6 +443,9 @@ impl UsbBus for Usbd<'_> {
 
             // Clear EPSTATUS.EPIN[i] flag
             regs.epstatus.write(|w| unsafe { w.bits(1 << i) });
+
+            // Mark the endpoint as busy
+            busy_in_endpoints.set(busy_in_endpoints.get() | (1 << i));
 
             Ok(buf.len())
         })
@@ -547,6 +558,11 @@ impl UsbBus for Usbd<'_> {
                     });
                 }
             }
+
+            if stalled {
+                let busy_in_endpoints = self.busy_in_endpoints.borrow(cs);
+                busy_in_endpoints.set(busy_in_endpoints.get() & !(1 << ep_addr.index()));
+            }
         });
     }
 
@@ -576,6 +592,7 @@ impl UsbBus for Usbd<'_> {
     fn poll(&self) -> PollResult {
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
+            let busy_in_endpoints = self.busy_in_endpoints.borrow(cs);
 
             if regs.events_usbreset.read().events_usbreset().bit_is_set() {
                 regs.events_usbreset.reset();
@@ -628,6 +645,9 @@ impl UsbBus for Usbd<'_> {
                     let mut state = ep0_state.get();
                     state.in_transfer_state = TransferState::NoTransfer;
                     ep0_state.set(state);
+
+                    // Mark the endpoint as not busy
+                    busy_in_endpoints.set(busy_in_endpoints.get() & !1);
                 } else {
                     // Do not clear OUT events, since we have to continue reporting them until the
                     // buffer is read.
@@ -644,6 +664,9 @@ impl UsbBus for Usbd<'_> {
                     regs.epdatastatus.write(|w| unsafe { w.bits(1 << i) });
 
                     in_complete |= 1 << i;
+
+                    // Mark the endpoint as not busy
+                    busy_in_endpoints.set(busy_in_endpoints.get() & !(1 << i));
                 }
                 if epdatastatus & (1 << (i + 16)) != 0 {
                     // EPDATASTATUS.EPOUT[i] is set
