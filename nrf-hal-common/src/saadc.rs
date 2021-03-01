@@ -87,6 +87,7 @@ impl Saadc {
         saadc.ch[0].pseln.write(|w| w.pseln().nc());
 
         // Calibrate
+        saadc.events_calibratedone.reset();
         saadc.tasks_calibrateoffset.write(|w| unsafe { w.bits(1) });
         while saadc.events_calibratedone.read().bits() == 0 {}
 
