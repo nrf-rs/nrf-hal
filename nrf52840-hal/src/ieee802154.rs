@@ -30,8 +30,8 @@ pub struct Radio<'c> {
 /// Default Clear Channel Assessment method = Carrier sense
 pub const DEFAULT_CCA: Cca = Cca::CarrierSense;
 
-/// Default radio channel = Channel 20 (`2_450` MHz)
-pub const DEFAULT_CHANNEL: Channel = Channel::_18; // _17 todo undo; set this to interfere with my wifi
+/// Default radio channel = Channel 11 (`2_405` MHz)
+pub const DEFAULT_CHANNEL: Channel = Channel::_11;
 
 /// Default TX power = 0 dBm
 pub const DEFAULT_TXPOWER: TxPower = TxPower::_0dBm;
