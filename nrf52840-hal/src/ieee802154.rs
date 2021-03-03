@@ -3,6 +3,7 @@
 use core::{
     ops::{self, RangeFrom},
     sync::atomic::{self, Ordering},
+    marker::PhantomData,
 };
 
 use embedded_hal::timer::CountDown as _;
@@ -23,7 +24,7 @@ pub struct Radio<'c> {
     // RADIO needs to be (re-)enabled to pick up new settings
     needs_enable: bool,
     // used to freeze `Clocks`
-    _clocks: &'c (),
+    _clocks: PhantomData<&'c ()>,
 }
 
 /// Default Clear Channel Assessment method = Carrier sense
@@ -153,7 +154,7 @@ impl<'c> Radio<'c> {
         let mut radio = Self {
             needs_enable: false,
             radio,
-            _clocks: &(),
+            _clocks: PhantomData,
         };
 
         // shortcuts will be kept off by default and only be temporarily enabled within blocking
