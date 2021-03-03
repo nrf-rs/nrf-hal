@@ -260,7 +260,7 @@ impl<'c> Radio<'c> {
     }
 
     /// Sample the received signal power (i.e. the presence of possibly interfering signals)
-    /// within the bandwidth of the currently used channel for sample_cycles iterations.
+    /// within the bandwidth of the currently used channel for `sample_cycles` iterations.
     /// Note that one iteration has a sample time of 128μs, and that each iteration produces the
     /// average RSSI value measured during this sample time.
     ///
@@ -294,14 +294,14 @@ impl<'c> Radio<'c> {
                 self.radio.events_edend.reset();
 
                 // note that since we have increased EDCNT, the EDSAMPLE register contains the
-                // maximumrecorded value, not the average
+                // maximum recorded value, not the average
                 let read_lvl = self.radio.edsample.read().edlvl().bits();
                 return read_lvl;
             }
         }
     }
 
-    /// Recevies one radio packet and copies its contents into the given `packet` buffer
+    /// Receives one radio packet and copies its contents into the given `packet` buffer
     ///
     /// This methods returns the `Ok` variant if the CRC included the packet was successfully
     /// validated by the hardware; otherwise it returns the `Err` variant. In either case, `packet`
@@ -645,9 +645,7 @@ impl<'c> Radio<'c> {
     fn wait_for_event(&self, event: Event) {
         match event {
             Event::End => {
-                while self.radio.events_end.read().events_end().bit_is_clear() {
-                    continue;
-                }
+                while self.radio.events_end.read().events_end().bit_is_clear() {}
                 self.radio.events_end.reset();
             }
             Event::PhyEnd => {
@@ -657,9 +655,7 @@ impl<'c> Radio<'c> {
                     .read()
                     .events_phyend()
                     .bit_is_clear()
-                {
-                    continue;
-                }
+                {}
                 self.radio.events_phyend.reset();
             }
         }
@@ -667,9 +663,7 @@ impl<'c> Radio<'c> {
 
     /// Waits until the radio state matches the given `state`
     fn wait_for_state_a(&self, state: STATE_A) {
-        while self.radio.state.read().state() != state {
-            continue;
-        }
+        while self.radio.state.read().state() != state {}
     }
 }
 
