@@ -20,3 +20,5 @@ pub use crate::spim::Spim;
 pub use crate::temp::Temp;
 pub use crate::timer::Timer;
 pub use crate::uarte::Uarte;
+
+pub mod ieee802154;
