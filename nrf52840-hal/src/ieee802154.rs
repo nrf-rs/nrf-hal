@@ -1,9 +1,9 @@
 //! IEEE 802.15.4 radio
 
 use core::{
+    marker::PhantomData,
     ops::{self, RangeFrom},
     sync::atomic::{self, Ordering},
-    marker::PhantomData,
 };
 
 use embedded_hal::timer::CountDown as _;
@@ -380,7 +380,8 @@ impl<'c> Radio<'c> {
     }
 
     fn start_recv(&mut self, packet: &mut Packet) {
-        // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
+        // NOTE we do NOT check the address of `packet` because the mutable reference ensures it's
+        // allocated in RAM
 
         // clear related events
         self.radio.events_phyend.reset();
@@ -413,8 +414,12 @@ impl<'c> Radio<'c> {
     /// This method performs Clear Channel Assessment (CCA) first and sends the `packet` only if the
     /// channel is observed to be *clear* (no transmission is currently ongoing), otherwise no
     /// packet is transmitted and the `Err` variant is returned
-    // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
-    pub fn try_send(&mut self, packet: &Packet) -> Result<(), ()> {
+    ///
+    /// NOTE this method will *not* modify the `packet` argument. The mutable reference is used to
+    /// ensure the `packet` buffer is allocated in RAM, which is required by the RADIO peripheral
+    // NOTE we do NOT check the address of `packet` because the mutable reference ensures it's
+    // allocated in RAM
+    pub fn try_send(&mut self, packet: &mut Packet) -> Result<(), ()> {
         // enable radio to perform cca
         self.put_in_rx_mode();
 
@@ -471,8 +476,12 @@ impl<'c> Radio<'c> {
     /// This is utility method that *consecutively* calls the `try_send` method until it succeeds.
     /// Note that this approach is *not* IEEE spec compliant -- there must be delay between failed
     /// CCA attempts to be spec compliant
-    // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
-    pub fn send(&mut self, packet: &Packet) {
+    ///
+    /// NOTE this method will *not* modify the `packet` argument. The mutable reference is used to
+    /// ensure the `packet` buffer is allocated in RAM, which is required by the RADIO peripheral
+    // NOTE we do NOT check the address of `packet` because the mutable reference ensures it's
+    // allocated in RAM
+    pub fn send(&mut self, packet: &mut Packet) {
         // enable radio to perform cca
         self.put_in_rx_mode();
 
@@ -529,8 +538,12 @@ impl<'c> Radio<'c> {
     /// Sends the specified `packet` without first performing CCA
     ///
     /// Acknowledgment packets must be sent using this method
-    // NOTE we do NOT check the address of `packet`; see comment in `Packet::new` for details
-    pub fn send_no_cca(&mut self, packet: &Packet) {
+    ///
+    /// NOTE this method will *not* modify the `packet` argument. The mutable reference is used to
+    /// ensure the `packet` buffer is allocated in RAM, which is required by the RADIO peripheral
+    // NOTE we do NOT check the address of `packet` because the mutable reference ensures it's
+    // allocated in RAM
+    pub fn send_no_cca(&mut self, packet: &mut Packet) {
         self.put_in_tx_mode();
 
         // clear related events
@@ -731,9 +744,6 @@ impl Packet {
     const SIZE: usize = 1 /* PHR */ + Self::MAX_PSDU_LEN as usize;
 
     /// Returns an empty packet (length = 0)
-    // XXX I believe that be making this *not* `const` it is not possible to place a `Packet` in
-    // `.rodata` (modulo unsafe `#[link_section]` shenanigans) thus it is not necessary to check the
-    // address of packet in `Radio.{send,recv}` (EasyDMA can only operate on RAM addresses)
     pub fn new() -> Self {
         let mut packet = Self {
             buffer: [0; Self::SIZE],
