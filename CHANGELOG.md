@@ -2,7 +2,42 @@
 
 ## Unreleased
 
-(no changes)
+### New Features
+
+- nRF9160: Add support for TWIM1-3 ([#273]).
+- nRF9160: Add support for WDT ([#283]).
+- PPI: Add `clear_fork_task_endpoint` ([#282]).
+- Refactor Pin Selection, add `Pin::from_psel_bits` and `Pin::psel_bits` ([#285]).
+- SAADC: Support internal `vddhdiv5` channel ([#297]).
+- Add an IEEE 802.15.4 radio API ([#143] [#299]).
+
+### Enhancements
+
+- Explain what "sealing" a trait means ([#271]).
+- Update `cfg-if` to 1.0 ([#286]).
+
+### Fixes
+
+- Fix TWIM pin selection for nRF52833 ([#274]).
+- Return correct error code in UARTE `start_read` ([#280]).
+- Fix en-/disabling GPIOTE interrupts for channels ([#278]).
+- UARTE: Check rx buf against `EASY_DMA_SIZE` ([#284]).
+- SAADC: Clear `events_calibratedone` before calibration ([#298]).
+
+[#143]: https://github.com/nrf-rs/nrf-hal/pull/143
+[#271]: https://github.com/nrf-rs/nrf-hal/pull/271
+[#273]: https://github.com/nrf-rs/nrf-hal/pull/273
+[#274]: https://github.com/nrf-rs/nrf-hal/pull/274
+[#278]: https://github.com/nrf-rs/nrf-hal/pull/278
+[#280]: https://github.com/nrf-rs/nrf-hal/pull/280
+[#282]: https://github.com/nrf-rs/nrf-hal/pull/282
+[#283]: https://github.com/nrf-rs/nrf-hal/pull/283
+[#284]: https://github.com/nrf-rs/nrf-hal/pull/284
+[#285]: https://github.com/nrf-rs/nrf-hal/pull/285
+[#286]: https://github.com/nrf-rs/nrf-hal/pull/286
+[#297]: https://github.com/nrf-rs/nrf-hal/pull/297
+[#298]: https://github.com/nrf-rs/nrf-hal/pull/298
+[#299]: https://github.com/nrf-rs/nrf-hal/pull/299
 
 ## [0.12.0]
 
