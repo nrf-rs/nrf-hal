@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+(no changes)
+
+## [0.12.1]
+
 ### New Features
 
 - nRF9160: Add support for TWIM1-3 ([#273]).
@@ -190,3 +194,4 @@ None
 [0.11.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.11.0
 [0.11.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.11.1
 [0.12.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.12.0
+[0.12.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.12.1
