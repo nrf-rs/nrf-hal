@@ -43,6 +43,8 @@ pub mod gpio;
 pub mod gpiote;
 #[cfg(not(any(feature = "51", feature = "52810", feature = "52811")))]
 pub mod i2s;
+#[cfg(any(feature = "52833", feature = "52840"))]
+pub mod ieee802154;
 #[cfg(not(any(feature = "52811", feature = "52810", feature = "9160")))]
 pub mod lpcomp;
 #[cfg(not(feature = "9160"))]
