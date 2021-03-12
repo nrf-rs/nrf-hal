@@ -6,9 +6,11 @@ members = [
   "nrf52832-hal",
   "nrf52833-hal",
   "nrf52840-hal",
+  "nrf52840-hal-tests",
   "nrf9160-hal",
   "examples/*",
 ]
+exclude = ["examples/.cargo"]
 
 [profile.dev]
 incremental = false

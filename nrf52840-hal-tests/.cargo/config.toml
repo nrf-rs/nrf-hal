@@ -1,0 +1,11 @@
+[target.thumbv7em-none-eabihf]
+runner = "probe-run --chip nRF52840_xxAA --probe 1366:1015"
+rustflags = [
+  "-C", "link-arg=--nmagic",
+  "-C", "link-arg=-Tlink.x",
+  "-C", "link-arg=-Tdefmt.x",
+  "-C", "linker=flip-link",
+]
+
+[build]
+target = "thumbv7em-none-eabihf"
