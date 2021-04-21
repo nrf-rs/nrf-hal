@@ -324,11 +324,13 @@ impl<'c> Radio<'c> {
     }
 
     /// Listens for a packet for no longer than the specified amount of microseconds
+    /// and copies its contents into the given `packet` buffer
     ///
     /// If no packet is received within the specified time then the `Timeout` error is returned
     ///
     /// If a packet is received within the time span then the packet CRC is checked. If the CRC is
     /// incorrect then the `Crc` error is returned; otherwise the `Ok` variant is returned.
+    /// Note that `packet` will contain the packet in any case, even if the CRC check failed.
     ///
     /// Note that the time it takes to switch the radio to RX mode is included in the timeout count.
     /// This transition may take up to a hundred of microseconds; see the section 6.20.15.8 in the
