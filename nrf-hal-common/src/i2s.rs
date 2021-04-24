@@ -220,7 +220,7 @@ impl I2S {
         self
     }
 
-    /// Sets the I2S channel configuation.
+    /// Sets the I2S channel configuration.
     #[inline(always)]
     pub fn set_channels(&self, channels: Channels) -> &Self {
         self.i2s
@@ -230,7 +230,7 @@ impl I2S {
         self
     }
 
-    /// Returns the I2S channel configuation.
+    /// Returns the I2S channel configuration.
     #[inline(always)]
     pub fn channels(&self) -> Channels {
         match self.i2s.config.channels.read().bits() {

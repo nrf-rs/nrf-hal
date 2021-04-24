@@ -421,7 +421,7 @@ where
         self
     }
 
-    /// Loops playback of sequences indefinately.
+    /// Loops playback of sequences indefinitely.
     #[inline(always)]
     pub fn loop_inf(&self) -> &Self {
         self.set_loop(Loop::Inf);

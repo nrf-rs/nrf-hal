@@ -401,7 +401,7 @@ impl Ccm {
             .modify(|_, w| w.mode().decryption().length().variant(length_variant));
 
         // Setup the pointers
-        // NOTE(unsafe) These addreses are in RAM, checked above
+        // NOTE(unsafe) These addresses are in RAM, checked above
         unsafe {
             self.regs
                 .cnfptr
