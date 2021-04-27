@@ -98,7 +98,7 @@ impl<H, L, LSTAT> Clocks<H, L, LSTAT> {
 }
 
 /// Allowable configuration options for the low frequency oscillator when
-/// driven fron an external crystal.
+/// driven from an external crystal.
 pub enum LfOscConfiguration {
     NoExternalNoBypass,
     ExternalNoBypass,
