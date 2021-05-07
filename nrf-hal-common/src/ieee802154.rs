@@ -309,7 +309,10 @@ impl<'c> Radio<'c> {
     /// will be updated with the received packet's data
     pub fn recv(&mut self, packet: &mut Packet) -> Result<u16, u16> {
         // Start the read
-        self.start_recv(packet);
+        // NOTE(unsafe) We block until reception completes or errors
+        unsafe {
+            self.start_recv(packet);
+        }
 
         // wait until we have received something
         self.wait_for_event(Event::End);
@@ -348,7 +351,10 @@ impl<'c> Radio<'c> {
         timer.start(microseconds);
 
         // Start the read
-        self.start_recv(packet);
+        // NOTE(unsafe) We block until reception completes or errors
+        unsafe {
+            self.start_recv(packet);
+        }
 
         // Wait for transmission to end
         let mut recv_completed = false;
@@ -381,7 +387,7 @@ impl<'c> Radio<'c> {
         }
     }
 
-    fn start_recv(&mut self, packet: &mut Packet) {
+    unsafe fn start_recv(&mut self, packet: &mut Packet) {
         // NOTE we do NOT check the address of `packet` because the mutable reference ensures it's
         // allocated in RAM
 
@@ -393,11 +399,9 @@ impl<'c> Radio<'c> {
 
         // NOTE(unsafe) DMA transfer has not yet started
         // set up RX buffer
-        unsafe {
-            self.radio
-                .packetptr
-                .write(|w| w.packetptr().bits(packet.buffer.as_mut_ptr() as u32));
-        }
+        self.radio
+            .packetptr
+            .write(|w| w.packetptr().bits(packet.buffer.as_mut_ptr() as u32));
 
         // start transfer
         dma_start_fence();
