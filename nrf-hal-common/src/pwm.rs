@@ -20,6 +20,8 @@ use core::{
 };
 use embedded_dma::*;
 
+const MAX_SEQ_LEN: usize = 0x7FFF;
+
 /// A safe wrapper around the raw peripheral.
 #[derive(Debug)]
 pub struct Pwm<T: Instance> {
@@ -507,7 +509,7 @@ where
                     seq1_buffer,
                 ));
             }
-            if len > (1 << 15) / core::mem::size_of::<u16>() {
+            if len > MAX_SEQ_LEN {
                 return Err((Error::BufferTooLong, self, seq0_buffer, seq1_buffer));
             }
             compiler_fence(Ordering::SeqCst);
@@ -530,7 +532,7 @@ where
                     seq1_buffer,
                 ));
             }
-            if len > (1 << 15) / core::mem::size_of::<u16>() {
+            if len > MAX_SEQ_LEN {
                 return Err((Error::BufferTooLong, self, seq0_buffer, seq1_buffer));
             }
             compiler_fence(Ordering::SeqCst);
