@@ -92,29 +92,35 @@ pub mod prelude {
 }
 
 /// Length of Nordic EasyDMA differs for MCUs
-#[cfg(any(
-    feature = "52810",
-    feature = "52811",
-    feature = "52832",
-    feature = "51"
-))]
 pub mod target_constants {
-    // NRF52832 8 bits1..0xFF
-    pub const EASY_DMA_SIZE: usize = 255;
-    // Easy DMA can only read from data ram
-    pub const SRAM_LOWER: usize = 0x2000_0000;
-    pub const SRAM_UPPER: usize = 0x3000_0000;
-    pub const FORCE_COPY_BUFFER_SIZE: usize = 255;
-    const _CHECK_FORCE_COPY_BUFFER_SIZE: usize = EASY_DMA_SIZE - FORCE_COPY_BUFFER_SIZE;
-    // ERROR: FORCE_COPY_BUFFER_SIZE must be <= EASY_DMA_SIZE
-}
-#[cfg(any(feature = "52840", feature = "52833", feature = "9160"))]
-pub mod target_constants {
-    // NRF52840 and NRF9160 16 bits 1..0xFFFF
-    pub const EASY_DMA_SIZE: usize = 65535;
+    #[cfg(feature = "51")]
+    pub const EASY_DMA_SIZE: usize = (1 << 8) - 1;
+    #[cfg(feature = "52805")]
+    pub const EASY_DMA_SIZE: usize = (1 << 14) - 1;
+    #[cfg(feature = "52810")]
+    pub const EASY_DMA_SIZE: usize = (1 << 10) - 1;
+    #[cfg(feature = "52811")]
+    pub const EASY_DMA_SIZE: usize = (1 << 14) - 1;
+    #[cfg(feature = "52820")]
+    pub const EASY_DMA_SIZE: usize = (1 << 15) - 1;
+    #[cfg(feature = "52832")]
+    pub const EASY_DMA_SIZE: usize = (1 << 8) - 1;
+    #[cfg(feature = "52833")]
+    pub const EASY_DMA_SIZE: usize = (1 << 16) - 1;
+    #[cfg(feature = "52840")]
+    pub const EASY_DMA_SIZE: usize = (1 << 16) - 1;
+    #[cfg(feature = "5340")]
+    pub const EASY_DMA_SIZE: usize = (1 << 16) - 1;
+    #[cfg(feature = "9160")]
+    pub const EASY_DMA_SIZE: usize = (1 << 12) - 1;
+
     // Limits for Easy DMA - it can only read from data ram
     pub const SRAM_LOWER: usize = 0x2000_0000;
     pub const SRAM_UPPER: usize = 0x3000_0000;
+
+    #[cfg(any(feature = "51", feature = "52810", feature = "52832"))]
+    pub const FORCE_COPY_BUFFER_SIZE: usize = 255;
+    #[cfg(not(any(feature = "51", feature = "52810", feature = "52832")))]
     pub const FORCE_COPY_BUFFER_SIZE: usize = 1024;
     const _CHECK_FORCE_COPY_BUFFER_SIZE: usize = EASY_DMA_SIZE - FORCE_COPY_BUFFER_SIZE;
     // ERROR: FORCE_COPY_BUFFER_SIZE must be <= EASY_DMA_SIZE
