@@ -120,7 +120,7 @@ where
         // NB Safety: This is taken from Nordic's driver -
         // https://github.com/NordicSemiconductor/nrfx/blob/master/drivers/src/nrfx_uarte.c#L197
         if unsafe { core::ptr::read_volatile(txenable_reg) } == 1 {
-            self.0.tasks_stoprx.write(|w| unsafe { w.bits(1) });
+            self.0.tasks_stoptx.write(|w| unsafe { w.bits(1) });
         }
 
         // NB Safety: This is taken from Nordic's driver -
