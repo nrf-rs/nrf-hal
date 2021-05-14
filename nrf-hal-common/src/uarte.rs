@@ -45,6 +45,7 @@ where
     pub fn new(uarte: T, mut pins: Pins, parity: Parity, baudrate: Baudrate) -> Self {
         // Is the UART already on? It might be if you had a bootloader
         if uarte.enable.read().bits() != 0 {
+            uarte.tasks_stoptx.write(|w| unsafe { w.bits(1) });
             while uarte.events_txstopped.read().bits() == 0 {
                 // Spin
             }
