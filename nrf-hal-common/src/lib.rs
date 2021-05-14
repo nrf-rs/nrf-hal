@@ -49,7 +49,7 @@ pub mod ieee802154;
 pub mod lpcomp;
 #[cfg(not(feature = "9160"))]
 pub mod ppi;
-#[cfg(not(any(feature = "51", feature = "52832")))]
+#[cfg(not(feature = "51"))]
 pub mod pwm;
 #[cfg(not(any(feature = "51", feature = "9160")))]
 pub mod qdec;

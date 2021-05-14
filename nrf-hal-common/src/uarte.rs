@@ -43,6 +43,17 @@ where
     T: Instance,
 {
     pub fn new(uarte: T, mut pins: Pins, parity: Parity, baudrate: Baudrate) -> Self {
+        // Is the UART already on? It might be if you had a bootloader
+        if uarte.enable.read().bits() != 0 {
+            uarte.tasks_stoptx.write(|w| unsafe { w.bits(1) });
+            while uarte.events_txstopped.read().bits() == 0 {
+                // Spin
+            }
+    
+            // Disable UARTE instance
+            uarte.enable.write(|w| w.enable().disabled());
+        }
+
         // Select pins
         uarte.psel.rxd.write(|w| {
             unsafe { w.bits(pins.rxd.psel_bits()) };
@@ -73,9 +84,6 @@ where
             }
         });
 
-        // Enable UARTE instance.
-        uarte.enable.write(|w| w.enable().enabled());
-
         // Configure.
         let hardware_flow_control = pins.rts.is_some() && pins.cts.is_some();
         uarte
@@ -84,8 +92,72 @@ where
 
         // Configure frequency.
         uarte.baudrate.write(|w| w.baudrate().variant(baudrate));
+        
+        let mut u = Uarte(uarte);
+        
+        u.apply_workaround_for_enable_anomaly();
 
-        Uarte(uarte)
+        // Enable UARTE instance.
+        u.0.enable.write(|w| w.enable().enabled());
+
+        u
+    }
+
+    #[cfg(not(any(feature = "9160", feature = "5340")))]
+    fn apply_workaround_for_enable_anomaly(&mut self)
+    {
+        // Do nothing
+    }
+
+    #[cfg(any(feature = "9160", feature = "5340"))]
+    fn apply_workaround_for_enable_anomaly(&mut self)
+    {
+        // Apply workaround for anomalies:
+        // - nRF9160 - anomaly 23
+        // - nRF5340 - anomaly 44
+        let rxenable_reg: *const u32 = ((self.0.deref() as *const _ as usize) + 0x564) as *const u32;
+        let txenable_reg: *const u32 = ((self.0.deref() as *const _ as usize) + 0x568) as *const u32;
+
+        // NB Safety: This is taken from Nordic's driver -
+        // https://github.com/NordicSemiconductor/nrfx/blob/master/drivers/src/nrfx_uarte.c#L197
+        if unsafe { core::ptr::read_volatile(txenable_reg) } == 1 {
+            self.0.tasks_stoptx.write(|w| unsafe { w.bits(1) });
+        }
+
+        // NB Safety: This is taken from Nordic's driver -
+        // https://github.com/NordicSemiconductor/nrfx/blob/master/drivers/src/nrfx_uarte.c#L197
+        if unsafe { core::ptr::read_volatile(rxenable_reg) } == 1 {
+            self.0.enable.write(|w| w.enable().enabled());
+            self.0.tasks_stoprx.write(|w| unsafe { w.bits(1) });
+
+
+            let mut workaround_succeded = false;
+            // The UARTE is able to receive up to four bytes after the STOPRX task has been triggered.
+            // On lowest supported baud rate (1200 baud), with parity bit and two stop bits configured
+            // (resulting in 12 bits per data byte sent), this may take up to 40 ms.
+            for _ in 0..40000 {
+                // NB Safety: This is taken from Nordic's driver -
+                // https://github.com/NordicSemiconductor/nrfx/blob/master/drivers/src/nrfx_uarte.c#L197
+                if unsafe { core::ptr::read_volatile(rxenable_reg) } == 0 {
+                    workaround_succeded = true;
+                    break;
+                }
+                else
+                {
+                    // Need to sleep for 1us here
+                }
+            }
+
+            if !workaround_succeded
+            {
+                panic!("Failed to apply workaround for UART");
+            }
+
+            let errors = self.0.errorsrc.read().bits();
+            // NB Safety: safe to write back the bits we just read to clear them
+            self.0.errorsrc.write(|w| unsafe { w.bits(errors) }); 
+            self.0.enable.write(|w| w.enable().disabled());
+        }
     }
 
     /// Write via UARTE.
@@ -107,10 +179,7 @@ where
         // before any DMA action has started.
         compiler_fence(SeqCst);
 
-        // Reset the events.
-        self.0.events_endtx.reset();
-        self.0.events_txstopped.reset();
-
+        
         // Set up the DMA write.
         self.0.txd.ptr.write(|w|
             // We're giving the register a pointer to the stack. Since we're
@@ -129,20 +198,18 @@ where
             // values.
             unsafe { w.maxcnt().bits(tx_buffer.len() as _) });
 
+        // Reset the event
+        self.0.events_endtx.reset();
+
         // Start UARTE Transmit transaction.
         self.0.tasks_starttx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
+                   
         // Wait for transmission to end.
-        let mut endtx;
-        let mut txstopped;
-        loop {
-            endtx = self.0.events_endtx.read().bits() != 0;
-            txstopped = self.0.events_txstopped.read().bits() != 0;
-            if endtx || txstopped {
-                break;
-            }
+        while self.0.events_endtx.read().bits() == 0 {
+            // TODO: Do something here which uses less power. Like `wfi`.
         }
 
         // Conservative compiler fence to prevent optimizations that do not
@@ -150,15 +217,19 @@ where
         // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
 
-        if txstopped {
-            return Err(Error::Transmit);
-        }
+        // Reset the event
+        self.0.events_txstopped.reset();
 
         // Lower power consumption by disabling the transmitter once we're
         // finished.
         self.0.tasks_stoptx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
+
+        // Wait for transmitter to stop.
+        while self.0.events_txstopped.read().bits() == 0 {
+            // Spin
+        }
 
         Ok(())
     }
