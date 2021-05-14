@@ -180,7 +180,6 @@ where
 
         // Reset the events.
         self.0.events_endtx.reset();
-        self.0.events_txstopped.reset();
 
         // Set up the DMA write.
         self.0.txd.ptr.write(|w|
