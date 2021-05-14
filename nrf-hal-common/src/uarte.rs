@@ -94,13 +94,18 @@ where
         
         let mut u = Uarte(uarte);
         
-        #[cfg(any(feature = "9160", feature = "5340"))]
         u.apply_workaround_for_enable_anomaly();
 
         // Enable UARTE instance.
         u.0.enable.write(|w| w.enable().enabled());
 
         u
+    }
+
+    #[cfg(not(any(feature = "9160", feature = "5340")))]
+    fn apply_workaround_for_enable_anomaly(&mut self)
+    {
+        // Do nothing
     }
 
     #[cfg(any(feature = "9160", feature = "5340"))]
