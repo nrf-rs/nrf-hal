@@ -135,14 +135,8 @@ where
             unsafe { w.bits(1) });
 
         // Wait for transmission to end.
-        let mut endtx;
-        let mut txstopped;
-        loop {
-            endtx = self.0.events_endtx.read().bits() != 0;
-            txstopped = self.0.events_txstopped.read().bits() != 0;
-            if endtx || txstopped {
-                break;
-            }
+        while self.0.events_endtx.read().bits() == 0 {
+            // TODO: Do something here which uses less power. Like `wfi`.
         }
 
         // Conservative compiler fence to prevent optimizations that do not
@@ -150,15 +144,16 @@ where
         // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
 
-        if txstopped {
-            return Err(Error::Transmit);
-        }
-
         // Lower power consumption by disabling the transmitter once we're
         // finished.
         self.0.tasks_stoptx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
+
+        // Wait for transmitter to stop.
+        while self.0.events_txstopped.read().bits() == 0 {
+            // Spin
+        }
 
         Ok(())
     }
