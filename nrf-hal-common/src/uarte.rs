@@ -43,6 +43,16 @@ where
     T: Instance,
 {
     pub fn new(uarte: T, mut pins: Pins, parity: Parity, baudrate: Baudrate) -> Self {
+        // Is the UART already on? It might be if you had a bootloader
+        if uarte.enable.read().bits() != 0 {
+            while uarte.events_txstopped.read().bits() == 0 {
+                // Spin
+            }
+    
+            // Disable UARTE instance
+            uarte.enable.write(|w| w.enable().disabled());
+        }
+
         // Select pins
         uarte.psel.rxd.write(|w| {
             unsafe { w.bits(pins.rxd.psel_bits()) };
