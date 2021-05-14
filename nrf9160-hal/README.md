@@ -1,7 +1,7 @@
 # Hardware Abstration Layer for the Nordic nRF9160
 
 This crate is a Hardware Abstraction Layer (HAL) for the Nordic nRF9160. It
-wraps the PAC (`nrf9160-pac`) provides high level wrappers for the chip's
+wraps the PAC (`nrf9160-pac`) and provides high level wrappers for the chip's
 peripherals.
 
 This crate knows nothing about your PCB layout, or which pins you have assigned
