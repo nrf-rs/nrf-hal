@@ -73,9 +73,6 @@ where
             }
         });
 
-        // Enable UARTE instance.
-        uarte.enable.write(|w| w.enable().enabled());
-
         // Configure.
         let hardware_flow_control = pins.rts.is_some() && pins.cts.is_some();
         uarte
@@ -84,8 +81,67 @@ where
 
         // Configure frequency.
         uarte.baudrate.write(|w| w.baudrate().variant(baudrate));
+        
+        let mut u = Uarte(uarte);
+        
+        #[cfg(any(feature = "9160", feature = "5340"))]
+        u.apply_workaround_for_enable_anomaly();
 
-        Uarte(uarte)
+        // Enable UARTE instance.
+        u.0.enable.write(|w| w.enable().enabled());
+
+        u
+    }
+
+    #[cfg(any(feature = "9160", feature = "5340"))]
+    fn apply_workaround_for_enable_anomaly(&mut self)
+    {
+        // Apply workaround for anomalies:
+        // - nRF9160 - anomaly 23
+        // - nRF5340 - anomaly 44
+        let rxenable_reg: *const u32 = ((self.0.deref() as *const _ as usize) + 0x564) as *const u32;
+        let txenable_reg: *const u32 = ((self.0.deref() as *const _ as usize) + 0x568) as *const u32;
+
+        // NB Safety: This is taken from Nordic's driver -
+        // https://github.com/NordicSemiconductor/nrfx/blob/master/drivers/src/nrfx_uarte.c#L197
+        if unsafe { core::ptr::read_volatile(txenable_reg) } == 1 {
+            self.0.tasks_stoprx.write(|w| unsafe { w.bits(1) });
+        }
+
+        // NB Safety: This is taken from Nordic's driver -
+        // https://github.com/NordicSemiconductor/nrfx/blob/master/drivers/src/nrfx_uarte.c#L197
+        if unsafe { core::ptr::read_volatile(rxenable_reg) } == 1 {
+            self.0.enable.write(|w| w.enable().enabled());
+            self.0.tasks_stoprx.write(|w| unsafe { w.bits(1) });
+
+
+            let mut workaround_succeded = false;
+            // The UARTE is able to receive up to four bytes after the STOPRX task has been triggered.
+            // On lowest supported baud rate (1200 baud), with parity bit and two stop bits configured
+            // (resulting in 12 bits per data byte sent), this may take up to 40 ms.
+            for _ in 0..40000 {
+                // NB Safety: This is taken from Nordic's driver -
+                // https://github.com/NordicSemiconductor/nrfx/blob/master/drivers/src/nrfx_uarte.c#L197
+                if unsafe { core::ptr::read_volatile(rxenable_reg) } == 0 {
+                    workaround_succeded = true;
+                    break;
+                }
+                else
+                {
+                    // Need to sleep for 1us here
+                }
+            }
+
+            if !workaround_succeded
+            {
+                panic!("Failed to apply workaround for UART");
+            }
+
+            let errors = self.0.errorsrc.read().bits();
+            // NB Safety: safe to write back the bits we just read to clear them
+            self.0.errorsrc.write(|w| unsafe { w.bits(errors) }); 
+            self.0.enable.write(|w| w.enable().disabled());
+        }
     }
 
     /// Write via UARTE.
