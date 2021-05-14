@@ -18,6 +18,7 @@ pub static EXAMPLES: &[(&str, &[&str])] = &[
         "ecb-demo",
         &["51", "52810", "52811", "52832", "52833", "52840"],
     ),
+    ("hello-world", &["52840"]),
     ("gpiote-demo", &[]),
     ("i2s-controller-demo", &[]),
     ("i2s-peripheral-demo", &[]),
