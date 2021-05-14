@@ -179,9 +179,7 @@ where
         // before any DMA action has started.
         compiler_fence(SeqCst);
 
-        // Reset the events.
-        self.0.events_endtx.reset();
-
+        
         // Set up the DMA write.
         self.0.txd.ptr.write(|w|
             // We're giving the register a pointer to the stack. Since we're
@@ -200,11 +198,15 @@ where
             // values.
             unsafe { w.maxcnt().bits(tx_buffer.len() as _) });
 
+        // Reset the event
+        self.0.events_endtx.reset();
+
         // Start UARTE Transmit transaction.
         self.0.tasks_starttx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
 
+                   
         // Wait for transmission to end.
         while self.0.events_endtx.read().bits() == 0 {
             // TODO: Do something here which uses less power. Like `wfi`.
@@ -214,6 +216,9 @@ where
         // take in to account actions by DMA. The fence has been placed here,
         // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
+
+        // Reset the event
+        self.0.events_txstopped.reset();
 
         // Lower power consumption by disabling the transmitter once we're
         // finished.
