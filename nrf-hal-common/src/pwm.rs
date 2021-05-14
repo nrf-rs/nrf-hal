@@ -1116,7 +1116,7 @@ impl Instance for crate::pac::PWM3 {
 }
 
 #[cfg(any(feature = "9160"))]
-impl Instance for PWM0_NS {
+impl Instance for crate::pac::PWM0_NS {
     const INTERRUPT: Interrupt = Interrupt::PWM0;
     #[inline(always)]
     fn buffer() -> &'static Cell<[u16; 4]> {
@@ -1125,7 +1125,7 @@ impl Instance for PWM0_NS {
 }
 
 #[cfg(any(feature = "9160"))]
-impl Instance for PWM1_NS {
+impl Instance for crate::pac::PWM1_NS {
     const INTERRUPT: Interrupt = Interrupt::PWM1;
     fn buffer() -> &'static Cell<[u16; 4]> {
         unsafe { &BUF1 }
@@ -1133,7 +1133,7 @@ impl Instance for PWM1_NS {
 }
 
 #[cfg(any(feature = "9160"))]
-impl Instance for PWM2_NS {
+impl Instance for crate::pac::PWM2_NS {
     const INTERRUPT: Interrupt = Interrupt::PWM2;
     fn buffer() -> &'static Cell<[u16; 4]> {
         unsafe { &BUF2 }
@@ -1141,7 +1141,7 @@ impl Instance for PWM2_NS {
 }
 
 #[cfg(any(feature = "9160"))]
-impl Instance for PWM3_NS {
+impl Instance for crate::pac::PWM3_NS {
     const INTERRUPT: Interrupt = Interrupt::PWM3;
     fn buffer() -> &'static Cell<[u16; 4]> {
         unsafe { &BUF3 }
