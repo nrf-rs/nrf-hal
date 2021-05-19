@@ -1,6 +1,7 @@
 # Blinky button demo
 
-This example turns on LED 1 when you press Button 1 on the nrf52-dk (PCA10040).
+This hello world example turns on LED 1 when you press Button 1 on the nrf52-dk (PCA10040).
+> Note: You will have to change the pin numbers if you use a different device.
 
 ## Set up with `cargo-embed`
 
