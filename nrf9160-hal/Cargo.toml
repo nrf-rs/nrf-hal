@@ -2,6 +2,7 @@
 name = "nrf9160-hal"
 version = "0.12.1"
 description = "HAL for nRF9160 system-in-package"
+readme = "../README.md"
 
 repository = "https://github.com/nrf-rs/nrf-hal"
 authors = [

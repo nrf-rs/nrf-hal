@@ -3,6 +3,8 @@ name = "nrf52811-hal"
 version = "0.12.1"
 edition = "2018"
 description = "HAL for nRF52811 microcontrollers"
+readme = "../README.md"
+
 repository = "https://github.com/nrf-rs/nrf-hal"
 authors = [
     "James Munns <james@onevariable.com>",
