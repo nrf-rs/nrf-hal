@@ -2,7 +2,42 @@
 
 ## Unreleased
 
-(no changes)
+### New Features
+
+- Enable PWM for the nRF9160 and nRF52832 ([#311] [#318]).
+
+### Enhancements
+
+- Add a testsuite for the HAL ([#291]).
+- Document that `ieee802154::Radio::recv_timeout` writes the received data to `packet` ([#307]).
+- Update nRF9160 HAL with latest memory map ([#321]).
+- Add a simple UART example ([#317]).
+- Add readme documentation for demos ([#246]).
+- Link `README.md` into all sub-crates so they show up on crates.io ([#322]).
+- Enhance the RTC example with an interrupt ([#324]).
+
+### Fixes
+
+- Fix spelling errors and RTIC name ([#308]).
+- `ieee802154`: mark `start_recv` as unsafe ([#312]).
+- Fix PWM EasyDMA max length ([#313]).
+- Fix EasyDMA max size ([#315]).
+- Work around erratum when enabling UARTE on nRF9160 ([#319]).
+
+[#246]: https://github.com/nrf-rs/nrf-hal/pull/246
+[#291]: https://github.com/nrf-rs/nrf-hal/pull/291
+[#307]: https://github.com/nrf-rs/nrf-hal/pull/307
+[#308]: https://github.com/nrf-rs/nrf-hal/pull/308
+[#311]: https://github.com/nrf-rs/nrf-hal/pull/311
+[#312]: https://github.com/nrf-rs/nrf-hal/pull/312
+[#313]: https://github.com/nrf-rs/nrf-hal/pull/313
+[#315]: https://github.com/nrf-rs/nrf-hal/pull/315
+[#317]: https://github.com/nrf-rs/nrf-hal/pull/317
+[#318]: https://github.com/nrf-rs/nrf-hal/pull/318
+[#319]: https://github.com/nrf-rs/nrf-hal/pull/319
+[#321]: https://github.com/nrf-rs/nrf-hal/pull/321
+[#322]: https://github.com/nrf-rs/nrf-hal/pull/322
+[#324]: https://github.com/nrf-rs/nrf-hal/pull/324
 
 ## [0.12.1]
 
