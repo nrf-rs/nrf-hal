@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+(no changes)
+
+## [0.12.2]
+
 ### New Features
 
 - Enable PWM for the nRF9160 and nRF52832 ([#311] [#318]).
@@ -230,3 +234,4 @@ None
 [0.11.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.11.1
 [0.12.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.12.0
 [0.12.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.12.1
+[0.12.2]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.12.2
