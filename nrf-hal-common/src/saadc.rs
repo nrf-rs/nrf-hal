@@ -6,7 +6,7 @@
 #![cfg_attr(not(feature = "52840"), doc = "```ignore")]
 //! # use nrf_hal_common as hal;
 //! # use hal::pac::{saadc, SAADC};
-//! // subsititute `hal` with the HAL of your board, e.g. `nrf52840_hal`
+//! // substitute `hal` with the HAL of your board, e.g. `nrf52840_hal`
 //! use hal::{
 //!    pac::Peripherals,
 //!    prelude::*,
@@ -87,6 +87,7 @@ impl Saadc {
         saadc.ch[0].pseln.write(|w| w.pseln().nc());
 
         // Calibrate
+        saadc.events_calibratedone.reset();
         saadc.tasks_calibrateoffset.write(|w| unsafe { w.bits(1) });
         while saadc.events_calibratedone.read().bits() == 0 {}
 
@@ -178,6 +179,8 @@ where
             7 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input7()),
             #[cfg(not(feature = "9160"))]
             8 => self.0.ch[0].pselp.write(|w| w.pselp().vdd()),
+            #[cfg(any(feature = "52833", feature = "52840"))]
+            13 => self.0.ch[0].pselp.write(|w| w.pselp().vddhdiv5()),
             // This can never happen the only analog pins have already been defined
             // PAY CLOSE ATTENTION TO ANY CHANGES TO THIS IMPL OR THE `channel_mappings!` MACRO
             _ => unsafe { unreachable_unchecked() },
@@ -265,3 +268,16 @@ impl Channel<Saadc> for InternalVdd {
 #[cfg(not(feature = "9160"))]
 /// Channel that doesn't sample a pin, but the internal VDD voltage.
 pub struct InternalVdd;
+
+#[cfg(any(feature = "52833", feature = "52840"))]
+impl Channel<Saadc> for InternalVddHdiv5 {
+    type ID = u8;
+
+    fn channel() -> <Self as embedded_hal::adc::Channel<Saadc>>::ID {
+        13
+    }
+}
+
+#[cfg(any(feature = "52833", feature = "52840"))]
+/// The voltage on the VDDH pin, divided by 5.
+pub struct InternalVddHdiv5;

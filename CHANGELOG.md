@@ -4,6 +4,84 @@
 
 (no changes)
 
+## [0.12.2]
+
+### New Features
+
+- Enable PWM for the nRF9160 and nRF52832 ([#311] [#318]).
+
+### Enhancements
+
+- Add a testsuite for the HAL ([#291]).
+- Document that `ieee802154::Radio::recv_timeout` writes the received data to `packet` ([#307]).
+- Update nRF9160 HAL with latest memory map ([#321]).
+- Add a simple UART example ([#317]).
+- Add readme documentation for demos ([#246]).
+- Link `README.md` into all sub-crates so they show up on crates.io ([#322]).
+- Enhance the RTC example with an interrupt ([#324]).
+
+### Fixes
+
+- Fix spelling errors and RTIC name ([#308]).
+- `ieee802154`: mark `start_recv` as unsafe ([#312]).
+- Fix PWM EasyDMA max length ([#313]).
+- Fix EasyDMA max size ([#315]).
+- Work around erratum when enabling UARTE on nRF9160 ([#319]).
+
+[#246]: https://github.com/nrf-rs/nrf-hal/pull/246
+[#291]: https://github.com/nrf-rs/nrf-hal/pull/291
+[#307]: https://github.com/nrf-rs/nrf-hal/pull/307
+[#308]: https://github.com/nrf-rs/nrf-hal/pull/308
+[#311]: https://github.com/nrf-rs/nrf-hal/pull/311
+[#312]: https://github.com/nrf-rs/nrf-hal/pull/312
+[#313]: https://github.com/nrf-rs/nrf-hal/pull/313
+[#315]: https://github.com/nrf-rs/nrf-hal/pull/315
+[#317]: https://github.com/nrf-rs/nrf-hal/pull/317
+[#318]: https://github.com/nrf-rs/nrf-hal/pull/318
+[#319]: https://github.com/nrf-rs/nrf-hal/pull/319
+[#321]: https://github.com/nrf-rs/nrf-hal/pull/321
+[#322]: https://github.com/nrf-rs/nrf-hal/pull/322
+[#324]: https://github.com/nrf-rs/nrf-hal/pull/324
+
+## [0.12.1]
+
+### New Features
+
+- nRF9160: Add support for TWIM1-3 ([#273]).
+- nRF9160: Add support for WDT ([#283]).
+- PPI: Add `clear_fork_task_endpoint` ([#282]).
+- Refactor Pin Selection, add `Pin::from_psel_bits` and `Pin::psel_bits` ([#285]).
+- SAADC: Support internal `vddhdiv5` channel ([#297]).
+- Add an IEEE 802.15.4 radio API ([#143] [#299]).
+
+### Enhancements
+
+- Explain what "sealing" a trait means ([#271]).
+- Update `cfg-if` to 1.0 ([#286]).
+
+### Fixes
+
+- Fix TWIM pin selection for nRF52833 ([#274]).
+- Return correct error code in UARTE `start_read` ([#280]).
+- Fix en-/disabling GPIOTE interrupts for channels ([#278]).
+- UARTE: Check rx buf against `EASY_DMA_SIZE` ([#284]).
+- SAADC: Clear `events_calibratedone` before calibration ([#298]).
+
+[#143]: https://github.com/nrf-rs/nrf-hal/pull/143
+[#271]: https://github.com/nrf-rs/nrf-hal/pull/271
+[#273]: https://github.com/nrf-rs/nrf-hal/pull/273
+[#274]: https://github.com/nrf-rs/nrf-hal/pull/274
+[#278]: https://github.com/nrf-rs/nrf-hal/pull/278
+[#280]: https://github.com/nrf-rs/nrf-hal/pull/280
+[#282]: https://github.com/nrf-rs/nrf-hal/pull/282
+[#283]: https://github.com/nrf-rs/nrf-hal/pull/283
+[#284]: https://github.com/nrf-rs/nrf-hal/pull/284
+[#285]: https://github.com/nrf-rs/nrf-hal/pull/285
+[#286]: https://github.com/nrf-rs/nrf-hal/pull/286
+[#297]: https://github.com/nrf-rs/nrf-hal/pull/297
+[#298]: https://github.com/nrf-rs/nrf-hal/pull/298
+[#299]: https://github.com/nrf-rs/nrf-hal/pull/299
+
 ## [0.12.0]
 
 ### New Features
@@ -155,3 +233,5 @@ None
 [0.11.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.11.0
 [0.11.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.11.1
 [0.12.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.12.0
+[0.12.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.12.1
+[0.12.2]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.12.2

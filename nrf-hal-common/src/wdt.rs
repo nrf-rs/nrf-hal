@@ -46,7 +46,7 @@ where
     /// This function pets the given watchdog handle.
     ///
     /// NOTE: All active handles must be pet within the time interval to
-    /// prevent a reset from occuring.
+    /// prevent a reset from occurring.
     #[inline]
     pub fn pet(&mut self) {
         let hdl = unsafe { &*WDT::ptr() };
@@ -108,7 +108,7 @@ impl Watchdog<Inactive> {
     /// The watchdog cannot be deactivated after starting.
     ///
     /// NOTE: All activated handles must be pet within the configured time interval to
-    /// prevent a reset from occuring.
+    /// prevent a reset from occurring.
     pub fn activate<H: sealed::Handles>(self) -> Parts<H::Handles> {
         self.wdt.rren.write(|w| unsafe { w.bits(H::ENABLE) });
         self.wdt.tasks_start.write(|w| unsafe { w.bits(1) });
@@ -124,7 +124,7 @@ impl Watchdog<Inactive> {
     /// Enable the watchdog interrupt.
     ///
     /// NOTE: Although the interrupt will occur, there is no way to prevent
-    /// the reset from occuring. From the time the event was fired, the
+    /// the reset from occurring. From the time the event was fired, the
     /// system will reset two LFCLK ticks later (61 microseconds) if the
     /// interrupt has been enabled.
     #[inline(always)]

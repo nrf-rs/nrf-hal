@@ -18,6 +18,7 @@ pub static EXAMPLES: &[(&str, &[&str])] = &[
         "ecb-demo",
         &["51", "52810", "52811", "52832", "52833", "52840"],
     ),
+    ("hello-world", &["52840", "9160"]),
     ("gpiote-demo", &[]),
     ("i2s-controller-demo", &[]),
     ("i2s-peripheral-demo", &[]),
@@ -26,7 +27,8 @@ pub static EXAMPLES: &[(&str, &[&str])] = &[
         "ppi-demo",
         &["51", "52810", "52811", "52832", "52833", "52840"],
     ),
-    ("pwm-demo", &[]),
+    ("pwm-blinky-demo", &["52840"]),
+    ("pwm-demo", &["52840"]),
     ("qdec-demo", &[]),
     ("rtc-demo", &[]),
     ("rtic-demo", &["51", "52810", "52811", "52832", "52840"]),
@@ -44,6 +46,7 @@ pub fn feature_to_target(feat: &str) -> &str {
     match feat {
         "51" => "thumbv6m-none-eabi",
         "52810" | "52811" => "thumbv7em-none-eabi",
+        "9160" => "thumbv8m.main-none-eabihf",
         _ if feat.starts_with("52") => "thumbv7em-none-eabihf",
         _ => panic!("unknown Cargo feature `{}`", feat),
     }

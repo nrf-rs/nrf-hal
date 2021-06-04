@@ -1,0 +1,37 @@
+[package]
+name = "pwm-blinky-demo"
+version = "0.1.0"
+authors = ["Christopher Hunt <huntchr@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cortex-m = "0.6.2"
+cortex-m-rt = "0.6.12"
+rtt-target = {version = "0.2.0", features = ["cortex-m"] }
+nb = "1.0.0"
+
+[dependencies.embedded-hal]
+version = "0.2.3"
+features = ["unproven"]
+
+[dependencies.nrf9160-hal]
+features = ["rt"]
+path = "../../nrf9160-hal"
+optional = true
+
+[dependencies.nrf52832-hal]
+features = ["rt"]
+path = "../../nrf52832-hal"
+optional = true
+
+[dependencies.nrf52840-hal]
+features = ["rt"]
+path = "../../nrf52840-hal"
+optional = true
+
+[features]
+9160 = ["nrf9160-hal"]
+52840 = ["nrf52840-hal"]
+52832 = ["nrf52832-hal"]

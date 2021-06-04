@@ -86,6 +86,11 @@ fn main() {
         let name = entry.file_name();
         let name = name.to_str().unwrap();
 
+        // skip hidden folders
+        if name.starts_with(".") {
+            continue;
+        }
+
         if EXAMPLES
             .iter()
             .find(|(example, ..)| *example == name)
@@ -94,4 +99,18 @@ fn main() {
             panic!("example `{}` is missing an entry in xtask `EXAMPLES`", name);
         }
     }
+
+
+    let mut cargo = Command::new("cargo");
+    let toml_path = "nrf52840-hal-tests/Cargo.toml";
+    let status = cargo
+        .args(&["build", "--manifest-path", &toml_path, "--target", "thumbv7em-none-eabihf", "--tests"])
+        .status()
+        .map_err(|e| format!("could not execute {:?}: {}", cargo, e))
+        .unwrap();
+    assert!(
+        status.success(),
+        "command exited with error status: {:?}",
+        cargo
+    );
 }
