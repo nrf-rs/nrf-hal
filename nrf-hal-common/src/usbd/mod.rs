@@ -530,9 +530,6 @@ impl UsbBus for Usbd<'_> {
 
             // TODO: ISO
 
-            // Read is complete, clear status flag
-            regs.epdatastatus.write(|w| unsafe { w.bits(1 << (i + 16)) });
-
             // Enable the endpoint
             regs.size.epout[i].reset();
 
