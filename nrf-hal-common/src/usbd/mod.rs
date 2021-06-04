@@ -368,7 +368,17 @@ impl UsbBus for Usbd<'_> {
             let busy_in_endpoints = self.busy_in_endpoints.borrow(cs);
 
             if busy_in_endpoints.get() & (1 << i) != 0 {
-                return Err(UsbError::WouldBlock);
+                // Maybe this endpoint is not busy?
+                let epdatastatus = regs.epdatastatus.read().bits();
+                if epdatastatus & (1 << i) != 0 {
+                    // Clear the event flag
+                    regs.epdatastatus.write(|w| unsafe { w.bits(1 << i) });
+
+                    // Clear the busy status and continue
+                    busy_in_endpoints.set(busy_in_endpoints.get() & !(1 << i));
+                } else {
+                    return Err(UsbError::WouldBlock);
+                }
             }
             if regs.epstatus.read().bits() & (1 << i) != 0 {
                 return Err(UsbError::WouldBlock);
