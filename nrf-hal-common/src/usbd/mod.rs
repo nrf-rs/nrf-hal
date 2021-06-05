@@ -563,7 +563,15 @@ impl UsbBus for Usbd<'_> {
     }
 
     fn is_stalled(&self, ep_addr: EndpointAddress) -> bool {
-        unimplemented!("is_stalled(ep={:?})", ep_addr);
+        interrupt::free(|cs| {
+            let regs = self.periph.borrow(cs);
+
+            let i = ep_addr.index();
+            match ep_addr.direction() {
+                UsbDirection::Out => regs.halted.epout[i].read().getstatus().is_halted(),
+                UsbDirection::In => regs.halted.epin[i].read().getstatus().is_halted(),
+            }
+        })
     }
 
     #[inline]
