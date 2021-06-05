@@ -174,7 +174,7 @@ impl UsbBus for Usbd<'_> {
         ep_addr: Option<EndpointAddress>,
         ep_type: EndpointType,
         max_packet_size: u16,
-        interval: u8,
+        _interval: u8,
     ) -> usb_device::Result<EndpointAddress> {
         // Endpoint addresses are fixed in hardware:
         // - 0x80 / 0x00 - Control        EP0
