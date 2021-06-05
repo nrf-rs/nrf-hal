@@ -194,17 +194,6 @@ impl UsbBus for Usbd<'_> {
             self.max_packet_size_0 = max_packet_size;
         }
 
-        if false {
-            unimplemented!(
-                "alloc_ep({:?}, {:?}, {:?}, {}, {})",
-                ep_dir,
-                ep_addr,
-                ep_type,
-                max_packet_size,
-                interval,
-            );
-        }
-
         let (used, lens) = match ep_dir {
             UsbDirection::In => (
                 &mut self.used_in,
