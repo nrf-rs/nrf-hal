@@ -12,28 +12,10 @@ use usb_device::test_class::TestClass;
 #[entry]
 fn main() -> ! {
     let periph = Peripherals::take().unwrap();
-    while !periph
-        .POWER
-        .usbregstatus
-        .read()
-        .vbusdetect()
-        .is_vbus_present()
-    {}
-
-    // wait until USB 3.3V supply is stable
-    while !periph
-        .POWER
-        .events_usbpwrrdy
-        .read()
-        .events_usbpwrrdy()
-        .bit_is_clear()
-    {}
-
     let clocks = Clocks::new(periph.CLOCK);
     let clocks = clocks.enable_ext_hfosc();
 
-    let usbd = periph.USBD;
-    let usb_bus = Usbd::new(usbd, &clocks);
+    let usb_bus = Usbd::new(periph.USBD, &clocks);
 
     let mut test = TestClass::new(&usb_bus);
 
