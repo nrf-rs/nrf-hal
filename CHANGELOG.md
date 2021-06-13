@@ -4,7 +4,9 @@
 
 ### Fixes
 
-- Fix mistake in SPIS `Transfer` `is_done` to borrow `inner`.
+- Fix mistake in SPIS `Transfer` `is_done` to borrow `inner` ([#330]).
+
+[#330]: https://github.com/nrf-rs/nrf-hal/pull/330
 
 ## [0.12.2]
 
