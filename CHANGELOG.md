@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-(no changes)
+### Fixes
+
+- Fix mistake in SPIS `Transfer` `is_done` to borrow `inner`.
 
 ## [0.12.2]
 
@@ -126,9 +128,9 @@
 - Also return owned `Pins` from `Usart::free()` ([#261]).
 
 ¹ _A trait can be sealed by making a private trait a supertrait. That way, no
-  downstream crates can implement it (since they can't name the supertrait).
-  This is just to make sure the trait isn't implemented by types that shouldn't
-  implement it._
+downstream crates can implement it (since they can't name the supertrait).
+This is just to make sure the trait isn't implemented by types that shouldn't
+implement it._
 
 ### Internal Improvements
 

@@ -439,7 +439,7 @@ impl<T: Instance, B> Transfer<T, B> {
     pub fn is_done(&mut self) -> bool {
         let inner = self
             .inner
-            .take()
+            .as_mut()
             .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
         inner.spis.is_done()
     }
