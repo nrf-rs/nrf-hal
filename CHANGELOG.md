@@ -4,8 +4,10 @@
 
 ### Fixes
 
+- Fix TWIS transfer `is_done()` always returns true ([#329]).
 - Fix mistake in SPIS `Transfer` `is_done` to borrow `inner` ([#330]).
 
+[#329]: https://github.com/nrf-rs/nrf-hal/pull/329
 [#330]: https://github.com/nrf-rs/nrf-hal/pull/330
 
 ## [0.12.2]

@@ -518,8 +518,7 @@ impl<T: Instance, B> Transfer<T, B> {
             .inner
             .as_mut()
             .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
-        inner.twis.is_done();
-        true
+        inner.twis.is_done()
     }
 }
 
