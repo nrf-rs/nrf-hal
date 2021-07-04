@@ -9,7 +9,7 @@ publish = false
 cortex-m = "0.6.2"
 cortex-m-rt = "0.6.12"
 rtt-target = {version = "0.2.0", features = ["cortex-m"] }
-rand_core = "0.5.1"
+rand_core = "0.6.3"
 
 nrf52810-hal = { path = "../../nrf52810-hal", features = ["rt"], optional = true }
 nrf52811-hal = { path = "../../nrf52811-hal", features = ["rt"], optional = true }

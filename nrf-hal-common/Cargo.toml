@@ -20,10 +20,10 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [dependencies]
-cortex-m = "0.6.2"
+cortex-m = "0.7.3"
 nb = "1.0.0"
 fixed = "1.0.0"
-rand_core = "0.5.1"
+rand_core = "0.6.3"
 cfg-if = "1.0.0"
 embedded-dma = "0.1.1"
 
