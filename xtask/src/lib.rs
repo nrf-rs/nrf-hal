@@ -38,6 +38,7 @@ pub static EXAMPLES: &[(&str, &[&str])] = &[
     ("twim-demo", &[]),
     ("twis-demo", &[]),
     ("twis-dma-demo", &[]),
+    ("uarte-demo", &[]),
     ("wdt-demo", &[]),
 ];
 
