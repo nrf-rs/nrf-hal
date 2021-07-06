@@ -45,8 +45,6 @@ impl Buffers {
     }
 }
 
-unsafe impl Sync for Buffers {}
-
 #[derive(Copy, Clone)]
 enum TransferState {
     NoTransfer,

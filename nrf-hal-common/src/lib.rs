@@ -81,7 +81,7 @@ pub mod uarte;
 #[cfg(not(feature = "9160"))]
 pub mod uicr;
 pub mod wdt;
-#[cfg(feature = "52840")]
+#[cfg(feature = "usb-device")]
 pub mod usbd;
 
 pub mod prelude {
