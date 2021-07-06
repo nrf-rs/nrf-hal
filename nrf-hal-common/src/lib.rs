@@ -80,9 +80,9 @@ pub mod uart;
 pub mod uarte;
 #[cfg(not(feature = "9160"))]
 pub mod uicr;
-pub mod wdt;
-#[cfg(feature = "usb-device")]
+#[cfg(feature = "nrf-usbd")]
 pub mod usbd;
+pub mod wdt;
 
 pub mod prelude {
     pub use crate::hal::digital::v2::*;
