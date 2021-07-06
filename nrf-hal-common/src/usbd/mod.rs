@@ -707,7 +707,13 @@ impl UsbBus for Usbd<'_> {
         interrupt::free(|cs| {
             let regs = self.periph.borrow(cs);
             regs.usbpullup.write(|w| w.connect().disabled());
-            // TODO delay needed?
+            
+            // FIXME: it is unclear how much of a delay is needed here, so we use a conservative 1ms
+            // Note that this is very bad for latency-sensitive apps since it happens in a critical
+            // section. `force_reset` should be avoided if that is an issue.
+            // We run at 64 MHz, so 64k cycles are 1ms.
+            cortex_m::asm::delay(64_000);
+
             regs.usbpullup.write(|w| w.connect().enabled());
         });
 
