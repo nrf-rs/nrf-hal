@@ -69,10 +69,10 @@ const APP: () = {
 
         let pwm = Pwm::new(ctx.device.PWM0);
         pwm.set_period(500u32.hz())
-            .set_output_pin(Channel::C0, &led1)
-            .set_output_pin(Channel::C1, &led2)
-            .set_output_pin(Channel::C2, &led3)
-            .set_output_pin(Channel::C3, &led4)
+            .set_output_pin(Channel::C0, led1)
+            .set_output_pin(Channel::C1, led2)
+            .set_output_pin(Channel::C2, led3)
+            .set_output_pin(Channel::C3, led4)
             .enable_interrupt(PwmEvent::Stopped)
             .enable();
 
