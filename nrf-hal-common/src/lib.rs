@@ -80,6 +80,8 @@ pub mod uart;
 pub mod uarte;
 #[cfg(not(feature = "9160"))]
 pub mod uicr;
+#[cfg(feature = "nrf-usbd")]
+pub mod usbd;
 pub mod wdt;
 
 pub mod prelude {
