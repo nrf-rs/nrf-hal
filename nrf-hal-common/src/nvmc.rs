@@ -40,7 +40,7 @@ where
     }
 
     fn capacity(&self) -> usize {
-        unimplemented!()
+        N
     }
 }
 
