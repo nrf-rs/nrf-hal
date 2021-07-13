@@ -130,6 +130,8 @@ where
     }
 
     /// Sets the associated output pin for the PWM channel.
+    ///
+    /// Modifying the pin configuration while the PWM instance is enabled is not recommended.
     #[inline(always)]
     pub fn set_output_pin(&self, channel: Channel, pin: Pin<Output<PushPull>>) -> &Self {
         self.pwm.psel.out[usize::from(channel)].write(|w| {
@@ -140,6 +142,8 @@ where
     }
 
     /// Sets the output pin of `channel`, and returns the old pin (if any).
+    ///
+    /// Modifying the pin configuration while the PWM instance is enabled is not recommended.
     pub fn swap_output_pin(
         &mut self,
         channel: Channel,
@@ -154,6 +158,24 @@ where
             None
         };
         self.set_output_pin(channel, pin);
+        old
+    }
+
+    /// Disables the output pin of `channel`.
+    ///
+    /// The output pin is returned, if one was previously configured.
+    ///
+    /// Modifying the pin configuration while the PWM instance is enabled is not recommended.
+    pub fn clear_output_pin(&mut self, channel: Channel) -> Option<Pin<Output<PushPull>>> {
+        // (needs `&mut self` because it reads, then writes, to the register)
+        let psel = &self.pwm.psel.out[usize::from(channel)];
+        let old = psel.read();
+        let old = if old.connect().is_connected() {
+            unsafe { Some(Pin::from_psel_bits(old.bits())) }
+        } else {
+            None
+        };
+        psel.reset();
         old
     }
 
