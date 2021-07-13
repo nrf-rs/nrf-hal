@@ -129,14 +129,54 @@ where
         }
     }
 
-    /// Sets the associated output pin for the PWM channel and enables it.
+    /// Sets the associated output pin for the PWM channel.
+    ///
+    /// Modifying the pin configuration while the PWM instance is enabled is not recommended.
     #[inline(always)]
-    pub fn set_output_pin(&self, channel: Channel, pin: &Pin<Output<PushPull>>) -> &Self {
+    pub fn set_output_pin(&self, channel: Channel, pin: Pin<Output<PushPull>>) -> &Self {
         self.pwm.psel.out[usize::from(channel)].write(|w| {
             unsafe { w.bits(pin.psel_bits()) };
             w.connect().connected()
         });
         self
+    }
+
+    /// Sets the output pin of `channel`, and returns the old pin (if any).
+    ///
+    /// Modifying the pin configuration while the PWM instance is enabled is not recommended.
+    pub fn swap_output_pin(
+        &mut self,
+        channel: Channel,
+        pin: Pin<Output<PushPull>>,
+    ) -> Option<Pin<Output<PushPull>>> {
+        // (needs `&mut self` because it reads, then writes, to the register)
+        let psel = &self.pwm.psel.out[usize::from(channel)];
+        let old = psel.read();
+        let old = if old.connect().is_connected() {
+            unsafe { Some(Pin::from_psel_bits(old.bits())) }
+        } else {
+            None
+        };
+        self.set_output_pin(channel, pin);
+        old
+    }
+
+    /// Disables the output pin of `channel`.
+    ///
+    /// The output pin is returned, if one was previously configured.
+    ///
+    /// Modifying the pin configuration while the PWM instance is enabled is not recommended.
+    pub fn clear_output_pin(&mut self, channel: Channel) -> Option<Pin<Output<PushPull>>> {
+        // (needs `&mut self` because it reads, then writes, to the register)
+        let psel = &self.pwm.psel.out[usize::from(channel)];
+        let old = psel.read();
+        let old = if old.connect().is_connected() {
+            unsafe { Some(Pin::from_psel_bits(old.bits())) }
+        } else {
+            None
+        };
+        psel.reset();
+        old
     }
 
     /// Enables the PWM generator.
@@ -228,7 +268,7 @@ where
         self
     }
 
-    /// Returns selected operating mode of the wave counter.    
+    /// Returns selected operating mode of the wave counter.
     #[inline(always)]
     pub fn counter_mode(&self) -> CounterMode {
         match self.pwm.mode.read().updown().bit() {
@@ -351,7 +391,7 @@ where
         self.start_seq(Seq::Seq0);
     }
 
-    /// Returns duty cycle value for a PWM group.    
+    /// Returns duty cycle value for a PWM group.
     #[inline(always)]
     pub fn duty_on_group(&self, group: Group) -> u16 {
         self.duty_on_value(usize::from(group))
@@ -395,7 +435,7 @@ where
         self.start_seq(Seq::Seq0);
     }
 
-    /// Returns the duty cycle value for a PWM channel.        
+    /// Returns the duty cycle value for a PWM channel.
     #[inline(always)]
     pub fn duty_on(&self, channel: Channel) -> u16 {
         self.duty_on_value(usize::from(channel))

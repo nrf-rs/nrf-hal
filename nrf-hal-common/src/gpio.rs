@@ -50,7 +50,9 @@ pub enum Port {
 // ===============================================================
 /// Generic $PX pin
 pub struct Pin<MODE> {
-    // Bit 7: Port, Bits 0-6: Pin
+    /// 00AB BBBB
+    /// A: Port
+    /// B: Pin
     pin_port: u8,
     _mode: PhantomData<MODE>,
 }

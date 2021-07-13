@@ -67,14 +67,20 @@ const APP: () = {
         let led3 = p0.p0_15.into_push_pull_output(Level::High).degrade();
         let led4 = p0.p0_16.into_push_pull_output(Level::High).degrade();
 
-        let pwm = Pwm::new(ctx.device.PWM0);
+        let mut pwm = Pwm::new(ctx.device.PWM0);
         pwm.set_period(500u32.hz())
-            .set_output_pin(Channel::C0, &led1)
-            .set_output_pin(Channel::C1, &led2)
-            .set_output_pin(Channel::C2, &led3)
-            .set_output_pin(Channel::C3, &led4)
-            .enable_interrupt(PwmEvent::Stopped)
-            .enable();
+            .set_output_pin(Channel::C0, led1)
+            .set_output_pin(Channel::C1, led2)
+            .set_output_pin(Channel::C2, led3)
+            .set_output_pin(Channel::C3, led4)
+            .enable_interrupt(PwmEvent::Stopped);
+
+        // In addition to `set_output_pin`, `swap_output_pin` and `clear_output_pin` can be used to
+        // get the old pin back.
+        let led1 = pwm.clear_output_pin(Channel::C0).unwrap();
+        assert!(pwm.swap_output_pin(Channel::C0, led1).is_none());
+
+        pwm.enable();
 
         let gpiote = Gpiote::new(ctx.device.GPIOTE);
         gpiote.port().input_pin(&btn1).low();
