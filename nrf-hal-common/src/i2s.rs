@@ -477,19 +477,19 @@ pub enum Mode {
 /// Master clock generator frequency.
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum MckFreq {
-    _32MDiv8,
-    _32MDiv10,
-    _32MDiv11,
-    _32MDiv15,
-    _32MDiv16,
-    _32MDiv21,
-    _32MDiv23,
-    _32MDiv30,
-    _32MDiv31,
-    _32MDiv32,
-    _32MDiv42,
-    _32MDiv63,
-    _32MDiv125,
+    _32MDiv8 = 0x20000000,
+    _32MDiv10 = 0x18000000,
+    _32MDiv11 = 0x16000000,
+    _32MDiv15 = 0x11000000,
+    _32MDiv16 = 0x10000000,
+    _32MDiv21 = 0x0C000000,
+    _32MDiv23 = 0x0B000000,
+    _32MDiv30 = 0x08800000,
+    _32MDiv31 = 0x08400000,
+    _32MDiv32 = 0x08000000,
+    _32MDiv42 = 0x06000000,
+    _32MDiv63 = 0x04100000,
+    _32MDiv125 = 0x020C0000,
 }
 impl From<MckFreq> for u32 {
     fn from(variant: MckFreq) -> Self {
