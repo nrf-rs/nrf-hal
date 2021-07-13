@@ -1,5 +1,9 @@
 //! HAL interface to the Non-Volatile Memory Controller (NVMC) peripheral.
 
+#[cfg(any(feature = "52840"))]
+use crate::pac::NVMC;
+#[cfg(any(feature = "9160"))]
+use crate::pac::NVMC_NS;
 use embedded_storage::nor_flash::{NorFlash, ReadNorFlash};
 
 /// Interface to an NVMC instance.
@@ -58,6 +62,40 @@ where
 }
 
 pub trait Instance {
-    fn page_erase(_offset: u32);
-    fn word_write(_offset: u32, word: u32);
+    fn enable_erase();
+    fn enable_write();
+    fn reset();
+    fn write_word(offset: u32, word: u32);
+}
+
+#[cfg(any(feature = "52840"))]
+impl Instance for NVMC {
+    fn enable_erase() {
+        unimplemented!()
+    }
+    fn enable_write() {
+        unimplemented!()
+    }
+    fn reset() {
+        unimplemented!()
+    }
+    fn write_word(_offset: u32, _word: u32) {
+        unimplemented!()
+    }
+}
+
+#[cfg(any(feature = "9160"))]
+impl Instance for NVMC_NS {
+    fn enable_erase() {
+        unimplemented!()
+    }
+    fn enable_write() {
+        unimplemented!()
+    }
+    fn reset() {
+        unimplemented!()
+    }
+    fn write_word(_offset: u32, _word: u32) {
+        unimplemented!()
+    }
 }
