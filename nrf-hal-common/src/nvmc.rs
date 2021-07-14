@@ -25,6 +25,19 @@ where
     pub fn free(self) -> (T, &'a mut [u32; N]) {
         (self.nvmc, self.storage)
     }
+
+    fn enable_erase() {
+        unimplemented!()
+    }
+    fn enable_write() {
+        unimplemented!()
+    }
+    fn reset() {
+        unimplemented!()
+    }
+    fn write_word(_offset: u32, _word: u32) {
+        unimplemented!()
+    }
 }
 
 impl<'a, T, const N: usize> ReadNorFlash for Nvmc<'a, T, N>
@@ -61,41 +74,10 @@ where
     }
 }
 
-pub trait Instance {
-    fn enable_erase();
-    fn enable_write();
-    fn reset();
-    fn write_word(offset: u32, word: u32);
-}
+pub trait Instance {}
 
 #[cfg(any(feature = "52840"))]
-impl Instance for NVMC {
-    fn enable_erase() {
-        unimplemented!()
-    }
-    fn enable_write() {
-        unimplemented!()
-    }
-    fn reset() {
-        unimplemented!()
-    }
-    fn write_word(_offset: u32, _word: u32) {
-        unimplemented!()
-    }
-}
+impl Instance for NVMC {}
 
 #[cfg(any(feature = "9160"))]
-impl Instance for NVMC_NS {
-    fn enable_erase() {
-        unimplemented!()
-    }
-    fn enable_write() {
-        unimplemented!()
-    }
-    fn reset() {
-        unimplemented!()
-    }
-    fn write_word(_offset: u32, _word: u32) {
-        unimplemented!()
-    }
-}
+impl Instance for NVMC_NS {}
