@@ -7,22 +7,22 @@ use crate::pac::NVMC_NS;
 use embedded_storage::nor_flash::{NorFlash, ReadNorFlash};
 
 /// Interface to an NVMC instance.
-pub struct Nvmc<'a, T: Instance, const N: usize> {
+pub struct Nvmc<T: Instance> {
     nvmc: T,
-    storage: &'a mut [u32; N],
+    storage: &'static mut [u32],
 }
 
-impl<'a, T, const N: usize> Nvmc<'a, T, N>
+impl<T> Nvmc<T>
 where
     T: Instance,
 {
     /// Takes ownership of the peripheral and storage area.
-    pub fn new(nvmc: T, storage: &'a mut [u32; N]) -> Nvmc<'a, T, N> {
+    pub fn new(nvmc: T, storage: &'static mut [u32]) -> Nvmc<T> {
         Self { nvmc, storage }
     }
 
     /// Consumes `self` and returns back the raw peripheral and associated storage.
-    pub fn free(self) -> (T, &'a mut [u32; N]) {
+    pub fn free(self) -> (T, &'static mut [u32]) {
         (self.nvmc, self.storage)
     }
 
@@ -40,7 +40,7 @@ where
     }
 }
 
-impl<'a, T, const N: usize> ReadNorFlash for Nvmc<'a, T, N>
+impl<T> ReadNorFlash for Nvmc<T>
 where
     T: Instance,
 {
@@ -53,11 +53,11 @@ where
     }
 
     fn capacity(&self) -> usize {
-        N
+        self.storage.len()
     }
 }
 
-impl<'a, T, const N: usize> NorFlash for Nvmc<'a, T, N>
+impl<T> NorFlash for Nvmc<T>
 where
     T: Instance,
 {
