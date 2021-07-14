@@ -74,10 +74,22 @@ where
     }
 }
 
-pub trait Instance {}
+pub trait Instance: sealed::Sealed {}
 
 #[cfg(any(feature = "52840"))]
 impl Instance for NVMC {}
 
 #[cfg(any(feature = "9160"))]
 impl Instance for NVMC_NS {}
+
+mod sealed {
+    use super::*;
+
+    pub trait Sealed {}
+
+    #[cfg(any(feature = "52840"))]
+    impl Sealed for NVMC {}
+
+    #[cfg(any(feature = "9160"))]
+    impl Sealed for NVMC_NS {}
+}
