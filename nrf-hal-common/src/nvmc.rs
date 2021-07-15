@@ -4,6 +4,7 @@
 use crate::pac::NVMC;
 #[cfg(any(feature = "9160"))]
 use crate::pac::NVMC_NS;
+
 use embedded_storage::nor_flash::{NorFlash, ReadNorFlash};
 
 /// Interface to an NVMC instance.
@@ -26,17 +27,10 @@ where
         (self.nvmc, self.storage)
     }
 
-    fn enable_erase() {
-        unimplemented!()
-    }
-    fn enable_write() {
-        unimplemented!()
-    }
-    fn reset() {
-        unimplemented!()
-    }
-    fn write_word(_offset: u32, _word: u32) {
-        unimplemented!()
+    #[inline]
+    fn write_word(&mut self, offset: usize, word: u32) {
+        self.storage[offset] = word;
+        cortex_m::asm::dmb();
     }
 }
 
@@ -44,7 +38,7 @@ impl<T> ReadNorFlash for Nvmc<T>
 where
     T: Instance,
 {
-    type Error = ();
+    type Error = NvmcError;
 
     const READ_SIZE: usize = 4;
 
@@ -65,22 +59,75 @@ where
 
     const ERASE_SIZE: usize = 4 * 1024;
 
-    fn try_erase(&mut self, _from: u32, _to: u32) -> Result<(), Self::Error> {
-        unimplemented!()
+    fn try_erase(&mut self, from: u32, to: u32) -> Result<(), Self::Error> {
+        if from as usize % Self::ERASE_SIZE == 0 && to as usize % Self::ERASE_SIZE == 0 {
+            self.nvmc.enable_erase();
+            for offset in (from..to).step_by(Self::ERASE_SIZE) {
+                self.storage[offset as usize >> 2] = 0xffffffff;
+            }
+            self.nvmc.reset();
+            Ok(())
+        } else {
+            Err(NvmcError::Unaligned)
+        }
     }
 
-    fn try_write(&mut self, _offset: u32, _bytes: &[u8]) -> Result<(), Self::Error> {
-        unimplemented!()
+    fn try_write(&mut self, offset: u32, bytes: &[u8]) -> Result<(), Self::Error> {
+        let offset = offset as usize;
+        if offset % Self::WRITE_SIZE == 0 && bytes.len() as usize % Self::WRITE_SIZE == 0 {
+            self.nvmc.enable_write();
+            for offset in (offset..(offset + bytes.len())).step_by(Self::WRITE_SIZE) {
+                let word = ((bytes[offset] as u32) << 24)
+                    | ((bytes[offset + 1] as u32) << 16)
+                    | ((bytes[offset + 2] as u32) << 8)
+                    | ((bytes[offset + 3] as u32) << 0);
+                self.write_word(offset as usize >> 2, word);
+            }
+            self.nvmc.reset();
+            Ok(())
+        } else {
+            Err(NvmcError::Unaligned)
+        }
     }
 }
 
-pub trait Instance: sealed::Sealed {}
+pub trait Instance: sealed::Sealed {
+    fn enable_erase(&self);
+
+    fn enable_write(&self);
+
+    fn reset(&self);
+}
 
 #[cfg(any(feature = "52840"))]
-impl Instance for NVMC {}
+impl Instance for NVMC {
+    fn enable_erase(&self) {
+        self.config.write(|w| w.wen().een());
+    }
+
+    fn enable_write(&self) {
+        self.config.write(|w| w.wen().wen());
+    }
+
+    fn reset(&self) {
+        self.config.reset();
+    }
+}
 
 #[cfg(any(feature = "9160"))]
-impl Instance for NVMC_NS {}
+impl Instance for NVMC_NS {
+    fn enable_erase(&self) {
+        self.configns.write(|w| w.wen().een());
+    }
+
+    fn enable_write(&self) {
+        self.configns.write(|w| w.wen().wen());
+    }
+
+    fn reset(&self) {
+        self.configns.reset();
+    }
+}
 
 mod sealed {
     use super::*;
@@ -92,4 +139,10 @@ mod sealed {
 
     #[cfg(any(feature = "9160"))]
     impl Sealed for NVMC_NS {}
+}
+
+#[derive(Debug)]
+pub enum NvmcError {
+    /// An operation was attempted on an unaligned boundary
+    Unaligned,
 }
