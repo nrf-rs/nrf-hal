@@ -29,6 +29,7 @@ where
 
     #[inline]
     fn write_word(&mut self, offset: usize, word: u32) {
+        self.nvmc.wait_ready();
         self.storage[offset] = word;
         cortex_m::asm::dmb();
     }
@@ -42,8 +43,52 @@ where
 
     const READ_SIZE: usize = 4;
 
-    fn try_read(&mut self, _offset: u32, _bytes: &mut [u8]) -> Result<(), Self::Error> {
-        unimplemented!()
+    fn try_read(&mut self, offset: u32, bytes: &mut [u8]) -> Result<(), Self::Error> {
+        let offset = offset as usize;
+        let bytes_len = bytes.len();
+        let read_len = (bytes_len >> 2)
+            + if bytes_len % Self::READ_SIZE == 0 {
+                0
+            } else {
+                1
+            };
+        let target_offset = offset + read_len;
+        if offset % Self::READ_SIZE == 0 && target_offset <= self.capacity() {
+            self.nvmc.wait_ready();
+            let mut bytes_offset = offset << 2;
+            for offset in offset..(target_offset - 1) {
+                let word = self.storage[offset];
+                bytes[bytes_offset] = (word >> 24) as u8;
+                bytes_offset += 1;
+                bytes[bytes_offset] = (word >> 16) as u8;
+                bytes_offset += 1;
+                bytes[bytes_offset] = (word >> 8) as u8;
+                bytes_offset += 1;
+                bytes[bytes_offset] = (word >> 0) as u8;
+            }
+            if target_offset > 0 {
+                let offset = target_offset - 1;
+                let word = self.storage[offset];
+                if bytes_offset < bytes_len {
+                    bytes[bytes_offset] = (word >> 24) as u8;
+                }
+                bytes_offset += 1;
+                if bytes_offset < bytes_len {
+                    bytes[bytes_offset] = (word >> 16) as u8;
+                }
+                bytes_offset += 1;
+                if bytes_offset < bytes_len {
+                    bytes[bytes_offset] = (word >> 8) as u8;
+                }
+                bytes_offset += 1;
+                if bytes_offset < bytes_len {
+                    bytes[bytes_offset] = (word >> 0) as u8;
+                }
+            }
+            Ok(())
+        } else {
+            Err(NvmcError::Unaligned)
+        }
     }
 
     fn capacity(&self) -> usize {
@@ -74,14 +119,14 @@ where
 
     fn try_write(&mut self, offset: u32, bytes: &[u8]) -> Result<(), Self::Error> {
         let offset = offset as usize;
-        if offset % Self::WRITE_SIZE == 0 && bytes.len() as usize % Self::WRITE_SIZE == 0 {
+        if offset % Self::WRITE_SIZE == 0 && bytes.len() % Self::WRITE_SIZE == 0 {
             self.nvmc.enable_write();
             for offset in (offset..(offset + bytes.len())).step_by(Self::WRITE_SIZE) {
                 let word = ((bytes[offset] as u32) << 24)
                     | ((bytes[offset + 1] as u32) << 16)
                     | ((bytes[offset + 2] as u32) << 8)
                     | ((bytes[offset + 3] as u32) << 0);
-                self.write_word(offset as usize >> 2, word);
+                self.write_word(offset >> 2, word);
             }
             self.nvmc.reset();
             Ok(())
@@ -97,6 +142,8 @@ pub trait Instance: sealed::Sealed {
     fn enable_write(&self);
 
     fn reset(&self);
+
+    fn wait_ready(&self);
 }
 
 #[cfg(any(feature = "52840"))]
@@ -112,6 +159,10 @@ impl Instance for NVMC {
     fn reset(&self) {
         self.config.reset();
     }
+
+    fn wait_ready(&self) {
+        while !self.ready.read().ready().bit_is_set() {}
+    }
 }
 
 #[cfg(any(feature = "9160"))]
@@ -126,6 +177,10 @@ impl Instance for NVMC_NS {
 
     fn reset(&self) {
         self.configns.reset();
+    }
+
+    fn wait_ready(&self) {
+        while !self.ready.read().ready().bit_is_set() {}
     }
 }
 
