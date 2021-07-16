@@ -3,7 +3,7 @@
 use core::ops::Deref;
 
 #[cfg(any(feature = "52840"))]
-use crate::pac::nvmc::*;
+use crate::pac::nvmc;
 #[cfg(any(feature = "9160"))]
 use crate::pac::nvmc_ns as nvmc;
 #[cfg(any(feature = "52840"))]
@@ -34,14 +34,23 @@ where
     }
 
     fn enable_erase(&self) {
+        #[cfg(any(feature = "52840"))]
+        self.nvmc.config.write(|w| w.wen().een());
+        #[cfg(any(feature = "9160"))]
         self.nvmc.configns.write(|w| w.wen().een());
     }
 
     fn enable_write(&self) {
+        #[cfg(any(feature = "52840"))]
+        self.nvmc.config.write(|w| w.wen().wen());
+        #[cfg(any(feature = "9160"))]
         self.nvmc.configns.write(|w| w.wen().wen());
     }
 
     fn reset(&self) {
+        #[cfg(any(feature = "52840"))]
+        self.nvmc.config.reset();
+        #[cfg(any(feature = "9160"))]
         self.nvmc.configns.reset();
     }
 
