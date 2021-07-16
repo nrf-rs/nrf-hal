@@ -1,9 +1,15 @@
 //! HAL interface to the Non-Volatile Memory Controller (NVMC) peripheral.
 
+use core::ops::Deref;
+
+#[cfg(any(feature = "52840"))]
+use crate::pac::nvmc::*;
+#[cfg(any(feature = "9160"))]
+use crate::pac::nvmc_ns as nvmc;
 #[cfg(any(feature = "52840"))]
 use crate::pac::NVMC;
 #[cfg(any(feature = "9160"))]
-use crate::pac::NVMC_NS;
+use crate::pac::NVMC_NS as NVMC;
 
 use embedded_storage::nor_flash::{NorFlash, ReadNorFlash};
 
@@ -27,9 +33,26 @@ where
         (self.nvmc, self.storage)
     }
 
+    fn enable_erase(&self) {
+        self.nvmc.configns.write(|w| w.wen().een());
+    }
+
+    fn enable_write(&self) {
+        self.nvmc.configns.write(|w| w.wen().wen());
+    }
+
+    fn reset(&self) {
+        self.nvmc.configns.reset();
+    }
+
+    #[inline]
+    fn wait_ready(&self) {
+        while !self.nvmc.ready.read().ready().bit_is_set() {}
+    }
+
     #[inline]
     fn write_word(&mut self, offset: usize, word: u32) {
-        self.nvmc.wait_ready();
+        self.wait_ready();
         self.storage[offset] = word;
         cortex_m::asm::dmb();
     }
@@ -54,7 +77,7 @@ where
             };
         let target_offset = offset + read_len;
         if offset % Self::READ_SIZE == 0 && target_offset <= self.capacity() {
-            self.nvmc.wait_ready();
+            self.wait_ready();
             let mut bytes_offset = offset << 2;
             for offset in offset..(target_offset - 1) {
                 let word = self.storage[offset];
@@ -106,11 +129,11 @@ where
 
     fn try_erase(&mut self, from: u32, to: u32) -> Result<(), Self::Error> {
         if from as usize % Self::ERASE_SIZE == 0 && to as usize % Self::ERASE_SIZE == 0 {
-            self.nvmc.enable_erase();
+            self.enable_erase();
             for offset in (from..to).step_by(Self::ERASE_SIZE) {
                 self.storage[offset as usize >> 2] = 0xffffffff;
             }
-            self.nvmc.reset();
+            self.reset();
             Ok(())
         } else {
             Err(NvmcError::Unaligned)
@@ -120,7 +143,7 @@ where
     fn try_write(&mut self, offset: u32, bytes: &[u8]) -> Result<(), Self::Error> {
         let offset = offset as usize;
         if offset % Self::WRITE_SIZE == 0 && bytes.len() % Self::WRITE_SIZE == 0 {
-            self.nvmc.enable_write();
+            self.enable_write();
             for offset in (offset..(offset + bytes.len())).step_by(Self::WRITE_SIZE) {
                 let word = ((bytes[offset] as u32) << 24)
                     | ((bytes[offset + 1] as u32) << 16)
@@ -128,7 +151,7 @@ where
                     | ((bytes[offset + 3] as u32) << 0);
                 self.write_word(offset >> 2, word);
             }
-            self.nvmc.reset();
+            self.reset();
             Ok(())
         } else {
             Err(NvmcError::Unaligned)
@@ -136,64 +159,16 @@ where
     }
 }
 
-pub trait Instance: sealed::Sealed {
-    fn enable_erase(&self);
+pub trait Instance: Deref<Target = nvmc::RegisterBlock> + sealed::Sealed {}
 
-    fn enable_write(&self);
-
-    fn reset(&self);
-
-    fn wait_ready(&self);
-}
-
-#[cfg(any(feature = "52840"))]
-impl Instance for NVMC {
-    fn enable_erase(&self) {
-        self.config.write(|w| w.wen().een());
-    }
-
-    fn enable_write(&self) {
-        self.config.write(|w| w.wen().wen());
-    }
-
-    fn reset(&self) {
-        self.config.reset();
-    }
-
-    fn wait_ready(&self) {
-        while !self.ready.read().ready().bit_is_set() {}
-    }
-}
-
-#[cfg(any(feature = "9160"))]
-impl Instance for NVMC_NS {
-    fn enable_erase(&self) {
-        self.configns.write(|w| w.wen().een());
-    }
-
-    fn enable_write(&self) {
-        self.configns.write(|w| w.wen().wen());
-    }
-
-    fn reset(&self) {
-        self.configns.reset();
-    }
-
-    fn wait_ready(&self) {
-        while !self.ready.read().ready().bit_is_set() {}
-    }
-}
+impl Instance for NVMC {}
 
 mod sealed {
     use super::*;
 
     pub trait Sealed {}
 
-    #[cfg(any(feature = "52840"))]
     impl Sealed for NVMC {}
-
-    #[cfg(any(feature = "9160"))]
-    impl Sealed for NVMC_NS {}
 }
 
 #[derive(Debug)]
