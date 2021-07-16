@@ -26,6 +26,7 @@ fixed = "1.0.0"
 rand_core = "0.6.3"
 cfg-if = "1.0.0"
 embedded-dma = "0.1.1"
+embedded-storage = "0.1.0"
 
 [dependencies.void]
 default-features = false
