@@ -37,6 +37,12 @@ Every nRF chip has its own crate, listed below:
 
 \* These devices do not have a separate development kit and share the [NRF52 DK](https://www.nordicsemi.com/Software-and-tools/Development-Kits/nRF52-DK)
 
+## Development
+
+Be sure to copy and edit the `Cargo.example.toml` file to `Cargo.toml`. The file will require editing dependent on the target you wish to work with and contains some further
+instructions. Similarly, check out the `.vscode/settings.json` file when used in the context of Visual Studio Code. By default, all of theses files are configured to work
+with the nRF52840 target.
+
 ## License
 
 Licensed under either of
