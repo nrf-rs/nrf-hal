@@ -3,6 +3,7 @@
 [._]*.sw[a-p]
 **/*.rs.bk
 Cargo.lock
+Cargo.toml
 
 # Created by https://www.gitignore.io/api/intellij+all
 

@@ -1,5 +1,4 @@
 {
-    "rust-analyzer.cargo.features": [
-        "52840"
-    ]
+    "rust-analyzer.cargo.target": "thumbv7em-none-eabi",
+    "rust-analyzer.checkOnSave.allTargets": false,
 }
