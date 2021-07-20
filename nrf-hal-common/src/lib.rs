@@ -47,6 +47,8 @@ pub mod i2s;
 pub mod ieee802154;
 #[cfg(not(any(feature = "52811", feature = "52810", feature = "9160")))]
 pub mod lpcomp;
+#[cfg(not(feature = "51"))]
+pub mod nvmc;
 #[cfg(not(feature = "9160"))]
 pub mod ppi;
 #[cfg(not(feature = "51"))]
