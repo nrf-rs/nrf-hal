@@ -1,0 +1,36 @@
+# This file is a template for a Cargo workspace for developer convenience.
+#
+# Since Cargo resolves all features for all crates in the workspace together, 
+# it is not possible to have a workspace with all the crates together, since they
+# enable incompatible features.
+#
+# Instead, we provide this template so you can enable only the crates you're going to
+# work on. This makes eg rust-analyzer check-on-save and autocomplete work, but only 
+# in these crates, without any feature conflict.
+#
+# Copy this file to `Cargo.toml` and uncomment one group of crates below.
+#
+# `/Cargo.toml` is already in .gitignore, so you don't commit it accidentally.
+
+[workspace]
+members = [
+#  Uncomment ONLY ONE of the hals below, depending on your target
+#  "nrf52810-hal",
+#  "nrf52811-hal",
+#  "nrf52832-hal",
+#  "nrf52833-hal",
+  "nrf52840-hal",
+  "nrf52840-hal-tests",
+#  "nrf9160-hal",
+]
+
+[profile.dev]
+incremental = false
+codegen-units = 1
+debug = true
+lto = false
+
+[profile.release]
+debug = true
+lto = true
+opt-level = "s"

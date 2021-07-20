@@ -33,7 +33,7 @@ jobs:
         thumbv7em-none-eabihf
         thumbv8m.main-none-eabi
     - name: Build Crates
-      run: cargo test -p xtask
+      run: mv Cargo.ci.toml Cargo.toml && cargo test -p xtask
       env:
         RUSTFLAGS: ${{ matrix.rustflags }}
 

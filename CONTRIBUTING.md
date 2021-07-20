@@ -23,6 +23,15 @@ even if not breaking changes by themselves, will only be included in the next ma
 
 ## Release process
 
+The release process requires the workspace to be setup as per when performing Continuous Integration.
+Please follow these steps before you begin (shown for Unix):
+
+1. Keep a copy of your existing `Cargo.toml` - `mv Cargo.toml Cargo.my.toml`. Note that `Cargo.my.toml`
+is ignored for the repository so it cannot be accidentally committed.
+2. Activate the CI workspace - `cp Cargo.ci.toml Cargo.toml`.
+
+When finished releasing, copy or move your `Cargo.my.toml` back.
+
 In order to release a new version of the HALs, the following steps need to be performed:
 
 * **Changelog**: Update [the changelog](./CHANGELOG.md) to list all notable changes under the `Unreleased`
