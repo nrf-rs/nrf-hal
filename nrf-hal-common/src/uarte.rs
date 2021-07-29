@@ -307,8 +307,11 @@ where
         )
     }
 
-    /// Split into implementations of embedded_hal::serial traits. The size of the slices passed to this
-    /// method will determine the size of the DMA transfers performed.
+    /// Split into implementations of embedded_hal::serial traits.
+    /// The size of the `tx_buf` slice passed to this method will determine
+    /// the size of the DMA transfers performed.
+    /// The `rx_buf` slice is an array of size 1 since the embedded_hal
+    /// traits only allow reading one byte at a time.
     pub fn split(
         self,
         tx_buf: &'static mut [u8],
@@ -578,6 +581,7 @@ where
             // Reset events
             uarte.events_endtx.reset();
             uarte.events_txstopped.reset();
+            uarte.events_txstarted.reset();
 
             // Ensure the above is done
             compiler_fence(SeqCst);
@@ -599,6 +603,7 @@ where
 
             // Reset events
             uarte.events_endrx.reset();
+            uarte.events_rxstarted.reset();
 
             // Ensure the above is done
             compiler_fence(SeqCst);
