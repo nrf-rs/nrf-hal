@@ -60,7 +60,7 @@ pub mod rng;
 pub mod rtc;
 #[cfg(not(feature = "51"))]
 pub mod saadc;
-#[cfg(feature = "51")]
+#[cfg(not(feature = "9160"))]
 pub mod spi;
 #[cfg(not(feature = "51"))]
 pub mod spim;
