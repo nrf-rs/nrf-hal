@@ -2,13 +2,32 @@
 
 ## Unreleased
 
+### New Features
+
+- USB support ([#295]).
+- Added `Pwm::{swap_output_pin, clear_output_pin}` to allow for more flexible PWM pin management ([#335]).
+- Added an API for the NVMC peripheral ([#337]).
+
+### Enhancements
+
+- `[breaking change]` Update `rand_core` and `cortex-m` dependencies ([#332]).
+- Make the deprecated SPI peripheral available on all nRF52 chips ([#344]).
+
 ### Fixes
 
 - Fix TWIS transfer `is_done()` always returns true ([#329]).
 - Fix mistake in SPIS `Transfer` `is_done` to borrow `inner` ([#330]).
+- Fix I2S frequency mapping ([#333]).
+- `[breaking change]` Make `Pwm::set_output_pin` take the pin by-value to fix its soundness ([#335]).
 
+[#295]: https://github.com/nrf-rs/nrf-hal/pull/295
 [#329]: https://github.com/nrf-rs/nrf-hal/pull/329
 [#330]: https://github.com/nrf-rs/nrf-hal/pull/330
+[#332]: https://github.com/nrf-rs/nrf-hal/pull/332
+[#333]: https://github.com/nrf-rs/nrf-hal/pull/333
+[#335]: https://github.com/nrf-rs/nrf-hal/pull/335
+[#337]: https://github.com/nrf-rs/nrf-hal/pull/337
+[#344]: https://github.com/nrf-rs/nrf-hal/pull/344
 
 ## [0.12.2]
 
