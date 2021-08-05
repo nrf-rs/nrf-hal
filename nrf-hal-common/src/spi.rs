@@ -3,7 +3,7 @@ use core::ops::Deref;
 
 use crate::{
     gpio::{Floating, Input, Output, Pin, PushPull},
-    pac::{spi0, SPI0, SPI1},
+    pac::{spi0, SPI0},
 };
 
 pub use embedded_hal::{
@@ -71,16 +71,8 @@ where
 {
     pub fn new(spi: T, pins: Pins, frequency: Frequency, mode: Mode) -> Self {
         // Select pins.
-        spi.pselsck
-            .write(|w| unsafe { w.bits(pins.sck.pin().into()) });
-
-        // Optional pins.
-        if let Some(ref pin) = pins.mosi {
-            spi.pselmosi.write(|w| unsafe { w.bits(pin.pin().into()) });
-        }
-        if let Some(ref pin) = pins.miso {
-            spi.pselmiso.write(|w| unsafe { w.bits(pin.pin().into()) });
-        }
+        let mut spi = spi;
+        Self::set_pins(&mut spi, pins);
 
         // Enable SPI instance.
         spi.enable.write(|w| w.enable().enabled());
@@ -97,6 +89,35 @@ where
         spi.frequency.write(|w| w.frequency().variant(frequency));
 
         Self(spi)
+    }
+
+    #[cfg(feature = "51")]
+    fn set_pins(spi: &mut T, pins: Pins) {
+        spi.pselsck
+            .write(|w| unsafe { w.bits(pins.sck.pin().into()) });
+
+        // Optional pins.
+        if let Some(ref pin) = pins.mosi {
+            spi.pselmosi.write(|w| unsafe { w.bits(pin.pin().into()) });
+        }
+        if let Some(ref pin) = pins.miso {
+            spi.pselmiso.write(|w| unsafe { w.bits(pin.pin().into()) });
+        }
+    }
+
+    #[cfg(not(feature = "51"))]
+    fn set_pins(spi: &mut T, pins: Pins) {
+        spi.psel
+            .sck
+            .write(|w| unsafe { w.bits(pins.sck.pin().into()) });
+
+        // Optional pins.
+        if let Some(ref pin) = pins.mosi {
+            spi.psel.mosi.write(|w| unsafe { w.bits(pin.pin().into()) });
+        }
+        if let Some(ref pin) = pins.miso {
+            spi.psel.miso.write(|w| unsafe { w.bits(pin.pin().into()) });
+        }
     }
 
     /// Return the raw interface to the underlying SPI peripheral.
@@ -137,5 +158,12 @@ mod sealed {
 impl sealed::Sealed for SPI0 {}
 impl Instance for SPI0 {}
 
-impl sealed::Sealed for SPI1 {}
-impl Instance for SPI1 {}
+#[cfg(not(feature = "52810"))]
+impl sealed::Sealed for crate::pac::SPI1 {}
+#[cfg(not(feature = "52810"))]
+impl Instance for crate::pac::SPI1 {}
+
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+impl sealed::Sealed for crate::pac::SPI2 {}
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+impl Instance for crate::pac::SPI2 {}
