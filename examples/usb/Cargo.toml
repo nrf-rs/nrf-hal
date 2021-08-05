@@ -3,6 +3,7 @@ name = "usb"
 version = "0.1.0"
 authors = ["Jonas Schievink <jonasschievink@gmail.com>"]
 edition = "2018"
+publish = false
 
 [dependencies]
 cortex-m-rt = "0.6.12"
@@ -12,6 +13,4 @@ usb-device = "0.2.7"
 usbd-serial = "0.1.0"
 
 [dependencies.nrf52840-hal]
-version = "0.12.0"
 path = "../../nrf52840-hal"
-
