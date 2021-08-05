@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+(no changes)
+
+## [0.13.0]
+
 ### New Features
 
 - USB support ([#295]).
@@ -260,3 +264,4 @@ None
 [0.12.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.12.0
 [0.12.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.12.1
 [0.12.2]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.12.2
+[0.13.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.13.0
