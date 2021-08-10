@@ -622,17 +622,17 @@ where
         let uarte = unsafe { &*T::ptr() };
 
         // Prevent writing to buffer while DMA transfer is in progress.
-        if uarte.events_txstarted.read().bits() == 1 {
+        if uarte.events_txstarted.read().bits() == 1 && uarte.events_endtx.read().bits() == 0 {
             return Err(nb::Error::WouldBlock);
         }
 
-        if self.written < self.tx_buf.len() {
-            self.tx_buf[self.written] = b;
-            self.written += 1;
-            Ok(())
-        } else {
-            self.flush()
+        if self.written >= self.tx_buf.len() {
+            self.flush()?;
         }
+
+        self.tx_buf[self.written] = b;
+        self.written += 1;
+        Ok(())
     }
 
     /// Flush the TX buffer non-blocking. Returns nb::Error::WouldBlock if not yet flushed.
