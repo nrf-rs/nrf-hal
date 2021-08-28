@@ -47,6 +47,7 @@ fn main() -> ! {
         cdc_pins,
         uarte::Parity::EXCLUDED,
         uarte::Baudrate::BAUD115200,
+        uarte::Stopbits::ONE
     );
 
     write!(uarte, "Hello, World!\r\n").unwrap();

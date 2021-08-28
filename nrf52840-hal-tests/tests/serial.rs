@@ -29,7 +29,7 @@ mod tests {
         pac,
     };
     use nrf52840_hal::{
-        uarte::{Baudrate, Parity, Pins, Uarte},
+        uarte::{Baudrate, Parity, Pins, Stopbits, Uarte},
         Timer,
     };
 
@@ -52,7 +52,7 @@ mod tests {
             rts: None,
         };
 
-        let _uarte = Uarte::new(p.UARTE0, pins, Parity::EXCLUDED, Baudrate::BAUD9600);
+        let _uarte = Uarte::new(p.UARTE0, pins, Parity::EXCLUDED, Baudrate::BAUD9600, Stopbits::ONE);
 
         State {
             _uarte,

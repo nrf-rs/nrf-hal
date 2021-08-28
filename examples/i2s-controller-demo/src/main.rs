@@ -108,6 +108,7 @@ const APP: () = {
             },
             Parity::EXCLUDED,
             Baudrate::BAUD115200,
+            Stopbits::ONE
         );
 
         *ctx.resources.queue = Some(Queue::new());
