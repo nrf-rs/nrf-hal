@@ -326,6 +326,29 @@ impl<'c> Radio<'c> {
         }
     }
 
+    pub fn recv_async_start(&mut self, packet: &mut Packet) -> () {
+        unsafe {
+            self.start_recv(packet);
+        }
+    }
+
+    pub fn recv_async_poll(&mut self) -> bool {
+        self.radio.events_end.read().events_end().bit_is_set()
+        //self.radio.events_end.reset();
+    }
+
+    pub fn recv_async_sync(&mut self) -> Result<u16, u16> {
+        self.wait_for_event(Event::End);
+        dma_end_fence();
+
+        let crc = self.radio.rxcrc.read().rxcrc().bits() as u16;
+        if self.radio.crcstatus.read().crcstatus().bit_is_set() {
+            Ok(crc)
+        } else {
+            Err(crc)
+        }
+    }
+
     /// Listens for a packet for no longer than the specified amount of microseconds
     /// and copies its contents into the given `packet` buffer
     ///
