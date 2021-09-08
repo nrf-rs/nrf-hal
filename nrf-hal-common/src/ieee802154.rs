@@ -443,7 +443,7 @@ impl<'c> Radio<'c> {
         // configure radio to immediately start transmission if the channel is idle
         self.radio
             .shorts
-            .modify(|_, w| w.ccaidle_txen().set_bit().txready_start().set_bit());
+            .modify(|_, w| w.ccaidle_txen().set_bit().txready_start().set_bit().end_disable().set_bit());
 
         // the DMA transfer will start at some point after the following write operation so
         // we place the compiler fence here
@@ -498,7 +498,7 @@ impl<'c> Radio<'c> {
         // immediately start transmission if the channel is idle
         self.radio
             .shorts
-            .modify(|_, w| w.ccaidle_txen().set_bit().txready_start().set_bit());
+            .modify(|_, w| w.ccaidle_txen().set_bit().txready_start().set_bit().end_disable().set_bit());
 
         // the DMA transfer will start at some point after the following write operation so
         // we place the compiler fence here
@@ -563,11 +563,17 @@ impl<'c> Radio<'c> {
                 .write(|w| w.packetptr().bits(packet.buffer.as_ptr() as u32));
         }
 
+        // configure radio to disable transmitter once packet is sent
+        self.radio
+            .shorts
+            .modify(|_, w| w.end_disable().set_bit());
+
         // start DMA transfer
         dma_start_fence();
         self.radio.tasks_start.write(|w| w.tasks_start().set_bit());
 
         self.wait_for_event(Event::PhyEnd);
+        self.radio.shorts.reset();
     }
 
     /// Moves the radio from any state to the DISABLED state
