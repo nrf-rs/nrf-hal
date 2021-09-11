@@ -25,6 +25,8 @@ pub struct Radio<'c> {
     needs_enable: bool,
     // used to freeze `Clocks`
     _clocks: PhantomData<&'c ()>,
+    rxbuffer: Packet,
+    receiving: bool,
 }
 
 /// Default Clear Channel Assessment method = Carrier sense
@@ -155,6 +157,8 @@ impl<'c> Radio<'c> {
             needs_enable: false,
             radio,
             _clocks: PhantomData,
+            rxbuffer: Packet::new(),
+            receiving: false,
         };
 
         // shortcuts will be kept off by default and only be temporarily enabled within blocking
@@ -326,26 +330,45 @@ impl<'c> Radio<'c> {
         }
     }
 
-    pub fn recv_async_start(&mut self, packet: &mut Packet) -> () {
-        unsafe {
-            self.start_recv(packet);
+    pub fn recv_async(&mut self) -> nb::Result<Packet, Error> {
+        if !self.receiving {
+            unsafe {
+                // TODO: Ensure the following assumption still holds true!
+                // NOTE we do NOT check the address of `packet` because the mutable reference ensures it's
+                // allocated in RAM
+                let ptr = self.rxbuffer.buffer.as_mut_ptr() as u32;
+                self.start_recv_ptr(ptr);
+                self.receiving = true;
+            }
         }
-    }
+        if self.radio.events_end.read().events_end().bit_is_set() {
+            self.wait_for_event(Event::End);
+            dma_end_fence();
+            self.receiving = false;
 
-    pub fn recv_async_poll(&mut self) -> bool {
-        self.radio.events_end.read().events_end().bit_is_set()
-        //self.radio.events_end.reset();
-    }
+            let crc = self.radio.rxcrc.read().rxcrc().bits() as u16;
+            let crcstatus = self.radio.crcstatus.read().crcstatus().bit_is_set();
+            
+            let packet = self.rxbuffer.clone();
+            /*
+            unsafe {
+                // Data is captured into a new Packet object, re-start rx for the next one
+                // start transfer
+                dma_start_fence();
+                self.radio.tasks_start.write(|w| w.tasks_start().set_bit());
+                self.receiving = true;
+            }*/
 
-    pub fn recv_async_sync(&mut self) -> Result<u16, u16> {
-        self.wait_for_event(Event::End);
-        dma_end_fence();
+            //log::trace!("Received crc: {}, crcstatus: {}", crc, crcstatus);
+            //log::trace!("Data: {}", str::from_utf8(&*packet).expect("msg is not valid UTF-8 data"));
 
-        let crc = self.radio.rxcrc.read().rxcrc().bits() as u16;
-        if self.radio.crcstatus.read().crcstatus().bit_is_set() {
-            Ok(crc)
+            if crcstatus {
+                Ok(packet)
+            } else {
+                Err(nb::Error::Other(Error::AsyncCrc(packet, crc)))
+            }
         } else {
-            Err(crc)
+            Err(nb::Error::WouldBlock)
         }
     }
 
@@ -410,7 +433,8 @@ impl<'c> Radio<'c> {
         }
     }
 
-    unsafe fn start_recv(&mut self, packet: &mut Packet) {
+    unsafe fn start_recv_ptr(&mut self, ptr: u32) {
+        //log::trace!("start_recv_ptr({})", ptr);
         // NOTE we do NOT check the address of `packet` because the mutable reference ensures it's
         // allocated in RAM
 
@@ -424,11 +448,15 @@ impl<'c> Radio<'c> {
         // set up RX buffer
         self.radio
             .packetptr
-            .write(|w| w.packetptr().bits(packet.buffer.as_mut_ptr() as u32));
+            .write(|w| w.packetptr().bits(ptr));
 
         // start transfer
         dma_start_fence();
         self.radio.tasks_start.write(|w| w.tasks_start().set_bit());
+    }
+
+    unsafe fn start_recv(&mut self, packet: &mut Packet) {
+        self.start_recv_ptr(packet.buffer.as_mut_ptr() as u32)
     }
 
     fn cancel_recv(&mut self) {
@@ -638,6 +666,11 @@ impl<'c> Radio<'c> {
 
     /// Moves the radio to the RXIDLE state
     fn put_in_rx_mode(&mut self) {
+        if self.receiving {
+            self.cancel_recv();
+            self.receiving = false;
+        }
+
         let state = self.state();
 
         let (disable, enable) = match state {
@@ -645,6 +678,8 @@ impl<'c> Radio<'c> {
             State::RxIdle => (false, self.needs_enable),
             // NOTE to avoid errata 204 (see rev1 v1.4) we do TXIDLE -> DISABLED -> RXIDLE
             State::TxIdle => (true, true),
+            // cancel_recv above puts us in RxIdle
+            State::Rx => unreachable!(),
         };
 
         if disable {
@@ -663,6 +698,10 @@ impl<'c> Radio<'c> {
 
     /// Moves the radio to the TXIDLE state
     fn put_in_tx_mode(&mut self) {
+        if self.receiving {
+            self.cancel_recv();
+            self.receiving = false;
+        }
         let state = self.state();
 
         if state != State::TxIdle || self.needs_enable {
@@ -678,6 +717,7 @@ impl<'c> Radio<'c> {
                 STATE_A::DISABLED => State::Disabled,
                 STATE_A::TXIDLE => State::TxIdle,
                 STATE_A::RXIDLE => State::RxIdle,
+                STATE_A::RX => State::Rx,
                 _ => unreachable!(),
             }
         } else {
@@ -711,12 +751,14 @@ impl<'c> Radio<'c> {
 }
 
 /// Error
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Error {
     /// Incorrect CRC
     Crc(u16),
     /// Timeout
     Timeout,
+    /// Incorrect CRC
+    AsyncCrc(Packet, u16),
 }
 
 /// Driver state
@@ -728,6 +770,7 @@ enum State {
     Disabled,
     RxIdle,
     TxIdle,
+    Rx,
 }
 
 /// NOTE must be followed by a volatile write operation
@@ -756,6 +799,7 @@ enum Event {
 /// `copy_from_slice` methods. These methods will automatically update the PHR.
 ///
 /// See figure 119 in the Product Specification of the nRF52840 for more details
+#[derive(Debug, PartialEq)]
 pub struct Packet {
     buffer: [u8; Self::SIZE],
 }
@@ -819,6 +863,15 @@ impl Packet {
     /// this method will return an invalid value for those packets.
     pub fn lqi(&self) -> u8 {
         self.buffer[1 /* PHY_HDR */ + self.len() as usize /* data */]
+    }
+}
+
+impl Clone for Packet {
+    fn clone(&self) -> Self {
+        let mut res = Self::new();
+        res.buffer.clone_from_slice(&self.buffer);
+        //log::trace!("Packet.clone {} {}", self.len(), res.len());
+        res
     }
 }
 
