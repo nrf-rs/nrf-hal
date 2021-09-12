@@ -1,6 +1,7 @@
 //! IEEE 802.15.4 radio
 
 use core::{
+    fmt,
     marker::PhantomData,
     ops::{self, RangeFrom},
     sync::atomic::{self, Ordering},
@@ -27,6 +28,13 @@ pub struct Radio<'c> {
     _clocks: PhantomData<&'c ()>,
     rxbuffer: Packet,
     receiving: bool,
+}
+
+impl fmt::Debug for Radio<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let channel = self.radio.frequency.read().frequency().bits() / 5 + 10;
+        write!(f, "Radio(ch={})", channel)
+    }
 }
 
 /// Default Clear Channel Assessment method = Carrier sense
