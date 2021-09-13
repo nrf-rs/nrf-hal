@@ -865,6 +865,11 @@ impl Packet {
         &self.buffer[Self::DATA][..full_len]
     }
 
+    pub fn get_data_crc_included_mut(&mut self) -> &mut [u8] {
+        let full_len = self.buffer[Self::PHY_HDR] as usize;
+        &mut self.buffer[Self::DATA][..full_len]
+    }
+
     /// Returns the LQI (Link Quality Indicator) of the received packet
     ///
     /// Note that the LQI is stored in the `Packet`'s internal buffer by the hardware so the value
