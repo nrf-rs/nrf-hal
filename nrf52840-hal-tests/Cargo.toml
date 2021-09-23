@@ -29,7 +29,8 @@ name = "serial"
 harness = false
 
 [dev-dependencies]
-cortex-m = "0.7.0"
+cortex-m = "0.7.3"
+cortex-m-rt = { version = "0.6.14", features = ["device"] }
 defmt = "0.2.0"
 defmt-rtt = "0.2.0"
 defmt-test = "0.2.0"

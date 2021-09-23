@@ -8,7 +8,7 @@ use crate::pac::pwm0::*;
 use crate::pac::pwm0_ns::*;
 use crate::{
     gpio::{Output, Pin, PushPull},
-    pac::{generic::Reg, Interrupt},
+    pac::Interrupt,
     target_constants::{SRAM_LOWER, SRAM_UPPER},
     time::*,
 };
@@ -663,67 +663,67 @@ where
 
     /// Returns reference to `Stopped` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_stopped(&self) -> &Reg<u32, _EVENTS_STOPPED> {
+    pub fn event_stopped(&self) -> &EVENTS_STOPPED {
         &self.pwm.events_stopped
     }
 
     /// Returns reference to `LoopsDone` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_loops_done(&self) -> &Reg<u32, _EVENTS_LOOPSDONE> {
+    pub fn event_loops_done(&self) -> &EVENTS_LOOPSDONE {
         &self.pwm.events_loopsdone
     }
 
     /// Returns reference to `PwmPeriodEnd` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_pwm_period_end(&self) -> &Reg<u32, _EVENTS_PWMPERIODEND> {
+    pub fn event_pwm_period_end(&self) -> &EVENTS_PWMPERIODEND {
         &self.pwm.events_pwmperiodend
     }
 
     /// Returns reference to `Seq0 End` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_seq0_end(&self) -> &Reg<u32, _EVENTS_SEQEND> {
+    pub fn event_seq0_end(&self) -> &EVENTS_SEQEND {
         &self.pwm.events_seqend[0]
     }
 
     /// Returns reference to `Seq1 End` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_seq1_end(&self) -> &Reg<u32, _EVENTS_SEQEND> {
+    pub fn event_seq1_end(&self) -> &EVENTS_SEQEND {
         &self.pwm.events_seqend[1]
     }
 
     /// Returns reference to `Seq0 Started` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_seq0_started(&self) -> &Reg<u32, _EVENTS_SEQSTARTED> {
+    pub fn event_seq0_started(&self) -> &EVENTS_SEQSTARTED {
         &self.pwm.events_seqstarted[0]
     }
 
     /// Returns reference to `Seq1 Started` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_seq1_started(&self) -> &Reg<u32, _EVENTS_SEQSTARTED> {
+    pub fn event_seq1_started(&self) -> &EVENTS_SEQSTARTED {
         &self.pwm.events_seqstarted[1]
     }
 
     /// Returns reference to `Seq0 Start` task endpoint for PPI.
     #[inline(always)]
-    pub fn task_start_seq0(&self) -> &Reg<u32, _TASKS_SEQSTART> {
+    pub fn task_start_seq0(&self) -> &TASKS_SEQSTART {
         &self.pwm.tasks_seqstart[0]
     }
 
     /// Returns reference to `Seq1 Started` task endpoint for PPI.
     #[inline(always)]
-    pub fn task_start_seq1(&self) -> &Reg<u32, _TASKS_SEQSTART> {
+    pub fn task_start_seq1(&self) -> &TASKS_SEQSTART {
         &self.pwm.tasks_seqstart[1]
     }
 
     /// Returns reference to `NextStep` task endpoint for PPI.
     #[inline(always)]
-    pub fn task_next_step(&self) -> &Reg<u32, _TASKS_NEXTSTEP> {
+    pub fn task_next_step(&self) -> &TASKS_NEXTSTEP {
         &self.pwm.tasks_nextstep
     }
 
     /// Returns reference to `Stop` task endpoint for PPI.
     #[inline(always)]
-    pub fn task_stop(&self) -> &Reg<u32, _TASKS_STOP> {
+    pub fn task_stop(&self) -> &TASKS_STOP {
         &self.pwm.tasks_stop
     }
 

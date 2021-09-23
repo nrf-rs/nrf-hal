@@ -9,8 +9,7 @@
 //! On nRF52 devices, there is also a fork task endpoint, where the user can configure one more task
 //! to be triggered by the same event, even fixed PPI channels have a configurable fork task.
 
-use crate::pac::generic::Reg;
-use crate::pac::ppi::tasks_chg::{_DIS, _EN};
+use crate::pac::ppi::tasks_chg::{DIS, EN};
 use crate::pac::PPI;
 use cfg_if::cfg_if;
 
@@ -102,9 +101,9 @@ pub trait ConfigurablePpi: Ppi {
 /// Trait for a PPI channel group.
 pub trait PpiChannelGroup: PpiChannelGroupSealed {
     /// Returns reference to `tasks_chg[x].en` endpoint for enabling channel group.
-    fn task_enable(&self) -> &Reg<u32, _EN>;
+    fn task_enable(&self) -> &EN;
     /// Returns reference to `tasks_chg[x].dis` endpoint for disabling channel group.
-    fn task_disable(&self) -> &Reg<u32, _DIS>;
+    fn task_disable(&self) -> &DIS;
     /// Sets bitmask for PPI channels which shall be included in this channel group.
     fn set_channels(&self, mask: u32);
     /// Enables this channel group.
@@ -142,9 +141,7 @@ impl<P: Channel> Ppi for P {
     #[inline(always)]
     fn clear_fork_task_endpoint(&mut self) {
         let regs = unsafe { &*PPI::ptr() };
-        regs.fork[P::CH]
-            .tep
-            .write(|w| unsafe { w.bits(0) });
+        regs.fork[P::CH].tep.write(|w| unsafe { w.bits(0) });
     }
 }
 
@@ -171,12 +168,12 @@ impl<P: Channel + NotFixed> ConfigurablePpi for P {
 impl<G: ChannelGroup> PpiChannelGroupSealed for G {}
 impl<G: ChannelGroup> PpiChannelGroup for G {
     #[inline(always)]
-    fn task_enable(&self) -> &Reg<u32, _EN> {
+    fn task_enable(&self) -> &EN {
         let regs = unsafe { &*PPI::ptr() };
         &regs.tasks_chg[Self::CHG].en
     }
     #[inline(always)]
-    fn task_disable(&self) -> &Reg<u32, _DIS> {
+    fn task_disable(&self) -> &DIS {
         let regs = unsafe { &*PPI::ptr() };
         &regs.tasks_chg[Self::CHG].dis
     }

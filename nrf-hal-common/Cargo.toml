@@ -36,33 +36,33 @@ version = "1.0.2"
 default-features = false
 version = "0.2.3"
 
-[dependencies.nrf51]
+[dependencies.nrf51-pac]
 optional = true
-version = "0.9.0"
+version = "0.10.1"
 
 [dependencies.nrf52810-pac]
 optional = true
-version = "0.9.0"
+version = "0.10.1"
 
 [dependencies.nrf52811-pac]
 optional = true
-version = "0.9.0"
+version = "0.10.1"
 
 [dependencies.nrf52832-pac]
 optional = true
-version = "0.9.0"
+version = "0.10.1"
 
 [dependencies.nrf52833-pac]
 optional = true
-version = "0.9.0"
+version = "0.10.1"
 
 [dependencies.nrf52840-pac]
 optional = true
-version = "0.9.0"
+version = "0.10.1"
 
 [dependencies.nrf9160-pac]
 optional = true
-version = "0.2.1"
+version = "0.10.1"
 
 [dependencies.nrf-usbd]
 version = "0.1.0"
@@ -74,7 +74,7 @@ version = "0.2.4"
 
 [features]
 doc = []
-51 = ["nrf51"]
+51 = ["nrf51-pac"]
 52810 = ["nrf52810-pac"]
 52811 = ["nrf52811-pac"]
 52832 = ["nrf52832-pac"]

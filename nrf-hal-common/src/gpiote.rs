@@ -16,12 +16,12 @@ use {
     crate::gpio::{
         Floating, Input, Level, OpenDrain, Output, Pin, Port, PullDown, PullUp, PushPull,
     },
-    crate::pac::gpiote::{_EVENTS_IN, _EVENTS_PORT, _TASKS_OUT},
-    crate::pac::{generic::Reg, GPIOTE},
+    crate::pac::gpiote::{EVENTS_IN, EVENTS_PORT, TASKS_OUT},
+    crate::pac::GPIOTE,
 };
 
 #[cfg(not(feature = "51"))]
-use crate::pac::gpiote::{_TASKS_CLR, _TASKS_SET};
+use crate::pac::gpiote::{TASKS_CLR, TASKS_SET};
 
 #[cfg(not(feature = "51"))]
 const NUM_CHANNELS: usize = 8;
@@ -141,24 +141,24 @@ impl<'a> GpioteChannel<'_> {
     }
 
     /// Returns reference to channel event endpoint for PPI.
-    pub fn event(&self) -> &Reg<u32, _EVENTS_IN> {
+    pub fn event(&self) -> &EVENTS_IN {
         &self.gpiote.events_in[self.channel]
     }
 
     /// Returns reference to task_out endpoint for PPI.
-    pub fn task_out(&self) -> &Reg<u32, _TASKS_OUT> {
+    pub fn task_out(&self) -> &TASKS_OUT {
         &self.gpiote.tasks_out[self.channel]
     }
 
     /// Returns reference to task_clr endpoint for PPI.
     #[cfg(not(feature = "51"))]
-    pub fn task_clr(&self) -> &Reg<u32, _TASKS_CLR> {
+    pub fn task_clr(&self) -> &TASKS_CLR {
         &self.gpiote.tasks_clr[self.channel]
     }
 
     /// Returns reference to task_set endpoint for PPI.
     #[cfg(not(feature = "51"))]
-    pub fn task_set(&self) -> &Reg<u32, _TASKS_SET> {
+    pub fn task_set(&self) -> &TASKS_SET {
         &self.gpiote.tasks_set[self.channel]
     }
 }
@@ -189,7 +189,7 @@ impl<'a> GpiotePort<'_> {
         self.gpiote.events_port.write(|w| w);
     }
     /// Returns reference to port event endpoint for PPI.
-    pub fn event(&self) -> &Reg<u32, _EVENTS_PORT> {
+    pub fn event(&self) -> &EVENTS_PORT {
         &self.gpiote.events_port
     }
 }
@@ -223,20 +223,12 @@ impl<'a, P: GpioteInputPin> GpioteChannelEvent<'_, P> {
     }
     /// Enables GPIOTE interrupt for channel.
     pub fn enable_interrupt(&self) -> &Self {
-        unsafe {
-            self.gpiote
-                .intenset
-                .write(|w| w.bits(1 << self.channel))
-        }
+        unsafe { self.gpiote.intenset.write(|w| w.bits(1 << self.channel)) }
         self
     }
     /// Disables GPIOTE interrupt for channel.
     pub fn disable_interrupt(&self) -> &Self {
-        unsafe {
-            self.gpiote
-                .intenclr
-                .write(|w| w.bits(1 << self.channel))
-        }
+        unsafe { self.gpiote.intenclr.write(|w| w.bits(1 << self.channel)) }
         self
     }
 }

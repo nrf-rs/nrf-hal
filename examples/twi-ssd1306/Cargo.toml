@@ -9,7 +9,7 @@ edition = "2018"
 publish = false
 
 [dependencies]
-cortex-m-rt = "0.6.12"
+cortex-m-rt = "0.7.0"
 ssd1306 = "0.2.6"
 embedded-graphics = "0.4.7"
 panic-semihosting = "0.5.3"

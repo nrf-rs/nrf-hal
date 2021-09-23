@@ -19,7 +19,7 @@ keywords = ["arm", "cortex-m", "nrf52", "hal", "nrf51"]
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-nrf51 = "0.9.0"
+nrf51-pac = "0.10.1"
 
 [dependencies.nrf-hal-common]
 path = "../nrf-hal-common"
@@ -33,7 +33,7 @@ version = "0.2.3"
 
 [features]
 doc = []
-rt = ["nrf51/rt"]
+rt = ["nrf51-pac/rt"]
 # Note: We use the xxAB package by default because it has the least amount of available resources.
 default = ["rt", "xxAB-package"]
 xxAA-package = []

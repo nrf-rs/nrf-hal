@@ -8,8 +8,8 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cortex-m = "0.6.2"
-cortex-m-rt = "0.6.12"
+cortex-m = "0.7.3"
+cortex-m-rt = "0.7.0"
 
 [dependencies.embedded-hal]
 version = "0.2.3"
