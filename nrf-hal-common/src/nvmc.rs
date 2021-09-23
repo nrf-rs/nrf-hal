@@ -99,7 +99,7 @@ where
 
     const READ_SIZE: usize = 4;
 
-    fn try_read(&mut self, offset: u32, bytes: &mut [u8]) -> Result<(), Self::Error> {
+    fn read(&mut self, offset: u32, bytes: &mut [u8]) -> Result<(), Self::Error> {
         let offset = offset as usize;
         let bytes_len = bytes.len();
         let read_len = bytes_len + (Self::READ_SIZE - (bytes_len % Self::READ_SIZE));
@@ -151,7 +151,7 @@ where
 
     const ERASE_SIZE: usize = 4 * 1024;
 
-    fn try_erase(&mut self, from: u32, to: u32) -> Result<(), Self::Error> {
+    fn erase(&mut self, from: u32, to: u32) -> Result<(), Self::Error> {
         if from as usize % Self::ERASE_SIZE == 0 && to as usize % Self::ERASE_SIZE == 0 {
             self.enable_erase();
             for offset in (from..to).step_by(Self::ERASE_SIZE) {
@@ -164,7 +164,7 @@ where
         }
     }
 
-    fn try_write(&mut self, offset: u32, bytes: &[u8]) -> Result<(), Self::Error> {
+    fn write(&mut self, offset: u32, bytes: &[u8]) -> Result<(), Self::Error> {
         let offset = offset as usize;
         if offset % Self::WRITE_SIZE == 0 && bytes.len() % Self::WRITE_SIZE == 0 {
             self.enable_write();

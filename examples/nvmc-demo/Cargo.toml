@@ -10,7 +10,7 @@ publish = false
 [dependencies]
 cortex-m = "0.7.3"
 cortex-m-rt = "0.7.0"
-embedded-storage = "0.1.0"
+embedded-storage = "0.2.0"
 rtt-target = {version = "0.2.0", features = ["cortex-m"] }
 
 [dependencies.embedded-hal]

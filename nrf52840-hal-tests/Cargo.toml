@@ -34,7 +34,7 @@ cortex-m-rt = { version = "0.6.14", features = ["device"] }
 defmt = "0.2.0"
 defmt-rtt = "0.2.0"
 defmt-test = "0.2.0"
-embedded-storage = "0.1.0"
+embedded-storage = "0.2.0"
 nrf52840-hal = { path = "../nrf52840-hal" }
 panic-probe = { version = "0.2.0", features = ["print-defmt"] }
 
