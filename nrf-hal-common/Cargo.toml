@@ -34,7 +34,7 @@ version = "1.0.2"
 
 [dependencies.cast]
 default-features = false
-version = "0.2.3"
+version = "0.3.0"
 
 [dependencies.nrf51-pac]
 optional = true
