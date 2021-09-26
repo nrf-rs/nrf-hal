@@ -85,6 +85,8 @@ pub mod uicr;
 #[cfg(feature = "nrf-usbd")]
 pub mod usbd;
 pub mod wdt;
+#[cfg(feature = "52840")]
+pub mod pdm;
 
 pub mod prelude {
     pub use crate::hal::digital::v2::*;
