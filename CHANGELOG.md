@@ -4,6 +4,24 @@
 
 (no changes)
 
+## [0.14.0]
+
+### New Features
+
+- Implement `embedded_hal::serial` traits for UARTE ([#343]).
+
+### Enhancements
+
+- Update PACs and other dependencies ([#357]).
+
+### Fixes
+
+- IEEE 802.15.4: automatically disable radio after transmission ([#356]).
+
+[#343]: https://github.com/nrf-rs/nrf-hal/pull/343
+[#356]: https://github.com/nrf-rs/nrf-hal/pull/356
+[#357]: https://github.com/nrf-rs/nrf-hal/pull/357
+
 ## [0.13.0]
 
 ### New Features
@@ -265,3 +283,4 @@ None
 [0.12.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.12.1
 [0.12.2]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.12.2
 [0.13.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.13.0
+[0.14.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.14.0
