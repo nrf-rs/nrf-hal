@@ -7,13 +7,12 @@ use crate::pac::{i2s, I2S as I2S_PAC};
 use crate::pac::{i2s_ns as i2s, I2S_NS as I2S_PAC};
 use crate::{
     gpio::{Floating, Input, Output, Pin, PushPull},
-    pac::generic::Reg,
     target_constants::{SRAM_LOWER, SRAM_UPPER},
 };
 use core::sync::atomic::{compiler_fence, Ordering};
 use embedded_dma::*;
 
-use i2s::{_EVENTS_RXPTRUPD, _EVENTS_STOPPED, _EVENTS_TXPTRUPD, _TASKS_START, _TASKS_STOP};
+use i2s::{EVENTS_RXPTRUPD, EVENTS_STOPPED, EVENTS_TXPTRUPD, TASKS_START, TASKS_STOP};
 
 pub struct I2S {
     i2s: I2S_PAC,
@@ -424,31 +423,31 @@ impl I2S {
 
     /// Returns reference to `Stopped` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_stopped(&self) -> &Reg<u32, _EVENTS_STOPPED> {
+    pub fn event_stopped(&self) -> &EVENTS_STOPPED {
         &self.i2s.events_stopped
     }
 
     /// Returns reference to `RxPtrUpdated` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_rx_ptr_updated(&self) -> &Reg<u32, _EVENTS_RXPTRUPD> {
+    pub fn event_rx_ptr_updated(&self) -> &EVENTS_RXPTRUPD {
         &self.i2s.events_rxptrupd
     }
 
     /// Returns reference to `TxPtrUpdated` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_tx_ptr_updated(&self) -> &Reg<u32, _EVENTS_TXPTRUPD> {
+    pub fn event_tx_ptr_updated(&self) -> &EVENTS_TXPTRUPD {
         &self.i2s.events_txptrupd
     }
 
     /// Returns reference to `Start` task endpoint for PPI.
     #[inline(always)]
-    pub fn task_start(&self) -> &Reg<u32, _TASKS_START> {
+    pub fn task_start(&self) -> &TASKS_START {
         &self.i2s.tasks_start
     }
 
     /// Returns reference to `Stop` task endpoint for PPI.
     #[inline(always)]
-    pub fn task_stop(&self) -> &Reg<u32, _TASKS_STOP> {
+    pub fn task_stop(&self) -> &TASKS_STOP {
         &self.i2s.tasks_stop
     }
 

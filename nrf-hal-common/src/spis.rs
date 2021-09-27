@@ -10,14 +10,14 @@ use core::{
 #[cfg(feature = "9160")]
 use crate::pac::{
     spis0_ns::{
-        self as spis0, _EVENTS_ACQUIRED, _EVENTS_END, _EVENTS_ENDRX, _TASKS_ACQUIRE, _TASKS_RELEASE,
+        self as spis0, EVENTS_ACQUIRED, EVENTS_END, EVENTS_ENDRX, TASKS_ACQUIRE, TASKS_RELEASE,
     },
     SPIS0_NS as SPIS0,
 };
 
 #[cfg(not(feature = "9160"))]
 use crate::pac::{
-    spis0::{self, _EVENTS_ACQUIRED, _EVENTS_END, _EVENTS_ENDRX, _TASKS_ACQUIRE, _TASKS_RELEASE},
+    spis0::{self, EVENTS_ACQUIRED, EVENTS_END, EVENTS_ENDRX, TASKS_ACQUIRE, TASKS_RELEASE},
     SPIS0,
 };
 
@@ -29,7 +29,7 @@ use crate::pac::{SPIS1, SPIS2};
 
 use crate::{
     gpio::{Floating, Input, Pin},
-    pac::{generic::Reg, Interrupt},
+    pac::Interrupt,
     target_constants::{EASY_DMA_SIZE, SRAM_LOWER, SRAM_UPPER},
 };
 use embedded_dma::*;
@@ -285,31 +285,31 @@ where
 
     /// Returns reference to `Acquired` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_acquired(&self) -> &Reg<u32, _EVENTS_ACQUIRED> {
+    pub fn event_acquired(&self) -> &EVENTS_ACQUIRED {
         &self.spis.events_acquired
     }
 
     /// Returns reference to `End` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_end(&self) -> &Reg<u32, _EVENTS_END> {
+    pub fn event_end(&self) -> &EVENTS_END {
         &self.spis.events_end
     }
 
     /// Returns reference to `EndRx` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_end_rx(&self) -> &Reg<u32, _EVENTS_ENDRX> {
+    pub fn event_end_rx(&self) -> &EVENTS_ENDRX {
         &self.spis.events_endrx
     }
 
     /// Returns reference to `Acquire` task endpoint for PPI.
     #[inline(always)]
-    pub fn task_acquire(&self) -> &Reg<u32, _TASKS_ACQUIRE> {
+    pub fn task_acquire(&self) -> &TASKS_ACQUIRE {
         &self.spis.tasks_acquire
     }
 
     /// Returns reference to `Release` task endpoint for PPI.
     #[inline(always)]
-    pub fn task_release(&self) -> &Reg<u32, _TASKS_RELEASE> {
+    pub fn task_release(&self) -> &TASKS_RELEASE {
         &self.spis.tasks_release
     }
 

@@ -16,13 +16,13 @@ use crate::pac::{twis0, P0, TWIS0};
 use crate::pac::TWIS1;
 
 use twis0::{
-    _EVENTS_ERROR, _EVENTS_READ, _EVENTS_RXSTARTED, _EVENTS_STOPPED, _EVENTS_TXSTARTED,
-    _EVENTS_WRITE, _TASKS_PREPARERX, _TASKS_PREPARETX, _TASKS_RESUME, _TASKS_STOP, _TASKS_SUSPEND,
+    EVENTS_ERROR, EVENTS_READ, EVENTS_RXSTARTED, EVENTS_STOPPED, EVENTS_TXSTARTED, EVENTS_WRITE,
+    TASKS_PREPARERX, TASKS_PREPARETX, TASKS_RESUME, TASKS_STOP, TASKS_SUSPEND,
 };
 
 use crate::{
     gpio::{Floating, Input, Pin},
-    pac::{generic::Reg, Interrupt},
+    pac::Interrupt,
     slice_in_ram_or,
     target_constants::{EASY_DMA_SIZE, SRAM_LOWER, SRAM_UPPER},
 };
@@ -218,67 +218,67 @@ where
 
     /// Returns reference to `READ` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_read(&self) -> &Reg<u32, _EVENTS_READ> {
+    pub fn event_read(&self) -> &EVENTS_READ {
         &self.0.events_read
     }
 
     /// Returns reference to `WRITE` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_write(&self) -> &Reg<u32, _EVENTS_WRITE> {
+    pub fn event_write(&self) -> &EVENTS_WRITE {
         &self.0.events_write
     }
 
     /// Returns reference to `STOPPED` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_stopped(&self) -> &Reg<u32, _EVENTS_STOPPED> {
+    pub fn event_stopped(&self) -> &EVENTS_STOPPED {
         &self.0.events_stopped
     }
 
     /// Returns reference to `ERROR` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_error(&self) -> &Reg<u32, _EVENTS_ERROR> {
+    pub fn event_error(&self) -> &EVENTS_ERROR {
         &self.0.events_error
     }
 
     /// Returns reference to `RXSTARTED` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_rx_started(&self) -> &Reg<u32, _EVENTS_RXSTARTED> {
+    pub fn event_rx_started(&self) -> &EVENTS_RXSTARTED {
         &self.0.events_rxstarted
     }
 
     /// Returns reference to `TXSTARTED` event endpoint for PPI.
     #[inline(always)]
-    pub fn event_tx_started(&self) -> &Reg<u32, _EVENTS_TXSTARTED> {
+    pub fn event_tx_started(&self) -> &EVENTS_TXSTARTED {
         &self.0.events_txstarted
     }
 
     /// Returns reference to `STOP` task endpoint for PPI.
     #[inline(always)]
-    pub fn task_stop(&self) -> &Reg<u32, _TASKS_STOP> {
+    pub fn task_stop(&self) -> &TASKS_STOP {
         &self.0.tasks_stop
     }
 
     /// Returns reference to `SUSPEND` task endpoint for PPI.
     #[inline(always)]
-    pub fn task_suspend(&self) -> &Reg<u32, _TASKS_SUSPEND> {
+    pub fn task_suspend(&self) -> &TASKS_SUSPEND {
         &self.0.tasks_suspend
     }
 
     /// Returns reference to `RESUME` task endpoint for PPI.
     #[inline(always)]
-    pub fn task_resume(&self) -> &Reg<u32, _TASKS_RESUME> {
+    pub fn task_resume(&self) -> &TASKS_RESUME {
         &self.0.tasks_resume
     }
 
     /// Returns reference to `PREPARERX` task endpoint for PPI.
     #[inline(always)]
-    pub fn task_prepare_rx(&self) -> &Reg<u32, _TASKS_PREPARERX> {
+    pub fn task_prepare_rx(&self) -> &TASKS_PREPARERX {
         &self.0.tasks_preparerx
     }
 
     /// Returns reference to `PREPARETX` task endpoint for PPI.
     #[inline(always)]
-    pub fn task_prepare_tx(&self) -> &Reg<u32, _TASKS_PREPARETX> {
+    pub fn task_prepare_tx(&self) -> &TASKS_PREPARETX {
         &self.0.tasks_preparetx
     }
 

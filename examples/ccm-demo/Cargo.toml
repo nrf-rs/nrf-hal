@@ -6,8 +6,8 @@ authors = [ "Thales Fragoso <thales.fragosoz@gmail.com>"]
 publish = false
 
 [dependencies]
-cortex-m = "0.6.2"
-cortex-m-rt = "0.6.12"
+cortex-m = "0.7.3"
+cortex-m-rt = "0.7.0"
 rtt-target = {version = "0.2.0", features = ["cortex-m"] }
 rand_core = "0.6.3"
 

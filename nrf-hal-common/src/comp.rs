@@ -7,8 +7,7 @@
 use {
     crate::gpio::{p0::*, Floating, Input},
     crate::pac::{
-        comp::{extrefsel::EXTREFSEL_A, psel::PSEL_A, _EVENTS_CROSS, _EVENTS_DOWN, _EVENTS_UP},
-        generic::Reg,
+        comp::{extrefsel::EXTREFSEL_A, psel::PSEL_A, EVENTS_CROSS, EVENTS_DOWN, EVENTS_UP},
         COMP,
     },
 };
@@ -157,19 +156,19 @@ impl Comp {
 
     /// Returns reference to `Up` transition event endpoint for PPI.
     #[inline(always)]
-    pub fn event_up(&self) -> &Reg<u32, _EVENTS_UP> {
+    pub fn event_up(&self) -> &EVENTS_UP {
         &self.comp.events_up
     }
 
     /// Returns reference to `Down` transition event endpoint for PPI.
     #[inline(always)]
-    pub fn event_down(&self) -> &Reg<u32, _EVENTS_DOWN> {
+    pub fn event_down(&self) -> &EVENTS_DOWN {
         &self.comp.events_down
     }
 
     /// Returns reference to `Cross` transition event endpoint for PPI.
     #[inline(always)]
-    pub fn event_cross(&self) -> &Reg<u32, _EVENTS_CROSS> {
+    pub fn event_cross(&self) -> &EVENTS_CROSS {
         &self.comp.events_cross
     }
 

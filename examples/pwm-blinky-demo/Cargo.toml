@@ -7,8 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cortex-m = "0.6.2"
-cortex-m-rt = "0.6.12"
+cortex-m = "0.7.3"
+cortex-m-rt = "0.7.0"
 rtt-target = {version = "0.2.0", features = ["cortex-m"] }
 nb = "1.0.0"
 

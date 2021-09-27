@@ -7,7 +7,7 @@
 use embedded_hal as hal;
 
 #[cfg(feature = "51")]
-pub use nrf51 as pac;
+pub use nrf51_pac as pac;
 
 #[cfg(feature = "52810")]
 pub use nrf52810_pac as pac;

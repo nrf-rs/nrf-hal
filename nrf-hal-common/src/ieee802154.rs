@@ -11,7 +11,6 @@ use embedded_hal::timer::CountDown as _;
 use crate::{
     clocks::{Clocks, ExternalOscillator},
     pac::{
-        generic::Variant,
         radio::{state::STATE_A, txpower::TXPOWER_A},
         RADIO,
     },
@@ -441,9 +440,14 @@ impl<'c> Radio<'c> {
         }
 
         // configure radio to immediately start transmission if the channel is idle
-        self.radio
-            .shorts
-            .modify(|_, w| w.ccaidle_txen().set_bit().txready_start().set_bit().end_disable().set_bit());
+        self.radio.shorts.modify(|_, w| {
+            w.ccaidle_txen()
+                .set_bit()
+                .txready_start()
+                .set_bit()
+                .end_disable()
+                .set_bit()
+        });
 
         // the DMA transfer will start at some point after the following write operation so
         // we place the compiler fence here
@@ -496,9 +500,14 @@ impl<'c> Radio<'c> {
         self.radio.events_end.reset();
 
         // immediately start transmission if the channel is idle
-        self.radio
-            .shorts
-            .modify(|_, w| w.ccaidle_txen().set_bit().txready_start().set_bit().end_disable().set_bit());
+        self.radio.shorts.modify(|_, w| {
+            w.ccaidle_txen()
+                .set_bit()
+                .txready_start()
+                .set_bit()
+                .end_disable()
+                .set_bit()
+        });
 
         // the DMA transfer will start at some point after the following write operation so
         // we place the compiler fence here
@@ -564,9 +573,7 @@ impl<'c> Radio<'c> {
         }
 
         // configure radio to disable transmitter once packet is sent
-        self.radio
-            .shorts
-            .modify(|_, w| w.end_disable().set_bit());
+        self.radio.shorts.modify(|_, w| w.end_disable().set_bit());
 
         // start DMA transfer
         dma_start_fence();
@@ -580,41 +587,36 @@ impl<'c> Radio<'c> {
     fn disable(&mut self) {
         // See figure 110 in nRF52840-PS
         loop {
-            if let Variant::Val(state) = self.radio.state.read().state().variant() {
-                match state {
-                    STATE_A::DISABLED => return,
+            match self.radio.state.read().state().variant().unwrap() {
+                STATE_A::DISABLED => return,
 
-                    STATE_A::RXRU | STATE_A::RXIDLE | STATE_A::TXRU | STATE_A::TXIDLE => {
-                        self.radio
-                            .tasks_disable
-                            .write(|w| w.tasks_disable().set_bit());
+                STATE_A::RXRU | STATE_A::RXIDLE | STATE_A::TXRU | STATE_A::TXIDLE => {
+                    self.radio
+                        .tasks_disable
+                        .write(|w| w.tasks_disable().set_bit());
 
-                        self.wait_for_state_a(STATE_A::DISABLED);
-                        return;
-                    }
-
-                    // ramping down
-                    STATE_A::RXDISABLE | STATE_A::TXDISABLE => {
-                        self.wait_for_state_a(STATE_A::DISABLED);
-                        return;
-                    }
-
-                    // cancel ongoing transfer or ongoing CCA
-                    STATE_A::RX => {
-                        self.radio
-                            .tasks_ccastop
-                            .write(|w| w.tasks_ccastop().set_bit());
-                        self.radio.tasks_stop.write(|w| w.tasks_stop().set_bit());
-                        self.wait_for_state_a(STATE_A::RXIDLE);
-                    }
-                    STATE_A::TX => {
-                        self.radio.tasks_stop.write(|w| w.tasks_stop().set_bit());
-                        self.wait_for_state_a(STATE_A::TXIDLE);
-                    }
+                    self.wait_for_state_a(STATE_A::DISABLED);
+                    return;
                 }
-            } else {
-                // STATE register is in an invalid state
-                unreachable!()
+
+                // ramping down
+                STATE_A::RXDISABLE | STATE_A::TXDISABLE => {
+                    self.wait_for_state_a(STATE_A::DISABLED);
+                    return;
+                }
+
+                // cancel ongoing transfer or ongoing CCA
+                STATE_A::RX => {
+                    self.radio
+                        .tasks_ccastop
+                        .write(|w| w.tasks_ccastop().set_bit());
+                    self.radio.tasks_stop.write(|w| w.tasks_stop().set_bit());
+                    self.wait_for_state_a(STATE_A::RXIDLE);
+                }
+                STATE_A::TX => {
+                    self.radio.tasks_stop.write(|w| w.tasks_stop().set_bit());
+                    self.wait_for_state_a(STATE_A::TXIDLE);
+                }
             }
         }
     }
@@ -656,15 +658,11 @@ impl<'c> Radio<'c> {
     }
 
     fn state(&self) -> State {
-        if let Variant::Val(state) = self.radio.state.read().state().variant() {
-            match state {
-                STATE_A::DISABLED => State::Disabled,
-                STATE_A::TXIDLE => State::TxIdle,
-                STATE_A::RXIDLE => State::RxIdle,
-                _ => unreachable!(),
-            }
-        } else {
-            unreachable!()
+        match self.radio.state.read().state().variant().unwrap() {
+            STATE_A::DISABLED => State::Disabled,
+            STATE_A::TXIDLE => State::TxIdle,
+            STATE_A::RXIDLE => State::RxIdle,
+            _ => unreachable!(),
         }
     }
 
@@ -689,7 +687,7 @@ impl<'c> Radio<'c> {
 
     /// Waits until the radio state matches the given `state`
     fn wait_for_state_a(&self, state: STATE_A) {
-        while self.radio.state.read().state() != state {}
+        while self.radio.state.read().state().variant().unwrap() != state {}
     }
 }
 

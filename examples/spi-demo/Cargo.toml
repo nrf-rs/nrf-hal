@@ -6,7 +6,7 @@ edition = "2018"
 publish = false
 
 [dependencies]
-cortex-m-rt = "0.6.5"
+cortex-m-rt = "0.7.0"
 panic-halt = "0.2.0"
 embedded-hal-spy = "0.0.3"
 
