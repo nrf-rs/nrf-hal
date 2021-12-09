@@ -30,22 +30,10 @@ harness = false
 
 [dev-dependencies]
 cortex-m = "0.7.3"
-cortex-m-rt = { version = "0.6.14", features = ["device"] }
-defmt = "0.2.0"
-defmt-rtt = "0.2.0"
-defmt-test = "0.2.0"
+cortex-m-rt = { version = "0.7.1", features = ["device"] }
+defmt = "0.3.0"
+defmt-rtt = "0.3.0"
+defmt-test = "0.3.0"
 embedded-storage = "0.2.0"
 nrf52840-hal = { path = "../nrf52840-hal" }
-panic-probe = { version = "0.2.0", features = ["print-defmt"] }
-
-[features]
-# enable all defmt logging levels
-default = ["defmt-trace"]
-
-# do not modify these features
-defmt-default = []
-defmt-trace = []
-defmt-debug = []
-defmt-info = []
-defmt-warn = []
-defmt-error = []
+panic-probe = { version = "0.3.0", features = ["print-defmt"] }
