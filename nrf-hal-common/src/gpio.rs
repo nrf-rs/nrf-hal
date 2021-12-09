@@ -541,6 +541,12 @@ macro_rules! gpio {
                     }
                 }
 
+                impl<MODE> From<$PXi<MODE>> for Pin<MODE> {
+                    fn from(value: $PXi<MODE>) -> Self {
+                        value.degrade()
+                    }
+                }
+
                 impl<MODE> OutputPin for $PXi<Output<MODE>> {
                     type Error = Void;
 
