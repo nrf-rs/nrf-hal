@@ -37,6 +37,9 @@ pub enum Level {
 pub enum Port {
     /// Port 0, available on all nRF52 and nRF51 MCUs.
     Port0,
+    /// Port 0 Secure, available on nRF53 and nRF9
+    #[cfg(any(feature = "5340-app"))]
+    Port0Secure,
 
     /// Port 1, only available on some nRF52 MCUs.
     #[cfg(any(feature = "52833", feature = "52840"))]
@@ -60,10 +63,13 @@ pub struct Pin<MODE> {
 #[cfg(feature = "51")]
 use crate::pac::{gpio, GPIO as P0};
 
-#[cfg(feature = "9160")]
+#[cfg(any(feature = "5340-app", feature = "9160"))]
 use crate::pac::{p0_ns as gpio, P0_NS as P0};
 
-#[cfg(not(any(feature = "9160", feature = "51")))]
+#[cfg(feature = "5340-app")]
+use crate::pac::P0_S;
+
+#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "51")))]
 use crate::pac::{p0 as gpio, P0};
 
 #[cfg(any(feature = "52833", feature = "52840"))]
@@ -76,6 +82,8 @@ impl<MODE> Pin<MODE> {
     fn new(port: Port, pin: u8) -> Self {
         let port_bits = match port {
             Port::Port0 => 0x00,
+            #[cfg(any(feature = "5340-app"))]
+            Port::Port0Secure => 0x20,
             #[cfg(any(feature = "52833", feature = "52840"))]
             Port::Port1 => 0x20,
         };
@@ -94,12 +102,12 @@ impl<MODE> Pin<MODE> {
 
     #[inline]
     pub fn pin(&self) -> u8 {
-        #[cfg(any(feature = "52833", feature = "52840"))]
+        #[cfg(any(feature = "52833", feature = "52840", feature = "5340-app"))]
         {
             self.pin_port & 0x1f
         }
 
-        #[cfg(not(any(feature = "52833", feature = "52840")))]
+        #[cfg(not(any(feature = "52833", feature = "52840", feature = "5340-app")))]
         {
             self.pin_port
         }
@@ -116,7 +124,16 @@ impl<MODE> Pin<MODE> {
             }
         }
 
-        #[cfg(not(any(feature = "52833", feature = "52840")))]
+        #[cfg(any(feature = "5340-app"))]
+        {
+            if self.pin_port & 0x20 == 0 {
+                Port::Port0
+            } else {
+                Port::Port0Secure
+            }
+        }
+
+        #[cfg(not(any(feature = "52833", feature = "52840", feature = "5340-app")))]
         {
             Port::Port0
         }
@@ -130,6 +147,8 @@ impl<MODE> Pin<MODE> {
     fn block(&self) -> &gpio::RegisterBlock {
         let ptr = match self.port() {
             Port::Port0 => P0::ptr(),
+            #[cfg(any(feature = "5340-app"))]
+            Port::Port0Secure => P0_S::ptr(),
             #[cfg(any(feature = "52833", feature = "52840"))]
             Port::Port1 => P1::ptr(),
         };
@@ -320,10 +339,10 @@ pub enum OpenDrainConfig {
 #[cfg(feature = "51")]
 use crate::pac::gpio::pin_cnf;
 
-#[cfg(feature = "9160")]
+#[cfg(any(feature = "5340-app", feature = "9160"))]
 use crate::pac::p0_ns::pin_cnf;
 
-#[cfg(not(any(feature = "9160", feature = "51")))]
+#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "51")))]
 use crate::pac::p0::pin_cnf;
 
 impl OpenDrainConfig {
@@ -640,4 +659,40 @@ gpio!(P1, p0, p1, Port::Port1, [
     P1_13: (p1_13, 13, Disconnected),
     P1_14: (p1_14, 14, Disconnected),
     P1_15: (p1_15, 15, Disconnected),
+]);
+
+#[cfg(any(feature = "5340-app"))]
+gpio!(P0_S, p0, p0_s, Port::Port0Secure, [
+    P0_00: (p0_00,  0, Disconnected),
+    P0_01: (p0_01,  1, Disconnected),
+    P0_02: (p0_02,  2, Disconnected),
+    P0_03: (p0_03,  3, Disconnected),
+    P0_04: (p0_04,  4, Disconnected),
+    P0_05: (p0_05,  5, Disconnected),
+    P0_06: (p0_06,  6, Disconnected),
+    P0_07: (p0_07,  7, Disconnected),
+    P0_08: (p0_08,  8, Disconnected),
+    P0_09: (p0_09,  9, Disconnected),
+    P0_10: (p0_10, 10, Disconnected),
+    P0_11: (p0_11, 11, Disconnected),
+    P0_12: (p0_12, 12, Disconnected),
+    P0_13: (p0_13, 13, Disconnected),
+    P0_14: (p0_14, 14, Disconnected),
+    P0_15: (p0_15, 15, Disconnected),
+    P0_16: (p0_16, 16, Disconnected),
+    P0_17: (p0_17, 17, Disconnected),
+    P0_18: (p0_18, 18, Disconnected),
+    P0_19: (p0_19, 19, Disconnected),
+    P0_20: (p0_20, 20, Disconnected),
+    P0_21: (p0_21, 21, Disconnected),
+    P0_22: (p0_22, 22, Disconnected),
+    P0_23: (p0_23, 23, Disconnected),
+    P0_24: (p0_24, 24, Disconnected),
+    P0_25: (p0_25, 25, Disconnected),
+    P0_26: (p0_26, 26, Disconnected),
+    P0_27: (p0_27, 27, Disconnected),
+    P0_28: (p0_28, 28, Disconnected),
+    P0_29: (p0_29, 29, Disconnected),
+    P0_30: (p0_30, 30, Disconnected),
+    P0_31: (p0_31, 31, Disconnected),
 ]);

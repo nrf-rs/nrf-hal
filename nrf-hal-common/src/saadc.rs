@@ -26,10 +26,10 @@
 //! let _saadc_result = saadc.read(&mut saadc_pin);
 //! ```
 
-#[cfg(feature = "9160")]
+#[cfg(any(feature = "9160", feature = "5340-app"))]
 use crate::pac::{saadc_ns as saadc, SAADC_NS as SAADC};
 
-#[cfg(not(feature = "9160"))]
+#[cfg(not(any(feature = "9160", feature = "5340-app")))]
 use crate::pac::{saadc, SAADC};
 
 use core::{

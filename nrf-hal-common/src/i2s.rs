@@ -1,8 +1,10 @@
 //! HAL interface for the I2S peripheral.
 //!
 
-#[cfg(not(feature = "9160"))]
+#[cfg(not(any(feature = "5340-app", feature = "9160")))]
 use crate::pac::{i2s, I2S as I2S_PAC};
+#[cfg(feature = "5340-app")]
+use crate::pac::{i2s0_ns as i2s, I2S0_NS as I2S_PAC};
 #[cfg(feature = "9160")]
 use crate::pac::{i2s_ns as i2s, I2S_NS as I2S_PAC};
 use crate::{

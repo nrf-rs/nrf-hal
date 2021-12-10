@@ -7,12 +7,12 @@
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
-#[cfg(feature = "9160")]
+#[cfg(any(feature = "9160", feature = "5340-app"))]
 use crate::pac::{
     twim0_ns as twim0, TWIM0_NS as TWIM0, TWIM1_NS as TWIM1, TWIM2_NS as TWIM2, TWIM3_NS as TWIM3,
 };
 
-#[cfg(not(feature = "9160"))]
+#[cfg(not(any(feature = "9160", feature = "5340-app")))]
 use crate::pac::{twim0, TWIM0};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
@@ -473,7 +473,8 @@ impl Instance for TWIM0 {}
     feature = "52832",
     feature = "52833",
     feature = "52840",
-    feature = "9160"
+    feature = "9160",
+    feature = "5340-app",
 ))]
 mod _twim1 {
     use super::*;
@@ -481,14 +482,14 @@ mod _twim1 {
     impl Instance for TWIM1 {}
 }
 
-#[cfg(feature = "9160")]
+#[cfg(any(feature = "9160", feature = "5340-app"))]
 mod _twim2 {
     use super::*;
     impl sealed::Sealed for TWIM2 {}
     impl Instance for TWIM2 {}
 }
 
-#[cfg(feature = "9160")]
+#[cfg(any(feature = "9160", feature = "5340-app"))]
 mod _twim3 {
     use super::*;
     impl sealed::Sealed for TWIM3 {}
