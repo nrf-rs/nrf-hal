@@ -200,7 +200,12 @@ impl I2S {
         self.i2s
             .config
             .swidth
-            .write(|w| unsafe { w.swidth().bits(width.into()) });
+            .write(|w| {
+                   #[cfg(not(feature = "5340-app"))]
+                   unsafe { w.swidth().bits(width.into()) }
+                   #[cfg(feature = "5340-app")]
+                   w.swidth().bits(width.into())
+            });
         self
     }
 
