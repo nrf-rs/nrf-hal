@@ -7,6 +7,7 @@ members = [
   "nrf52833-hal",
   "nrf52840-hal",
   "nrf52840-hal-tests",
+  "nrf5340-app-hal",
   "nrf9160-hal",
   "examples/*",
 ]
