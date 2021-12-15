@@ -1,0 +1,34 @@
+[package]
+name = "nrf5340-app-hal"
+version = "0.14.0"
+description = "HAL for nRF5340 app SoC"
+readme = "../README.md"
+
+repository = "https://github.com/nrf-rs/nrf-hal"
+authors = [
+    "Jonathan Pallant (42 Technology) <jonathan.pallant@42technology.com>",
+    "Sascha Wise <me@saschawise.com"
+]
+
+categories = ["embedded", "hardware-support", "no-std"]
+keywords = ["arm", "cortex-m", "nrf53", "hal", "nrf5340"]
+license = "MIT OR Apache-2.0"
+edition = "2018"
+
+[dependencies]
+nrf5340-app-pac = "0.10.1"
+
+[dependencies.nrf-hal-common]
+path = "../nrf-hal-common"
+default-features = false
+features = ["5340-app"]
+version = "=0.14.0"
+
+[dependencies.embedded-hal]
+features = ["unproven"]
+version = "0.2.3"
+
+[features]
+doc = []
+rt = ["nrf5340-app-pac/rt"]
+default = ["rt"]

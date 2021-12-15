@@ -60,6 +60,10 @@ version = "0.10.1"
 optional = true
 version = "0.10.1"
 
+[dependencies.nrf5340-app-pac]
+optional = true
+version = "0.10.1"
+
 [dependencies.nrf9160-pac]
 optional = true
 version = "0.10.1"
@@ -80,4 +84,5 @@ doc = []
 52832 = ["nrf52832-pac"]
 52833 = ["nrf52833-pac", "nrf-usbd"]
 52840 = ["nrf52840-pac", "nrf-usbd"]
+5340-app = ["nrf5340-app-pac"]
 9160 = ["nrf9160-pac"]

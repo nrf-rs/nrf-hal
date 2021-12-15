@@ -4,14 +4,17 @@
 //! Vin can be derived from an analog input pin (AIN0-AIN7).
 //! Vref can be derived from multiple sources depending on the operation mode of the comparator.
 
-use {
-    crate::gpio::{p0::*, Floating, Input},
-    crate::pac::{
-        comp::{extrefsel::EXTREFSEL_A, psel::PSEL_A, EVENTS_CROSS, EVENTS_DOWN, EVENTS_UP},
-        COMP,
-    },
+use crate::gpio::{p0::*, Floating, Input};
+#[cfg(not(feature = "5340-app"))]
+use crate::pac::comp::{
+    extrefsel::EXTREFSEL_A, psel::PSEL_A, EVENTS_CROSS, EVENTS_DOWN, EVENTS_UP,
 };
+use crate::pac::COMP;
 
+#[cfg(feature = "5340-app")]
+use crate::pac::comp_ns::{
+    extrefsel::EXTREFSEL_A, psel::PSEL_A, EVENTS_CROSS, EVENTS_DOWN, EVENTS_UP,
+};
 /// A safe wrapper around the `COMP` peripheral.
 pub struct Comp {
     comp: COMP,

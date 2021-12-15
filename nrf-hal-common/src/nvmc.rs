@@ -2,13 +2,13 @@
 
 use core::ops::Deref;
 
-#[cfg(not(feature = "9160"))]
+#[cfg(not(any(feature = "9160", feature = "5340-app")))]
 use crate::pac::nvmc;
-#[cfg(feature = "9160")]
+#[cfg(any(feature = "9160", feature = "5340-app"))]
 use crate::pac::nvmc_ns as nvmc;
-#[cfg(not(feature = "9160"))]
+#[cfg(not(any(feature = "9160", feature = "5340-app")))]
 use crate::pac::NVMC;
-#[cfg(feature = "9160")]
+#[cfg(any(feature = "9160", feature = "5340-app"))]
 use crate::pac::NVMC_NS as NVMC;
 
 use embedded_storage::nor_flash::{NorFlash, ReadNorFlash};
@@ -34,23 +34,23 @@ where
     }
 
     fn enable_erase(&self) {
-        #[cfg(not(feature = "9160"))]
+        #[cfg(not(any(feature = "9160", feature = "5340-app")))]
         self.nvmc.config.write(|w| w.wen().een());
-        #[cfg(feature = "9160")]
+        #[cfg(any(feature = "9160", feature = "5340-app"))]
         self.nvmc.configns.write(|w| w.wen().een());
     }
 
     fn enable_read(&self) {
-        #[cfg(not(feature = "9160"))]
+        #[cfg(not(any(feature = "9160", feature = "5340-app")))]
         self.nvmc.config.write(|w| w.wen().ren());
-        #[cfg(feature = "9160")]
+        #[cfg(any(feature = "9160", feature = "5340-app"))]
         self.nvmc.configns.write(|w| w.wen().ren());
     }
 
     fn enable_write(&self) {
-        #[cfg(not(feature = "9160"))]
+        #[cfg(not(any(feature = "9160", feature = "5340-app")))]
         self.nvmc.config.write(|w| w.wen().wen());
-        #[cfg(feature = "9160")]
+        #[cfg(any(feature = "9160", feature = "5340-app"))]
         self.nvmc.configns.write(|w| w.wen().wen());
     }
 
@@ -59,13 +59,13 @@ where
         while !self.nvmc.ready.read().ready().bit_is_set() {}
     }
 
-    #[cfg(feature = "9160")]
+    #[cfg(any(feature = "9160", feature = "5340-app"))]
     #[inline]
     fn wait_write_ready(&self) {
         while !self.nvmc.readynext.read().readynext().bit_is_set() {}
     }
 
-    #[cfg(not(feature = "9160"))]
+    #[cfg(not(any(feature = "9160", feature = "5340-app")))]
     #[inline]
     fn erase_page(&mut self, offset: usize) {
         let bits = &mut (self.storage[offset as usize >> 2]) as *mut _ as u32;
@@ -73,7 +73,7 @@ where
         self.wait_ready();
     }
 
-    #[cfg(feature = "9160")]
+    #[cfg(any(feature = "9160", feature = "5340-app"))]
     #[inline]
     fn erase_page(&mut self, offset: usize) {
         self.storage[offset as usize >> 2] = 0xffffffff;
@@ -82,9 +82,9 @@ where
 
     #[inline]
     fn write_word(&mut self, offset: usize, word: u32) {
-        #[cfg(not(feature = "9160"))]
+        #[cfg(not(any(feature = "9160", feature = "5340-app")))]
         self.wait_ready();
-        #[cfg(feature = "9160")]
+        #[cfg(any(feature = "9160", feature = "5340-app"))]
         self.wait_write_ready();
         self.storage[offset] = word;
         cortex_m::asm::dmb();

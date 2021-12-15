@@ -8,11 +8,12 @@ use cfg_if::cfg_if;
 cfg_if! {
     if #[cfg(feature = "9160")] {
         use crate::pac::WDT_NS as WDT;
+    } else if #[cfg(feature = "5340-app")] {
+        use crate::pac::WDT0_NS as WDT;
     } else {
         use crate::pac::WDT;
     }
 }
-
 
 use handles::*;
 
@@ -213,7 +214,7 @@ where
     #[inline(always)]
     pub fn is_active(&self) -> bool {
         cfg_if! {
-            if #[cfg(feature = "9160")] {
+            if #[cfg(any(feature = "9160", feature = "5340-app"))] {
                 self.wdt.runstatus.read().runstatuswdt().bit_is_set()
             } else {
                 self.wdt.runstatus.read().runstatus().bit_is_set()
