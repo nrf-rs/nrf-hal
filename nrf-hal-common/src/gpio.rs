@@ -37,7 +37,7 @@ pub enum Level {
 pub enum Port {
     /// Port 0, available on all nRF52 and nRF51 MCUs.
     Port0,
-    /// Port 0 Secure, available on nRF53 and nRF9
+    /// Port 0 Secure, available on nRF53
     #[cfg(any(feature = "5340-app"))]
     Port0Secure,
 
