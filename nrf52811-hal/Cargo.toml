@@ -1,6 +1,6 @@
 [package]
 name = "nrf52811-hal"
-version = "0.14.0"
+version = "0.14.1"
 edition = "2018"
 description = "HAL for nRF52811 microcontrollers"
 readme = "../README.md"
@@ -24,7 +24,7 @@ nrf52811-pac = "0.10.1"
 path = "../nrf-hal-common"
 default-features = false
 features = ["52811"]
-version = "=0.14.0"
+version = "=0.14.1"
 
 [dependencies.embedded-hal]
 features = ["unproven"]
