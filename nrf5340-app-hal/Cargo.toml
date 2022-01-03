@@ -1,6 +1,6 @@
 [package]
 name = "nrf5340-app-hal"
-version = "0.14.0"
+version = "0.14.1"
 description = "HAL for nRF5340 app SoC"
 readme = "../README.md"
 
@@ -22,7 +22,7 @@ nrf5340-app-pac = "0.10.1"
 path = "../nrf-hal-common"
 default-features = false
 features = ["5340-app"]
-version = "=0.14.0"
+version = "=0.14.1"
 
 [dependencies.embedded-hal]
 features = ["unproven"]

@@ -1,6 +1,6 @@
 [package]
 name = "nrf52833-hal"
-version = "0.14.0"
+version = "0.14.1"
 description = "HAL for nRF52833 microcontrollers"
 readme = "../README.md"
 
@@ -25,7 +25,7 @@ nrf52833-pac = "0.10.1"
 path = "../nrf-hal-common"
 default-features = false
 features = ["52833"]
-version = "=0.14.0"
+version = "=0.14.1"
 
 [dependencies.embedded-hal]
 features = ["unproven"]

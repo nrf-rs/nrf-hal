@@ -4,6 +4,21 @@
 
 (no changes)
 
+## [0.14.1]
+
+### New Features
+
+- Add `From` impl to degrade pins more easily ([#364]).
+- Support the nRF5340 Application Core with the new `nrf5340-app-hal` crate ([#366]).
+
+### Fixes
+
+- Fix panic in `ieee802154` module introduced in 0.14.0 ([#369]).
+
+[#364]: https://github.com/nrf-rs/nrf-hal/pull/364
+[#366]: https://github.com/nrf-rs/nrf-hal/pull/366
+[#369]: https://github.com/nrf-rs/nrf-hal/pull/369
+
 ## [0.14.0]
 
 ### New Features
@@ -284,3 +299,4 @@ None
 [0.12.2]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.12.2
 [0.13.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.13.0
 [0.14.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.14.0
+[0.14.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.14.1
