@@ -659,9 +659,17 @@ impl<'c> Radio<'c> {
 
     fn state(&self) -> State {
         match self.radio.state.read().state().variant().unwrap() {
+            // final states
             STATE_A::DISABLED => State::Disabled,
             STATE_A::TXIDLE => State::TxIdle,
             STATE_A::RXIDLE => State::RxIdle,
+
+            // transitory states
+            STATE_A::TXDISABLE => {
+                self.wait_for_state_a(STATE_A::DISABLED);
+                State::Disabled
+            }
+
             _ => unreachable!(),
         }
     }
