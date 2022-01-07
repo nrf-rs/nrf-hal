@@ -157,6 +157,9 @@ impl Qdec {
                 None
             }
         };
+        self.qdec.psel.a.reset();
+        self.qdec.psel.b.reset();
+        self.qdec.psel.led.reset();
 
         (self.qdec, pin_a, pin_b, pin_led)
     }

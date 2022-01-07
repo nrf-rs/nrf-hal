@@ -409,6 +409,10 @@ where
         let cs = self.spis.psel.csn.read();
         let copi = self.spis.psel.mosi.read();
         let cipo = self.spis.psel.miso.read();
+        self.spis.psel.sck.reset();
+        self.spis.psel.csn.reset();
+        self.spis.psel.mosi.reset();
+        self.spis.psel.miso.reset();
         (
             self.spis,
             Pins {

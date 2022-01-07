@@ -238,6 +238,8 @@ where
     pub fn free(self) -> (T, Pins) {
         let scl = self.0.pselscl.read();
         let sda = self.0.pselsda.read();
+        self.0.pselscl.reset();
+        self.0.pselsda.reset();
         (
             self.0,
             Pins {

@@ -75,6 +75,10 @@ where
         let txd = self.0.pseltxd.read();
         let cts = self.0.pselcts.read();
         let rts = self.0.pselrts.read();
+        self.0.pselrxd.reset(); // Reset pins
+        self.0.pseltxd.reset();
+        self.0.pselcts.reset();
+        self.0.pselrts.reset();
         (
             self.0,
             Pins {

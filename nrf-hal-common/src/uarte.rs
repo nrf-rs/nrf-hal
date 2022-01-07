@@ -287,6 +287,10 @@ where
         let txd = self.0.psel.txd.read();
         let cts = self.0.psel.cts.read();
         let rts = self.0.psel.rts.read();
+        self.0.psel.rxd.reset();
+        self.0.psel.txd.reset();
+        self.0.psel.cts.reset();
+        self.0.psel.rts.reset();
         (
             self.0,
             Pins {

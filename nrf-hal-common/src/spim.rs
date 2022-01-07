@@ -362,6 +362,9 @@ where
         let sck = self.0.psel.sck.read();
         let mosi = self.0.psel.mosi.read();
         let miso = self.0.psel.miso.read();
+        self.0.psel.sck.reset();
+        self.0.psel.mosi.reset();
+        self.0.psel.miso.reset();
         (
             self.0,
             Pins {

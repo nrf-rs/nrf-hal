@@ -761,6 +761,10 @@ where
         let ch1 = self.pwm.psel.out[1].read();
         let ch2 = self.pwm.psel.out[2].read();
         let ch3 = self.pwm.psel.out[3].read();
+        self.pwm.psel.out[0].reset();
+        self.pwm.psel.out[1].reset();
+        self.pwm.psel.out[2].reset();
+        self.pwm.psel.out[3].reset();
         (
             self.pwm,
             if ch0.connect().bit_is_set() {
