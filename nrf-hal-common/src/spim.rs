@@ -358,8 +358,26 @@ where
     }
 
     /// Return the raw interface to the underlying SPIM peripheral.
-    pub fn free(self) -> T {
-        self.0
+    pub fn free(self) -> (T, Pins) {
+        let sck = self.0.psel.sck.read();
+        let mosi = self.0.psel.mosi.read();
+        let miso = self.0.psel.miso.read();
+        (
+            self.0,
+            Pins {
+                sck: unsafe { Pin::from_psel_bits(sck.bits()) },
+                mosi: if mosi.connect().bit_is_set() {
+                    Some(unsafe { Pin::from_psel_bits(mosi.bits()) })
+                } else {
+                    None
+                },
+                miso: if miso.connect().bit_is_set() {
+                    Some(unsafe { Pin::from_psel_bits(miso.bits()) })
+                } else {
+                    None
+                },
+            },
+        )
     }
 }
 

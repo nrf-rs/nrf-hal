@@ -11,9 +11,6 @@ use {
 /// A safe wrapper around the `QDEC` peripheral with associated pins.
 pub struct Qdec {
     qdec: QDEC,
-    pin_a: Pin<Input<PullUp>>,
-    pin_b: Pin<Input<PullUp>>,
-    pin_led: Option<Pin<Input<PullUp>>>,
 }
 
 impl Qdec {
@@ -55,12 +52,7 @@ impl Qdec {
             SamplePeriod::_131ms => qdec.sampleper.write(|w| w.sampleper()._131ms()),
         }
 
-        Self {
-            qdec,
-            pin_a,
-            pin_b,
-            pin_led,
-        }
+        Self { qdec }
     }
 
     /// Enables/disables input debounce filters.
@@ -155,7 +147,18 @@ impl Qdec {
         Pin<Input<PullUp>>,
         Option<Pin<Input<PullUp>>>,
     ) {
-        (self.qdec, self.pin_a, self.pin_b, self.pin_led)
+        let pin_a = unsafe { Pin::from_psel_bits(self.qdec.psel.a.read().bits()) };
+        let pin_b = unsafe { Pin::from_psel_bits(self.qdec.psel.b.read().bits()) };
+        let pin_led = {
+            let led = self.qdec.psel.led.read();
+            if led.connect().bit_is_set() {
+                Some(unsafe { Pin::from_psel_bits(led.bits()) })
+            } else {
+                None
+            }
+        };
+
+        (self.qdec, pin_a, pin_b, pin_led)
     }
 }
 

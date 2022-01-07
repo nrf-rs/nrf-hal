@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-(no changes)
+### Changed
+
+- Unified how pins are are returned in `free` calls
 
 ## [0.14.1]
 

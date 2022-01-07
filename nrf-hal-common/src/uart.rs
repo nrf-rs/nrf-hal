@@ -70,8 +70,28 @@ where
     }
 
     /// Return the raw interface to the underlying UARTE peripheral.
-    pub fn free(self) -> T {
-        self.0
+    pub fn free(self) -> (T, Pins) {
+        let rxd = self.0.pselrxd.read();
+        let txd = self.0.pseltxd.read();
+        let cts = self.0.pselcts.read();
+        let rts = self.0.pselrts.read();
+        (
+            self.0,
+            Pins {
+                rxd: unsafe { Pin::from_psel_bits(rxd.bits()) },
+                txd: unsafe { Pin::from_psel_bits(txd.bits()) },
+                cts: if cts.bits() != 0xFFFFFFFF {
+                    Some(unsafe { Pin::from_psel_bits(cts.bits()) })
+                } else {
+                    None
+                },
+                rts: if rts.bits() != 0xFFFFFFFF {
+                    Some(unsafe { Pin::from_psel_bits(rts.bits()) })
+                } else {
+                    None
+                },
+            },
+        )
     }
 }
 

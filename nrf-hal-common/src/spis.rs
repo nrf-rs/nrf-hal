@@ -37,7 +37,6 @@ use embedded_dma::*;
 /// Interface to a SPIS instance.
 pub struct Spis<T: Instance> {
     spis: T,
-    pins: Pins,
 }
 
 impl<T> Spis<T>
@@ -75,7 +74,7 @@ where
         spis.config
             .modify(|_r, w| w.cpha().bit(Phase::Trailing.into()));
         spis.enable.write(|w| w.enable().enabled());
-        Self { spis, pins }
+        Self { spis }
     }
 
     /// Sets the ´default´ character (character clocked out in case of an ignored transaction).
@@ -406,7 +405,27 @@ where
 
     /// Returns the raw interface to the underlying SPIS peripheral.
     pub fn free(self) -> (T, Pins) {
-        (self.spis, self.pins)
+        let sck = self.spis.psel.sck.read();
+        let cs = self.spis.psel.csn.read();
+        let copi = self.spis.psel.mosi.read();
+        let cipo = self.spis.psel.miso.read();
+        (
+            self.spis,
+            Pins {
+                sck: unsafe { Pin::from_psel_bits(sck.bits()) },
+                cs: unsafe { Pin::from_psel_bits(cs.bits()) },
+                copi: if copi.connect().bit_is_set() {
+                    Some(unsafe { Pin::from_psel_bits(copi.bits()) })
+                } else {
+                    None
+                },
+                cipo: if cipo.connect().bit_is_set() {
+                    Some(unsafe { Pin::from_psel_bits(cipo.bits()) })
+                } else {
+                    None
+                },
+            },
+        )
     }
 }
 

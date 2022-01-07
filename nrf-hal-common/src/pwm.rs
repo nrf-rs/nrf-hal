@@ -748,8 +748,42 @@ where
     }
 
     /// Consumes `self` and returns back the raw peripheral.
-    pub fn free(self) -> T {
-        self.pwm
+    pub fn free(
+        self,
+    ) -> (
+        T,
+        Option<Pin<Output<PushPull>>>,
+        Option<Pin<Output<PushPull>>>,
+        Option<Pin<Output<PushPull>>>,
+        Option<Pin<Output<PushPull>>>,
+    ) {
+        let ch0 = self.pwm.psel.out[0].read();
+        let ch1 = self.pwm.psel.out[1].read();
+        let ch2 = self.pwm.psel.out[2].read();
+        let ch3 = self.pwm.psel.out[3].read();
+        (
+            self.pwm,
+            if ch0.connect().bit_is_set() {
+                Some(unsafe { Pin::from_psel_bits(ch0.bits()) })
+            } else {
+                None
+            },
+            if ch1.connect().bit_is_set() {
+                Some(unsafe { Pin::from_psel_bits(ch1.bits()) })
+            } else {
+                None
+            },
+            if ch2.connect().bit_is_set() {
+                Some(unsafe { Pin::from_psel_bits(ch2.bits()) })
+            } else {
+                None
+            },
+            if ch3.connect().bit_is_set() {
+                Some(unsafe { Pin::from_psel_bits(ch3.bits()) })
+            } else {
+                None
+            },
+        )
     }
 }
 
