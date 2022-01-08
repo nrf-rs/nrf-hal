@@ -183,7 +183,7 @@ where
     }
 }
 
-// Only nRF52 boards have been checked. There 2 things to note:
+// Only nRF52 boards have been checked. There are 2 things to note:
 //
 // 1. The nRF52832 doesn't support 2 writes per word. Instead it supports 181 writes per block,
 // where a block is 128 words. So on average it's a bit less than 2 writes per word, and thus we
