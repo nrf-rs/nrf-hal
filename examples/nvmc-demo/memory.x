@@ -1,8 +1,9 @@
 MEMORY
 {
-  /* NOTE 1 K = 1 KiBi = 1024 bytes */
-  FLASH : ORIGIN = 0x00000000, LENGTH = 1020K
-  CONFIG : ORIGIN = ORIGIN(FLASH) + LENGTH(FLASH), LENGTH = 4K /* 4K is the flash page size */
+  /* NOTE 1 K = 1 KiB = 1024 bytes */
+  FLASH : ORIGIN = 0x00000000, LENGTH = 1024K - 16K
+  /* We use 4 pages of 4 KiB each, so 16 KiB */
+  CONFIG : ORIGIN = ORIGIN(FLASH) + LENGTH(FLASH), LENGTH = 16K
   RAM : ORIGIN = 0x20000000, LENGTH = 256K
 }
 
