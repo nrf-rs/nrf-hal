@@ -11,6 +11,7 @@ use crate::pac::NVMC;
 #[cfg(any(feature = "9160", feature = "5340-app"))]
 use crate::pac::NVMC_NS as NVMC;
 
+use core::convert::TryInto;
 use embedded_storage::nor_flash::{NorFlash, ReadNorFlash};
 
 /// Interface to an NVMC instance.
@@ -97,45 +98,37 @@ where
 {
     type Error = NvmcError;
 
-    const READ_SIZE: usize = 4;
+    const READ_SIZE: usize = 1;
 
-    fn read(&mut self, offset: u32, bytes: &mut [u8]) -> Result<(), Self::Error> {
-        let offset = offset as usize;
-        let bytes_len = bytes.len();
-        let read_len = bytes_len + (Self::READ_SIZE - (bytes_len % Self::READ_SIZE));
-        let target_offset = offset + read_len;
-        if offset % Self::READ_SIZE == 0 && target_offset <= self.capacity() {
-            self.wait_ready();
-            let last_offset = target_offset - Self::READ_SIZE;
-            for offset in (offset..last_offset).step_by(Self::READ_SIZE) {
-                let word = self.storage[offset >> 2];
-                bytes[offset] = (word >> 24) as u8;
-                bytes[offset + 1] = (word >> 16) as u8;
-                bytes[offset + 2] = (word >> 8) as u8;
-                bytes[offset + 3] = (word >> 0) as u8;
-            }
-            let offset = last_offset;
-            let word = self.storage[offset >> 2];
-            let mut bytes_offset = offset;
-            if bytes_offset < bytes_len {
-                bytes[bytes_offset] = (word >> 24) as u8;
-                bytes_offset += 1;
-                if bytes_offset < bytes_len {
-                    bytes[bytes_offset] = (word >> 16) as u8;
-                    bytes_offset += 1;
-                    if bytes_offset < bytes_len {
-                        bytes[bytes_offset] = (word >> 8) as u8;
-                        bytes_offset += 1;
-                        if bytes_offset < bytes_len {
-                            bytes[bytes_offset] = (word >> 0) as u8;
-                        }
-                    }
-                }
-            }
-            Ok(())
-        } else {
-            Err(NvmcError::Unaligned)
+    fn read(&mut self, offset: u32, mut bytes: &mut [u8]) -> Result<(), Self::Error> {
+        let mut offset = offset as usize;
+        if bytes.len() > self.capacity() || offset > self.capacity() - bytes.len() {
+            return Err(NvmcError::OutOfBounds);
         }
+        self.wait_ready();
+        if offset & 3 != 0 {
+            let word = self.storage[offset >> 2].to_ne_bytes();
+            let start = offset & 3;
+            let length = 4 - start;
+            if length > bytes.len() {
+                bytes.copy_from_slice(&word[start..start + bytes.len()]);
+                return Ok(());
+            }
+            bytes[..length].copy_from_slice(&word[start..]);
+            offset = offset + length;
+            bytes = &mut bytes[length..];
+        }
+        let mut word_offset = offset >> 2;
+        let mut chunks = bytes.chunks_exact_mut(4);
+        for bytes in &mut chunks {
+            bytes.copy_from_slice(&self.storage[word_offset].to_ne_bytes());
+            word_offset += 1;
+        }
+        let bytes = chunks.into_remainder();
+        if !bytes.is_empty() {
+            bytes.copy_from_slice(&self.storage[word_offset].to_ne_bytes()[..bytes.len()]);
+        }
+        Ok(())
     }
 
     fn capacity(&self) -> usize {
@@ -152,34 +145,39 @@ where
     const ERASE_SIZE: usize = 4 * 1024;
 
     fn erase(&mut self, from: u32, to: u32) -> Result<(), Self::Error> {
-        if from as usize % Self::ERASE_SIZE == 0 && to as usize % Self::ERASE_SIZE == 0 {
-            self.enable_erase();
-            for offset in (from..to).step_by(Self::ERASE_SIZE) {
-                self.erase_page(offset as usize >> 2);
-            }
-            self.enable_read();
-            Ok(())
-        } else {
-            Err(NvmcError::Unaligned)
+        let from = from as usize;
+        let to = to as usize;
+        if from > to || to > self.capacity() {
+            return Err(NvmcError::OutOfBounds);
         }
+        if from % Self::ERASE_SIZE != 0 || to % Self::ERASE_SIZE != 0 {
+            return Err(NvmcError::Unaligned);
+        }
+        self.enable_erase();
+        for offset in (from..to).step_by(Self::ERASE_SIZE) {
+            self.erase_page(offset);
+        }
+        self.enable_read();
+        Ok(())
     }
 
     fn write(&mut self, offset: u32, bytes: &[u8]) -> Result<(), Self::Error> {
         let offset = offset as usize;
-        if offset % Self::WRITE_SIZE == 0 && bytes.len() % Self::WRITE_SIZE == 0 {
-            self.enable_write();
-            for offset in (offset..(offset + bytes.len())).step_by(Self::WRITE_SIZE) {
-                let word = ((bytes[offset] as u32) << 24)
-                    | ((bytes[offset + 1] as u32) << 16)
-                    | ((bytes[offset + 2] as u32) << 8)
-                    | ((bytes[offset + 3] as u32) << 0);
-                self.write_word(offset >> 2, word);
-            }
-            self.enable_read();
-            Ok(())
-        } else {
-            Err(NvmcError::Unaligned)
+        if bytes.len() > self.capacity() || offset as usize > self.capacity() - bytes.len() {
+            return Err(NvmcError::OutOfBounds);
         }
+        if offset % Self::WRITE_SIZE != 0 || bytes.len() % Self::WRITE_SIZE != 0 {
+            return Err(NvmcError::Unaligned);
+        }
+        self.enable_write();
+        let mut word_offset = offset >> 2;
+        for bytes in bytes.chunks_exact(4) {
+            // The unwrap is correct because chunks_exact always returns the correct size.
+            self.write_word(word_offset, u32::from_ne_bytes(bytes.try_into().unwrap()));
+            word_offset += 1;
+        }
+        self.enable_read();
+        Ok(())
     }
 }
 
@@ -199,4 +197,6 @@ mod sealed {
 pub enum NvmcError {
     /// An operation was attempted on an unaligned boundary
     Unaligned,
+    /// An operation was attempted outside the boundaries
+    OutOfBounds,
 }
