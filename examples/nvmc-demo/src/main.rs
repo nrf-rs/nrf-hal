@@ -14,12 +14,12 @@ use hal::pac::NVMC;
 use panic_probe as _;
 use rtt_target::{rprintln, rtt_init_print};
 
-const NUM_PAGES: usize = 6;
+const NUM_PAGES: u32 = 6;
 const PAGE_SIZE: u32 = 4 * 1024;
-const LAST_PAGE: u32 = 3 * PAGE_SIZE;
+const LAST_PAGE: u32 = (NUM_PAGES - 1) * PAGE_SIZE;
 extern "C" {
     #[link_name = "_config"]
-    static mut CONFIG: [u8; NUM_PAGES * PAGE_SIZE as usize];
+    static mut CONFIG: [u8; (NUM_PAGES * PAGE_SIZE) as usize];
 }
 
 // To run this example:

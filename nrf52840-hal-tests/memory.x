@@ -1,11 +1,12 @@
 MEMORY
 {
-  /* NOTE 1 K = 1 KiBi = 1024 bytes */
-  FLASH : ORIGIN = 0x00000000, LENGTH = 1020K
-  CONFIG : ORIGIN = ORIGIN(FLASH) + LENGTH(FLASH), LENGTH = 4K /* 4K is the flash page size */
+  /* NOTE 1 K = 1 KiB = 1024 bytes */
+  FLASH : ORIGIN = 0x00000000, LENGTH = 1024K - NUM_PAGES * 4K
+  CONFIG : ORIGIN = ORIGIN(FLASH) + LENGTH(FLASH), LENGTH = NUM_PAGES * 4K
   RAM : ORIGIN = 0x20000000, LENGTH = 256K
 }
 
+NUM_PAGES = 6;
 _config = ORIGIN(CONFIG);
 
 /* This is where the call stack will be allocated. */
