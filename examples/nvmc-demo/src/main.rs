@@ -14,13 +14,12 @@ use hal::pac::NVMC;
 use panic_probe as _;
 use rtt_target::{rprintln, rtt_init_print};
 
-// We use 4 pages to use non-zero offsets.
+const NUM_PAGES: usize = 6;
 const PAGE_SIZE: u32 = 4 * 1024;
 const LAST_PAGE: u32 = 3 * PAGE_SIZE;
-const CONFIG_SIZE: usize = 4 * PAGE_SIZE as usize / 4;
 extern "C" {
     #[link_name = "_config"]
-    static mut CONFIG: [u32; CONFIG_SIZE];
+    static mut CONFIG: [u8; NUM_PAGES * PAGE_SIZE as usize];
 }
 
 // To run this example:
@@ -88,9 +87,7 @@ fn read<const LENGTH: usize>(nvmc: &mut Nvmc<NVMC>, offset: u32) -> [u8; LENGTH]
 }
 
 unsafe fn direct_read<const LENGTH: usize>(offset: u32) -> [u8; LENGTH] {
-    let ptr = &CONFIG as *const u32 as *const u8;
-    let slice = core::slice::from_raw_parts(ptr, CONFIG_SIZE * 4);
-    slice[offset as usize..][..LENGTH].try_into().unwrap()
+    CONFIG[offset as usize..][..LENGTH].try_into().unwrap()
 }
 
 fn erase_if_needed(nvmc: &mut Nvmc<NVMC>, offset: u32) {
