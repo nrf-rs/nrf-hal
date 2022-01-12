@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-(no changes)
+### Changed
+
+- Unified how pins are are returned in `free` calls ([#372]).
+
+[#372]: https://github.com/nrf-rs/nrf-hal/pull/372
 
 ## [0.14.1]
 

@@ -450,8 +450,18 @@ where
     }
 
     /// Return the raw interface to the underlying TWIS peripheral.
-    pub fn free(self) -> T {
-        self.0
+    pub fn free(self) -> (T, Pins) {
+        let scl = self.0.psel.scl.read();
+        let sda = self.0.psel.sda.read();
+        self.0.psel.scl.reset();
+        self.0.psel.sda.reset();
+        (
+            self.0,
+            Pins {
+                scl: unsafe { Pin::from_psel_bits(scl.bits()) },
+                sda: unsafe { Pin::from_psel_bits(sda.bits()) },
+            },
+        )
     }
 }
 

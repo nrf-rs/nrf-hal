@@ -235,8 +235,18 @@ where
     }
 
     /// Return the raw interface to the underlying TWI peripheral.
-    pub fn free(self) -> T {
-        self.0
+    pub fn free(self) -> (T, Pins) {
+        let scl = self.0.pselscl.read();
+        let sda = self.0.pselsda.read();
+        self.0.pselscl.reset();
+        self.0.pselsda.reset();
+        (
+            self.0,
+            Pins {
+                scl: unsafe { Pin::from_psel_bits(scl.bits()) },
+                sda: unsafe { Pin::from_psel_bits(sda.bits()) },
+            },
+        )
     }
 }
 

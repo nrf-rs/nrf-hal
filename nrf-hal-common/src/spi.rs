@@ -97,12 +97,23 @@ where
             .write(|w| unsafe { w.bits(pins.sck.pin().into()) });
 
         // Optional pins.
-        if let Some(ref pin) = pins.mosi {
-            spi.pselmosi.write(|w| unsafe { w.bits(pin.pin().into()) });
-        }
-        if let Some(ref pin) = pins.miso {
-            spi.pselmiso.write(|w| unsafe { w.bits(pin.pin().into()) });
-        }
+        spi.pselmosi.write(|w| unsafe {
+            if let Some(ref pin) = pins.mosi {
+                w.bits(pin.pin().into())
+            } else {
+                // Disconnect
+                w.bits(0xFFFFFFFF)
+            }
+        });
+
+        spi.pselmiso.write(|w| unsafe {
+            if let Some(ref pin) = pins.miso {
+                w.bits(pin.pin().into())
+            } else {
+                // Disconnect
+                w.bits(0xFFFFFFFF)
+            }
+        });
     }
 
     #[cfg(not(feature = "51"))]

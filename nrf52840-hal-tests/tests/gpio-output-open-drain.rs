@@ -52,7 +52,7 @@ mod tests {
     }
 
     // with the current API we cannot test this w/o an _external_ pull-up
-    /* 
+    /*
     #[test]
     fn set_high_is_high(state: &mut State) {
         state.output_pin.set_high().unwrap();

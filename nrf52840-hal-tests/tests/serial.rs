@@ -54,10 +54,7 @@ mod tests {
 
         let _uarte = Uarte::new(p.UARTE0, pins, Parity::EXCLUDED, Baudrate::BAUD9600);
 
-        State {
-            _uarte,
-            _timer,
-        }
+        State { _uarte, _timer }
     }
 
     // won't work because of how the `read` API work

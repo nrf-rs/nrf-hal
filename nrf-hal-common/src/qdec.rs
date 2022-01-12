@@ -11,30 +11,21 @@ use {
 /// A safe wrapper around the `QDEC` peripheral with associated pins.
 pub struct Qdec {
     qdec: QDEC,
-    pin_a: Pin<Input<PullUp>>,
-    pin_b: Pin<Input<PullUp>>,
-    pin_led: Option<Pin<Input<PullUp>>>,
 }
 
 impl Qdec {
     /// Takes ownership of the `QDEC` peripheral and associated pins, returning a safe wrapper.
-    pub fn new(
-        qdec: QDEC,
-        pin_a: Pin<Input<PullUp>>,
-        pin_b: Pin<Input<PullUp>>,
-        pin_led: Option<Pin<Input<PullUp>>>,
-        sample_period: SamplePeriod,
-    ) -> Self {
+    pub fn new(qdec: QDEC, pins: Pins, sample_period: SamplePeriod) -> Self {
         qdec.psel.a.write(|w| {
-            unsafe { w.bits(pin_a.psel_bits()) };
+            unsafe { w.bits(pins.a.psel_bits()) };
             w.connect().connected()
         });
         qdec.psel.b.write(|w| {
-            unsafe { w.bits(pin_b.psel_bits()) };
+            unsafe { w.bits(pins.b.psel_bits()) };
             w.connect().connected()
         });
 
-        if let Some(p) = &pin_led {
+        if let Some(p) = &pins.led {
             qdec.psel.led.write(|w| {
                 unsafe { w.bits(p.psel_bits()) };
                 w.connect().connected()
@@ -55,12 +46,7 @@ impl Qdec {
             SamplePeriod::_131ms => qdec.sampleper.write(|w| w.sampleper()._131ms()),
         }
 
-        Self {
-            qdec,
-            pin_a,
-            pin_b,
-            pin_led,
-        }
+        Self { qdec }
     }
 
     /// Enables/disables input debounce filters.
@@ -147,16 +133,30 @@ impl Qdec {
 
     /// Consumes `self` and returns back the raw `QDEC` peripheral.
     #[inline]
-    pub fn free(
-        self,
-    ) -> (
-        QDEC,
-        Pin<Input<PullUp>>,
-        Pin<Input<PullUp>>,
-        Option<Pin<Input<PullUp>>>,
-    ) {
-        (self.qdec, self.pin_a, self.pin_b, self.pin_led)
+    pub fn free(self) -> (QDEC, Pins) {
+        let a = unsafe { Pin::from_psel_bits(self.qdec.psel.a.read().bits()) };
+        let b = unsafe { Pin::from_psel_bits(self.qdec.psel.b.read().bits()) };
+        let led = {
+            let led = self.qdec.psel.led.read();
+            if led.connect().bit_is_set() {
+                Some(unsafe { Pin::from_psel_bits(led.bits()) })
+            } else {
+                None
+            }
+        };
+        self.qdec.psel.a.reset();
+        self.qdec.psel.b.reset();
+        self.qdec.psel.led.reset();
+
+        (self.qdec, Pins { a, b, led })
     }
+}
+
+/// Pins for the QDEC
+pub struct Pins {
+    pub a: Pin<Input<PullUp>>,
+    pub b: Pin<Input<PullUp>>,
+    pub led: Option<Pin<Input<PullUp>>>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
