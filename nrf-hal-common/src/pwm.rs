@@ -748,15 +748,7 @@ where
     }
 
     /// Consumes `self` and returns back the raw peripheral.
-    pub fn free(
-        self,
-    ) -> (
-        T,
-        Option<Pin<Output<PushPull>>>,
-        Option<Pin<Output<PushPull>>>,
-        Option<Pin<Output<PushPull>>>,
-        Option<Pin<Output<PushPull>>>,
-    ) {
+    pub fn free(self) -> (T, Pins) {
         let ch0 = self.pwm.psel.out[0].read();
         let ch1 = self.pwm.psel.out[1].read();
         let ch2 = self.pwm.psel.out[2].read();
@@ -767,28 +759,42 @@ where
         self.pwm.psel.out[3].reset();
         (
             self.pwm,
-            if ch0.connect().bit_is_set() {
-                Some(unsafe { Pin::from_psel_bits(ch0.bits()) })
-            } else {
-                None
-            },
-            if ch1.connect().bit_is_set() {
-                Some(unsafe { Pin::from_psel_bits(ch1.bits()) })
-            } else {
-                None
-            },
-            if ch2.connect().bit_is_set() {
-                Some(unsafe { Pin::from_psel_bits(ch2.bits()) })
-            } else {
-                None
-            },
-            if ch3.connect().bit_is_set() {
-                Some(unsafe { Pin::from_psel_bits(ch3.bits()) })
-            } else {
-                None
+            Pins {
+                ch0: if ch0.connect().bit_is_set() {
+                    Some(unsafe { Pin::from_psel_bits(ch0.bits()) })
+                } else {
+                    None
+                },
+                ch1: if ch1.connect().bit_is_set() {
+                    Some(unsafe { Pin::from_psel_bits(ch1.bits()) })
+                } else {
+                    None
+                },
+                ch2: if ch2.connect().bit_is_set() {
+                    Some(unsafe { Pin::from_psel_bits(ch2.bits()) })
+                } else {
+                    None
+                },
+                ch3: if ch3.connect().bit_is_set() {
+                    Some(unsafe { Pin::from_psel_bits(ch3.bits()) })
+                } else {
+                    None
+                },
             },
         )
     }
+}
+
+/// Pins for the Pwm
+pub struct Pins {
+    /// Channel 0 pin, `None` if it was unused
+    pub ch0: Option<Pin<Output<PushPull>>>,
+    /// Channel 1 pin, `None` if it was unused
+    pub ch1: Option<Pin<Output<PushPull>>>,
+    /// Channel 2 pin, `None` if it was unused
+    pub ch2: Option<Pin<Output<PushPull>>>,
+    /// Channel 3 pin, `None` if it was unused
+    pub ch3: Option<Pin<Output<PushPull>>>,
 }
 
 /// A Pwm sequence wrapper
