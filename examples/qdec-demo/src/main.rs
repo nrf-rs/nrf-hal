@@ -25,10 +25,13 @@ const APP: () = {
         rtt_init_print!();
 
         let p0 = hal::gpio::p0::Parts::new(ctx.device.P0);
-        let pin_a = p0.p0_31.into_pullup_input().degrade();
-        let pin_b = p0.p0_30.into_pullup_input().degrade();
+        let pins = Pins {
+            a: p0.p0_31.into_pullup_input().degrade(),
+            b: p0.p0_30.into_pullup_input().degrade(),
+            led: None,
+        };
 
-        let qdec = Qdec::new(ctx.device.QDEC, pin_a, pin_b, None, SamplePeriod::_128us);
+        let qdec = Qdec::new(ctx.device.QDEC, pins, SamplePeriod::_128us);
         qdec.debounce(true)
             .enable_interrupt(NumSamples::_1smpl)
             .enable();
