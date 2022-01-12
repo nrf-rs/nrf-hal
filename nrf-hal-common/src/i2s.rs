@@ -25,104 +25,103 @@ const MAX_DMA_MAXCNT: u32 = 1 << 14;
 
 impl I2S {
     /// Takes ownership of the raw I2S peripheral, returning a safe wrapper in controller mode.
-    pub fn new_controller(
-        i2s: I2S_PAC,
-        mck_pin: Option<&Pin<Output<PushPull>>>,
-        sck_pin: &Pin<Output<PushPull>>,
-        lrck_pin: &Pin<Output<PushPull>>,
-        sdin_pin: Option<&Pin<Input<Floating>>>,
-        sdout_pin: Option<&Pin<Output<PushPull>>>,
-    ) -> Self {
-        i2s.config.mcken.write(|w| w.mcken().enabled());
-        i2s.config.mckfreq.write(|w| w.mckfreq()._32mdiv16());
-        i2s.config.ratio.write(|w| w.ratio()._192x());
-        i2s.config.mode.write(|w| w.mode().master());
-        i2s.config.swidth.write(|w| w.swidth()._16bit());
-        i2s.config.align.write(|w| w.align().left());
-        i2s.config.format.write(|w| w.format().i2s());
-        i2s.config.channels.write(|w| w.channels().stereo());
+    pub fn new(i2s: I2S_PAC, pins: Pins) -> Self {
+        match pins {
+            Pins::Controller {
+                mck,
+                sck,
+                lrck,
+                sdin,
+                sdout,
+            } => {
+                // Setup as controller
+                i2s.config.mcken.write(|w| w.mcken().enabled());
+                i2s.config.mckfreq.write(|w| w.mckfreq()._32mdiv16());
+                i2s.config.ratio.write(|w| w.ratio()._192x());
+                i2s.config.mode.write(|w| w.mode().master());
+                i2s.config.swidth.write(|w| w.swidth()._16bit());
+                i2s.config.align.write(|w| w.align().left());
+                i2s.config.format.write(|w| w.format().i2s());
+                i2s.config.channels.write(|w| w.channels().stereo());
 
-        if let Some(p) = mck_pin {
-            i2s.psel.mck.write(|w| {
-                unsafe { w.bits(p.psel_bits()) };
-                w.connect().connected()
-            });
-        }
+                if let Some(p) = &mck {
+                    i2s.psel.mck.write(|w| {
+                        unsafe { w.bits(p.psel_bits()) };
+                        w.connect().connected()
+                    });
+                }
 
-        i2s.psel.sck.write(|w| {
-            unsafe { w.bits(sck_pin.psel_bits()) };
-            w.connect().connected()
-        });
+                i2s.psel.sck.write(|w| {
+                    unsafe { w.bits(sck.psel_bits()) };
+                    w.connect().connected()
+                });
 
-        i2s.psel.lrck.write(|w| {
-            unsafe { w.bits(lrck_pin.psel_bits()) };
-            w.connect().connected()
-        });
+                i2s.psel.lrck.write(|w| {
+                    unsafe { w.bits(lrck.psel_bits()) };
+                    w.connect().connected()
+                });
 
-        if let Some(p) = sdin_pin {
-            i2s.psel.sdin.write(|w| {
-                unsafe { w.bits(p.psel_bits()) };
-                w.connect().connected()
-            });
-        }
+                if let Some(p) = &sdin {
+                    i2s.psel.sdin.write(|w| {
+                        unsafe { w.bits(p.psel_bits()) };
+                        w.connect().connected()
+                    });
+                }
 
-        if let Some(p) = sdout_pin {
-            i2s.psel.sdout.write(|w| {
-                unsafe { w.bits(p.psel_bits()) };
-                w.connect().connected()
-            });
-        }
+                if let Some(p) = &sdout {
+                    i2s.psel.sdout.write(|w| {
+                        unsafe { w.bits(p.psel_bits()) };
+                        w.connect().connected()
+                    });
+                }
+            }
+            Pins::Peripheral {
+                mck,
+                sck,
+                lrck,
+                sdin,
+                sdout,
+            } => {
+                // Setup as peripheral
+                i2s.config.txen.write(|w| w.txen().enabled());
+                i2s.config.rxen.write(|w| w.rxen().enabled());
+                i2s.config.mode.write(|w| w.mode().slave());
+                i2s.config.swidth.write(|w| w.swidth()._16bit());
+                i2s.config.align.write(|w| w.align().left());
+                i2s.config.format.write(|w| w.format().i2s());
+                i2s.config.channels.write(|w| w.channels().stereo());
 
-        i2s.enable.write(|w| w.enable().enabled());
-        Self { i2s }
-    }
+                if let Some(p) = &mck {
+                    i2s.psel.mck.write(|w| {
+                        unsafe { w.bits(p.psel_bits()) };
+                        w.connect().connected()
+                    });
+                }
 
-    /// Takes ownership of the raw I2S peripheral, returning a safe wrapper in peripheral mode.
-    pub fn new_peripheral(
-        i2s: I2S_PAC,
-        mck_pin: Option<&Pin<Input<Floating>>>,
-        sck_pin: &Pin<Input<Floating>>,
-        lrck_pin: &Pin<Input<Floating>>,
-        sdin_pin: Option<&Pin<Input<Floating>>>,
-        sdout_pin: Option<&Pin<Output<PushPull>>>,
-    ) -> Self {
-        i2s.config.txen.write(|w| w.txen().enabled());
-        i2s.config.rxen.write(|w| w.rxen().enabled());
-        i2s.config.mode.write(|w| w.mode().slave());
-        i2s.config.swidth.write(|w| w.swidth()._16bit());
-        i2s.config.align.write(|w| w.align().left());
-        i2s.config.format.write(|w| w.format().i2s());
-        i2s.config.channels.write(|w| w.channels().stereo());
+                i2s.psel.sck.write(|w| {
+                    unsafe { w.bits(sck.psel_bits()) };
+                    w.connect().connected()
+                });
 
-        if let Some(p) = mck_pin {
-            i2s.psel.mck.write(|w| {
-                unsafe { w.bits(p.psel_bits()) };
-                w.connect().connected()
-            });
-        }
+                i2s.psel.lrck.write(|w| {
+                    unsafe { w.bits(lrck.psel_bits()) };
+                    w.connect().connected()
+                });
 
-        i2s.psel.sck.write(|w| {
-            unsafe { w.bits(sck_pin.psel_bits()) };
-            w.connect().connected()
-        });
+                if let Some(p) = &sdin {
+                    i2s.psel.sdin.write(|w| {
+                        unsafe { w.bits(p.psel_bits()) };
+                        w.connect().connected()
+                    });
+                }
 
-        i2s.psel.lrck.write(|w| {
-            unsafe { w.bits(lrck_pin.psel_bits()) };
-            w.connect().connected()
-        });
-
-        if let Some(p) = sdin_pin {
-            i2s.psel.sdin.write(|w| {
-                unsafe { w.bits(p.psel_bits()) };
-                w.connect().connected()
-            });
-        }
-
-        if let Some(p) = sdout_pin {
-            i2s.psel.sdout.write(|w| {
-                unsafe { w.bits(p.psel_bits()) };
-                w.connect().connected()
-            });
+                if let Some(p) = &sdout {
+                    i2s.psel.sdout.write(|w| {
+                        unsafe { w.bits(p.psel_bits()) };
+                        w.connect().connected()
+                    });
+                }
+            }
         }
 
         i2s.enable.write(|w| w.enable().enabled());
@@ -197,15 +196,14 @@ impl I2S {
     /// Sets sample width.
     #[inline(always)]
     pub fn set_sample_width(&self, width: SampleWidth) -> &Self {
-        self.i2s
-            .config
-            .swidth
-            .write(|w| {
-                   #[cfg(not(feature = "5340-app"))]
-                   unsafe { w.swidth().bits(width.into()) }
-                   #[cfg(feature = "5340-app")]
-                   w.swidth().bits(width.into())
-            });
+        self.i2s.config.swidth.write(|w| {
+            #[cfg(not(feature = "5340-app"))]
+            unsafe {
+                w.swidth().bits(width.into())
+            }
+            #[cfg(feature = "5340-app")]
+            w.swidth().bits(width.into())
+        });
         self
     }
 
@@ -459,10 +457,94 @@ impl I2S {
     }
 
     /// Consumes `self` and returns back the raw peripheral.
-    pub fn free(self) -> I2S_PAC {
+    pub fn free(self) -> (I2S_PAC, Pins) {
         self.disable();
-        self.i2s
+        let mck_pin = self.i2s.psel.mck.read();
+        let sck_pin = self.i2s.psel.sck.read();
+        let lrck_pin = self.i2s.psel.lrck.read();
+        let sdin_pin = self.i2s.psel.sdin.read();
+        let sdout_pin = self.i2s.psel.sdout.read();
+        let slave = self.i2s.config.mode.read().mode().is_slave();
+        self.i2s.psel.mck.reset();
+        self.i2s.psel.sck.reset();
+        self.i2s.psel.lrck.reset();
+        self.i2s.psel.sdin.reset();
+        self.i2s.psel.sdout.reset();
+        (
+            self.i2s,
+            if slave {
+                Pins::Peripheral {
+                    mck: if mck_pin.connect().bit_is_set() {
+                        Some(unsafe { Pin::from_psel_bits(mck_pin.bits()) })
+                    } else {
+                        None
+                    },
+                    sck: unsafe { Pin::from_psel_bits(sck_pin.bits()) },
+                    lrck: unsafe { Pin::from_psel_bits(lrck_pin.bits()) },
+                    sdin: if sdin_pin.connect().bit_is_set() {
+                        Some(unsafe { Pin::from_psel_bits(sdin_pin.bits()) })
+                    } else {
+                        None
+                    },
+                    sdout: if sdout_pin.connect().bit_is_set() {
+                        Some(unsafe { Pin::from_psel_bits(sdout_pin.bits()) })
+                    } else {
+                        None
+                    },
+                }
+            } else {
+                Pins::Controller {
+                    mck: if mck_pin.connect().bit_is_set() {
+                        Some(unsafe { Pin::from_psel_bits(mck_pin.bits()) })
+                    } else {
+                        None
+                    },
+                    sck: unsafe { Pin::from_psel_bits(sck_pin.bits()) },
+                    lrck: unsafe { Pin::from_psel_bits(lrck_pin.bits()) },
+                    sdin: if sdin_pin.connect().bit_is_set() {
+                        Some(unsafe { Pin::from_psel_bits(sdin_pin.bits()) })
+                    } else {
+                        None
+                    },
+                    sdout: if sdout_pin.connect().bit_is_set() {
+                        Some(unsafe { Pin::from_psel_bits(sdout_pin.bits()) })
+                    } else {
+                        None
+                    },
+                }
+            },
+        )
     }
+}
+
+/// Pins used by the I2S
+pub enum Pins {
+    /// Pins used by the I2S controller
+    Controller {
+        /// MCK pin
+        mck: Option<Pin<Output<PushPull>>>,
+        /// SCK pin
+        sck: Pin<Output<PushPull>>,
+        /// LRCK pin
+        lrck: Pin<Output<PushPull>>,
+        /// SDIN pin
+        sdin: Option<Pin<Input<Floating>>>,
+        /// SDOUT pin
+        sdout: Option<Pin<Output<PushPull>>>,
+    },
+    /// Pins used by the I2S peripheral
+    Peripheral {
+        /// MCK pin
+        mck: Option<Pin<Input<Floating>>>,
+        /// SCK pin
+        sck: Pin<Input<Floating>>,
+        /// LRCK pin
+        lrck: Pin<Input<Floating>>,
+        /// SDIN pin
+        sdin: Option<Pin<Input<Floating>>>,
+        /// SDOUT pin
+        sdout: Option<Pin<Output<PushPull>>>,
+    },
 }
 
 #[derive(Debug)]

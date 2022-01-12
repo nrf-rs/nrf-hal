@@ -12,9 +12,9 @@ use {
     },
     hal::{
         gpio::Level,
-        i2s::*,
+        i2s::{self, *},
         pac::SPIM0,
-        spim::{Frequency, Mode as SPIMode, Phase, Pins, Polarity, Spim},
+        spim::{self, Frequency, Mode as SPIMode, Phase, Polarity, Spim},
     },
     nrf52840_hal as hal,
     rtt_target::{rprintln, rtt_init_print},
@@ -45,19 +45,17 @@ const APP: () = {
         rprintln!("Play me some audio...");
 
         let p0 = hal::gpio::p0::Parts::new(ctx.device.P0);
-        let mck_pin = p0.p0_25.into_floating_input().degrade();
-        let sck_pin = p0.p0_24.into_floating_input().degrade();
-        let lrck_pin = p0.p0_16.into_floating_input().degrade();
-        let sdin_pin = p0.p0_14.into_floating_input().degrade();
 
         // Configure I2S reception
-        let i2s = I2S::new_peripheral(
+        let i2s = I2S::new(
             ctx.device.I2S,
-            Some(&mck_pin),
-            &sck_pin,
-            &lrck_pin,
-            Some(&sdin_pin),
-            None,
+            i2s::Pins::Peripheral {
+                mck: Some(p0.p0_25.into_floating_input().degrade()),
+                sck: p0.p0_24.into_floating_input().degrade(),
+                lrck: p0.p0_16.into_floating_input().degrade(),
+                sdin: Some(p0.p0_14.into_floating_input().degrade()),
+                sdout: None,
+            },
         );
         i2s.enable_interrupt(I2SEvent::RxPtrUpdated).start();
 
@@ -68,7 +66,7 @@ const APP: () = {
 
         let rgb = Spim::new(
             ctx.device.SPIM0,
-            Pins {
+            spim::Pins {
                 miso: None,
                 mosi: Some(rgb_data_pin),
                 sck: rgb_clk_pin,

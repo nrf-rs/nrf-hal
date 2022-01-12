@@ -19,10 +19,10 @@ use {
     hal::{
         gpio::{Input, Level, Output, Pin, PullUp, PushPull},
         gpiote::*,
-        i2s::*,
+        i2s::{self, *},
         pac::{TIMER0, UARTE0},
         timer::Timer,
-        uarte::*,
+        uarte::{self, *},
     },
     nrf52840_hal as hal,
     rtic::cyccnt::U32Ext,
@@ -74,18 +74,15 @@ const APP: () = {
         let p0 = hal::gpio::p0::Parts::new(ctx.device.P0);
 
         // Configure I2S controller
-        let mck_pin = p0.p0_28.into_push_pull_output(Level::Low).degrade();
-        let sck_pin = p0.p0_29.into_push_pull_output(Level::Low).degrade();
-        let sdout_pin = p0.p0_30.into_push_pull_output(Level::Low).degrade();
-        let lrck_pin = p0.p0_31.into_push_pull_output(Level::Low).degrade();
-
-        let i2s = I2S::new_controller(
+        let i2s = I2S::new(
             ctx.device.I2S,
-            Some(&mck_pin),
-            &sck_pin,
-            &lrck_pin,
-            None,
-            Some(&sdout_pin),
+            i2s::Pins::Controller {
+                mck: Some(p0.p0_28.into_push_pull_output(Level::Low).degrade()),
+                sck: p0.p0_29.into_push_pull_output(Level::Low).degrade(),
+                lrck: p0.p0_31.into_push_pull_output(Level::Low).degrade(),
+                sdin: None,
+                sdout: Some(p0.p0_30.into_push_pull_output(Level::Low).degrade()),
+            },
         );
         i2s.start();
 
@@ -100,7 +97,7 @@ const APP: () = {
         // Configure the onboard USB CDC UARTE
         let uarte = Uarte::new(
             ctx.device.UARTE0,
-            Pins {
+            uarte::Pins {
                 txd: p0.p0_06.into_push_pull_output(Level::High).degrade(),
                 rxd: p0.p0_08.into_floating_input().degrade(),
                 cts: None,
