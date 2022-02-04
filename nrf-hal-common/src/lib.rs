@@ -42,7 +42,7 @@ pub mod delay;
 #[cfg(not(any(feature = "9160", feature = "5340-app")))]
 pub mod ecb;
 pub mod gpio;
-#[cfg(not(any(feature = "9160", feature = "5340-app")))]
+#[cfg(not(feature = "5340-app"))]
 pub mod gpiote;
 #[cfg(not(any(feature = "51", feature = "52810", feature = "52811")))]
 pub mod i2s;
