@@ -63,26 +63,27 @@ dual licensed as above, without any additional terms or conditions.
 
 Here follows a brief description of each demo for quick reference. For a more in-depth explanation on how the peripherals work please refer to the device reference manuals linked above, the readme for each demo and the comments in the demo code itself.
 
-| Demo                                                  | Category          | Description                                                           |
-|-------------------------------------------------------|-------------------|-----------------------------------------------------------------------|
-| [blinky-button-demo](./examples/blinky-button-demo/README.md)  | Hello World       | Blinky button demo                                                    |
-| [ccm-demo](./examples/ccm-demo/README.md)                      | Encryption        | Cipher block chaining - message authentication code (CCM) mode demo   |
-| [comp-demo](./examples/comp-demo/README.md)                    | Analog Pins       | Voltage comparator peripheral demo                                    |
-| [ecb-demo](./examples/ecb-demo/README.md)                      | Encryption        | AES electronic codebook mode encryption demo                          |
-| [gpiote-demo](./examples/gpiote-demo/README.md)                | Digital Pins      | General-Purpose Input Output Tasks and Events module demo             |
-| [i2s-controller-demo](./examples/i2s-controller-demo/README.md)| Audio             | Inter-IC Sound interface "controller mode (aka master mode)" demo     |
-| [i2s-peripheral-demo](./examples/i2s-peripheral-demo/README.md)| Audio             | Inter-IC Sound interface "peripheral mode (aka slave mode)" demo      |
-| [lpcomp-demo](./examples/lpcomp-demo/README.md)                | Analog Pins       | Low power voltage comparator demo                                     |
-| [ppi-demo](./examples/ppi-demo/README.md)                      | Channels          | Programmable peripheral interconnect (PPI) demo                       |
-| [pwm-demo](./examples/pwm-demo/README.md)                      | Digital Pins      | Pulse width modulation demo                                           |
-| [qdec-demo](./examples/qdec-demo/README.md)                    | Sensor Decoding   | Quadrature sensor decoder (QDEC) demo                                 |
-| [rtic-demo](./examples/rtic-demo/README.md)                    | Framework         | The Real-Time Interrupt-driven Concurrency framework demo             |
-| [spi-demo](./examples/spi-demo/README.md)                      | Digital Pins      | Serial peripheral interface master (SPIM) with EasyDMA demo           |
-| [spis-demo](./examples/spis-demo/README.md)                    | Digital Pins      | Serial peripheral interface slave (SPIS) demo                         |
-| [twi-ssd1306](./examples/twi-ssd1306/README.md)                | Digital Pins      | I2C compatible Two-Wire Interface with the SSD1306 OLED Display demo  |
-| [twim-demo](./examples/twim-demo/README.md)                    | Digital Pins      | I2C compatible Two-Wire Interface Master mode demo                    |
-| [twis-demo](./examples/twis-demo/README.md)                    | Digital Pins      | I2C compatible Two-Wire Interface Slave mode demo                     |
-| [wdt-demo](./examples/wdt-demo/README.md)                      | Timer             | Watchdog timer demo                                                   |
+| Demo                                                                | Category          | Description                                                           |
+|---------------------------------------------------------------------|-------------------|-----------------------------------------------------------------------|
+| [blinky-button-demo](./examples/blinky-button-demo/README.md)       | Hello World       | Blinky button demo                                                    |
+| [ccm-demo](./examples/ccm-demo/README.md)                           | Encryption        | Cipher block chaining - message authentication code (CCM) mode demo   |
+| [comp-demo](./examples/comp-demo/README.md)                         | Analog Pins       | Voltage comparator peripheral demo                                    |
+| [ecb-demo](./examples/ecb-demo/README.md)                           | Encryption        | AES electronic codebook mode encryption demo                          |
+| [gpiote-demo](./examples/gpiote-demo/README.md)                     | Digital Pins      | General-Purpose Input Output Tasks and Events module demo             |
+| [i2s-controller-demo](./examples/i2s-controller-demo/README.md)     | Audio             | Inter-IC Sound interface "controller mode (aka master mode)" demo     |
+| [i2s-peripheral-demo](./examples/i2s-peripheral-demo/README.md)     | Audio             | Inter-IC Sound interface "peripheral mode (aka slave mode)" demo      |
+| [lpcomp-demo](./examples/lpcomp-demo/README.md)                     | Analog Pins       | Low power voltage comparator demo                                     |
+| [ppi-demo](./examples/ppi-demo/README.md)                           | Channels          | Programmable peripheral interconnect (PPI) demo                       |
+| [pwm-demo](./examples/pwm-demo/README.md)                           | Digital Pins      | Pulse width modulation demo                                           |
+| [qdec-demo](./examples/qdec-demo/README.md)                         | Sensor Decoding   | Quadrature sensor decoder (QDEC) demo                                 |
+| [rtic-demo](./examples/rtic-demo/README.md)                         | Framework         | The Real-Time Interrupt-driven Concurrency framework demo             |
+| [rtic-serial-interrupt](./examples/rtic-serial-interrupt/README.md) | Interrupt         | Register for UARTE0 interrupt with RTIC                               |
+| [spi-demo](./examples/spi-demo/README.md)                           | Digital Pins      | Serial peripheral interface master (SPIM) with EasyDMA demo           |
+| [spis-demo](./examples/spis-demo/README.md)                         | Digital Pins      | Serial peripheral interface slave (SPIS) demo                         |
+| [twi-ssd1306](./examples/twi-ssd1306/README.md)                     | Digital Pins      | I2C compatible Two-Wire Interface with the SSD1306 OLED Display demo  |
+| [twim-demo](./examples/twim-demo/README.md)                         | Digital Pins      | I2C compatible Two-Wire Interface Master mode demo                    |
+| [twis-demo](./examples/twis-demo/README.md)                         | Digital Pins      | I2C compatible Two-Wire Interface Slave mode demo                     |
+| [wdt-demo](./examples/wdt-demo/README.md)                           | Timer             | Watchdog timer demo                                                   |
 
 
 ## Running the Examples
