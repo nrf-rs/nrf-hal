@@ -91,6 +91,10 @@ fn main() {
             continue;
         }
 
+        if entry.metadata().unwrap().is_file() {
+            continue;
+        }
+
         if EXAMPLES
             .iter()
             .find(|(example, ..)| *example == name)
