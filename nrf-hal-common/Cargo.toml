@@ -11,7 +11,7 @@ authors = [
     "John Scarrott <johnps@outlook.com>",
     "Wez Furlong <wez@wezfurlong.org>",
     "Daniel Egger <daniel@eggers-club.de>",
-    "Ferdia McKeogh <ferdia@mckeogh.tech>"
+    "Ferdia McKeogh <ferdia@mckeogh.tech>",
 ]
 
 categories = ["embedded", "hardware-support", "no-std"]
@@ -38,35 +38,35 @@ version = "0.3.0"
 
 [dependencies.nrf51-pac]
 optional = true
-version = "0.10.1"
+version = "0.11.0"
 
 [dependencies.nrf52810-pac]
 optional = true
-version = "0.10.1"
+version = "0.11.0"
 
 [dependencies.nrf52811-pac]
 optional = true
-version = "0.10.1"
+version = "0.11.0"
 
 [dependencies.nrf52832-pac]
 optional = true
-version = "0.10.1"
+version = "0.11.0"
 
 [dependencies.nrf52833-pac]
 optional = true
-version = "0.10.1"
+version = "0.11.0"
 
 [dependencies.nrf52840-pac]
 optional = true
-version = "0.10.1"
+version = "0.11.0"
 
 [dependencies.nrf5340-app-pac]
 optional = true
-version = "0.10.1"
+version = "0.11.0"
 
 [dependencies.nrf9160-pac]
 optional = true
-version = "0.10.1"
+version = "0.11.0"
 
 [dependencies.nrf-usbd]
 version = "0.1.0"

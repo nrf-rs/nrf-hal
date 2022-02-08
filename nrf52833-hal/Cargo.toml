@@ -10,7 +10,7 @@ authors = [
     "Hanno Braun <hanno@braun-robotics.com>",
     "John Scarrott <johnps@outlook.com>",
     "Wez Furlong <wez@wezfurlong.org>",
-    "Erik Svensson <erik.public@gmail.com>"
+    "Erik Svensson <erik.public@gmail.com>",
 ]
 
 categories = ["embedded", "hardware-support", "no-std"]
@@ -19,7 +19,7 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [dependencies]
-nrf52833-pac = "0.10.1"
+nrf52833-pac = "0.11.0"
 
 [dependencies.nrf-hal-common]
 path = "../nrf-hal-common"

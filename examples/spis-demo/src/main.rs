@@ -4,26 +4,32 @@
 // Demo for the SPIS module, transmitting the current buffer contents while receiving new data.
 // Press button to zero the buffer.
 
-use {
-    core::{
-        panic::PanicInfo,
-        sync::atomic::{compiler_fence, Ordering},
-    },
-    hal::{gpiote::Gpiote, pac::SPIS0, spis::*},
-    nrf52840_hal as hal,
-    rtt_target::{rprintln, rtt_init_print},
-};
+use {core::panic::PanicInfo, nrf52840_hal as hal, rtt_target::rprintln};
 
 #[rtic::app(device = crate::hal::pac, peripherals = true)]
-const APP: () = {
-    struct Resources {
-        gpiote: Gpiote,
+mod app {
+    use {
+        hal::{gpiote::Gpiote, pac::SPIS0, spis::*},
+        nrf52840_hal as hal,
+        rtt_target::{rprintln, rtt_init_print},
+    };
+
+    #[shared]
+    struct Shared {
+        #[lock_free]
         transfer: Option<Transfer<SPIS0, &'static mut [u8; 8]>>,
     }
 
-    #[init]
-    fn init(ctx: init::Context) -> init::LateResources {
-        static mut BUF: [u8; 8] = [0; 8];
+    #[local]
+    struct Local {
+        gpiote: Gpiote,
+    }
+
+    #[init(local = [
+        BUF: [u8; 8] = [0; 8],
+    ])]
+    fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
+        let BUF = ctx.local.BUF;
 
         let _clocks = hal::clocks::Clocks::new(ctx.device.CLOCK).enable_ext_hfosc();
         rtt_init_print!();
@@ -52,37 +58,38 @@ const APP: () = {
         gpiote.port().input_pin(&btn).low();
         gpiote.port().enable_interrupt();
 
-        init::LateResources {
-            gpiote,
-            transfer: spis.transfer(BUF).ok(),
-        }
+        (
+            Shared {
+                transfer: spis.transfer(BUF).ok(),
+            },
+            Local { gpiote },
+            init::Monotonics(),
+        )
     }
 
-    #[task(binds = GPIOTE, resources = [gpiote, transfer])]
+    #[task(binds = GPIOTE, local = [gpiote], shared = [transfer])]
     fn on_gpiote(ctx: on_gpiote::Context) {
-        ctx.resources.gpiote.reset_events();
+        ctx.local.gpiote.reset_events();
         rprintln!("Reset buffer");
-        let (buf, spis) = ctx.resources.transfer.take().unwrap().wait();
+        let (buf, spis) = ctx.shared.transfer.take().unwrap().wait();
         buf.copy_from_slice(&[0; 8][..]);
         rprintln!("{:?}", buf);
-        *ctx.resources.transfer = spis.transfer(buf).ok();
+        *ctx.shared.transfer = spis.transfer(buf).ok();
     }
 
-    #[task(binds = SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0, resources = [transfer])]
+    #[task(binds = SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0, shared = [transfer])]
     fn on_spis(ctx: on_spis::Context) {
-        let (buf, spis) = ctx.resources.transfer.take().unwrap().wait();
+        let (buf, spis) = ctx.shared.transfer.take().unwrap().wait();
         spis.reset_event(SpisEvent::End);
         rprintln!("Received: {:?}", buf);
-        *ctx.resources.transfer = spis.transfer(buf).ok();
+        *ctx.shared.transfer = spis.transfer(buf).ok();
     }
-};
+}
 
 #[inline(never)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     cortex_m::interrupt::disable();
     rprintln!("{}", info);
-    loop {
-        compiler_fence(Ordering::SeqCst);
-    }
+    loop {}
 }

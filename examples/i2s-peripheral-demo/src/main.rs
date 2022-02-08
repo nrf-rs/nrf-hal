@@ -4,41 +4,44 @@
 // I2S `peripheral mode` demo
 // Signal average level indicator using an RGB LED (APA102 on ItsyBitsy nRF52840)
 
-use embedded_hal::blocking::spi::Write;
-use {
-    core::{
-        panic::PanicInfo,
-        sync::atomic::{compiler_fence, Ordering},
-    },
-    hal::{
+use {core::panic::PanicInfo, nrf52840_hal as hal, rtt_target::rprintln};
+
+#[repr(align(4))]
+pub struct Aligned<T: ?Sized>(T);
+
+#[rtic::app(device = crate::hal::pac, peripherals = true)]
+mod app {
+    use crate::hal::{
+        self,
         gpio::Level,
         i2s::{self, *},
         pac::SPIM0,
         spim::{self, Frequency, Mode as SPIMode, Phase, Polarity, Spim},
-    },
-    nrf52840_hal as hal,
-    rtt_target::{rprintln, rtt_init_print},
-};
+    };
+    use crate::Aligned;
+    use embedded_hal::blocking::spi::Write;
+    use rtt_target::{rprintln, rtt_init_print};
 
-#[repr(align(4))]
-struct Aligned<T: ?Sized>(T);
+    const OFF: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF];
+    const GREEN: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x10, 0x00, 0xFF];
+    const ORANGE: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x10, 0x10, 0xFF];
+    const RED: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x10, 0xFF];
 
-const OFF: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF];
-const GREEN: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x10, 0x00, 0xFF];
-const ORANGE: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x10, 0x10, 0xFF];
-const RED: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x10, 0xFF];
+    #[shared]
+    struct Shared {}
 
-#[rtic::app(device = crate::hal::pac, peripherals = true)]
-const APP: () = {
-    struct Resources {
+    #[local]
+    struct Local {
         rgb: Spim<SPIM0>,
         transfer: Option<Transfer<&'static mut [i16; 128]>>,
     }
 
-    #[init]
-    fn init(ctx: init::Context) -> init::LateResources {
+    #[init(local = [
         // The I2S buffer address must be 4 byte aligned.
-        static mut RX_BUF: Aligned<[i16; 128]> = Aligned([0; 128]);
+        RX_BUF: Aligned<[i16; 128]> = Aligned([0; 128]),
+    ])]
+    fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
+        let RX_BUF = ctx.local.RX_BUF;
 
         let _clocks = hal::clocks::Clocks::new(ctx.device.CLOCK).enable_ext_hfosc();
         rtt_init_print!();
@@ -78,15 +81,19 @@ const APP: () = {
             },
             0,
         );
-        init::LateResources {
-            rgb,
-            transfer: i2s.rx(&mut RX_BUF.0).ok(),
-        }
+        (
+            Shared {},
+            Local {
+                rgb,
+                transfer: i2s.rx(&mut RX_BUF.0).ok(),
+            },
+            init::Monotonics(),
+        )
     }
 
-    #[task(binds = I2S, resources = [rgb, transfer])]
+    #[task(binds = I2S, local = [rgb, transfer])]
     fn on_i2s(ctx: on_i2s::Context) {
-        let (rx_buf, i2s) = ctx.resources.transfer.take().unwrap().wait();
+        let (rx_buf, i2s) = ctx.local.transfer.take().unwrap().wait();
         if i2s.is_event_triggered(I2SEvent::RxPtrUpdated) {
             i2s.reset_event(I2SEvent::RxPtrUpdated);
             // Calculate mono summed average of received buffer
@@ -98,18 +105,16 @@ const APP: () = {
                 10_338..=16_383 => &ORANGE,
                 _ => &RED,
             };
-            <Spim<SPIM0> as Write<u8>>::write(ctx.resources.rgb, color).ok();
+            <Spim<SPIM0> as Write<u8>>::write(ctx.local.rgb, color).ok();
         }
-        *ctx.resources.transfer = i2s.rx(rx_buf).ok();
+        *ctx.local.transfer = i2s.rx(rx_buf).ok();
     }
-};
+}
 
 #[inline(never)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     cortex_m::interrupt::disable();
     rprintln!("{}", info);
-    loop {
-        compiler_fence(Ordering::SeqCst);
-    }
+    loop {}
 }

@@ -10,7 +10,6 @@ publish = false
 [dependencies]
 cortex-m = "0.7.3"
 cortex-m-rt = { version = "0.7.0", features = ["device"] }
-cortex-m-rtic = { version = "0.5.9", features = ["cortex-m-7"], default-features = false }
 rtt-target = { version = "0.3.1", features = ["cortex-m"] }
 nrf52840-hal = { features = ["rt"], path = "../../nrf52840-hal" }
 

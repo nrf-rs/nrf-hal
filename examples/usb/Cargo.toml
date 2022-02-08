@@ -8,7 +8,6 @@ publish = false
 [dependencies]
 cortex-m-rt = "0.7.0"
 panic-semihosting = "0.5.3"
-nrf52840-pac = "0.10.1"
 usb-device = "0.2.7"
 usbd-serial = "0.1.0"
 

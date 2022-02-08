@@ -30,7 +30,7 @@ pub static EXAMPLES: &[(&str, &[&str])] = &[
     ),
     ("nvmc-demo", &["52840"]),
     ("pwm-blinky-demo", &["52840"]),
-    ("pwm-demo", &["52840"]),
+    ("pwm-demo", &[]),
     ("qdec-demo", &[]),
     ("rtc-demo", &[]),
     ("rtic-demo", &["51", "52810", "52811", "52832", "52840"]),

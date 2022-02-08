@@ -4,33 +4,40 @@
 // Demo of using non-blocking DMA transactions with the
 // TWIS (Two Wire Interface/I2C in peripheral mode) module.
 
-use {
-    core::{
-        panic::PanicInfo,
-        sync::atomic::{compiler_fence, Ordering},
-    },
-    hal::{gpio::p0::Parts, gpiote::Gpiote, pac::TWIS0, twis::*},
-    nrf52840_hal as hal,
-    rtt_target::{rprintln, rtt_init_print},
-};
-
-type DmaBuffer = &'static mut [u8; 8];
-
-pub enum TwisTransfer {
-    Running(Transfer<TWIS0, DmaBuffer>),
-    Idle((DmaBuffer, Twis<TWIS0>)),
-}
+use {core::panic::PanicInfo, nrf52840_hal as hal, rtt_target::rprintln};
 
 #[rtic::app(device = crate::hal::pac, peripherals = true)]
-const APP: () = {
-    struct Resources {
-        gpiote: Gpiote,
+mod app {
+    use {
+        hal::{gpio::p0::Parts, gpiote::Gpiote, pac::TWIS0, twis::*},
+        nrf52840_hal as hal,
+        rtt_target::{rprintln, rtt_init_print},
+    };
+
+    type DmaBuffer = &'static mut [u8; 8];
+
+    pub enum TwisTransfer {
+        Running(Transfer<TWIS0, DmaBuffer>),
+        Idle((DmaBuffer, Twis<TWIS0>)),
+    }
+
+    #[shared]
+    struct Shared {
+        #[lock_free]
         transfer: Option<TwisTransfer>,
     }
 
-    #[init]
-    fn init(ctx: init::Context) -> init::LateResources {
-        static mut BUF: [u8; 8] = [0; 8];
+    #[local]
+    struct Local {
+        gpiote: Gpiote,
+    }
+
+    #[init(local = [
+        BUF: [u8; 8] = [0; 8],
+    ])]
+    fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
+        let BUF = ctx.local.BUF;
+
         let _clocks = hal::clocks::Clocks::new(ctx.device.CLOCK).enable_ext_hfosc();
         rtt_init_print!();
         rprintln!("Waiting for commands from controller...");
@@ -50,17 +57,20 @@ const APP: () = {
         gpiote.port().input_pin(&btn).low();
         gpiote.port().enable_interrupt();
 
-        init::LateResources {
-            gpiote,
-            transfer: Some(TwisTransfer::Idle((BUF, twis))),
-        }
+        (
+            Shared {
+                transfer: Some(TwisTransfer::Idle((BUF, twis))),
+            },
+            Local { gpiote },
+            init::Monotonics(),
+        )
     }
 
-    #[task(binds = GPIOTE, resources = [gpiote, transfer])]
+    #[task(binds = GPIOTE, local = [gpiote], shared = [transfer])]
     fn on_gpiote(ctx: on_gpiote::Context) {
-        ctx.resources.gpiote.reset_events();
+        ctx.local.gpiote.reset_events();
         rprintln!("Reset buffer");
-        let transfer = ctx.resources.transfer;
+        let transfer = ctx.shared.transfer;
         let (buf, twis) = match transfer.take().unwrap() {
             TwisTransfer::Running(t) => t.wait(),
             TwisTransfer::Idle(t) => t,
@@ -70,9 +80,9 @@ const APP: () = {
         transfer.replace(TwisTransfer::Idle((buf, twis)));
     }
 
-    #[task(binds = SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0, resources = [transfer])]
+    #[task(binds = SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0, shared = [transfer])]
     fn on_twis(ctx: on_twis::Context) {
-        let transfer = ctx.resources.transfer;
+        let transfer = ctx.shared.transfer;
         let (buf, twis) = match transfer.take().unwrap() {
             TwisTransfer::Running(t) => t.wait(),
             TwisTransfer::Idle(t) => t,
@@ -93,14 +103,12 @@ const APP: () = {
             transfer.replace(TwisTransfer::Idle((buf, twis)));
         }
     }
-};
+}
 
 #[inline(never)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     cortex_m::interrupt::disable();
     rprintln!("{}", info);
-    loop {
-        compiler_fence(Ordering::SeqCst);
-    }
+    loop {}
 }
