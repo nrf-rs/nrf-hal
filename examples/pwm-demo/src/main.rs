@@ -1,56 +1,65 @@
 #![no_std]
 #![no_main]
 
-use embedded_hal::digital::v2::InputPin;
-use {
-    core::{
-        panic::PanicInfo,
-        sync::atomic::{compiler_fence, Ordering},
-    },
-    hal::{
-        gpio::{p0::Parts, Input, Level, Pin, PullUp},
-        gpiote::Gpiote,
-        pac::PWM0,
-        pwm::*,
-        time::*,
-    },
-    nrf52840_hal as hal,
-    rtic::cyccnt::U32Ext as _,
-    rtt_target::{rprintln, rtt_init_print},
-};
+use {core::panic::PanicInfo, nrf52840_hal as hal, rtt_target::rprintln};
 
-#[derive(Debug, PartialEq)]
-pub enum AppStatus {
-    Idle,
-    Demo1A,
-    Demo1B,
-    Demo1C,
-    Demo2A,
-    Demo2B,
-    Demo2C,
-    Demo3,
-    Demo4,
-}
+#[rtic::app(device = crate::hal::pac, peripherals = true, dispatchers = [SWI0_EGU0])]
+mod app {
+    use embedded_hal::digital::v2::InputPin;
+    use {
+        hal::{
+            gpio::{p0::Parts, Input, Level, Pin, PullUp},
+            gpiote::Gpiote,
+            pac::PWM0,
+            pwm::*,
+            time::*,
+        },
+        nrf52840_hal as hal,
+        rtt_target::{rprintln, rtt_init_print},
+        systick_monotonic::*,
+    };
 
-type SeqBuffer = &'static mut [u16; 48];
+    #[monotonic(binds = SysTick, default = true)]
+    type Mono = Systick<1_000_000>;
 
-#[rtic::app(device = crate::hal::pac, peripherals = true,  monotonic = rtic::cyccnt::CYCCNT)]
-const APP: () = {
-    struct Resources {
+    #[shared]
+    struct Shared {
+        #[lock_free]
+        pwm: Option<PwmSeq<PWM0, SeqBuffer, SeqBuffer>>,
+    }
+
+    #[local]
+    struct Local {
         gpiote: Gpiote,
         btn1: Pin<Input<PullUp>>,
         btn2: Pin<Input<PullUp>>,
         btn3: Pin<Input<PullUp>>,
         btn4: Pin<Input<PullUp>>,
-        #[init(AppStatus::Idle)]
         status: AppStatus,
-        pwm: Option<PwmSeq<PWM0, SeqBuffer, SeqBuffer>>,
     }
 
-    #[init]
-    fn init(mut ctx: init::Context) -> init::LateResources {
-        static mut BUF0: [u16; 48] = [0u16; 48];
-        static mut BUF1: [u16; 48] = [0u16; 48];
+    #[derive(Debug, PartialEq)]
+    pub enum AppStatus {
+        Idle,
+        Demo1A,
+        Demo1B,
+        Demo1C,
+        Demo2A,
+        Demo2B,
+        Demo2C,
+        Demo3,
+        Demo4,
+    }
+
+    type SeqBuffer = &'static mut [u16; 48];
+
+    #[init(local = [
+        BUF0: [u16; 48] = [0u16; 48],
+        BUF1: [u16; 48] = [0u16; 48],
+    ])]
+    fn init(mut ctx: init::Context) -> (Shared, Local, init::Monotonics) {
+        let BUF0 = ctx.local.BUF0;
+        let BUF1 = ctx.local.BUF1;
 
         let _clocks = hal::clocks::Clocks::new(ctx.device.CLOCK).enable_ext_hfosc();
         ctx.core.DCB.enable_trace();
@@ -89,14 +98,22 @@ const APP: () = {
         gpiote.port().input_pin(&btn4).low();
         gpiote.port().enable_interrupt();
 
-        init::LateResources {
-            gpiote,
-            btn1,
-            btn2,
-            btn3,
-            btn4,
-            pwm: pwm.load(Some(BUF0), Some(BUF1), false).ok(),
-        }
+        let mono = Mono::new(ctx.core.SYST, 64_000_000);
+
+        (
+            Shared {
+                pwm: pwm.load(Some(BUF0), Some(BUF1), false).ok(),
+            },
+            Local {
+                gpiote,
+                btn1,
+                btn2,
+                btn3,
+                btn4,
+                status: AppStatus::Idle,
+            },
+            init::Monotonics(mono),
+        )
     }
 
     #[idle]
@@ -107,24 +124,24 @@ const APP: () = {
         }
     }
 
-    #[task(binds = PWM0, resources = [pwm])]
+    #[task(binds = PWM0, shared = [pwm])]
     fn on_pwm(ctx: on_pwm::Context) {
-        let pwm_seq = ctx.resources.pwm.as_ref().unwrap();
+        let pwm_seq = ctx.shared.pwm.as_ref().unwrap();
         if pwm_seq.is_event_triggered(PwmEvent::Stopped) {
             pwm_seq.reset_event(PwmEvent::Stopped);
             rprintln!("PWM generation was stopped");
         }
     }
 
-    #[task(binds = GPIOTE, resources = [gpiote], schedule = [debounce])]
+    #[task(binds = GPIOTE, local = [gpiote])]
     fn on_gpiote(ctx: on_gpiote::Context) {
-        ctx.resources.gpiote.reset_events();
-        ctx.schedule.debounce(ctx.start + 2_500_000.cycles()).ok();
+        ctx.local.gpiote.reset_events();
+        debounce::spawn_after(50.millis()).ok();
     }
 
-    #[task(resources = [btn1, btn2, btn3, btn4, pwm, status])]
+    #[task(shared = [pwm], local = [btn1, btn2, btn3, btn4, status])]
     fn debounce(ctx: debounce::Context) {
-        let (buf0, buf1, pwm) = ctx.resources.pwm.take().unwrap().split();
+        let (buf0, buf1, pwm) = ctx.shared.pwm.take().unwrap().split();
         let BUF0 = buf0.unwrap();
         let BUF1 = buf1.unwrap();
 
@@ -132,8 +149,8 @@ const APP: () = {
         let (ch0, ch1, ch2, ch3) = pwm.split_channels();
         let (grp0, grp1) = pwm.split_groups();
 
-        let status = ctx.resources.status;
-        if ctx.resources.btn1.is_low().unwrap() {
+        let status = ctx.local.status;
+        if ctx.local.btn1.is_low().unwrap() {
             match status {
                 AppStatus::Demo1B => {
                     rprintln!("DEMO 1C: Individual channel duty cycle");
@@ -155,8 +172,8 @@ const APP: () = {
                     pwm.set_duty_on_common(max_duty / 10);
                 }
             }
-            *ctx.resources.pwm = pwm.load(Some(BUF0), Some(BUF1), false).ok();
-        } else if ctx.resources.btn2.is_low().unwrap() {
+            *ctx.shared.pwm = pwm.load(Some(BUF0), Some(BUF1), false).ok();
+        } else if ctx.local.btn2.is_low().unwrap() {
             match status {
                 AppStatus::Demo2B => {
                     rprintln!("DEMO 2C: Play grouped sequence 4 times");
@@ -174,7 +191,7 @@ const APP: () = {
                         .set_seq_refresh(Seq::Seq0, 30) // Playback rate (periods per step)
                         .set_seq_refresh(Seq::Seq1, 10)
                         .repeat(4);
-                    *ctx.resources.pwm = pwm.load(Some(BUF0), Some(BUF1), true).ok();
+                    *ctx.shared.pwm = pwm.load(Some(BUF0), Some(BUF1), true).ok();
                 }
                 AppStatus::Demo2A => {
                     rprintln!("DEMO 2B: Loop individual sequences");
@@ -194,7 +211,7 @@ const APP: () = {
                         .set_seq_refresh(Seq::Seq0, 30)
                         .set_seq_refresh(Seq::Seq1, 30)
                         .loop_inf();
-                    *ctx.resources.pwm = pwm.load(Some(BUF0), Some(BUF1), true).ok();
+                    *ctx.shared.pwm = pwm.load(Some(BUF0), Some(BUF1), true).ok();
                 }
                 _ => {
                     rprintln!("DEMO 2A: Play common sequence once");
@@ -210,10 +227,10 @@ const APP: () = {
                         .set_seq_refresh(Seq::Seq0, 20)
                         .set_seq_refresh(Seq::Seq1, 20)
                         .one_shot();
-                    *ctx.resources.pwm = pwm.load(Some(BUF0), Some(BUF1), true).ok();
+                    *ctx.shared.pwm = pwm.load(Some(BUF0), Some(BUF1), true).ok();
                 }
             }
-        } else if ctx.resources.btn3.is_low().unwrap() {
+        } else if ctx.local.btn3.is_low().unwrap() {
             match status {
                 AppStatus::Demo3 => {
                     rprintln!("DEMO 3: Next step");
@@ -224,7 +241,7 @@ const APP: () = {
                         pwm.stop();
                         *status = AppStatus::Idle;
                     }
-                    *ctx.resources.pwm = pwm.load(Some(BUF0), Some(BUF1), false).ok();
+                    *ctx.shared.pwm = pwm.load(Some(BUF0), Some(BUF1), false).ok();
                 }
                 _ => {
                     rprintln!("DEMO 3: Manually step through sequence");
@@ -239,10 +256,10 @@ const APP: () = {
                     pwm.set_load_mode(LoadMode::Common)
                         .set_step_mode(StepMode::NextStep)
                         .loop_inf();
-                    *ctx.resources.pwm = pwm.load(Some(BUF0), Some(BUF1), true).ok();
+                    *ctx.shared.pwm = pwm.load(Some(BUF0), Some(BUF1), true).ok();
                 }
             }
-        } else if ctx.resources.btn4.is_low().unwrap() {
+        } else if ctx.local.btn4.is_low().unwrap() {
             rprintln!("DEMO 4: Waveform mode");
             *status = AppStatus::Demo4;
             let len = BUF0.len() / 4;
@@ -261,21 +278,17 @@ const APP: () = {
                 .set_seq_refresh(Seq::Seq0, 150)
                 .set_seq_refresh(Seq::Seq1, 150)
                 .loop_inf();
-            *ctx.resources.pwm = pwm.load(Some(BUF0), Some(BUF1), true).ok();
+            *ctx.shared.pwm = pwm.load(Some(BUF0), Some(BUF1), true).ok();
         } else {
-            *ctx.resources.pwm = pwm.load(Some(BUF0), Some(BUF1), false).ok();
+            *ctx.shared.pwm = pwm.load(Some(BUF0), Some(BUF1), false).ok();
         }
     }
 
-    extern "C" {
-        fn SWI0_EGU0();
+    fn triangle_wave(x: usize, length: usize, ampl: i32, phase: i32, y_offset: i32) -> i32 {
+        let x = x as i32;
+        let length = length as i32;
+        ampl - ((2 * (x + phase) * ampl / length) % (2 * ampl) - ampl).abs() + y_offset
     }
-};
-
-fn triangle_wave(x: usize, length: usize, ampl: i32, phase: i32, y_offset: i32) -> i32 {
-    let x = x as i32;
-    let length = length as i32;
-    ampl - ((2 * (x + phase) * ampl / length) % (2 * ampl) - ampl).abs() + y_offset
 }
 
 #[inline(never)]
@@ -283,7 +296,5 @@ fn triangle_wave(x: usize, length: usize, ampl: i32, phase: i32, y_offset: i32) 
 fn panic(info: &PanicInfo) -> ! {
     cortex_m::interrupt::disable();
     rprintln!("{}", info);
-    loop {
-        compiler_fence(Ordering::SeqCst);
-    }
+    loop {}
 }

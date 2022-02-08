@@ -10,8 +10,8 @@ publish = false
 [dependencies]
 cortex-m = "0.7.3"
 cortex-m-rt = "0.7.0"
-embedded-storage = "0.2.0"
-rtt-target = {version = "0.2.0", features = ["cortex-m"] }
+embedded-storage = "0.3.0"
+rtt-target = { version = "0.3.1", features = ["cortex-m"] }
 panic-probe = { version = "0.3.0", features = ["print-rtt"] }
 
 [dependencies.embedded-hal]

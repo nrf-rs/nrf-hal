@@ -11,11 +11,13 @@
 
 - Unified how pins are are returned in `free` calls ([#372]).
 - Improvements to the NVMC driver ([#374]).
+- Updated `embedded-dma`, `embedded-storage`, and PACs ([#379]).
 
 [#372]: https://github.com/nrf-rs/nrf-hal/pull/372
 [#373]: https://github.com/nrf-rs/nrf-hal/pull/373
 [#374]: https://github.com/nrf-rs/nrf-hal/pull/374
 [#376]: https://github.com/nrf-rs/nrf-hal/pull/376
+[#379]: https://github.com/nrf-rs/nrf-hal/pull/379
 
 ## [0.14.1]
 

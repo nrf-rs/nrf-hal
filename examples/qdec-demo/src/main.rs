@@ -1,26 +1,27 @@
 #![no_std]
 #![no_main]
 
-use {
-    core::{
-        panic::PanicInfo,
-        sync::atomic::{compiler_fence, Ordering},
-    },
-    hal::qdec::*,
-    nrf52840_hal as hal,
-    rtt_target::{rprintln, rtt_init_print},
-};
+use {core::panic::PanicInfo, nrf52840_hal as hal, rtt_target::rprintln};
 
 #[rtic::app(device = crate::hal::pac, peripherals = true)]
-const APP: () = {
-    struct Resources {
+mod app {
+    use {
+        hal::qdec::*,
+        nrf52840_hal as hal,
+        rtt_target::{rprintln, rtt_init_print},
+    };
+
+    #[shared]
+    struct Shared {}
+
+    #[local]
+    struct Local {
         qdec: Qdec,
-        #[init(0)]
         value: i16,
     }
 
     #[init]
-    fn init(ctx: init::Context) -> init::LateResources {
+    fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         let _clocks = hal::clocks::Clocks::new(ctx.device.CLOCK).enable_ext_hfosc();
         rtt_init_print!();
 
@@ -36,23 +37,21 @@ const APP: () = {
             .enable_interrupt(NumSamples::_1smpl)
             .enable();
 
-        init::LateResources { qdec }
+        (Shared {}, Local { qdec, value: 0 }, init::Monotonics())
     }
 
-    #[task(binds = QDEC, resources = [qdec, value])]
+    #[task(binds = QDEC, local = [qdec, value])]
     fn on_qdec(ctx: on_qdec::Context) {
-        ctx.resources.qdec.reset_events();
-        *ctx.resources.value += ctx.resources.qdec.read();
-        rprintln!("Value: {}", ctx.resources.value);
+        ctx.local.qdec.reset_events();
+        *ctx.local.value += ctx.local.qdec.read();
+        rprintln!("Value: {}", ctx.local.value);
     }
-};
+}
 
 #[inline(never)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     cortex_m::interrupt::disable();
     rprintln!("{}", info);
-    loop {
-        compiler_fence(Ordering::SeqCst);
-    }
+    loop {}
 }

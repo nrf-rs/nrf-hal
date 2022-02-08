@@ -7,7 +7,7 @@ readme = "../README.md"
 repository = "https://github.com/nrf-rs/nrf-hal"
 authors = [
     "James Munns <james@onevariable.com>",
-    "Hanno Braun <hanno@braun-robotics.com>"
+    "Hanno Braun <hanno@braun-robotics.com>",
 ]
 
 categories = ["embedded", "hardware-support", "no-std"]
@@ -16,7 +16,7 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [dependencies]
-nrf52832-pac = "0.10.1"
+nrf52832-pac = "0.11.0"
 
 [dependencies.nrf-hal-common]
 path = "../nrf-hal-common"

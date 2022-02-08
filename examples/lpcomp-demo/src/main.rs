@@ -1,25 +1,27 @@
 #![no_std]
 #![no_main]
 
-use embedded_hal::digital::v2::OutputPin;
-use {
-    core::{
-        panic::PanicInfo,
-        sync::atomic::{compiler_fence, Ordering},
-    },
-    hal::{
-        gpio::{Level, Output, Pin, PushPull},
-        gpiote::Gpiote,
-        lpcomp::*,
-        pac::POWER,
-    },
-    nrf52840_hal as hal,
-    rtt_target::{rprintln, rtt_init_print},
-};
+use {core::panic::PanicInfo, nrf52840_hal as hal, rtt_target::rprintln};
 
 #[rtic::app(device = crate::hal::pac, peripherals = true)]
-const APP: () = {
-    struct Resources {
+mod app {
+    use embedded_hal::digital::v2::OutputPin;
+    use {
+        hal::{
+            gpio::{Level, Output, Pin, PushPull},
+            gpiote::Gpiote,
+            lpcomp::*,
+            pac::POWER,
+        },
+        nrf52840_hal as hal,
+        rtt_target::{rprintln, rtt_init_print},
+    };
+
+    #[shared]
+    struct Shared {}
+
+    #[local]
+    struct Local {
         gpiote: Gpiote,
         led1: Pin<Output<PushPull>>,
         lpcomp: LpComp,
@@ -27,7 +29,7 @@ const APP: () = {
     }
 
     #[init]
-    fn init(ctx: init::Context) -> init::LateResources {
+    fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         let _clocks = hal::clocks::Clocks::new(ctx.device.CLOCK).enable_ext_hfosc();
         rtt_init_print!();
 
@@ -73,47 +75,39 @@ const APP: () = {
 
         rprintln!("Press button 1 to shut down");
 
-        init::LateResources {
-            gpiote,
-            led1,
-            lpcomp,
-            power: ctx.device.POWER,
-        }
+        (
+            Shared {},
+            Local {
+                gpiote,
+                led1,
+                lpcomp,
+                power: ctx.device.POWER,
+            },
+            init::Monotonics(),
+        )
     }
 
-    #[idle]
-    fn idle(_: idle::Context) -> ! {
-        loop {
-            cortex_m::asm::wfi();
-        }
-    }
-
-    #[task(binds = GPIOTE, resources = [gpiote, power])]
+    #[task(binds = GPIOTE, local = [gpiote, power])]
     fn on_gpiote(ctx: on_gpiote::Context) {
-        ctx.resources.gpiote.reset_events();
+        ctx.local.gpiote.reset_events();
         rprintln!("Power OFF");
-        ctx.resources
-            .power
-            .systemoff
-            .write(|w| w.systemoff().enter());
+        ctx.local.power.systemoff.write(|w| w.systemoff().enter());
     }
 
-    #[task(binds = COMP_LPCOMP, resources = [lpcomp, led1])]
+    #[task(binds = COMP_LPCOMP, local = [lpcomp, led1])]
     fn on_comp(ctx: on_comp::Context) {
-        ctx.resources.lpcomp.reset_events();
-        match ctx.resources.lpcomp.read() {
-            CompResult::Above => ctx.resources.led1.set_low().ok(),
-            CompResult::Below => ctx.resources.led1.set_high().ok(),
+        ctx.local.lpcomp.reset_events();
+        match ctx.local.lpcomp.read() {
+            CompResult::Above => ctx.local.led1.set_low().ok(),
+            CompResult::Below => ctx.local.led1.set_high().ok(),
         };
     }
-};
+}
 
 #[inline(never)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     cortex_m::interrupt::disable();
     rprintln!("{}", info);
-    loop {
-        compiler_fence(Ordering::SeqCst);
-    }
+    loop {}
 }

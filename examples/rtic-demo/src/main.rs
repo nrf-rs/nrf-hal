@@ -4,7 +4,6 @@
 #[allow(unused_imports)]
 use panic_semihosting;
 
-use cortex_m_semihosting::{debug, hprintln};
 use rtic::app;
 
 #[cfg(feature = "51")]
@@ -23,10 +22,20 @@ use nrf52832_hal as hal;
 use nrf52840_hal as hal;
 
 #[app(device = crate::hal::pac)]
-const APP: () = {
+mod app {
+    use cortex_m_semihosting::{debug, hprintln};
+
+    #[shared]
+    struct Shared {}
+
+    #[local]
+    struct Local {}
+
     #[init]
-    fn init(_: init::Context) {
+    fn init(_: init::Context) -> (Shared, Local, init::Monotonics) {
         hprintln!("init").unwrap();
+
+        (Shared {}, Local {}, init::Monotonics())
     }
 
     #[idle]
@@ -35,8 +44,6 @@ const APP: () = {
 
         debug::exit(debug::EXIT_SUCCESS);
 
-        loop {
-            continue;
-        }
+        loop {}
     }
-};
+}

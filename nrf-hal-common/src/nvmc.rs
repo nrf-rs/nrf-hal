@@ -12,7 +12,9 @@ use crate::pac::NVMC;
 use crate::pac::NVMC_NS as NVMC;
 
 use core::convert::TryInto;
-use embedded_storage::nor_flash::{NorFlash, ReadNorFlash};
+use embedded_storage::nor_flash::{
+    ErrorType, NorFlash, NorFlashError, NorFlashErrorKind, ReadNorFlash,
+};
 
 type WORD = u32;
 const WORD_SIZE: usize = core::mem::size_of::<WORD>();
@@ -108,12 +110,14 @@ where
     }
 }
 
+impl<T: Instance> ErrorType for Nvmc<T> {
+    type Error = NvmcError;
+}
+
 impl<T> ReadNorFlash for Nvmc<T>
 where
     T: Instance,
 {
-    type Error = NvmcError;
-
     const READ_SIZE: usize = 1;
 
     fn read(&mut self, offset: u32, bytes: &mut [u8]) -> Result<(), Self::Error> {
@@ -207,4 +211,13 @@ pub enum NvmcError {
     Unaligned,
     /// An operation was attempted outside the boundaries
     OutOfBounds,
+}
+
+impl NorFlashError for NvmcError {
+    fn kind(&self) -> NorFlashErrorKind {
+        match self {
+            NvmcError::Unaligned => NorFlashErrorKind::NotAligned,
+            NvmcError::OutOfBounds => NorFlashErrorKind::OutOfBounds,
+        }
+    }
 }

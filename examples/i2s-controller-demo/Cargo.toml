@@ -10,10 +10,11 @@ publish = false
 [dependencies]
 cortex-m = "0.7.3"
 cortex-m-rt = { version = "0.7.0", features = ["device"] }
-cortex-m-rtic = { version = "0.5.9", features = ["cortex-m-7"], default-features = false }
+cortex-m-rtic = { version = "1.0.0", default-features = false }
+systick-monotonic = "1.0.0"
 rtt-target = { version = "0.3.1", features = ["cortex-m"] }
 nrf52840-hal = { features = ["rt"], path = "../../nrf52840-hal" }
-heapless = "0.5.5"
+heapless = "0.7.10"
 small_morse = "0.1.0"
 
 [dependencies.embedded-hal]

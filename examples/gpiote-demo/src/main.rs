@@ -1,33 +1,39 @@
 #![no_std]
 #![no_main]
 
-use embedded_hal::digital::v2::InputPin;
-use {
-    core::{
-        panic::PanicInfo,
-        sync::atomic::{compiler_fence, Ordering},
-    },
-    hal::{
-        gpio::{Input, Level, Pin, PullUp},
-        gpiote::*,
-        ppi::{self, ConfigurablePpi, Ppi},
-    },
-    nrf52840_hal as hal,
-    rtic::cyccnt::U32Ext,
-    rtt_target::{rprintln, rtt_init_print},
-};
+use {core::panic::PanicInfo, nrf52840_hal as hal, rtt_target::rprintln};
 
-#[rtic::app(device = crate::hal::pac, peripherals = true, monotonic = rtic::cyccnt::CYCCNT)]
-const APP: () = {
-    struct Resources {
+#[rtic::app(device = crate::hal::pac, peripherals = true, dispatchers = [SWI0_EGU0])]
+mod app {
+    use embedded_hal::digital::v2::InputPin;
+    use systick_monotonic::*;
+    use {
+        hal::{
+            gpio::{Input, Level, Pin, PullUp},
+            gpiote::*,
+            ppi::{self, ConfigurablePpi, Ppi},
+        },
+        nrf52840_hal as hal,
+        rtt_target::{rprintln, rtt_init_print},
+    };
+
+    #[monotonic(binds = SysTick, default = true)]
+    type Timer = Systick<1_000_000>;
+
+    #[shared]
+    struct Shared {
         gpiote: Gpiote,
+    }
+
+    #[local]
+    struct Local {
         btn1: Pin<Input<PullUp>>,
         btn3: Pin<Input<PullUp>>,
         btn4: Pin<Input<PullUp>>,
     }
 
     #[init]
-    fn init(mut ctx: init::Context) -> init::LateResources {
+    fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         let _clocks = hal::clocks::Clocks::new(ctx.device.CLOCK).enable_ext_hfosc();
         rtt_init_print!();
         let p0 = hal::gpio::p0::Parts::new(ctx.device.P0);
@@ -65,75 +71,63 @@ const APP: () = {
         ppi0.set_event_endpoint(gpiote.channel2().event());
         ppi0.enable();
 
-        // Enable the monotonic timer (CYCCNT)
-        ctx.core.DCB.enable_trace();
-        ctx.core.DWT.enable_cycle_counter();
+        let mono = Systick::new(ctx.core.SYST, 64_000_000);
 
         rprintln!("Press a button");
 
-        init::LateResources {
-            gpiote,
-            btn1,
-            btn3,
-            btn4,
-        }
+        (
+            Shared { gpiote },
+            Local { btn1, btn3, btn4 },
+            init::Monotonics(mono),
+        )
     }
 
-    #[idle]
-    fn idle(_: idle::Context) -> ! {
-        loop {
-            cortex_m::asm::wfi();
-        }
+    #[task(binds = GPIOTE, shared = [gpiote])]
+    fn on_gpiote(mut ctx: on_gpiote::Context) {
+        ctx.shared.gpiote.lock(|gpiote| {
+            if gpiote.channel0().is_event_triggered() {
+                rprintln!("Interrupt from channel 0 event");
+            }
+            if gpiote.port().is_event_triggered() {
+                rprintln!("Interrupt from port event");
+            }
+            // Reset all events
+            gpiote.reset_events();
+            // Debounce
+            debounce::spawn_after(50.millis()).ok();
+        });
     }
 
-    #[task(binds = GPIOTE, resources = [gpiote], schedule = [debounce])]
-    fn on_gpiote(ctx: on_gpiote::Context) {
-        if ctx.resources.gpiote.channel0().is_event_triggered() {
-            rprintln!("Interrupt from channel 0 event");
-        }
-        if ctx.resources.gpiote.port().is_event_triggered() {
-            rprintln!("Interrupt from port event");
-        }
-        // Reset all events
-        ctx.resources.gpiote.reset_events();
-        // Debounce
-        ctx.schedule.debounce(ctx.start + 3_000_000.cycles()).ok();
-    }
+    #[task(shared = [gpiote], local = [btn1, btn3, btn4])]
+    fn debounce(mut ctx: debounce::Context) {
+        let btn1_pressed = ctx.local.btn1.is_low().unwrap();
+        let btn3_pressed = ctx.local.btn3.is_low().unwrap();
+        let btn4_pressed = ctx.local.btn4.is_low().unwrap();
 
-    #[task(resources = [gpiote, btn1, btn3, btn4])]
-    fn debounce(ctx: debounce::Context) {
-        let btn1_pressed = ctx.resources.btn1.is_low().unwrap();
-        let btn3_pressed = ctx.resources.btn3.is_low().unwrap();
-        let btn4_pressed = ctx.resources.btn4.is_low().unwrap();
-
-        if btn1_pressed {
-            rprintln!("Button 1 was pressed!");
-            // Manually run "task out" operation (toggle) on channel 1 (toggles led1)
-            ctx.resources.gpiote.channel1().out();
-        }
-        if btn3_pressed {
-            rprintln!("Button 3 was pressed!");
-            // Manually run "task clear" on channel 1 (led1 on)
-            ctx.resources.gpiote.channel1().clear();
-        }
-        if btn4_pressed {
-            rprintln!("Button 4 was pressed!");
-            // Manually run "task set" on channel 1 (led1 off)
-            ctx.resources.gpiote.channel1().set();
-        }
+        ctx.shared.gpiote.lock(|gpiote| {
+            if btn1_pressed {
+                rprintln!("Button 1 was pressed!");
+                // Manually run "task out" operation (toggle) on channel 1 (toggles led1)
+                gpiote.channel1().out();
+            }
+            if btn3_pressed {
+                rprintln!("Button 3 was pressed!");
+                // Manually run "task clear" on channel 1 (led1 on)
+                gpiote.channel1().clear();
+            }
+            if btn4_pressed {
+                rprintln!("Button 4 was pressed!");
+                // Manually run "task set" on channel 1 (led1 off)
+                gpiote.channel1().set();
+            }
+        });
     }
-
-    extern "C" {
-        fn SWI0_EGU0();
-    }
-};
+}
 
 #[inline(never)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     cortex_m::interrupt::disable();
     rprintln!("{}", info);
-    loop {
-        compiler_fence(Ordering::SeqCst);
-    }
+    loop {}
 }

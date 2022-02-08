@@ -7,7 +7,7 @@ readme = "../README.md"
 repository = "https://github.com/nrf-rs/nrf-hal"
 authors = [
     "Jonathan Pallant (42 Technology) <jonathan.pallant@42technology.com>",
-    "Sascha Wise <me@saschawise.com"
+    "Sascha Wise <me@saschawise.com",
 ]
 
 categories = ["embedded", "hardware-support", "no-std"]
@@ -16,7 +16,7 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [dependencies]
-nrf5340-app-pac = "0.10.1"
+nrf5340-app-pac = "0.11.0"
 
 [dependencies.nrf-hal-common]
 path = "../nrf-hal-common"
