@@ -1,5 +1,5 @@
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/nrf51-hal/0.14.1")]
+#![doc(html_root_url = "https://docs.rs/nrf51-hal/0.15.0")]
 
 use embedded_hal as hal;
 pub use nrf_hal_common::*;

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+(no changes)
+
+## [0.15.0]
+
 ### New Features
 
 - Implement `MultiwriteNorFlash` for nRF52 boards that support it ([#373]).
@@ -315,3 +319,4 @@ None
 [0.13.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.13.0
 [0.14.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.14.0
 [0.14.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.14.1
+[0.15.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.15.0
