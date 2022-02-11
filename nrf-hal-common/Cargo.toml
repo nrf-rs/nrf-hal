@@ -1,6 +1,6 @@
 [package]
 name = "nrf-hal-common"
-version = "0.14.1"
+version = "0.15.0"
 description = "Implementation details of the nRF HAL crates. Don't use this directly, use one of the specific HAL crates instead (`nrfXYZ-hal`)."
 readme = "../README.md"
 

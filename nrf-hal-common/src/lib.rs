@@ -1,7 +1,7 @@
 //! Implementation details of the nRF HAL crates. Don't use this directly, use one of the specific
 //! HAL crates instead (`nrfXYZ-hal`).
 
-#![doc(html_root_url = "https://docs.rs/nrf-hal-common/0.14.1")]
+#![doc(html_root_url = "https://docs.rs/nrf-hal-common/0.15.0")]
 #![no_std]
 
 use embedded_hal as hal;
