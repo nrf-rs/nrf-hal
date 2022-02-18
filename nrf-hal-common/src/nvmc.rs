@@ -190,6 +190,7 @@ where
     feature = "52811",
     feature = "52833",
     feature = "52840",
+    feature = "9160",
 ))]
 impl<T: Instance> embedded_storage::nor_flash::MultiwriteNorFlash for Nvmc<T> {}
 
