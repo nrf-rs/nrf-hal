@@ -81,6 +81,7 @@ where
     type Error = ();
 
     fn read(&mut self, _pin: &mut PIN) -> nb::Result<i16, Self::Error> {
+        let original_inpsel = self.0.config.read().inpsel();
         match PIN::channel() {
             0 => self.0.config.modify(|_, w| w.psel().analog_input0()),
             1 => self.0.config.modify(|_, w| w.psel().analog_input1()),
@@ -90,6 +91,8 @@ where
             5 => self.0.config.modify(|_, w| w.psel().analog_input5()),
             6 => self.0.config.modify(|_, w| w.psel().analog_input6()),
             7 => self.0.config.modify(|_, w| w.psel().analog_input7()),
+            8 => self.0.config.modify(|_, w| w.inpsel().supply_one_third_prescaling()),
+            9 => self.0.config.modify(|_, w| w.inpsel().supply_two_thirds_prescaling()),
             // This can never happen the only analog pins have already been defined
             // PAY CLOSE ATTENTION TO ANY CHANGES TO THIS IMPL OR THE `channel_mappings!` MACRO
             _ => unsafe { unreachable_unchecked() },
@@ -101,6 +104,8 @@ where
         while self.0.events_end.read().bits() == 0 {}
 
         self.0.events_end.write(|w| unsafe { w.bits(0) });
+        // Restore original input selection
+        self.0.config.modify(|_, w| w.inpsel().variant(original_inpsel.variant().unwrap()));
 
         // Max resolution is 10 bits so casting is always safe
         Ok(self.0.result.read().result().bits() as i16)
@@ -129,5 +134,10 @@ channel_mappings! {
     4 => crate::gpio::p0::P0_03<Input<Floating>>,
     5 => crate::gpio::p0::P0_04<Input<Floating>>,
     6 => crate::gpio::p0::P0_05<Input<Floating>>,
-    7 => crate::gpio::p0::P0_06<Input<Floating>>
+    7 => crate::gpio::p0::P0_06<Input<Floating>>,
+    8 => crate::adc::InternalVddOneThird,
+    9 => crate::adc::InternalVddTwoThirds
 }
+
+pub struct InternalVddOneThird;
+pub struct InternalVddTwoThirds;
