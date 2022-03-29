@@ -19,6 +19,8 @@ use embedded_storage::nor_flash::{
 type WORD = u32;
 const WORD_SIZE: usize = core::mem::size_of::<WORD>();
 const PAGE_SIZE: usize = 4 * 1024;
+#[cfg(not(any(feature = "9160", feature = "5340-app")))]
+const PAGE_ERASE_TIME: u32 = 85;
 
 /// Interface to an NVMC instance.
 pub struct Nvmc<T: Instance> {
@@ -42,6 +44,49 @@ where
     /// Consumes `self` and returns back the raw peripheral and associated storage.
     pub fn free(self) -> (T, &'static mut [u8]) {
         (self.nvmc, self.storage)
+    }
+
+    #[cfg(not(any(feature = "9160", feature = "5340-app")))]
+    /// Erases the given storage range using partial erase feature. This allows
+    /// application to handle interrupts while erasing memory by dividing the
+    /// time CPU is halted in smaller periods.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the arguments are not aligned, out of bounds or when
+    /// period is not in range from 1 to 127 inclusive.
+    pub fn partial_erase(
+        &mut self,
+        from: u32,
+        to: u32,
+        period: u32,
+    ) -> Result<(), <Self as ErrorType>::Error> {
+        let (from, to) = (from as usize, to as usize);
+        if from > to || to > self.capacity() {
+            return Err(NvmcError::OutOfBounds);
+        }
+        if from % PAGE_SIZE != 0 || to % PAGE_SIZE != 0 {
+            return Err(NvmcError::Unaligned);
+        }
+        let (page_from, page_to) = (from / PAGE_SIZE, to / PAGE_SIZE);
+
+        if period & !0x7F != 0 || period == 0 {
+            return Err(NvmcError::OutOfBounds);
+        }
+
+        self.nvmc
+            .erasepagepartialcfg
+            .write(|w| unsafe { w.bits(period) });
+        for page_offset in page_from..page_to {
+            // According to nRF52840 manual (section 4.3.9.9) CONFIG.WEN must be
+            // enabled before every partial erase and disabled after every
+            // partial erase
+            self.enable_erase();
+            self.partial_erase_page(page_offset, period);
+            self.enable_read();
+        }
+
+        Ok(())
     }
 
     fn enable_erase(&self) {
@@ -89,6 +134,21 @@ where
     fn erase_page(&mut self, page_offset: usize) {
         self.direct_write_word(page_offset * PAGE_SIZE, 0xffffffff);
         self.wait_ready();
+    }
+
+    #[cfg(not(any(feature = "9160", feature = "5340-app")))]
+    #[inline]
+    fn partial_erase_page(&mut self, page_offset: usize, period: u32) {
+        let bits = &mut (self.storage[page_offset * PAGE_SIZE]) as *mut _ as u32;
+        let mut time_left = PAGE_ERASE_TIME;
+        while time_left > 0 {
+            self.nvmc
+                .erasepagepartial
+                .write(|w| unsafe { w.bits(bits) });
+            self.wait_ready();
+
+            time_left = time_left.saturating_sub(period);
+        }
     }
 
     #[inline]
