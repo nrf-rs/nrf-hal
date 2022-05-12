@@ -2,13 +2,13 @@
 
 use core::ops::Deref;
 
-#[cfg(not(any(feature = "9160", feature = "5340-app")))]
+#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
 use crate::pac::nvmc;
-#[cfg(any(feature = "9160", feature = "5340-app"))]
+#[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::nvmc_ns as nvmc;
-#[cfg(not(any(feature = "9160", feature = "5340-app")))]
+#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
 use crate::pac::NVMC;
-#[cfg(any(feature = "9160", feature = "5340-app"))]
+#[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::NVMC_NS as NVMC;
 
 use core::convert::TryInto;
@@ -70,13 +70,13 @@ where
         while !self.nvmc.ready.read().ready().bit_is_set() {}
     }
 
-    #[cfg(any(feature = "9160", feature = "5340-app"))]
+    #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
     #[inline]
     fn wait_write_ready(&self) {
         while !self.nvmc.readynext.read().readynext().bit_is_set() {}
     }
 
-    #[cfg(not(any(feature = "9160", feature = "5340-app")))]
+    #[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
     #[inline]
     fn erase_page(&mut self, page_offset: usize) {
         let bits = &mut (self.storage[page_offset * PAGE_SIZE]) as *mut _ as u32;
@@ -84,7 +84,7 @@ where
         self.wait_ready();
     }
 
-    #[cfg(any(feature = "9160", feature = "5340-app"))]
+    #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
     #[inline]
     fn erase_page(&mut self, page_offset: usize) {
         self.direct_write_word(page_offset * PAGE_SIZE / WORD_SIZE, 0xffffffff);
@@ -93,9 +93,9 @@ where
 
     #[inline]
     fn write_word(&mut self, word_offset: usize, word: u32) {
-        #[cfg(not(any(feature = "9160", feature = "5340-app")))]
+        #[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
         self.wait_ready();
-        #[cfg(any(feature = "9160", feature = "5340-app"))]
+        #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
         self.wait_write_ready();
         self.direct_write_word(word_offset, word);
         cortex_m::asm::dmb();

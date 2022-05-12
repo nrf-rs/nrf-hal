@@ -5,10 +5,10 @@
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
-#[cfg(any(feature = "9160", feature = "5340-app"))]
+#[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::{spim0_ns as spim0, SPIM0_NS as SPIM0};
 
-#[cfg(not(any(feature = "9160", feature = "5340-app")))]
+#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
 use crate::pac::{spim0, SPIM0};
 
 pub use embedded_hal::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};

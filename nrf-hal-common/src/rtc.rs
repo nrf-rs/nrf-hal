@@ -2,10 +2,10 @@
 
 use core::ops::Deref;
 
-#[cfg(any(feature = "9160", feature = "5340-app"))]
+#[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::{rtc0_ns as rtc0, Interrupt, NVIC, RTC0_NS as RTC0, RTC1_NS as RTC1};
 
-#[cfg(not(any(feature = "9160", feature = "5340-app")))]
+#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
 use crate::pac::{rtc0, Interrupt, NVIC, RTC0, RTC1};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]

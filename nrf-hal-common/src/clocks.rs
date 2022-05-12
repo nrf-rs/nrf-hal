@@ -1,9 +1,9 @@
 //! Configuration and control of the High and Low Frequency Clock sources.
 
-#[cfg(any(feature = "9160", feature = "5340-app"))]
+#[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::CLOCK_NS as CLOCK;
 
-#[cfg(not(any(feature = "9160", feature = "5340-app")))]
+#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
 use crate::pac::CLOCK;
 
 // ZST Type States
@@ -156,7 +156,7 @@ impl<H, L> Clocks<H, L, LfOscStopped> {
     }
 
     /// Use the internal RC Oscillator for the low frequency clock source.
-    #[cfg(not(any(feature = "9160", feature = "5340-app", feature = "51")))]
+    #[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net", feature = "51")))]
     pub fn set_lfclk_src_rc(self) -> Clocks<H, Internal, LfOscStopped> {
         self.periph
             .lfclksrc
@@ -170,7 +170,7 @@ impl<H, L> Clocks<H, L, LfOscStopped> {
     }
 
     /// Generate the Low Frequency clock from the high frequency clock source.
-    #[cfg(not(any(feature = "9160", feature = "5340-app", feature = "51")))]
+    #[cfg(not(any(feature = "9160", feature = "5340-app",feature = "5340-net", feature = "51")))]
     pub fn set_lfclk_src_synth(self) -> Clocks<H, LfOscSynthesized, LfOscStopped> {
         self.periph
             .lfclksrc
@@ -184,7 +184,7 @@ impl<H, L> Clocks<H, L, LfOscStopped> {
     }
 
     /// Use an external crystal to drive the low frequency clock.
-    #[cfg(not(any(feature = "9160", feature = "5340-app", feature = "51")))]
+    #[cfg(not(any(feature = "9160", feature = "5340-app",feature = "5340-net", feature = "51")))]
     pub fn set_lfclk_src_external(
         self,
         cfg: LfOscConfiguration,

@@ -4,7 +4,10 @@
 
 use rand_core::{CryptoRng, RngCore};
 
+#[cfg(not(feature = "5340-net"))]
 use crate::pac::RNG;
+#[cfg(feature = "5340-net")]
+use crate::pac::RNG_NS as RNG;
 
 /// Interface to the RNG peripheral.
 ///
