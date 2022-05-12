@@ -111,7 +111,6 @@ pub mod uarte;
 pub mod uicr;
 #[cfg(feature = "nrf-usbd")]
 pub mod usbd;
-#[cfg(feature = "5340-net")]
 pub mod wdt;
 
 pub mod prelude {
