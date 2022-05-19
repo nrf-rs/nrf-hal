@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-(no changes)
+- Fixed the nvmc erase procedure on nRF91 & nRF53 ([#387])
 
 ## [0.15.0]
 
