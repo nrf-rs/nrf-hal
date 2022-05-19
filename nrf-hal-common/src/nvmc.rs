@@ -87,7 +87,7 @@ where
     #[cfg(any(feature = "9160", feature = "5340-app"))]
     #[inline]
     fn erase_page(&mut self, page_offset: usize) {
-        self.direct_write_word(page_offset * PAGE_SIZE, 0xffffffff);
+        self.direct_write_word(page_offset * PAGE_SIZE / WORD_SIZE, 0xffffffff);
         self.wait_ready();
     }
 
