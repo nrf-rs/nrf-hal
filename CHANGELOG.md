@@ -2,8 +2,25 @@
 
 ## Unreleased
 
-- Fixed the nvmc erase procedure on nRF91 & nRF53 ([#387])
-- Added support for the nrf5340-net-core.
+(no changes)
+
+## [0.15.1]
+
+### New Features
+
+- Support the nRF5340 Net Core ([#386]).
+- Add internal VDD channels for the nRF51 ADC ([#382]).
+- Implement `MultiWriteNorFlash` for the nRF9160 ([#383]).
+
+### Fixes
+
+- Fixed the nvmc erase procedure on nRF91 & nRF53 ([#387]).
+- Fixed TWIM overruns being reported as `DataNack` errors ([#386]).
+
+[#382]: https://github.com/nrf-rs/nrf-hal/pull/382
+[#383]: https://github.com/nrf-rs/nrf-hal/pull/383
+[#386]: https://github.com/nrf-rs/nrf-hal/pull/386
+[#387]: https://github.com/nrf-rs/nrf-hal/pull/387
 
 ## [0.15.0]
 
@@ -321,3 +338,4 @@ None
 [0.14.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.14.0
 [0.14.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.14.1
 [0.15.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.15.0
+[0.15.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.15.1

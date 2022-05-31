@@ -1,6 +1,6 @@
 [package]
 name = "nrf52840-hal"
-version = "0.15.0"
+version = "0.15.1"
 description = "HAL for nRF52840 microcontrollers"
 readme = "../README.md"
 
@@ -24,7 +24,7 @@ nrf52840-pac = "0.11.0"
 path = "../nrf-hal-common"
 default-features = false
 features = ["52840"]
-version = "=0.15.0"
+version = "=0.15.1"
 
 [dependencies.embedded-hal]
 features = ["unproven"]

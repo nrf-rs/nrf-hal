@@ -13,6 +13,7 @@ members = [
   "nrf9160-hal",
   "examples/*",
 ]
+default-members = ["xtask"]
 exclude = ["examples/.cargo"]
 
 [profile.dev]
