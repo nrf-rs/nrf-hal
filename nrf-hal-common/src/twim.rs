@@ -7,12 +7,13 @@
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
-#[cfg(any(feature = "9160", feature = "5340-app"))]
-use crate::pac::{
-    twim0_ns as twim0, TWIM0_NS as TWIM0, TWIM1_NS as TWIM1, TWIM2_NS as TWIM2, TWIM3_NS as TWIM3,
-};
+#[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
+use crate::pac::{twim0_ns as twim0, TWIM0_NS as TWIM0};
 
-#[cfg(not(any(feature = "9160", feature = "5340-app")))]
+#[cfg(any(feature = "9160", feature = "5340-app"))]
+use crate::pac::{TWIM1_NS as TWIM1, TWIM2_NS as TWIM2, TWIM3_NS as TWIM3};
+
+#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
 use crate::pac::{twim0, TWIM0};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
@@ -181,7 +182,7 @@ where
             return Err(Error::DataNack);
         }
         if err.overrun().is_received() {
-            return Err(Error::DataNack);
+            return Err(Error::Overrun);
         }
         Ok(())
     }

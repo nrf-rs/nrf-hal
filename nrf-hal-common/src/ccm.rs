@@ -45,14 +45,25 @@
 //! encryption/decryption. The scratch slice must have a minimum length of 43 bytes, or
 //! (16 + `Packet Length`) bytes, whatever is largest.
 
+#[cfg(not(feature = "5340-net"))]
 use crate::{
     pac::{AAR, CCM},
     slice_in_ram,
 };
+
+#[cfg(feature = "5340-net")]
+use crate::{
+    pac::{AAR_NS as AAR, CCM_NS as CCM},
+    slice_in_ram,
+};
+
 use core::sync::atomic::{compiler_fence, Ordering};
 
-#[cfg(not(feature = "51"))]
+#[cfg(not(any(feature = "51", feature = "5340-net")))]
 use crate::pac::ccm::mode::{DATARATE_A, LENGTH_A};
+
+#[cfg(feature = "5340-net")]
+use crate::pac::ccm_ns::mode::{DATARATE_A, LENGTH_A};
 
 const MINIMUM_SCRATCH_AREA_SIZE: usize = 43;
 const HEADER_SIZE: usize = 3;
@@ -69,15 +80,22 @@ pub enum DataRate {
     _1Mbit,
     #[cfg(not(feature = "51"))]
     _2Mbit,
+    #[cfg(feature = "5340-net")]
+    _125Kbps,
+    #[cfg(feature = "5340-net")]
+    _500Kbps,
 }
 
 #[cfg(not(feature = "51"))]
 impl From<DataRate> for DATARATE_A {
     fn from(data_rate: DataRate) -> Self {
-        if data_rate == DataRate::_1Mbit {
-            DATARATE_A::_1MBIT
-        } else {
-            DATARATE_A::_2MBIT
+        match data_rate {
+            DataRate::_1Mbit => DATARATE_A::_1MBIT,
+            DataRate::_2Mbit => DATARATE_A::_2MBIT,
+            #[cfg(feature = "5340-net")]
+            DataRate::_125Kbps => DATARATE_A::_125KBPS,
+            #[cfg(feature = "5340-net")]
+            DataRate::_500Kbps => DATARATE_A::_500KBPS,
         }
     }
 }
@@ -253,7 +271,8 @@ impl Ccm {
                 feature = "52840",
                 feature = "52833",
                 feature = "52811",
-                feature = "52810"
+                feature = "52810",
+                feature = "5340-net"
             ))]
             // NOTE(unsafe) Any 8bits pattern is safe to write to this register
             self.regs
@@ -382,7 +401,8 @@ impl Ccm {
                 feature = "52840",
                 feature = "52833",
                 feature = "52811",
-                feature = "52810"
+                feature = "52810",
+                feature = "5340-net"
             ))]
             // NOTE(unsafe) Any 8bits pattern is safe to write to this register
             self.regs

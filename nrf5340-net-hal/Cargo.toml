@@ -1,0 +1,30 @@
+[package]
+name = "nrf5340-net-hal"
+version = "0.15.0"
+description = "HAL for nRF5340 net SoC"
+readme = "../README.md"
+
+repository = "https://github.com/nrf-rs/nrf-hal"
+
+categories = ["embedded", "hardware-support", "no-std"]
+keywords = ["arm", "cortex-m", "nrf53", "hal", "nrf5340"]
+license = "MIT OR Apache-2.0"
+edition = "2018"
+
+[dependencies]
+nrf5340-net-pac = "0.11.0"
+
+[dependencies.nrf-hal-common]
+path = "../nrf-hal-common"
+default-features = false
+features = ["5340-net"]
+version = "=0.15.0"
+
+[dependencies.embedded-hal]
+features = ["unproven"]
+version = "0.2.3"
+
+[features]
+doc = []
+rt = ["nrf5340-net-pac/rt"]
+default = ["rt"]

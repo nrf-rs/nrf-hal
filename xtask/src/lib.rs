@@ -4,6 +4,7 @@ pub static HALS: &[(&str, &str)] = &[
     ("nrf51-hal", "thumbv6m-none-eabi"),
     ("nrf9160-hal", "thumbv8m.main-none-eabihf"),
     ("nrf5340-app-hal", "thumbv8m.main-none-eabihf"),
+    ("nrf5340-net-hal", "thumbv8m.main-none-eabihf"),
     ("nrf52810-hal", "thumbv7em-none-eabi"),
     ("nrf52811-hal", "thumbv7em-none-eabi"),
     ("nrf52832-hal", "thumbv7em-none-eabihf"),
@@ -48,7 +49,7 @@ pub fn feature_to_target(feat: &str) -> &str {
     match feat {
         "51" => "thumbv6m-none-eabi",
         "52810" | "52811" => "thumbv7em-none-eabi",
-        "9160" | "5340-app" => "thumbv8m.main-none-eabihf",
+        "9160" | "5340-app" | "5340-net" => "thumbv8m.main-none-eabihf",
         _ if feat.starts_with("52") => "thumbv7em-none-eabihf",
         _ => panic!("unknown Cargo feature `{}`", feat),
     }

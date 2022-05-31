@@ -1,6 +1,10 @@
 //! Temperature sensor interface.
 
+#[cfg(not(feature = "5340-net"))]
 use crate::pac::TEMP;
+#[cfg(feature = "5340-net")]
+use crate::pac::TEMP_NS as TEMP;
+
 use fixed::types::I30F2;
 use void::Void;
 

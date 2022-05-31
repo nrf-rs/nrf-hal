@@ -6,20 +6,23 @@
 #[cfg(feature = "51")]
 use crate::pac::GPIO as P0;
 
-#[cfg(feature = "9160")]
+#[cfg(any(feature = "9160", feature = "5340-net"))]
 use crate::pac::P0_NS as P0;
 
-#[cfg(not(any(feature = "51", feature = "9160")))]
+#[cfg(not(any(feature = "51", feature = "9160", feature = "5340-net")))]
 use crate::pac::P0;
 
 #[cfg(any(feature = "52833", feature = "52840"))]
 use crate::pac::P1;
 
+#[cfg(feature = "5340-net")]
+use crate::pac::P1_NS as P1;
+
 use crate::gpio::{
     Floating, Input, Level, OpenDrain, Output, Pin, Port, PullDown, PullUp, PushPull,
 };
 
-#[cfg(not(feature = "9160"))]
+#[cfg(not(any(feature = "9160", feature = "5340-net")))]
 use {
     crate::pac::gpiote::{EVENTS_IN, EVENTS_PORT, TASKS_OUT},
     crate::pac::GPIOTE,
@@ -31,7 +34,13 @@ use {
     crate::pac::GPIOTE1_NS as GPIOTE,
 };
 
-#[cfg(not(any(feature = "51", feature = "9160")))]
+#[cfg(feature = "5340-net")]
+use {
+    crate::pac::gpiote_ns::{EVENTS_IN, EVENTS_PORT, TASKS_CLR, TASKS_OUT, TASKS_SET},
+    crate::pac::GPIOTE_NS as GPIOTE,
+};
+
+#[cfg(not(any(feature = "51", feature = "9160", feature = "5340-net")))]
 use crate::pac::gpiote::{TASKS_CLR, TASKS_SET};
 
 #[cfg(not(feature = "51"))]
@@ -296,7 +305,7 @@ fn config_port_event_pin<P: GpioteInputPin>(pin: &P, sense: PortEventSense) {
         &(*{
             match pin.port() {
                 Port::Port0 => P0::ptr(),
-                #[cfg(any(feature = "52833", feature = "52840"))]
+                #[cfg(any(feature = "52833", feature = "52840", feature = "5340-net"))]
                 Port::Port1 => P1::ptr(),
             }
         })
@@ -363,7 +372,7 @@ fn config_channel_task_pin<P: GpioteOutputPin>(
             TaskOutPolarity::Toggle => w.polarity().toggle(),
         };
 
-        #[cfg(any(feature = "52833", feature = "52840"))]
+        #[cfg(any(feature = "52833", feature = "52840", feature = "5340-net"))]
         {
             match pin.port() {
                 Port::Port0 => w.port().clear_bit(),

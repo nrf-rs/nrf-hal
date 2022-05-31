@@ -40,9 +40,8 @@ pub enum Port {
     /// Port 0 Secure, available on nRF53
     #[cfg(any(feature = "5340-app"))]
     Port0Secure,
-
-    /// Port 1, only available on some nRF52 MCUs.
-    #[cfg(any(feature = "52833", feature = "52840"))]
+    /// Port 1, only available on some nRF52 MCUs and nRF5340.
+    #[cfg(any(feature = "52833", feature = "52840", feature = "5340-net"))]
     Port1,
 }
 
@@ -63,17 +62,25 @@ pub struct Pin<MODE> {
 #[cfg(feature = "51")]
 use crate::pac::{gpio, GPIO as P0};
 
-#[cfg(any(feature = "5340-app", feature = "9160"))]
+#[cfg(any(feature = "5340-app", feature = "5340-net", feature = "9160"))]
 use crate::pac::{p0_ns as gpio, P0_NS as P0};
 
 #[cfg(feature = "5340-app")]
 use crate::pac::P0_S;
 
-#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "51")))]
+#[cfg(not(any(
+    feature = "9160",
+    feature = "5340-app",
+    feature = "5340-net",
+    feature = "51"
+)))]
 use crate::pac::{p0 as gpio, P0};
 
 #[cfg(any(feature = "52833", feature = "52840"))]
 use crate::pac::P1;
+
+#[cfg(feature = "5340-net")]
+use crate::pac::P1_NS as P1;
 
 use crate::hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
 use void::Void;
@@ -84,7 +91,7 @@ impl<MODE> Pin<MODE> {
             Port::Port0 => 0x00,
             #[cfg(any(feature = "5340-app"))]
             Port::Port0Secure => 0x20,
-            #[cfg(any(feature = "52833", feature = "52840"))]
+            #[cfg(any(feature = "52833", feature = "52840", feature = "5340-net"))]
             Port::Port1 => 0x20,
         };
         Self {
@@ -102,12 +109,22 @@ impl<MODE> Pin<MODE> {
 
     #[inline]
     pub fn pin(&self) -> u8 {
-        #[cfg(any(feature = "52833", feature = "52840", feature = "5340-app"))]
+        #[cfg(any(
+            feature = "52833",
+            feature = "52840",
+            feature = "5340-app",
+            feature = "5340-net"
+        ))]
         {
             self.pin_port & 0x1f
         }
 
-        #[cfg(not(any(feature = "52833", feature = "52840", feature = "5340-app")))]
+        #[cfg(not(any(
+            feature = "52833",
+            feature = "52840",
+            feature = "5340-app",
+            feature = "5340-net"
+        )))]
         {
             self.pin_port
         }
@@ -115,7 +132,7 @@ impl<MODE> Pin<MODE> {
 
     #[inline]
     pub fn port(&self) -> Port {
-        #[cfg(any(feature = "52833", feature = "52840"))]
+        #[cfg(any(feature = "52833", feature = "52840", feature = "5340-net"))]
         {
             if self.pin_port & 0x20 == 0 {
                 Port::Port0
@@ -132,8 +149,12 @@ impl<MODE> Pin<MODE> {
                 Port::Port0Secure
             }
         }
-
-        #[cfg(not(any(feature = "52833", feature = "52840", feature = "5340-app")))]
+        #[cfg(not(any(
+            feature = "52833",
+            feature = "52840",
+            feature = "5340-app",
+            feature = "5340-net"
+        )))]
         {
             Port::Port0
         }
@@ -147,9 +168,9 @@ impl<MODE> Pin<MODE> {
     fn block(&self) -> &gpio::RegisterBlock {
         let ptr = match self.port() {
             Port::Port0 => P0::ptr(),
-            #[cfg(any(feature = "5340-app"))]
+            #[cfg(feature = "5340-app")]
             Port::Port0Secure => P0_S::ptr(),
-            #[cfg(any(feature = "52833", feature = "52840"))]
+            #[cfg(any(feature = "52833", feature = "52840", feature = "5340-net"))]
             Port::Port1 => P1::ptr(),
         };
 
@@ -339,10 +360,15 @@ pub enum OpenDrainConfig {
 #[cfg(feature = "51")]
 use crate::pac::gpio::pin_cnf;
 
-#[cfg(any(feature = "5340-app", feature = "9160"))]
+#[cfg(any(feature = "5340-app", feature = "5340-net", feature = "9160"))]
 use crate::pac::p0_ns::pin_cnf;
 
-#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "51")))]
+#[cfg(not(any(
+    feature = "9160",
+    feature = "5340-app",
+    feature = "5340-net",
+    feature = "51"
+)))]
 use crate::pac::p0::pin_cnf;
 
 impl OpenDrainConfig {
@@ -647,7 +673,7 @@ gpio!(P0, p0, p0, Port::Port0, [
 
 // The p1 types are present in the p0 module generated from the
 // svd, but we want to export them in a p1 module from this crate.
-#[cfg(any(feature = "52833", feature = "52840"))]
+#[cfg(any(feature = "52833", feature = "52840", feature = "5340-net"))]
 gpio!(P1, p0, p1, Port::Port1, [
     P1_00: (p1_00,  0, Disconnected),
     P1_01: (p1_01,  1, Disconnected),
@@ -667,7 +693,7 @@ gpio!(P1, p0, p1, Port::Port1, [
     P1_15: (p1_15, 15, Disconnected),
 ]);
 
-#[cfg(any(feature = "5340-app"))]
+#[cfg(feature = "5340-app")]
 gpio!(P0_S, p0, p0_s, Port::Port0Secure, [
     P0_00: (p0_00,  0, Disconnected),
     P0_01: (p0_01,  1, Disconnected),

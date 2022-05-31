@@ -2,7 +2,7 @@
 //!
 //! See product specification, chapter 24.
 
-#[cfg(any(feature = "9160", feature = "5340-app"))]
+#[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::{
     timer0_ns::{
         RegisterBlock as RegBlock0, EVENTS_COMPARE, TASKS_CAPTURE, TASKS_CLEAR, TASKS_COUNT,
@@ -11,7 +11,7 @@ use crate::pac::{
     Interrupt, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1, TIMER2_NS as TIMER2,
 };
 
-#[cfg(not(any(feature = "9160", feature = "5340-app")))]
+#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
 use crate::pac::{
     timer0::{
         RegisterBlock as RegBlock0, EVENTS_COMPARE, TASKS_CAPTURE, TASKS_CLEAR, TASKS_COUNT,

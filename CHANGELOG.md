@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Fixed the nvmc erase procedure on nRF91 & nRF53 ([#387])
+- Added support for the nrf5340-net-core.
 
 ## [0.15.0]
 
