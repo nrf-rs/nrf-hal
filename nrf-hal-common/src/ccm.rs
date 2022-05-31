@@ -59,7 +59,7 @@ use crate::{
 
 use core::sync::atomic::{compiler_fence, Ordering};
 
-#[cfg(not(any(feature = "51",feature = "5340-net")))]
+#[cfg(not(any(feature = "51", feature = "5340-net")))]
 use crate::pac::ccm::mode::{DATARATE_A, LENGTH_A};
 
 #[cfg(feature = "5340-net")]
@@ -83,14 +83,14 @@ pub enum DataRate {
     #[cfg(feature = "5340-net")]
     _125Kbps,
     #[cfg(feature = "5340-net")]
-    _500Kbps
+    _500Kbps,
 }
 
 #[cfg(not(feature = "51"))]
 impl From<DataRate> for DATARATE_A {
     fn from(data_rate: DataRate) -> Self {
         match data_rate {
-            DataRate::_1Mbit =>  DATARATE_A::_1MBIT,
+            DataRate::_1Mbit => DATARATE_A::_1MBIT,
             DataRate::_2Mbit => DATARATE_A::_2MBIT,
             #[cfg(feature = "5340-net")]
             DataRate::_125Kbps => DATARATE_A::_125KBPS,

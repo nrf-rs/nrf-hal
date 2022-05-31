@@ -140,7 +140,7 @@ pub mod target_constants {
     pub const EASY_DMA_SIZE: usize = (1 << 16) - 1;
     #[cfg(feature = "52840")]
     pub const EASY_DMA_SIZE: usize = (1 << 16) - 1;
-    #[cfg(any(feature = "5340-app",feature = "5340-net"))]
+    #[cfg(any(feature = "5340-app", feature = "5340-net"))]
     pub const EASY_DMA_SIZE: usize = (1 << 16) - 1;
     #[cfg(feature = "9160")]
     pub const EASY_DMA_SIZE: usize = (1 << 12) - 1;

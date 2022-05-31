@@ -182,7 +182,7 @@ where
             return Err(Error::DataNack);
         }
         if err.overrun().is_received() {
-            return Err(Error::DataNack);
+            return Err(Error::Overrun);
         }
         Ok(())
     }

@@ -6,7 +6,6 @@
 //! - nrf52811: Section 4.5
 //! - nrf52832: Section 14
 //! - nrf52840: Section 4.5
-//!
 use crate::pac::{NVMC, UICR};
 
 /// Interface to a UICR instance.
@@ -32,7 +31,6 @@ impl Uicr {
     /// UICR registers can only be set to `0` bits, additional overrides back to `1` can only be
     /// performed by erasing the UICR registers.
     /// - Sets all registers to 0xFFFF_FFFFu32
-
     pub fn erase(&mut self, nvmc: &mut NVMC) {
         assert!(!nvmc.config.read().wen().is_wen()); // write + erase is forbidden!
 

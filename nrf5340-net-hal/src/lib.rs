@@ -6,8 +6,8 @@ pub use nrf_hal_common::*;
 
 pub mod prelude {
     pub use crate::hal::prelude::*;
-    pub use nrf_hal_common::prelude::*;
     pub use crate::time::U32Ext;
+    pub use nrf_hal_common::prelude::*;
 }
 pub use crate::clocks::Clocks;
 pub use crate::delay::Delay;

@@ -2,7 +2,6 @@
 //!
 //! The ECB encryption block supports 128 bit AES encryption (encryption only, not decryption).
 
-
 #[cfg(not(feature = "5340-net"))]
 use crate::pac::ECB;
 #[cfg(feature = "5340-net")]

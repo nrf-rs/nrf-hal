@@ -28,16 +28,16 @@ use {
     crate::pac::GPIOTE,
 };
 
-#[cfg(feature = "9160")]  
+#[cfg(feature = "9160")]
 use {
     crate::pac::gpiote0_s::{EVENTS_IN, EVENTS_PORT, TASKS_CLR, TASKS_OUT, TASKS_SET},
     crate::pac::GPIOTE1_NS as GPIOTE,
 };
 
-#[cfg(feature = "5340-net")] 
+#[cfg(feature = "5340-net")]
 use {
-crate::pac::gpiote_ns::{EVENTS_IN, EVENTS_PORT, TASKS_OUT, TASKS_CLR, TASKS_SET},
-crate::pac::GPIOTE_NS as GPIOTE
+    crate::pac::gpiote_ns::{EVENTS_IN, EVENTS_PORT, TASKS_CLR, TASKS_OUT, TASKS_SET},
+    crate::pac::GPIOTE_NS as GPIOTE,
 };
 
 #[cfg(not(any(feature = "51", feature = "9160", feature = "5340-net")))]

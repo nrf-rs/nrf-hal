@@ -68,7 +68,12 @@ use crate::pac::{p0_ns as gpio, P0_NS as P0};
 #[cfg(feature = "5340-app")]
 use crate::pac::P0_S;
 
-#[cfg(not(any(feature = "9160", feature = "5340-app",feature = "5340-net", feature = "51")))]
+#[cfg(not(any(
+    feature = "9160",
+    feature = "5340-app",
+    feature = "5340-net",
+    feature = "51"
+)))]
 use crate::pac::{p0 as gpio, P0};
 
 #[cfg(any(feature = "52833", feature = "52840"))]
@@ -104,12 +109,22 @@ impl<MODE> Pin<MODE> {
 
     #[inline]
     pub fn pin(&self) -> u8 {
-        #[cfg(any(feature = "52833", feature = "52840", feature = "5340-app", feature = "5340-net"))]
+        #[cfg(any(
+            feature = "52833",
+            feature = "52840",
+            feature = "5340-app",
+            feature = "5340-net"
+        ))]
         {
             self.pin_port & 0x1f
         }
 
-        #[cfg(not(any(feature = "52833", feature = "52840", feature = "5340-app", feature = "5340-net")))]
+        #[cfg(not(any(
+            feature = "52833",
+            feature = "52840",
+            feature = "5340-app",
+            feature = "5340-net"
+        )))]
         {
             self.pin_port
         }
@@ -120,7 +135,7 @@ impl<MODE> Pin<MODE> {
         #[cfg(any(feature = "52833", feature = "52840", feature = "5340-net"))]
         {
             if self.pin_port & 0x20 == 0 {
-               Port::Port0
+                Port::Port0
             } else {
                 Port::Port1
             }
@@ -134,7 +149,12 @@ impl<MODE> Pin<MODE> {
                 Port::Port0Secure
             }
         }
-        #[cfg(not(any(feature = "52833", feature = "52840", feature = "5340-app", feature = "5340-net")))]
+        #[cfg(not(any(
+            feature = "52833",
+            feature = "52840",
+            feature = "5340-app",
+            feature = "5340-net"
+        )))]
         {
             Port::Port0
         }
@@ -343,7 +363,12 @@ use crate::pac::gpio::pin_cnf;
 #[cfg(any(feature = "5340-app", feature = "5340-net", feature = "9160"))]
 use crate::pac::p0_ns::pin_cnf;
 
-#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net", feature = "51")))]
+#[cfg(not(any(
+    feature = "9160",
+    feature = "5340-app",
+    feature = "5340-net",
+    feature = "51"
+)))]
 use crate::pac::p0::pin_cnf;
 
 impl OpenDrainConfig {
