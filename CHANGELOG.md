@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+(no changes)
+
+## [0.15.1]
+
 ### New Features
 
 - Support the nRF5340 Net Core ([#386]).
@@ -334,3 +338,4 @@ None
 [0.14.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.14.0
 [0.14.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.14.1
 [0.15.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.15.0
+[0.15.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.15.1
