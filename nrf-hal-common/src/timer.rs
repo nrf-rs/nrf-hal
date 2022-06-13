@@ -113,7 +113,9 @@ where
     }
 
     /// Reset the interrupt event flag
-    pub fn reset_event(&self) { self.0.timer_reset_event() }
+    pub fn reset_event(&self) {
+        self.0.timer_reset_event()
+    }
 
     /// Enables the interrupt for this timer.
     ///
