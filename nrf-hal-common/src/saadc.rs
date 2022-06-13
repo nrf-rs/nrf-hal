@@ -93,6 +93,12 @@ impl Saadc {
 
         Saadc(saadc)
     }
+
+    /// Disable SAADC and return the low-level peripheral handle
+    pub fn free(self) -> SAADC {
+        self.0.enable.write(|w| w.enable().disabled());
+        self.0
+    }
 }
 
 /// Used to configure the SAADC peripheral.
