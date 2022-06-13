@@ -112,6 +112,9 @@ where
         self.0.read_counter()
     }
 
+    /// Reset the interrupt event flag
+    pub fn reset_event(&self) { self.0.timer_reset_event() }
+
     /// Enables the interrupt for this timer.
     ///
     /// Enables an interrupt that is fired when the timer reaches the value that
