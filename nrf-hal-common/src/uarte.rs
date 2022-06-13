@@ -16,7 +16,13 @@ use embedded_hal::serial;
 use crate::pac::UARTE1;
 
 #[cfg(feature = "9160")]
-use crate::pac::{uarte0_ns as uarte0, UARTE0_NS as UARTE0, UARTE1_NS as UARTE1};
+use crate::pac::{
+    uarte0_ns as uarte0,
+    UARTE0_NS as UARTE0,
+    UARTE1_NS as UARTE1,
+    UARTE2_NS as UARTE2,
+    UARTE3_NS as UARTE3,
+};
 
 #[cfg(any(feature = "5340-app", feature = "5340-net"))]
 use crate::pac::{uarte0_ns as uarte0, UARTE0_NS as UARTE0};
@@ -513,6 +519,28 @@ mod _uarte1 {
     impl Instance for UARTE1 {
         fn ptr() -> *const uarte0::RegisterBlock {
             UARTE1::ptr()
+        }
+    }
+}
+
+#[cfg(feature = "9160")]
+mod _uarte2 {
+    use super::*;
+    impl sealed::Sealed for UARTE2 {}
+    impl Instance for UARTE2 {
+        fn ptr() -> *const uarte0::RegisterBlock {
+            UARTE2::ptr()
+        }
+    }
+}
+
+#[cfg(feature = "9160")]
+mod _uarte3 {
+    use super::*;
+    impl sealed::Sealed for UARTE3 {}
+    impl Instance for UARTE3 {
+        fn ptr() -> *const uarte0::RegisterBlock {
+            UARTE3::ptr()
         }
     }
 }
