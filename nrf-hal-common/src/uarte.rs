@@ -296,12 +296,12 @@ where
             Pins {
                 rxd: unsafe { Pin::from_psel_bits(rxd.bits()) },
                 txd: unsafe { Pin::from_psel_bits(txd.bits()) },
-                cts: if cts.connect().bit_is_set() {
+                cts: if cts.connect().is_connected() {
                     Some(unsafe { Pin::from_psel_bits(cts.bits()) })
                 } else {
                     None
                 },
-                rts: if rts.connect().bit_is_set() {
+                rts: if rts.connect().is_connected() {
                     Some(unsafe { Pin::from_psel_bits(rts.bits()) })
                 } else {
                     None
