@@ -118,11 +118,9 @@ where
 
     #[cfg(not(feature = "51"))]
     fn set_pins(spi: &mut T, pins: Pins) {
-        spi.psel
-            .sck
-            .write(|w| unsafe { w.bits(pins.sck.pin().into()) });
-
-        // Optional pins.
+        if let Some(ref pin) = pins.sck {
+            spi.psel.sck.write(|w| unsafe { w.bits(pin.pin().into()) });
+        }
         if let Some(ref pin) = pins.mosi {
             spi.psel.mosi.write(|w| unsafe { w.bits(pin.pin().into()) });
         }
@@ -140,7 +138,9 @@ where
 /// GPIO pins for SPI interface.
 pub struct Pins {
     /// SPI clock.
-    pub sck: Pin<Output<PushPull>>,
+    ///
+    /// None if unused.
+    pub sck: Option<Pin<Output<PushPull>>>,
 
     /// MOSI Master out, slave in.
     ///
