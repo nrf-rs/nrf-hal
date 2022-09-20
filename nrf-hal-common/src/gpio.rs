@@ -289,7 +289,7 @@ impl<MODE> Pin<MODE> {
 
     /// Convert the pin to be an open-drain input/output.
     ///
-    /// Similar to [`open_drain_output`], but can also be read from.
+    /// Similar to [`into_open_drain_output`](Self::into_open_drain_output), but can also be read from.
     ///
     /// This method currently does not support configuring an internal pull-up or pull-down
     /// resistor.
@@ -607,7 +607,7 @@ macro_rules! gpio {
 
                     /// Convert the pin to be an open-drain input/output
                     ///
-                    /// Similar to [`open_drain_output`], but can also be read from.
+                    /// Similar to [`into_open_drain_output`](Self::into_open_drain_output), but can also be read from.
                     ///
                     /// This method currently does not support configuring an
                     /// internal pull-up or pull-down resistor.
