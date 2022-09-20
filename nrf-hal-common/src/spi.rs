@@ -95,7 +95,7 @@ where
     fn set_pins(spi: &mut T, pins: Pins) {
         spi.pselsck.write(|w| unsafe {
             if let Some(ref pin) = pins.sck {
-                w.bits(pins.pin().into());
+                w.bits(pins.pin().into())
             }
         });
         spi.pselmosi.write(|w| unsafe {
