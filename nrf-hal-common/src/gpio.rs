@@ -85,7 +85,7 @@ use crate::pac::P1;
 #[cfg(feature = "5340-net")]
 use crate::pac::P1_NS as P1;
 
-use crate::hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
+use crate::hal::digital::v2::{InputPin, IoPin, OutputPin, PinState, StatefulOutputPin};
 use void::Void;
 
 impl<MODE> Pin<MODE> {
@@ -360,6 +360,19 @@ impl InputPin for Pin<Output<OpenDrainIO>> {
     }
 }
 
+impl IoPin<Pin<Output<OpenDrainIO>>, Pin<Output<OpenDrainIO>>> for Pin<Output<OpenDrainIO>> {
+    type Error = Void;
+
+    fn into_input_pin(self) -> Result<Pin<Output<OpenDrainIO>>, Self::Error> {
+        Ok(self)
+    }
+
+    fn into_output_pin(mut self, state: PinState) -> Result<Pin<Output<OpenDrainIO>>, Self::Error> {
+        self.set_state(state)?;
+        Ok(self)
+    }
+}
+
 impl<MODE> OutputPin for Pin<Output<MODE>> {
     type Error = Void;
 
@@ -461,7 +474,7 @@ macro_rules! gpio {
                 $PX
             };
 
-            use crate::hal::digital::v2::{OutputPin, StatefulOutputPin, InputPin};
+            use crate::hal::digital::v2::{InputPin, IoPin, OutputPin, PinState, StatefulOutputPin};
             use void::Void;
 
 
@@ -683,6 +696,19 @@ macro_rules! gpio {
 
                     fn is_low(&self) -> Result<bool, Self::Error> {
                         Ok(unsafe { ((*$PX::ptr()).in_.read().bits() & (1 << $i)) == 0 })
+                    }
+                }
+
+                impl IoPin<$PXi<Output<OpenDrainIO>>, $PXi<Output<OpenDrainIO>>> for $PXi<Output<OpenDrainIO>> {
+                    type Error = Void;
+
+                    fn into_input_pin(self) -> Result<$PXi<Output<OpenDrainIO>>, Self::Error> {
+                        Ok(self)
+                    }
+
+                    fn into_output_pin(mut self, state: PinState) -> Result<$PXi<Output<OpenDrainIO>>, Self::Error> {
+                        self.set_state(state)?;
+                        Ok(self)
                     }
                 }
 
