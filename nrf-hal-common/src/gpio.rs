@@ -360,14 +360,14 @@ impl InputPin for Pin<Output<OpenDrainIO>> {
     }
 }
 
-impl IoPin<Pin<Output<OpenDrainIO>>, Pin<Output<OpenDrainIO>>> for Pin<Output<OpenDrainIO>> {
+impl IoPin<Self, Self> for Pin<Output<OpenDrainIO>> {
     type Error = Void;
 
-    fn into_input_pin(self) -> Result<Pin<Output<OpenDrainIO>>, Self::Error> {
+    fn into_input_pin(self) -> Result<Self, Self::Error> {
         Ok(self)
     }
 
-    fn into_output_pin(mut self, state: PinState) -> Result<Pin<Output<OpenDrainIO>>, Self::Error> {
+    fn into_output_pin(mut self, state: PinState) -> Result<Self, Self::Error> {
         self.set_state(state)?;
         Ok(self)
     }
@@ -699,14 +699,14 @@ macro_rules! gpio {
                     }
                 }
 
-                impl IoPin<$PXi<Output<OpenDrainIO>>, $PXi<Output<OpenDrainIO>>> for $PXi<Output<OpenDrainIO>> {
+                impl IoPin<Self, Self> for $PXi<Output<OpenDrainIO>> {
                     type Error = Void;
 
-                    fn into_input_pin(self) -> Result<$PXi<Output<OpenDrainIO>>, Self::Error> {
+                    fn into_input_pin(self) -> Result<Self, Self::Error> {
                         Ok(self)
                     }
 
-                    fn into_output_pin(mut self, state: PinState) -> Result<$PXi<Output<OpenDrainIO>>, Self::Error> {
+                    fn into_output_pin(mut self, state: PinState) -> Result<Self, Self::Error> {
                         self.set_state(state)?;
                         Ok(self)
                     }
