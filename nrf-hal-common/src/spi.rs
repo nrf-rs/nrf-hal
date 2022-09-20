@@ -93,10 +93,11 @@ where
 
     #[cfg(feature = "51")]
     fn set_pins(spi: &mut T, pins: Pins) {
-        spi.pselsck
-            .write(|w| unsafe { w.bits(pins.sck.pin().into()) });
-
-        // Optional pins.
+        spi.pselsck.write(|w| unsafe {
+            if let Some(ref pin) = pins.sck {
+                w.bits(pins.pin().into());
+            }
+        });
         spi.pselmosi.write(|w| unsafe {
             if let Some(ref pin) = pins.mosi {
                 w.bits(pin.pin().into())
