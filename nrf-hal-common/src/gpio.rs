@@ -25,6 +25,14 @@ pub struct PushPull;
 /// Open drain output (type state).
 pub struct OpenDrain;
 
+/// Input/Output combined mode (type state).
+pub struct InOut<MODE> {
+    _mode: PhantomData<MODE>,
+}
+
+/// Open drain input/output (type state).
+pub struct OpenDrainIO;
+
 /// Represents a digital input or output level.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Level {
@@ -284,6 +292,40 @@ impl<MODE> Pin<MODE> {
         pin
     }
 
+    /// Convert the pin to be an open-drain input/output.
+    ///
+    /// Similar to [`open_drain_output`], but can also be read from.
+    ///
+    /// This method currently does not support configuring an internal pull-up or pull-down
+    /// resistor.
+    pub fn into_open_drain_input_output(
+        self,
+        config: OpenDrainConfig,
+        initial_output: Level,
+    ) -> Pin<InOut<OpenDrainIO>> {
+        let mut pin = Pin {
+            _mode: PhantomData,
+            pin_port: self.pin_port,
+        };
+
+        match initial_output {
+            Level::Low => pin.set_low().unwrap(),
+            Level::High => pin.set_high().unwrap(),
+        }
+
+        // This is safe, as we restrict our access to the dedicated register for this pin.
+        self.conf().write(|w| {
+            w.dir().output();
+            w.input().connect();
+            w.pull().disabled();
+            w.drive().variant(config.variant());
+            w.sense().disabled();
+            w
+        });
+
+        pin
+    }
+
     /// Disconnects the pin.
     ///
     /// In disconnected mode the pin cannot be used as input or output.
@@ -308,6 +350,56 @@ impl<MODE> InputPin for Pin<Input<MODE>> {
 
     fn is_low(&self) -> Result<bool, Self::Error> {
         Ok(self.block().in_.read().bits() & (1 << self.pin()) == 0)
+    }
+}
+
+impl<MODE> InputPin for Pin<InOut<MODE>> {
+    type Error = Void;
+
+    fn is_high(&self) -> Result<bool, Self::Error> {
+        self.is_low().map(|v| !v)
+    }
+
+    fn is_low(&self) -> Result<bool, Self::Error> {
+        Ok(self.block().in_.read().bits() & (1 << self.pin()) == 0)
+    }
+}
+
+impl<MODE> OutputPin for Pin<InOut<MODE>> {
+    type Error = Void;
+
+    /// Set the output as high.
+    fn set_high(&mut self) -> Result<(), Self::Error> {
+        // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+        // TODO - I wish I could do something like `.pins$i()`...
+        unsafe {
+            self.block().outset.write(|w| w.bits(1u32 << self.pin()));
+        }
+        Ok(())
+    }
+
+    /// Set the output as low.
+    fn set_low(&mut self) -> Result<(), Self::Error> {
+        // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+        // TODO - I wish I could do something like `.pins$i()`...
+        unsafe {
+            self.block().outclr.write(|w| w.bits(1u32 << self.pin()));
+        }
+        Ok(())
+    }
+}
+
+impl<MODE> StatefulOutputPin for Pin<InOut<MODE>> {
+    /// Is the output pin set as high?
+    fn is_set_high(&self) -> Result<bool, Self::Error> {
+        self.is_set_low().map(|v| !v)
+    }
+
+    /// Is the output pin set as low?
+    fn is_set_low(&self) -> Result<bool, Self::Error> {
+        // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
+        // TODO - I wish I could do something like `.pins$i()`...
+        Ok(self.block().out.read().bits() & (1 << self.pin()) == 0)
     }
 }
 
@@ -406,6 +498,8 @@ macro_rules! gpio {
                 PullDown,
                 PullUp,
                 PushPull,
+                InOut,
+                OpenDrainIO,
 
                 PhantomData,
                 $PX
@@ -555,6 +649,44 @@ macro_rules! gpio {
                         pin
                     }
 
+                    /// Convert the pin to be an open-drain input/output
+                    ///
+                    /// Similar to [`open_drain_output`], but can also be read from.
+                    ///
+                    /// This method currently does not support configuring an
+                    /// internal pull-up or pull-down resistor.
+                    pub fn into_open_drain_input_output(self,
+                        config:         OpenDrainConfig,
+                        initial_output: Level,
+                    )
+                        -> $PXi<InOut<OpenDrainIO>>
+                    {
+                        let mut pin = $PXi {
+                            _mode: PhantomData,
+                        };
+
+                        match initial_output {
+                            Level::Low  => pin.set_low().unwrap(),
+                            Level::High => pin.set_high().unwrap(),
+                        }
+
+                        // This is safe, as we restrict our access to the
+                        // dedicated register for this pin.
+                        let pin_cnf = unsafe {
+                            &(*$PX::ptr()).pin_cnf[$i]
+                        };
+                        pin_cnf.write(|w| {
+                            w.dir().output();
+                            w.input().connect();
+                            w.pull().disabled();
+                            w.drive().variant(config.variant());
+                            w.sense().disabled();
+                            w
+                        });
+
+                        pin
+                    }
+
                     /// Disconnects the pin.
                     ///
                     /// In disconnected mode the pin cannot be used as input or output.
@@ -575,6 +707,18 @@ macro_rules! gpio {
                 }
 
                 impl<MODE> InputPin for $PXi<Input<MODE>> {
+                    type Error = Void;
+
+                    fn is_high(&self) -> Result<bool, Self::Error> {
+                        self.is_low().map(|v| !v)
+                    }
+
+                    fn is_low(&self) -> Result<bool, Self::Error> {
+                        Ok(unsafe { ((*$PX::ptr()).in_.read().bits() & (1 << $i)) == 0 })
+                    }
+                }
+
+                impl<MODE> InputPin for $PXi<InOut<MODE>> {
                     type Error = Void;
 
                     fn is_high(&self) -> Result<bool, Self::Error> {
@@ -613,6 +757,40 @@ macro_rules! gpio {
                 }
 
                 impl<MODE> StatefulOutputPin for $PXi<Output<MODE>> {
+                    /// Is the output pin set as high?
+                    fn is_set_high(&self) -> Result<bool, Self::Error> {
+                        self.is_set_low().map(|v| !v)
+                    }
+
+                    /// Is the output pin set as low?
+                    fn is_set_low(&self) -> Result<bool, Self::Error> {
+                        // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
+                        // TODO - I wish I could do something like `.pins$i()`...
+                        Ok(unsafe { ((*$PX::ptr()).out.read().bits() & (1 << $i)) == 0 })
+                    }
+                }
+
+                impl<MODE> OutputPin for $PXi<InOut<MODE>> {
+                    type Error = Void;
+
+                    /// Set the output as high
+                    fn set_high(&mut self) -> Result<(), Self::Error> {
+                        // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+                        // TODO - I wish I could do something like `.pins$i()`...
+                        unsafe { (*$PX::ptr()).outset.write(|w| w.bits(1u32 << $i)); }
+                        Ok(())
+                    }
+
+                    /// Set the output as low
+                    fn set_low(&mut self) -> Result<(), Self::Error> {
+                        // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+                        // TODO - I wish I could do something like `.pins$i()`...
+                        unsafe { (*$PX::ptr()).outclr.write(|w| w.bits(1u32 << $i)); }
+                        Ok(())
+                    }
+                }
+
+                impl<MODE> StatefulOutputPin for $PXi<InOut<MODE>> {
                     /// Is the output pin set as high?
                     fn is_set_high(&self) -> Result<bool, Self::Error> {
                         self.is_set_low().map(|v| !v)
