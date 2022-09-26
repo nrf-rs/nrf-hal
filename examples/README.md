@@ -44,3 +44,22 @@ $ cargo install cargo-embed
 ### For Every Project (optional)
 
 Setup the `Cargo.toml` file to use the correct features. Features allow for conditional compilation which is essential for a library like this that supports multiple different devices. Under the `[features]` section add the following line `default = ["52840"]` for the nRF52840-DK device or whatever other feature is applicable for your device. This is optional but it will allow you to simply call `cargo run` and `cargo build` instead of `cargo run --features 52840` and `cargo build --features 52840` respectively. Note that some demo projects do not have features so this step may not be necessary. If you get a whole bunch of compilation errors or plugins like rust-analyzer are not working then check that you have set the chip features correctly.
+
+### Alternative flashing methods
+
+The primary way for flashing the devices is through `cargo embed`,
+as often detailed in the examples' README files.
+
+Several alternatives are available, depending on one's setup:
+
+* Programmers thar are "Mbed Enabled" usually support flashing `.hex` (Intel Hex) files by simply copying them onto the virtual USB storage device.
+
+  Suitable files are created by converting the built ELF files:
+
+  ```
+  $ cargo build --target thumbv7em-none-eabihf
+  $ arm-none-eabi-objcopy -O ihex target/thumbv7em-none-eabihf/debug/blinky-button-demo.elf /media/${USER}/JLINK/blinky-button-demo.hex
+  ```
+
+* When using debuggers in a stand-alone way,
+  these usually need to be passed the `.elf` file produced by `cargo build`.
