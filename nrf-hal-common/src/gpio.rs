@@ -25,6 +25,9 @@ pub struct PushPull;
 /// Open drain output (type state).
 pub struct OpenDrain;
 
+/// Open drain input/output (type state).
+pub struct OpenDrainIO;
+
 /// Represents a digital input or output level.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Level {
@@ -284,6 +287,40 @@ impl<MODE> Pin<MODE> {
         pin
     }
 
+    /// Convert the pin to be an open-drain input/output.
+    ///
+    /// Similar to [`into_open_drain_output`](Self::into_open_drain_output), but can also be read from.
+    ///
+    /// This method currently does not support configuring an internal pull-up or pull-down
+    /// resistor.
+    pub fn into_open_drain_input_output(
+        self,
+        config: OpenDrainConfig,
+        initial_output: Level,
+    ) -> Pin<Output<OpenDrainIO>> {
+        let mut pin = Pin {
+            _mode: PhantomData,
+            pin_port: self.pin_port,
+        };
+
+        match initial_output {
+            Level::Low => pin.set_low().unwrap(),
+            Level::High => pin.set_high().unwrap(),
+        }
+
+        // This is safe, as we restrict our access to the dedicated register for this pin.
+        self.conf().write(|w| {
+            w.dir().output();
+            w.input().connect();
+            w.pull().disabled();
+            w.drive().variant(config.variant());
+            w.sense().disabled();
+            w
+        });
+
+        pin
+    }
+
     /// Disconnects the pin.
     ///
     /// In disconnected mode the pin cannot be used as input or output.
@@ -300,6 +337,18 @@ impl<MODE> Pin<MODE> {
 }
 
 impl<MODE> InputPin for Pin<Input<MODE>> {
+    type Error = Void;
+
+    fn is_high(&self) -> Result<bool, Self::Error> {
+        self.is_low().map(|v| !v)
+    }
+
+    fn is_low(&self) -> Result<bool, Self::Error> {
+        Ok(self.block().in_.read().bits() & (1 << self.pin()) == 0)
+    }
+}
+
+impl InputPin for Pin<Output<OpenDrainIO>> {
     type Error = Void;
 
     fn is_high(&self) -> Result<bool, Self::Error> {
@@ -406,6 +455,7 @@ macro_rules! gpio {
                 PullDown,
                 PullUp,
                 PushPull,
+                OpenDrainIO,
 
                 PhantomData,
                 $PX
@@ -555,6 +605,44 @@ macro_rules! gpio {
                         pin
                     }
 
+                    /// Convert the pin to be an open-drain input/output
+                    ///
+                    /// Similar to [`into_open_drain_output`](Self::into_open_drain_output), but can also be read from.
+                    ///
+                    /// This method currently does not support configuring an
+                    /// internal pull-up or pull-down resistor.
+                    pub fn into_open_drain_input_output(self,
+                        config:         OpenDrainConfig,
+                        initial_output: Level,
+                    )
+                        -> $PXi<Output<OpenDrainIO>>
+                    {
+                        let mut pin = $PXi {
+                            _mode: PhantomData,
+                        };
+
+                        match initial_output {
+                            Level::Low  => pin.set_low().unwrap(),
+                            Level::High => pin.set_high().unwrap(),
+                        }
+
+                        // This is safe, as we restrict our access to the
+                        // dedicated register for this pin.
+                        let pin_cnf = unsafe {
+                            &(*$PX::ptr()).pin_cnf[$i]
+                        };
+                        pin_cnf.write(|w| {
+                            w.dir().output();
+                            w.input().connect();
+                            w.pull().disabled();
+                            w.drive().variant(config.variant());
+                            w.sense().disabled();
+                            w
+                        });
+
+                        pin
+                    }
+
                     /// Disconnects the pin.
                     ///
                     /// In disconnected mode the pin cannot be used as input or output.
@@ -575,6 +663,18 @@ macro_rules! gpio {
                 }
 
                 impl<MODE> InputPin for $PXi<Input<MODE>> {
+                    type Error = Void;
+
+                    fn is_high(&self) -> Result<bool, Self::Error> {
+                        self.is_low().map(|v| !v)
+                    }
+
+                    fn is_low(&self) -> Result<bool, Self::Error> {
+                        Ok(unsafe { ((*$PX::ptr()).in_.read().bits() & (1 << $i)) == 0 })
+                    }
+                }
+
+                impl InputPin for $PXi<Output<OpenDrainIO>> {
                     type Error = Void;
 
                     fn is_high(&self) -> Result<bool, Self::Error> {
