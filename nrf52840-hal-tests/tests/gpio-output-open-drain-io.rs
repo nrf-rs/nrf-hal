@@ -10,11 +10,11 @@ use defmt_rtt as _;
 use nrf52840_hal as _;
 use panic_probe as _;
 
-use nrf52840_hal::gpio::{Input, OpenDrain, Output, Pin, PullUp};
+use nrf52840_hal::gpio::{Input, OpenDrainIO, Output, Pin, PullUp};
 
 struct State {
     input_pin: Option<Pin<Input<PullUp>>>,
-    output_pin: Pin<Output<OpenDrain>>,
+    output_pin: Pin<Output<OpenDrainIO>>,
 }
 
 #[defmt_test::tests]
@@ -37,7 +37,7 @@ mod tests {
         let input_pin = Some(port0.p0_28.into_pullup_input().degrade());
         let output_pin = port0
             .p0_29
-            .into_open_drain_output(OpenDrainConfig::Standard0Disconnect1, Level::High)
+            .into_open_drain_input_output(OpenDrainConfig::Standard0Disconnect1, Level::High)
             .degrade();
 
         State {
@@ -60,6 +60,27 @@ mod tests {
         // GPIO operations are not instantaneous so a delay is needed
         asm::delay(100);
         assert!(state.input_pin.as_ref().unwrap().is_high().unwrap());
+
+        let pulled_down_input_pin = state.input_pin.take().unwrap().into_pulldown_input();
+        // GPIO operations are not instantaneous so a delay is needed
+        asm::delay(100);
+        assert!(pulled_down_input_pin.is_low().unwrap());
+
+        // Restore original input pin state
+        state.input_pin = Some(pulled_down_input_pin.into_pullup_input());
+    }
+
+    #[test]
+    fn open_pullup_reads_high(state: &mut State) {
+        state.output_pin.set_high().unwrap();
+        // GPIO operations are not instantaneous so a delay is needed
+        asm::delay(100);
+        assert!(state.output_pin.is_high().unwrap());
+    }
+
+    #[test]
+    fn open_pulldown_reads_low(state: &mut State) {
+        state.output_pin.set_high().unwrap();
 
         let pulled_down_input_pin = state.input_pin.take().unwrap().into_pulldown_input();
         // GPIO operations are not instantaneous so a delay is needed
