@@ -21,6 +21,10 @@ name = "gpio-output-open-drain"
 harness = false
 
 [[test]]
+name = "gpio-output-open-drain-io"
+harness = false
+
+[[test]]
 name = "nvmc"
 harness = false
 
