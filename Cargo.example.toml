@@ -24,6 +24,7 @@ members = [
   "nrf52840-hal-tests",
 #  "nrf9160-hal",
 ]
+exclude = ["examples"]
 
 [profile.dev]
 incremental = false

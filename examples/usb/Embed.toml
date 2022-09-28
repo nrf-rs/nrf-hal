@@ -41,7 +41,7 @@ log_level = "WARN"
 [default.rtt]
 # Whether or not an RTTUI should be opened after flashing.
 # This is exclusive and cannot be used with GDB at the moment.
-enabled = true
+enabled = false
 # A list of channel associations to be displayed. If left empty, all channels are displayed.
 channels = [
     # { up = 0, down = 0, name = "name", format = "String" }
