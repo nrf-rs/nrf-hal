@@ -16,7 +16,7 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [dependencies]
-nrf5340-app-pac = "0.11.0"
+nrf5340-app-pac = "0.12.2"
 
 [dependencies.nrf-hal-common]
 path = "../nrf-hal-common"

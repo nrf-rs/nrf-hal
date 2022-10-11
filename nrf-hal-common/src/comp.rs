@@ -285,35 +285,35 @@ macro_rules! comp_ref_pins {
 }
 
 comp_ref_pins! {
-    P0_02<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE0,
-    P0_03<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE1,
-    P0_04<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE2,
-    P0_05<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE3,
-    P0_28<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE4,
-    P0_29<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE5,
-    P0_30<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE6,
-    P0_31<Input<Floating>> => EXTREFSEL_A::ANALOGREFERENCE7,
+    P0_02<Input<Floating>> => EXTREFSEL_A::ANALOG_REFERENCE0,
+    P0_03<Input<Floating>> => EXTREFSEL_A::ANALOG_REFERENCE1,
+    P0_04<Input<Floating>> => EXTREFSEL_A::ANALOG_REFERENCE2,
+    P0_05<Input<Floating>> => EXTREFSEL_A::ANALOG_REFERENCE3,
+    P0_28<Input<Floating>> => EXTREFSEL_A::ANALOG_REFERENCE4,
+    P0_29<Input<Floating>> => EXTREFSEL_A::ANALOG_REFERENCE5,
+    P0_30<Input<Floating>> => EXTREFSEL_A::ANALOG_REFERENCE6,
+    P0_31<Input<Floating>> => EXTREFSEL_A::ANALOG_REFERENCE7,
 }
 
 #[cfg(not(any(feature = "52811", feature = "52810")))]
 comp_input_pins! {
-    P0_02<Input<Floating>> => PSEL_A::ANALOGINPUT0,
-    P0_03<Input<Floating>> => PSEL_A::ANALOGINPUT1,
-    P0_04<Input<Floating>> => PSEL_A::ANALOGINPUT2,
-    P0_05<Input<Floating>> => PSEL_A::ANALOGINPUT3,
-    P0_28<Input<Floating>> => PSEL_A::ANALOGINPUT4,
-    P0_29<Input<Floating>> => PSEL_A::ANALOGINPUT5,
-    P0_30<Input<Floating>> => PSEL_A::ANALOGINPUT6,
-    P0_31<Input<Floating>> => PSEL_A::ANALOGINPUT7,
+    P0_02<Input<Floating>> => PSEL_A::ANALOG_INPUT0,
+    P0_03<Input<Floating>> => PSEL_A::ANALOG_INPUT1,
+    P0_04<Input<Floating>> => PSEL_A::ANALOG_INPUT2,
+    P0_05<Input<Floating>> => PSEL_A::ANALOG_INPUT3,
+    P0_28<Input<Floating>> => PSEL_A::ANALOG_INPUT4,
+    P0_29<Input<Floating>> => PSEL_A::ANALOG_INPUT5,
+    P0_30<Input<Floating>> => PSEL_A::ANALOG_INPUT6,
+    P0_31<Input<Floating>> => PSEL_A::ANALOG_INPUT7,
 }
 
 #[cfg(any(feature = "52811", feature = "52810"))]
 comp_input_pins! {
-    P0_02<Input<Floating>> => PSEL_A::ANALOGINPUT0,
-    P0_03<Input<Floating>> => PSEL_A::ANALOGINPUT1,
-    P0_04<Input<Floating>> => PSEL_A::ANALOGINPUT2,
-    P0_05<Input<Floating>> => PSEL_A::ANALOGINPUT3,
-    P0_28<Input<Floating>> => PSEL_A::ANALOGINPUT4,
-    P0_29<Input<Floating>> => PSEL_A::ANALOGINPUT5,
-    P0_30<Input<Floating>> => PSEL_A::ANALOGINPUT6,
+    P0_02<Input<Floating>> => PSEL_A::ANALOG_INPUT0,
+    P0_03<Input<Floating>> => PSEL_A::ANALOG_INPUT1,
+    P0_04<Input<Floating>> => PSEL_A::ANALOG_INPUT2,
+    P0_05<Input<Floating>> => PSEL_A::ANALOG_INPUT3,
+    P0_28<Input<Floating>> => PSEL_A::ANALOG_INPUT4,
+    P0_29<Input<Floating>> => PSEL_A::ANALOG_INPUT5,
+    P0_30<Input<Floating>> => PSEL_A::ANALOG_INPUT6,
 }

@@ -129,20 +129,20 @@ pub enum TxPower {
 impl TxPower {
     fn _into(self) -> TXPOWER_A {
         match self {
-            TxPower::Neg40dBm => TXPOWER_A::NEG40DBM,
-            TxPower::Neg20dBm => TXPOWER_A::NEG20DBM,
-            TxPower::Neg16dBm => TXPOWER_A::NEG16DBM,
-            TxPower::Neg12dBm => TXPOWER_A::NEG12DBM,
-            TxPower::Neg8dBm => TXPOWER_A::NEG8DBM,
-            TxPower::Neg4dBm => TXPOWER_A::NEG4DBM,
-            TxPower::_0dBm => TXPOWER_A::_0DBM,
-            TxPower::Pos2dBm => TXPOWER_A::POS2DBM,
-            TxPower::Pos3dBm => TXPOWER_A::POS3DBM,
-            TxPower::Pos4dBm => TXPOWER_A::POS4DBM,
-            TxPower::Pos5dBm => TXPOWER_A::POS5DBM,
-            TxPower::Pos6dBm => TXPOWER_A::POS6DBM,
-            TxPower::Pos7dBm => TXPOWER_A::POS7DBM,
-            TxPower::Pos8dBm => TXPOWER_A::POS8DBM,
+            TxPower::Neg40dBm => TXPOWER_A::NEG40D_BM,
+            TxPower::Neg20dBm => TXPOWER_A::NEG20D_BM,
+            TxPower::Neg16dBm => TXPOWER_A::NEG16D_BM,
+            TxPower::Neg12dBm => TXPOWER_A::NEG12D_BM,
+            TxPower::Neg8dBm => TXPOWER_A::NEG8D_BM,
+            TxPower::Neg4dBm => TXPOWER_A::NEG4D_BM,
+            TxPower::_0dBm => TXPOWER_A::_0D_BM,
+            TxPower::Pos2dBm => TXPOWER_A::POS2D_BM,
+            TxPower::Pos3dBm => TXPOWER_A::POS3D_BM,
+            TxPower::Pos4dBm => TXPOWER_A::POS4D_BM,
+            TxPower::Pos5dBm => TXPOWER_A::POS5D_BM,
+            TxPower::Pos6dBm => TXPOWER_A::POS6D_BM,
+            TxPower::Pos7dBm => TXPOWER_A::POS7D_BM,
+            TxPower::Pos8dBm => TXPOWER_A::POS8D_BM,
         }
     }
 }
@@ -409,7 +409,7 @@ impl<'c> Radio<'c> {
 
     fn cancel_recv(&mut self) {
         self.radio.tasks_stop.write(|w| w.tasks_stop().set_bit());
-        self.wait_for_state_a(STATE_A::RXIDLE);
+        self.wait_for_state_a(STATE_A::RX_IDLE);
         // DMA transfer may have been in progress so synchronize with its memory operations
         dma_end_fence();
     }
@@ -590,7 +590,7 @@ impl<'c> Radio<'c> {
             match self.radio.state.read().state().variant().unwrap() {
                 STATE_A::DISABLED => return,
 
-                STATE_A::RXRU | STATE_A::RXIDLE | STATE_A::TXRU | STATE_A::TXIDLE => {
+                STATE_A::RX_RU | STATE_A::RX_IDLE | STATE_A::TX_RU | STATE_A::TX_IDLE => {
                     self.radio
                         .tasks_disable
                         .write(|w| w.tasks_disable().set_bit());
@@ -600,7 +600,7 @@ impl<'c> Radio<'c> {
                 }
 
                 // ramping down
-                STATE_A::RXDISABLE | STATE_A::TXDISABLE => {
+                STATE_A::RX_DISABLE | STATE_A::TX_DISABLE => {
                     self.wait_for_state_a(STATE_A::DISABLED);
                     return;
                 }
@@ -611,11 +611,11 @@ impl<'c> Radio<'c> {
                         .tasks_ccastop
                         .write(|w| w.tasks_ccastop().set_bit());
                     self.radio.tasks_stop.write(|w| w.tasks_stop().set_bit());
-                    self.wait_for_state_a(STATE_A::RXIDLE);
+                    self.wait_for_state_a(STATE_A::RX_IDLE);
                 }
                 STATE_A::TX => {
                     self.radio.tasks_stop.write(|w| w.tasks_stop().set_bit());
-                    self.wait_for_state_a(STATE_A::TXIDLE);
+                    self.wait_for_state_a(STATE_A::TX_IDLE);
                 }
             }
         }
@@ -642,7 +642,7 @@ impl<'c> Radio<'c> {
         if enable {
             self.needs_enable = false;
             self.radio.tasks_rxen.write(|w| w.tasks_rxen().set_bit());
-            self.wait_for_state_a(STATE_A::RXIDLE);
+            self.wait_for_state_a(STATE_A::RX_IDLE);
         }
     }
 
@@ -653,7 +653,7 @@ impl<'c> Radio<'c> {
         if state != State::TxIdle || self.needs_enable {
             self.needs_enable = false;
             self.radio.tasks_txen.write(|w| w.tasks_txen().set_bit());
-            self.wait_for_state_a(STATE_A::TXIDLE);
+            self.wait_for_state_a(STATE_A::TX_IDLE);
         }
     }
 
@@ -661,11 +661,11 @@ impl<'c> Radio<'c> {
         match self.radio.state.read().state().variant().unwrap() {
             // final states
             STATE_A::DISABLED => State::Disabled,
-            STATE_A::TXIDLE => State::TxIdle,
-            STATE_A::RXIDLE => State::RxIdle,
+            STATE_A::TX_IDLE => State::TxIdle,
+            STATE_A::RX_IDLE => State::RxIdle,
 
             // transitory states
-            STATE_A::TXDISABLE => {
+            STATE_A::TX_DISABLE => {
                 self.wait_for_state_a(STATE_A::DISABLED);
                 State::Disabled
             }

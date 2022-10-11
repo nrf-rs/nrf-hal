@@ -167,7 +167,7 @@ where
     /// Returns matched address for latest command.
     #[inline(always)]
     pub fn address_match(&self) -> u8 {
-        self.0.address[self.0.match_.read().match_().bits() as usize]
+        self.0.address[self.0.match_.read().bits() as usize]
             .read()
             .address()
             .bits()
@@ -323,11 +323,11 @@ where
         // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
 
-        if self.0.errorsrc.read().dnack().bits() {
+        if self.0.errorsrc.read().dnack().is_received() {
             return Err(Error::DataNack);
         }
 
-        if self.0.errorsrc.read().overflow().bits() {
+        if self.0.errorsrc.read().overflow().is_detected() {
             return Err(Error::OverFlow);
         }
 
@@ -380,7 +380,7 @@ where
         // after all possible DMA actions have completed.
         compiler_fence(SeqCst);
 
-        if self.0.errorsrc.read().overread().bits() {
+        if self.0.errorsrc.read().overread().is_detected() {
             return Err(Error::OverRead);
         }
 
