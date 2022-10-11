@@ -26,17 +26,19 @@ impl Adc {
             };
 
             let w2 = match config.input_selection {
-                InputSelection::ANALOGINPUTNOPRESCALING => w1.inpsel().analog_input_no_prescaling(),
-                InputSelection::ANALOGINPUTTWOTHIRDSPRESCALING => {
+                InputSelection::ANALOG_INPUT_NO_PRESCALING => {
+                    w1.inpsel().analog_input_no_prescaling()
+                }
+                InputSelection::ANALOG_INPUT_TWO_THIRDS_PRESCALING => {
                     w1.inpsel().analog_input_two_thirds_prescaling()
                 }
-                InputSelection::ANALOGINPUTONETHIRDPRESCALING => {
+                InputSelection::ANALOG_INPUT_ONE_THIRD_PRESCALING => {
                     w1.inpsel().analog_input_one_third_prescaling()
                 }
-                InputSelection::SUPPLYTWOTHIRDSPRESCALING => {
+                InputSelection::SUPPLY_TWO_THIRDS_PRESCALING => {
                     w1.inpsel().supply_two_thirds_prescaling()
                 }
-                InputSelection::SUPPLYONETHIRDPRESCALING => {
+                InputSelection::SUPPLY_ONE_THIRD_PRESCALING => {
                     w1.inpsel().supply_one_third_prescaling()
                 }
             };
@@ -44,8 +46,8 @@ impl Adc {
             let w3 = match config.reference {
                 Reference::VBG => w2.refsel().vbg(),
                 Reference::EXTERNAL => w2.refsel().external(),
-                Reference::SUPPLYONEHALFPRESCALING => w2.refsel().supply_one_half_prescaling(),
-                Reference::SUPPLYONETHIRDPRESCALING => w2.refsel().supply_one_third_prescaling(),
+                Reference::SUPPLY_ONE_HALF_PRESCALING => w2.refsel().supply_one_half_prescaling(),
+                Reference::SUPPLY_ONE_THIRD_PRESCALING => w2.refsel().supply_one_third_prescaling(),
             };
 
             w3
@@ -68,8 +70,8 @@ impl Default for AdcConfig {
     fn default() -> Self {
         Self {
             resolution: Resolution::_10BIT,
-            input_selection: InputSelection::ANALOGINPUTONETHIRDPRESCALING,
-            reference: Reference::SUPPLYONETHIRDPRESCALING,
+            input_selection: InputSelection::ANALOG_INPUT_ONE_THIRD_PRESCALING,
+            reference: Reference::SUPPLY_ONE_THIRD_PRESCALING,
         }
     }
 }
