@@ -760,22 +760,22 @@ where
         (
             self.pwm,
             Pins {
-                ch0: if ch0.connect().bit_is_set() {
+                ch0: if ch0.connect().is_connected() {
                     Some(unsafe { Pin::from_psel_bits(ch0.bits()) })
                 } else {
                     None
                 },
-                ch1: if ch1.connect().bit_is_set() {
+                ch1: if ch1.connect().is_connected() {
                     Some(unsafe { Pin::from_psel_bits(ch1.bits()) })
                 } else {
                     None
                 },
-                ch2: if ch2.connect().bit_is_set() {
+                ch2: if ch2.connect().is_connected() {
                     Some(unsafe { Pin::from_psel_bits(ch2.bits()) })
                 } else {
                     None
                 },
-                ch3: if ch3.connect().bit_is_set() {
+                ch3: if ch3.connect().is_connected() {
                     Some(unsafe { Pin::from_psel_bits(ch3.bits()) })
                 } else {
                     None

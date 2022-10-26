@@ -474,19 +474,19 @@ impl I2S {
             self.i2s,
             if slave {
                 Pins::Peripheral {
-                    mck: if mck_pin.connect().bit_is_set() {
+                    mck: if mck_pin.connect().is_connected() {
                         Some(unsafe { Pin::from_psel_bits(mck_pin.bits()) })
                     } else {
                         None
                     },
                     sck: unsafe { Pin::from_psel_bits(sck_pin.bits()) },
                     lrck: unsafe { Pin::from_psel_bits(lrck_pin.bits()) },
-                    sdin: if sdin_pin.connect().bit_is_set() {
+                    sdin: if sdin_pin.connect().is_connected() {
                         Some(unsafe { Pin::from_psel_bits(sdin_pin.bits()) })
                     } else {
                         None
                     },
-                    sdout: if sdout_pin.connect().bit_is_set() {
+                    sdout: if sdout_pin.connect().is_connected() {
                         Some(unsafe { Pin::from_psel_bits(sdout_pin.bits()) })
                     } else {
                         None
@@ -494,19 +494,19 @@ impl I2S {
                 }
             } else {
                 Pins::Controller {
-                    mck: if mck_pin.connect().bit_is_set() {
+                    mck: if mck_pin.connect().is_connected() {
                         Some(unsafe { Pin::from_psel_bits(mck_pin.bits()) })
                     } else {
                         None
                     },
                     sck: unsafe { Pin::from_psel_bits(sck_pin.bits()) },
                     lrck: unsafe { Pin::from_psel_bits(lrck_pin.bits()) },
-                    sdin: if sdin_pin.connect().bit_is_set() {
+                    sdin: if sdin_pin.connect().is_connected() {
                         Some(unsafe { Pin::from_psel_bits(sdin_pin.bits()) })
                     } else {
                         None
                     },
-                    sdout: if sdout_pin.connect().bit_is_set() {
+                    sdout: if sdout_pin.connect().is_connected() {
                         Some(unsafe { Pin::from_psel_bits(sdout_pin.bits()) })
                     } else {
                         None

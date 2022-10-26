@@ -418,12 +418,12 @@ where
             Pins {
                 sck: unsafe { Pin::from_psel_bits(sck.bits()) },
                 cs: unsafe { Pin::from_psel_bits(cs.bits()) },
-                copi: if copi.connect().bit_is_set() {
+                copi: if copi.connect().is_connected() {
                     Some(unsafe { Pin::from_psel_bits(copi.bits()) })
                 } else {
                     None
                 },
-                cipo: if cipo.connect().bit_is_set() {
+                cipo: if cipo.connect().is_connected() {
                     Some(unsafe { Pin::from_psel_bits(cipo.bits()) })
                 } else {
                     None

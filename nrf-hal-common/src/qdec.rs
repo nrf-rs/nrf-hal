@@ -138,7 +138,7 @@ impl Qdec {
         let b = unsafe { Pin::from_psel_bits(self.qdec.psel.b.read().bits()) };
         let led = {
             let led = self.qdec.psel.led.read();
-            if led.connect().bit_is_set() {
+            if led.connect().is_connected() {
                 Some(unsafe { Pin::from_psel_bits(led.bits()) })
             } else {
                 None
