@@ -373,17 +373,17 @@ where
         (
             self.0,
             Pins {
-                sck: if sck.connect().bit_is_set() {
+                sck: if sck.connect().is_connected() {
                     Some(unsafe { Pin::from_psel_bits(sck.bits()) })
                 } else {
                     None
                 },
-                mosi: if mosi.connect().bit_is_set() {
+                mosi: if mosi.connect().is_connected() {
                     Some(unsafe { Pin::from_psel_bits(mosi.bits()) })
                 } else {
                     None
                 },
-                miso: if miso.connect().bit_is_set() {
+                miso: if miso.connect().is_connected() {
                     Some(unsafe { Pin::from_psel_bits(miso.bits()) })
                 } else {
                     None
