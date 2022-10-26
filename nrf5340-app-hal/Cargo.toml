@@ -2,7 +2,7 @@
 name = "nrf5340-app-hal"
 version = "0.16.0"
 description = "HAL for nRF5340 app SoC"
-readme = "../README.md"
+readme = "README.md"
 
 repository = "https://github.com/nrf-rs/nrf-hal"
 authors = [
