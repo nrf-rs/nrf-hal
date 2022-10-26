@@ -9,11 +9,7 @@ use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 use crate::pac::{spim0_ns as spim0, SPIM0_NS as SPIM0};
 
 #[cfg(feature = "9160")]
-use crate::pac::{
-    SPIM1_NS as SPIM1,
-    SPIM2_NS as SPIM2,
-    SPIM3_NS as SPIM3,
-};
+use crate::pac::{SPIM1_NS as SPIM1, SPIM2_NS as SPIM2, SPIM3_NS as SPIM3};
 
 #[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
 use crate::pac::{spim0, SPIM0};
@@ -106,11 +102,13 @@ where
 
     pub fn new(spim: T, pins: Pins, frequency: Frequency, mode: Mode, orc: u8) -> Self {
         // Select pins.
-        spim.psel.sck.write(|w| {
-            unsafe { w.bits(pins.sck.psel_bits()) };
-            w.connect().connected()
-        });
-
+        match pins.sck {
+            Some(sck) => spim.psel.sck.write(|w| {
+                unsafe { w.bits(sck.psel_bits()) };
+                w.connect().connected()
+            }),
+            None => spim.psel.sck.write(|w| w.connect().disconnected()),
+        }
         match pins.mosi {
             Some(mosi) => spim.psel.mosi.write(|w| {
                 unsafe { w.bits(mosi.psel_bits()) };
@@ -375,7 +373,11 @@ where
         (
             self.0,
             Pins {
-                sck: unsafe { Pin::from_psel_bits(sck.bits()) },
+                sck: if sck.connect().bit_is_set() {
+                    Some(unsafe { Pin::from_psel_bits(sck.bits()) })
+                } else {
+                    None
+                },
                 mosi: if mosi.connect().bit_is_set() {
                     Some(unsafe { Pin::from_psel_bits(mosi.bits()) })
                 } else {
@@ -393,8 +395,10 @@ where
 
 /// GPIO pins for SPIM interface
 pub struct Pins {
-    /// SPI clock
-    pub sck: Pin<Output<PushPull>>,
+    /// SPI clock.
+    ///
+    /// None if unused.
+    pub sck: Option<Pin<Output<PushPull>>>,
 
     /// MOSI Master out, slave in
     /// None if unused
@@ -438,7 +442,12 @@ mod _spim1 {
     impl sealed::Sealed for SPIM1 {}
 }
 
-#[cfg(any(feature = "52832", feature = "52833", feature = "52840", feature = "9160"))]
+#[cfg(any(
+    feature = "52832",
+    feature = "52833",
+    feature = "52840",
+    feature = "9160"
+))]
 mod _spim2 {
     use super::*;
     impl Instance for SPIM2 {}

@@ -44,7 +44,7 @@ fn main() -> ! {
 
     let mut tests_ok = true;
     let pins = nrf52832_hal::spim::Pins {
-        sck: spiclk,
+        sck: Some(spiclk),
         miso: Some(spimiso),
         mosi: Some(spimosi),
     };

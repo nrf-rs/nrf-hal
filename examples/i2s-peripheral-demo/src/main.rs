@@ -72,7 +72,7 @@ mod app {
             spim::Pins {
                 miso: None,
                 mosi: Some(rgb_data_pin),
-                sck: rgb_clk_pin,
+                sck: Some(rgb_clk_pin),
             },
             Frequency::M4,
             SPIMode {
