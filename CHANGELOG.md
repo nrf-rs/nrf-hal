@@ -4,6 +4,35 @@
 
 (no changes)
 
+## [0.16.0]
+
+### New Features
+
+- Enable all SPIM and UARTE interfaces on the nRF9160 ([#391]).
+- Add a `reset_event` method to `Timer` ([#390]).
+- Add a `free` method to `Saadc` ([#389]).
+- Add `OpenDrainIO` pin state for bidirectional open drain GPIOs ([#401] [#402]).
+
+### Enhancements
+
+- Make SCK pin optional for `Spi` and `Spim` APIs ([#400] [#406]).
+- Update PACs and `nrf-usbd` to the newest version ([#404]).
+
+### Fixes
+
+- Fix pin connection checks in `free` methods ([#397] [#407]).
+
+[#389]: https://github.com/nrf-rs/nrf-hal/pull/389
+[#391]: https://github.com/nrf-rs/nrf-hal/pull/391
+[#390]: https://github.com/nrf-rs/nrf-hal/pull/390
+[#397]: https://github.com/nrf-rs/nrf-hal/pull/397
+[#400]: https://github.com/nrf-rs/nrf-hal/pull/400
+[#401]: https://github.com/nrf-rs/nrf-hal/pull/401
+[#402]: https://github.com/nrf-rs/nrf-hal/pull/402
+[#404]: https://github.com/nrf-rs/nrf-hal/pull/404
+[#406]: https://github.com/nrf-rs/nrf-hal/pull/406
+[#407]: https://github.com/nrf-rs/nrf-hal/pull/407
+
 ## [0.15.1]
 
 ### New Features
@@ -339,3 +368,4 @@ None
 [0.14.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.14.1
 [0.15.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.15.0
 [0.15.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.15.1
+[0.16.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.16.0
