@@ -34,8 +34,8 @@ When finished releasing, copy or move your `Cargo.my.toml` back.
 
 In order to release a new version of the HALs, the following steps need to be performed:
 
-* **Changelog**: Update [the changelog](./CHANGELOG.md) to list all notable changes under the `Unreleased`
-  section.
+* **Changelog**: Update [the changelog](./CHANGELOG.md) to list all notable changes under the
+  `Unreleased` section.
   * You can use GitHub's "compare" feature to view all commits added since the last release. Go to
     <https://github.com/nrf-rs/nrf-hal/releases/>, select the latest release, and click the link
     "N commits to master since this release".
