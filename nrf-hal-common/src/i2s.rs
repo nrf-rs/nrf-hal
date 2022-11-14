@@ -680,15 +680,40 @@ struct Inner<B> {
 }
 
 impl<B> Transfer<B> {
+    /// Returns `true` if the transfer is done.
+    pub fn is_done(&self) -> bool {
+        if let Some(inner) = self
+            .inner
+            .as_ref()
+        {
+            inner.i2s.is_event_triggered(I2SEvent::RxPtrUpdated)
+                || inner.i2s.is_event_triggered(I2SEvent::TxPtrUpdated)
+        } else {
+            unsafe { core::hint::unreachable_unchecked() };
+        }
+    }
+
+    /// Attempts to return the buffer if the transfer is done.
+    pub fn try_wait(mut self) -> Option<(B, I2S)> {
+        if self.is_done() {
+            let inner = self
+                .inner
+                .take()
+                .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
+            compiler_fence(Ordering::Acquire);
+            Some((inner.buffer, inner.i2s))
+        } else {
+            None
+        }
+    }
+
     /// Blocks until the transfer is done and returns the buffer.
     pub fn wait(mut self) -> (B, I2S) {
+        while !self.is_done() {}
         let inner = self
             .inner
             .take()
             .unwrap_or_else(|| unsafe { core::hint::unreachable_unchecked() });
-        while !(inner.i2s.is_event_triggered(I2SEvent::RxPtrUpdated)
-            || inner.i2s.is_event_triggered(I2SEvent::TxPtrUpdated))
-        {}
         compiler_fence(Ordering::Acquire);
         (inner.buffer, inner.i2s)
     }
