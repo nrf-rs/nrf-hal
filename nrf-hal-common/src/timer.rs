@@ -54,7 +54,7 @@ pub struct Periodic;
 /// Right now, this is a very basic interface. The timer will always be
 /// hardcoded to a frequency of 1 MHz and 32 bits accuracy.
 ///
-/// CC[0] is used for the current/most-recent delay period and CC[1] is used
+/// CC\[0\] is used for the current/most-recent delay period and CC\[1\] is used
 /// to grab the current value of the counter at a given instant.
 pub struct Timer<T, U = OneShot>(T, PhantomData<U>);
 
@@ -107,7 +107,7 @@ where
         self.0
     }
 
-    /// Return the current value of the counter, by capturing to CC[1].
+    /// Return the current value of the counter, by capturing to CC\[1\].
     pub fn read(&self) -> u32 {
         self.0.read_counter()
     }
@@ -181,61 +181,61 @@ where
         &self.0.as_timer0().tasks_clear
     }
 
-    /// Returns reference to the CC[0] `CAPTURE` task endpoint for PPI.
-    /// Captures timer value to the CC[0] register.
+    /// Returns reference to the CC\[0\] `CAPTURE` task endpoint for PPI.
+    /// Captures timer value to the CC\[0\] register.
     #[inline(always)]
     pub fn task_capture_cc0(&self) -> &TASKS_CAPTURE {
         &self.0.as_timer0().tasks_capture[0]
     }
 
-    /// Returns reference to the CC[1] `CAPTURE` task endpoint for PPI.
-    /// Captures timer value to the CC[1] register.
+    /// Returns reference to the CC\[1\] `CAPTURE` task endpoint for PPI.
+    /// Captures timer value to the CC\[1\] register.
     #[inline(always)]
     pub fn task_capture_cc1(&self) -> &TASKS_CAPTURE {
         &self.0.as_timer0().tasks_capture[1]
     }
 
-    /// Returns reference to the CC[2] `CAPTURE` task endpoint for PPI.
-    /// Captures timer value to the CC[2] register.
+    /// Returns reference to the CC\[2\] `CAPTURE` task endpoint for PPI.
+    /// Captures timer value to the CC\[2\] register.
     #[inline(always)]
     pub fn task_capture_cc2(&self) -> &TASKS_CAPTURE {
         &self.0.as_timer0().tasks_capture[2]
     }
 
-    /// Returns reference to the CC[3] `CAPTURE` task endpoint for PPI.
-    /// Captures timer value to the CC[3] register.
+    /// Returns reference to the CC\[3\] `CAPTURE` task endpoint for PPI.
+    /// Captures timer value to the CC\[3\] register.
     #[inline(always)]
     pub fn task_capture_cc3(&self) -> &TASKS_CAPTURE {
         &self.0.as_timer0().tasks_capture[3]
     }
 
-    /// Returns reference to the CC[0] `COMPARE` event endpoint for PPI.
+    /// Returns reference to the CC\[0\] `COMPARE` event endpoint for PPI.
     /// Generated when the counter is incremented and then matches the value
-    /// specified in the CC[0] register.
+    /// specified in the CC\[0\] register.
     #[inline(always)]
     pub fn event_compare_cc0(&self) -> &EVENTS_COMPARE {
         &self.0.as_timer0().events_compare[0]
     }
 
-    /// Returns reference to the CC[1] `COMPARE` event endpoint for PPI.
+    /// Returns reference to the CC\[1\] `COMPARE` event endpoint for PPI.
     /// Generated when the counter is incremented and then matches the value
-    /// specified in the CC[1] register.
+    /// specified in the CC\[1\] register.
     #[inline(always)]
     pub fn event_compare_cc1(&self) -> &EVENTS_COMPARE {
         &self.0.as_timer0().events_compare[1]
     }
 
-    /// Returns reference to the CC[2] `COMPARE` event endpoint for PPI.
+    /// Returns reference to the CC\[2\] `COMPARE` event endpoint for PPI.
     /// Generated when the counter is incremented and then matches the value
-    /// specified in the CC[2] register.
+    /// specified in the CC\[2\] register.
     #[inline(always)]
     pub fn event_compare_cc2(&self) -> &EVENTS_COMPARE {
         &self.0.as_timer0().events_compare[2]
     }
 
-    /// Returns reference to the CC[3] `COMPARE` event endpoint for PPI.
+    /// Returns reference to the CC\[3\] `COMPARE` event endpoint for PPI.
     /// Generated when the counter is incremented and then matches the value
-    /// specified in the CC[3] register.
+    /// specified in the CC\[3\] register.
     #[inline(always)]
     pub fn event_compare_cc3(&self) -> &EVENTS_COMPARE {
         &self.0.as_timer0().events_compare[3]
@@ -505,7 +505,7 @@ impl Instance for TIMER4 {
     }
 }
 
-/// Adds task- and event PPI endpoint getters for CC[4] and CC[5] on supported instances.
+/// Adds task- and event PPI endpoint getters for CC\[4\] and CC\[5\] on supported instances.
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 pub trait ExtendedCCTimer {
     fn task_capture_cc4(&self) -> &TasksCapture3;
@@ -516,25 +516,25 @@ pub trait ExtendedCCTimer {
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 impl ExtendedCCTimer for Timer<TIMER3> {
-    /// Returns reference to the CC[4] `CAPTURE` task endpoint for PPI.
+    /// Returns reference to the CC\[4\] `CAPTURE` task endpoint for PPI.
     #[inline(always)]
     fn task_capture_cc4(&self) -> &TasksCapture3 {
         &self.0.tasks_capture[4]
     }
 
-    /// Returns reference to the CC[5] `CAPTURE` task endpoint for PPI.
+    /// Returns reference to the CC\[5\] `CAPTURE` task endpoint for PPI.
     #[inline(always)]
     fn task_capture_cc5(&self) -> &TasksCapture3 {
         &self.0.tasks_capture[5]
     }
 
-    /// Returns reference to the CC[4] `COMPARE` event endpoint for PPI.
+    /// Returns reference to the CC\[4\] `COMPARE` event endpoint for PPI.
     #[inline(always)]
     fn event_compare_cc4(&self) -> &EventsCompare3 {
         &self.0.events_compare[4]
     }
 
-    /// Returns reference to the CC[5] `COMPARE` event endpoint for PPI.
+    /// Returns reference to the CC\[5\] `COMPARE` event endpoint for PPI.
     #[inline(always)]
     fn event_compare_cc5(&self) -> &EventsCompare3 {
         &self.0.events_compare[5]
@@ -543,25 +543,25 @@ impl ExtendedCCTimer for Timer<TIMER3> {
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 impl ExtendedCCTimer for Timer<TIMER4> {
-    /// Returns reference to the CC[4] `CAPTURE` task endpoint for PPI.
+    /// Returns reference to the CC\[4\] `CAPTURE` task endpoint for PPI.
     #[inline(always)]
     fn task_capture_cc4(&self) -> &TasksCapture3 {
         &self.0.tasks_capture[4]
     }
 
-    /// Returns reference to the CC[5] `CAPTURE` task endpoint for PPI.
+    /// Returns reference to the CC\[5\] `CAPTURE` task endpoint for PPI.
     #[inline(always)]
     fn task_capture_cc5(&self) -> &TasksCapture3 {
         &self.0.tasks_capture[5]
     }
 
-    /// Returns reference to the CC[4] `COMPARE` event endpoint for PPI.
+    /// Returns reference to the CC\[4\] `COMPARE` event endpoint for PPI.
     #[inline(always)]
     fn event_compare_cc4(&self) -> &EventsCompare3 {
         &self.0.events_compare[4]
     }
 
-    /// Returns reference to the CC[5] `COMPARE` event endpoint for PPI.
+    /// Returns reference to the CC\[5\] `COMPARE` event endpoint for PPI.
     #[inline(always)]
     fn event_compare_cc5(&self) -> &EventsCompare3 {
         &self.0.events_compare[5]
