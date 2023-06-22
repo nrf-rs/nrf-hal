@@ -9,6 +9,9 @@ use embedded_hal as hal;
 #[cfg(feature = "51")]
 pub use nrf51_pac as pac;
 
+#[cfg(feature = "52805")]
+pub use nrf52805_pac as pac;
+
 #[cfg(feature = "52810")]
 pub use nrf52810_pac as pac;
 
@@ -40,6 +43,7 @@ pub mod ccm;
 pub mod clocks;
 #[cfg(not(any(
     feature = "51",
+    feature = "52805",
     feature = "9160",
     feature = "5340-app",
     feature = "5340-net"
@@ -54,6 +58,7 @@ pub mod gpio;
 pub mod gpiote;
 #[cfg(not(any(
     feature = "51",
+    feature = "52805",
     feature = "52810",
     feature = "52811",
     feature = "5340-net"
@@ -62,8 +67,9 @@ pub mod i2s;
 #[cfg(any(feature = "52833", feature = "52840"))]
 pub mod ieee802154;
 #[cfg(not(any(
-    feature = "52811",
+    feature = "52805",
     feature = "52810",
+    feature = "52811",
     feature = "9160",
     feature = "5340-app",
     feature = "5340-net"
@@ -73,7 +79,7 @@ pub mod lpcomp;
 pub mod nvmc;
 #[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
 pub mod ppi;
-#[cfg(not(any(feature = "51", feature = "5340-net")))]
+#[cfg(not(any(feature = "51", feature = "52805", feature = "5340-net")))]
 pub mod pwm;
 #[cfg(not(any(
     feature = "51",
@@ -149,9 +155,9 @@ pub mod target_constants {
     pub const SRAM_LOWER: usize = 0x2000_0000;
     pub const SRAM_UPPER: usize = 0x3000_0000;
 
-    #[cfg(any(feature = "51", feature = "52810", feature = "52832"))]
+    #[cfg(any(feature = "51", feature = "52805", feature = "52810", feature = "52832"))]
     pub const FORCE_COPY_BUFFER_SIZE: usize = 255;
-    #[cfg(not(any(feature = "51", feature = "52810", feature = "52832")))]
+    #[cfg(not(any(feature = "51", feature = "52805", feature = "52810", feature = "52832")))]
     pub const FORCE_COPY_BUFFER_SIZE: usize = 1024;
     const _CHECK_FORCE_COPY_BUFFER_SIZE: usize = EASY_DMA_SIZE - FORCE_COPY_BUFFER_SIZE;
     // ERROR: FORCE_COPY_BUFFER_SIZE must be <= EASY_DMA_SIZE

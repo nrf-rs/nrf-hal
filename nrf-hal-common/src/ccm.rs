@@ -272,6 +272,7 @@ impl Ccm {
                 feature = "52833",
                 feature = "52811",
                 feature = "52810",
+                feature = "52805",
                 feature = "5340-net"
             ))]
             // NOTE(unsafe) Any 8bits pattern is safe to write to this register
@@ -402,6 +403,7 @@ impl Ccm {
                 feature = "52833",
                 feature = "52811",
                 feature = "52810",
+                feature = "52805",
                 feature = "5340-net"
             ))]
             // NOTE(unsafe) Any 8bits pattern is safe to write to this register
