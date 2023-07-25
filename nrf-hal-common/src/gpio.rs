@@ -231,8 +231,10 @@ impl<MODE> Pin<MODE> {
         }
     }
 
-    /// Convert the pin to be a push-pull output with normal drive.
-    pub fn into_push_pull_output(self, initial_output: Level) -> Pin<Output<PushPull>> {
+    /// Convert the pin to be a push-pull output with specified drive.
+    pub fn into_push_pull_output_drive(self, initial_output: Level, drive: DriveConfig) ->
+        Pin<Output<PushPull>>
+    {
         let mut pin = Pin {
             _mode: PhantomData,
             pin_port: self.pin_port,
@@ -247,12 +249,22 @@ impl<MODE> Pin<MODE> {
             w.dir().output();
             w.input().connect(); // AJM - hack for SPI
             w.pull().disabled();
-            w.drive().s0s1();
+            match drive {
+                DriveConfig::Standard0Standard1 => w.drive().s0s1(),
+                DriveConfig::Standard0HighDrive1 => w.drive().s0h1(),
+                DriveConfig::HighDrive0Standard1 => w.drive().h0s1(),
+                DriveConfig::HighDrive0HighDrive1 => w.drive().h0h1(),
+            };
             w.sense().disabled();
             w
         });
 
         pin
+    }
+
+    /// Convert the pin to be a push-pull output with specified initial output level.
+    pub fn into_push_pull_output(self, initial_output: Level) -> Pin<Output<PushPull>> {
+        self.into_push_pull_output_drive(initial_output, DriveConfig::Standard0Standard1)
     }
 
     /// Convert the pin to be an open-drain output.
@@ -406,6 +418,14 @@ pub enum OpenDrainConfig {
     HighDrive0Disconnect1,
 }
 
+/// Pin configuration for output drive.
+pub enum DriveConfig {
+    Standard0Standard1,
+    Standard0HighDrive1,
+    HighDrive0Standard1,
+    HighDrive0HighDrive1,
+}
+
 #[cfg(feature = "51")]
 use crate::pac::gpio::pin_cnf;
 
@@ -447,6 +467,7 @@ macro_rules! gpio {
 
                 Floating,
                 Disconnected,
+                DriveConfig,
                 Input,
                 Level,
                 OpenDrain,
@@ -544,8 +565,8 @@ macro_rules! gpio {
                         }
                     }
 
-                    /// Convert the pin to bepin a push-pull output with normal drive
-                    pub fn into_push_pull_output(self, initial_output: Level)
+                    /// Convert the pin to bepin a push-pull output with specified drive
+                    pub fn into_push_pull_output_drive(self, initial_output: Level, drive: DriveConfig)
                         -> $PXi<Output<PushPull>>
                     {
                         let mut pin = $PXi {
@@ -561,12 +582,24 @@ macro_rules! gpio {
                             w.dir().output();
                             w.input().disconnect();
                             w.pull().disabled();
-                            w.drive().s0s1();
+                            match drive {
+                                DriveConfig::Standard0Standard1 => w.drive().s0s1(),
+                                DriveConfig::Standard0HighDrive1 => w.drive().s0h1(),
+                                DriveConfig::HighDrive0Standard1 => w.drive().h0s1(),
+                                DriveConfig::HighDrive0HighDrive1 => w.drive().h0h1(),
+                            };
                             w.sense().disabled();
                             w
                         });
 
                         pin
+                    }
+
+                    /// Convert the pin to bepin a push-pull output with normal drive
+                    pub fn into_push_pull_output(self, initial_output: Level)
+                        -> $PXi<Output<PushPull>>
+                    {
+                        self.into_push_pull_output_drive(initial_output, DriveConfig::Standard0Standard1)
                     }
 
                     /// Convert the pin to be an open-drain output
