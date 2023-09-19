@@ -43,22 +43,37 @@ use crate::pac::timer0::{
 use core::marker::PhantomData;
 use rtic_monotonic::Monotonic;
 
-trait RegisterAccess<RegBlock>{
+pub trait RegisterAccess<RegBlock> {
     fn reg<'a>() -> &'a RegBlock;
 }
 
-trait TimerRegister:RegisterAccess<RegBlock0>{}
+trait TimerRegister: RegisterAccess<RegBlock0> {}
 
-struct MonotonicTimer<Timer:TimerRegister>{
-    instance:PhantomData<Timer>,
+pub trait Instantiatable<RegBlock> {
+    fn new<Instance: RegisterAccess<RegBlock>>(instance: Instance) -> Self;
 }
 
-impl<Timer:TimerRegister> Monotonic for MonotonicTimer<Timer>{
+struct MonotonicTimer<Timer: TimerRegister> {
+    instance: PhantomData<Timer>,
+}
+
+impl<Timer: TimerRegister> Instantiatable<RegBlock0> for MonotonicTimer<Timer> {
+    fn new<Instance: RegisterAccess<RegBlock0>>(_: Instance) -> Self {
+        let reg = Timer::reg();
+        reg.prescaler.write(|w| unsafe { w.prescaler().bits(4) });
+        reg.bitmode.write(|w| w.bitmode()._32bit());
+        Self {
+            instance: PhantomData,
+        }
+    }
+}
+
+impl<Timer: TimerRegister> Monotonic for MonotonicTimer<Timer> {
     type Instant = fugit::TimerInstantU32<1_000_000>;
     type Duration = fugit::TimerDurationU32<1_000_000>;
 
     fn now(&mut self) -> Self::Instant {
-        let reg =Timer::reg();
+        let reg = Timer::reg();
         reg.tasks_capture[0].write(|w| w.tasks_capture().set_bit());
         let ticks = reg.cc[0].read().cc().bits();
         let now = fugit::TimerInstantU32::from_ticks(ticks);
@@ -66,7 +81,7 @@ impl<Timer:TimerRegister> Monotonic for MonotonicTimer<Timer>{
     }
 
     fn set_compare(&mut self, instant: Self::Instant) {
-        todo!()
+        Timer::reg().cc[0].write(|w| w.cc().variant(instant.duration_since_epoch().ticks()));
     }
 
     fn clear_compare_flag(&mut self) {
@@ -78,9 +93,9 @@ impl<Timer:TimerRegister> Monotonic for MonotonicTimer<Timer>{
     }
 
     unsafe fn reset(&mut self) {
-        Timer::reg().tasks_clear.write(|w| w.tasks_clear().set_bit());
+        let reg = Timer::reg();
+        reg.intenset.write(|w| w.compare0().set_bit());
+        reg.tasks_clear.write(|w| w.tasks_clear().set_bit());
+        reg.tasks_start.write(|w| w.tasks_start().set_bit());
     }
 }
-
-
-
