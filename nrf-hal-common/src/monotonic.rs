@@ -74,11 +74,11 @@ impl<Timer:TimerRegister> Monotonic for MonotonicTimer<Timer>{
     }
 
     fn zero() -> Self::Instant {
-        todo!()
+        Self::Instant::from_ticks(0)
     }
 
     unsafe fn reset(&mut self) {
-        todo!()
+        Timer::reg().tasks_clear.write(|w| w.tasks_clear().set_bit());
     }
 }
 
