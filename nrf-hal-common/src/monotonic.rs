@@ -47,21 +47,22 @@ pub trait RegisterAccess<RegBlock> {
     fn reg<'a>() -> &'a RegBlock;
 }
 
-trait TimerRegister: RegisterAccess<RegBlock0> {}
+pub trait TimerRegister: RegisterAccess<RegBlock0> {}
 
 pub trait Instantiatable<RegBlock> {
     fn new<Instance: RegisterAccess<RegBlock>>(instance: Instance) -> Self;
 }
 
-struct MonotonicTimer<Timer: TimerRegister> {
+pub struct MonotonicTimer<Timer: TimerRegister> {
     instance: PhantomData<Timer>,
 }
 
-impl<Timer: TimerRegister> Instantiatable<RegBlock0> for MonotonicTimer<Timer> {
-    fn new<Instance: RegisterAccess<RegBlock0>>(_: Instance) -> Self {
+impl<Timer: TimerRegister>  MonotonicTimer<Timer> {
+    pub fn new<Instance: RegisterAccess<RegBlock0>>(_: Instance) -> Self {
         let reg = Timer::reg();
         reg.prescaler.write(|w| unsafe { w.prescaler().bits(4) });
         reg.bitmode.write(|w| w.bitmode()._32bit());
+        reg.tasks_start.write(|w| w.tasks_start().set_bit());
         Self {
             instance: PhantomData,
         }
@@ -99,3 +100,31 @@ impl<Timer: TimerRegister> Monotonic for MonotonicTimer<Timer> {
         reg.tasks_start.write(|w| w.tasks_start().set_bit());
     }
 }
+
+
+
+
+macro_rules! reg_access {
+    ($(
+        $(#[$feature_gate:meta])?
+        $timer:ident
+    )+) => {
+        $(
+            $( #[$feature_gate] )?
+            impl RegisterAccess<RegBlock0> for $timer{
+                fn reg<'a>() -> &'a RegBlock0{
+                    unsafe {&*Self::ptr()}
+                }
+            }
+            $( #[$feature_gate] )?
+            impl TimerRegister for $timer{}
+            
+        )+
+        
+    };
+}
+reg_access!(
+    TIMER0
+    TIMER1
+    TIMER2
+);
