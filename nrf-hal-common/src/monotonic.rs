@@ -62,7 +62,6 @@ impl<Timer: TimerRegister>  MonotonicTimer<Timer> {
         let reg = Timer::reg();
         reg.prescaler.write(|w| unsafe { w.prescaler().bits(4) });
         reg.bitmode.write(|w| w.bitmode()._32bit());
-        reg.tasks_start.write(|w| w.tasks_start().set_bit());
         Self {
             instance: PhantomData,
         }
@@ -75,10 +74,9 @@ impl<Timer: TimerRegister> Monotonic for MonotonicTimer<Timer> {
 
     fn now(&mut self) -> Self::Instant {
         let reg = Timer::reg();
-        reg.tasks_capture[0].write(|w| w.tasks_capture().set_bit());
-        let ticks = reg.cc[0].read().cc().bits();
-        let now = fugit::TimerInstantU32::from_ticks(ticks);
-        return now;
+        reg.tasks_capture[1].write(|w| w.tasks_capture().set_bit());
+        let ticks = reg.cc[1].read().bits();
+        Self::Instant::from_ticks(ticks)
     }
 
     fn set_compare(&mut self, instant: Self::Instant) {
