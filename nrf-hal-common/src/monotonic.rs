@@ -40,7 +40,7 @@ use crate::pac::timer0::{
     RegisterBlock as RegBlock3, EVENTS_COMPARE as EventsCompare3, TASKS_CAPTURE as TasksCapture3,
 };
 
-use core::marker::PhantomData;
+use core::{convert::TryInto, marker::PhantomData};
 use rtic_monotonic::Monotonic;
 
 pub trait RegisterAccess<RegBlock> {
@@ -49,18 +49,15 @@ pub trait RegisterAccess<RegBlock> {
 
 pub trait TimerRegister: RegisterAccess<RegBlock0> {}
 
-pub trait Instantiatable<RegBlock> {
-    fn new<Instance: RegisterAccess<RegBlock>>(instance: Instance) -> Self;
-}
-
-pub struct MonotonicTimer<Timer: TimerRegister> {
+pub struct MonotonicTimer<Timer: TimerRegister, const FREQ: u32> {
     instance: PhantomData<Timer>,
 }
 
-impl<Timer: TimerRegister>  MonotonicTimer<Timer> {
-    pub fn new<Instance: RegisterAccess<RegBlock0>>(_: Instance) -> Self {
+impl<Timer: TimerRegister, const FREQ: u32> MonotonicTimer<Timer, FREQ> {
+    fn _new<Instance: RegisterAccess<RegBlock0>>(_: Instance, presc: u8) -> Self {
         let reg = Timer::reg();
-        reg.prescaler.write(|w| unsafe { w.prescaler().bits(4) });
+        reg.prescaler
+            .write(|w| unsafe { w.prescaler().bits(presc) });
         reg.bitmode.write(|w| w.bitmode()._32bit());
         Self {
             instance: PhantomData,
@@ -68,19 +65,22 @@ impl<Timer: TimerRegister>  MonotonicTimer<Timer> {
     }
 }
 
-impl<Timer: TimerRegister> Monotonic for MonotonicTimer<Timer> {
-    type Instant = fugit::TimerInstantU32<1_000_000>;
-    type Duration = fugit::TimerDurationU32<1_000_000>;
+impl<Timer: TimerRegister, const FREQ: u32> Monotonic for MonotonicTimer<Timer, FREQ> {
+    type Instant = fugit::TimerInstantU32<FREQ>;
+    type Duration = fugit::TimerDurationU32<FREQ>;
 
     fn now(&mut self) -> Self::Instant {
         let reg = Timer::reg();
         reg.tasks_capture[1].write(|w| w.tasks_capture().set_bit());
         let ticks = reg.cc[1].read().bits();
-        Self::Instant::from_ticks(ticks)
+        Self::Instant::from_ticks(ticks.into())
     }
 
     fn set_compare(&mut self, instant: Self::Instant) {
-        Timer::reg().cc[0].write(|w| w.cc().variant(instant.duration_since_epoch().ticks()));
+        Timer::reg().cc[0].write(|w| {
+            w.cc()
+                .variant(instant.duration_since_epoch().ticks().try_into().unwrap())
+        });
     }
 
     fn clear_compare_flag(&mut self) {
@@ -99,8 +99,25 @@ impl<Timer: TimerRegister> Monotonic for MonotonicTimer<Timer> {
     }
 }
 
+trait TimerFreq {
+    fn prescaler() -> u8;
+}
 
-
+macro_rules! freq_gate {
+    (
+            $(
+                $freq:literal,$presc:literal,
+            )+
+    ) => (
+        $(
+            impl<Timer: TimerRegister>   MonotonicTimer<Timer,$freq> {
+                pub fn new<Instance: RegisterAccess<RegBlock0>>(instance: Instance) -> Self {
+                    Self::_new(instance,($presc as u8))
+                }
+            }
+        )+
+    )
+}
 
 macro_rules! reg_access {
     ($(
@@ -116,9 +133,9 @@ macro_rules! reg_access {
             }
             $( #[$feature_gate] )?
             impl TimerRegister for $timer{}
-            
+
         )+
-        
+
     };
 }
 reg_access!(
@@ -126,3 +143,15 @@ reg_access!(
     TIMER1
     TIMER2
 );
+
+freq_gate! {
+    16_000_000,0,
+    8_000_000,1,
+    4_000_000,2,
+    2_000_000,3,
+    1_000_000,4,
+    500_000,5,
+    250_000,6,
+    125_000,7,
+    62_500,8,
+}
