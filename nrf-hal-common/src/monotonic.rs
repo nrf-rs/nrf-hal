@@ -23,22 +23,25 @@ use core::{convert::TryInto, marker::PhantomData};
 use paste::paste;
 use rtic_monotonic::Monotonic;
 
-/// A trait that ensures register access for the [`pac`](`crate::pac`)
-/// abstractions
-trait Instance {
-    /// The type of the underlying register block
-    type RegBlock;
-    /// Returns a pointer to the underlying regblock
-    ///
-    /// Allows modification of the registers at a type level rather than
-    /// by storing the [`Instance`] at runtime.
-    fn reg<'a>() -> &'a Self::RegBlock;
-    /// Configures the [`Instance`].
-    ///
-    /// This is used to ensure that the device can be configured without needing to know
-    /// what device is being used.
-    fn init(presc: u8);
+mod sealed{
+    /// A trait that ensures register access for the [`pac`](`crate::pac`)
+    /// abstractions
+    pub trait Instance {
+        /// The type of the underlying register block
+        type RegBlock;
+        /// Returns a pointer to the underlying register block
+        ///
+        /// Allows modification of the registers at a type level rather than
+        /// by storing the [`Instance`] at run-time.
+        fn reg<'a>() -> &'a Self::RegBlock;
+        /// Configures the [`Instance`].
+        ///
+        /// This is used to ensure that the device can be configured without needing to know
+        /// what device is being used.
+        fn init(presc: u8);
+    }
 }
+use sealed::Instance;
 
 /// A marker trait that denotes 
 /// that the specified [`pac`](crate::pac) 
@@ -164,8 +167,8 @@ macro_rules! freq_gate {
             ///
             /// This implementation allows scheduling [rtic](https://docs.rs/rtic/latest/rtic/)
             /// applications using the [`Timer`](crate::timer) peripheral.
-            /// This abstraction is only constructable for the following
-            /// frequencies since they are the only ones that generate valid prescalers. 
+            /// It is only possible to instantiate this abstraction for the following
+            /// frequencies since they are the only ones that generate valid prescaler values. 
             ///<center>
             ///
             ///| frequency  | source clock frequency | time until overflow |
