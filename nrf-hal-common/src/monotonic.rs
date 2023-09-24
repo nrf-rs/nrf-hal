@@ -27,6 +27,12 @@ The TIMER's are configured to use a 32 bit wide counter, this means that the tim
 [`MonotonicTimer`] documentation.
 **/
 
+#![deny(missing_docs)]
+#![deny(non_camel_case_types)]
+#![deny(clippy::all)]
+#![deny(clippy::undocumented_unsafe_blocks)]
+
+
 #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::{
     timer0_ns::RegisterBlock as RegBlock0, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1,
@@ -73,7 +79,7 @@ mod sealed {
         unsafe fn _reset(&mut self);
     }
 }
-use sealed::{Instance,RateMonotonic};
+use sealed::{Instance, RateMonotonic};
 
 /// A marker trait denoting
 /// that the specified [`pac`](crate::pac)
