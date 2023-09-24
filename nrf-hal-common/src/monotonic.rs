@@ -7,7 +7,7 @@ Implements the [Monotonic](rtic_monotonic::Monotonic) trait for the TIMERs and t
 
 ### TIMER
 
-The [`MonotonicTimer`] [§6.30](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.7.pdf#%5B%7B%22num%22%3A5455%2C%22gen%22%3A0%7D%2C%7B%22name%22%3A%22XYZ%22%7D%2C85.039%2C555.923%2Cnull%5D)
+The [`Timer`] [§6.30](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.7.pdf#%5B%7B%22num%22%3A5455%2C%22gen%22%3A0%7D%2C%7B%22name%22%3A%22XYZ%22%7D%2C85.039%2C555.923%2Cnull%5D)
 has 2 different clock sources that can drive it, one 16Mhz clock that is used when
 the timers frequency is higher than 1 mhz where the timers frequency is given by:
 
@@ -17,14 +17,14 @@ Where the prescaler is a 4 bit integer.
 And one 1Mhz clock source which is used when the f_TIMER is at or lower than 1Mhz.
 The 1MHz clock is lower power than the 16MHz clock source, so for low applications it could be beneficial to use a
 frequency at or below 1MHz. For a list of all valid frequencies please see the
-[`MonotonicTimer`] documentation.
+[`Timer`] documentation.
 
 ### Overflow
 
 The TIMER's are configured to use a 32 bit wide counter, this means that the time until overflow is given by the following formula:
 `T_overflow = 2^32/freq`. Therefore the time until overflow for the maximum frequency (16MHz) is `2^32/(16*10^6) = 268` seconds, using a
 1MHz TIMER yields time till overflow `2^32/(10^6) = 4295` seconds or 1.2 hours. For more information on overflow please see the
-[`MonotonicTimer`] documentation.
+[`Timer`] documentation.
 **/
 
 #![deny(missing_docs)]
@@ -35,24 +35,24 @@ The TIMER's are configured to use a 32 bit wide counter, this means that the tim
 
 #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::{
-    timer0_ns::RegisterBlock as RegBlock0, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1,
+    timer0_ns::RegisterBlock as TimerRegBlock0, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1,
     TIMER2_NS as TIMER2,
 };
 
 #[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
-use crate::pac::{timer0::RegisterBlock as RegBlock0, TIMER0, TIMER1, TIMER2};
+use crate::pac::{timer0::RegisterBlock as TimerRegBlock0, TIMER0, TIMER1, TIMER2};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::{TIMER3, TIMER4};
 
 // The 832 and 840 expose TIMER3 and TIMER for as timer3::RegisterBlock...
 #[cfg(any(feature = "52832", feature = "52840"))]
-use crate::pac::timer3::RegisterBlock as RegBlock3;
+use crate::pac::timer3::RegisterBlock as TimerRegBlock3;
 
 // ...but the 833 exposes them as timer0::RegisterBlock. This might be a bug
 // in the PAC, and could be fixed later. For now, it is equivalent anyway.
 #[cfg(feature = "52833")]
-use crate::pac::timer0::RegisterBlock as RegBlock3;
+use crate::pac::timer0::RegisterBlock as TimerRegBlock3;
 
 use core::{convert::TryInto, marker::PhantomData};
 use paste::paste;
@@ -84,9 +84,9 @@ use sealed::{Instance, RateMonotonic};
 /// A marker trait denoting
 /// that the specified [`pac`](crate::pac)
 /// peripheral is a valid timer.
-pub trait TimerInstance: Instance<RegBlock = RegBlock0> {}
+pub trait TimerInstance: Instance<RegBlock = TimerRegBlock0> {}
 
-impl<T: TimerInstance, const FREQ: u32> MonotonicTimer<T, FREQ> {
+impl<T: TimerInstance, const FREQ: u32> Timer<T, FREQ> {
     fn _new(_: T, presc: u8) -> Self {
         let reg = T::reg();
         reg.prescaler
@@ -98,7 +98,7 @@ impl<T: TimerInstance, const FREQ: u32> MonotonicTimer<T, FREQ> {
     }
 }
 
-impl<T: TimerInstance, const FREQ: u32> sealed::RateMonotonic for MonotonicTimer<T, FREQ> {
+impl<T: TimerInstance, const FREQ: u32> sealed::RateMonotonic for Timer<T, FREQ> {
     type Instant = fugit::TimerInstantU32<FREQ>;
     fn _now(&mut self) -> fugit::TimerInstantU32<FREQ> {
         let reg = T::reg();
@@ -126,7 +126,7 @@ impl<T: TimerInstance, const FREQ: u32> sealed::RateMonotonic for MonotonicTimer
     }
 }
 
-impl<T: TimerInstance, const FREQ: u32> Monotonic for MonotonicTimer<T, FREQ> {
+impl<T: TimerInstance, const FREQ: u32> Monotonic for Timer<T, FREQ> {
     type Instant = fugit::TimerInstantU32<FREQ>;
     type Duration = fugit::TimerDurationU32<FREQ>;
     fn now(&mut self) -> Self::Instant {
@@ -150,27 +150,22 @@ impl<T: TimerInstance, const FREQ: u32> Monotonic for MonotonicTimer<T, FREQ> {
     }
 }
 
+// Provides a RegBlock0 interface for all timers
 macro_rules! impl_timer {
-    ($timer:ident -> RegBlock0) => {
-        impl Instance for $timer {
-            type RegBlock = RegBlock0;
-            fn reg<'a>() -> &'a RegBlock0 {
-                unsafe { &*$timer::ptr() }
-            }
+    ($timer:ident -> TimerRegBlock0) => {
+        fn reg<'a>() -> &'a TimerRegBlock0 {
+            unsafe { &*$timer::ptr() }
         }
     };
-    ($timer:ident -> RegBlock3) => {
-        impl Instance for $timer {
-            type RegBlock = RegBlock0;
-            fn reg<'a>() -> &'a RegBlock0 {
-                // Adapted from [timer.rs]
-                let rb_ptr: *const RegBlock3 = $timer::ptr();
+    ($timer:ident -> TimerRegBlock3) => {
+        fn reg<'a>() -> &'a TimerRegBlock0 {
+            // Adapted from [timer.rs]
+            let rb_ptr: *const TimerRegBlock3 = $timer::ptr();
 
-                // SAFETY: TIMER0 and TIMER3 register layouts are identical, except
-                // that TIMER3 has 6 CC registers, while TIMER0 has 4. There is
-                // appropriate padding to allow other operations to work correctly
-                unsafe { &*rb_ptr.cast() }
-            }
+            // SAFETY: TIMER0 and TIMER3 register layouts are identical, except
+            // that TIMER3 has 6 CC registers, while TIMER0 has 4. There is
+            // appropriate padding to allow other operations to work correctly
+            unsafe { &*rb_ptr.cast() }
         }
     };
     (
@@ -182,8 +177,10 @@ macro_rules! impl_timer {
         $(
 
             $( #[$feature_gate] )?
-            impl_timer!($timer -> $regblock);
-
+            impl Instance for $timer {
+                type RegBlock = TimerRegBlock0;
+                impl_timer!($timer -> $regblock);
+            }
             $( #[$feature_gate] )?
             impl TimerInstance for $timer{}
         )+
@@ -191,13 +188,13 @@ macro_rules! impl_timer {
 }
 
 impl_timer!(
-    TIMER0 -> RegBlock0
-    TIMER1 -> RegBlock0
-    TIMER2 -> RegBlock0
+    TIMER0 -> TimerRegBlock0
+    TIMER1 -> TimerRegBlock0
+    TIMER2 -> TimerRegBlock0
     #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-    TIMER3 -> RegBlock3
+    TIMER3 -> TimerRegBlock3
     #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-    TIMER4 -> RegBlock3
+    TIMER4 -> TimerRegBlock3
 );
 
 macro_rules! timer_freq_gate {
@@ -222,11 +219,11 @@ macro_rules! timer_freq_gate {
             )+
             ///
             ///</center>
-            pub struct MonotonicTimer<T: TimerInstance, const FREQ: u32> {
+            pub struct Timer<T: TimerInstance, const FREQ: u32> {
                 instance: PhantomData<T>,
             }
             $(
-                impl<T: TimerInstance>   MonotonicTimer<T,$freq> {
+                impl<T: TimerInstance>   Timer<T,$freq> {
                     /// Instantiates a new [`Monotonic`](rtic_monotonic)
                     /// timer for the specified [`TimerInstance`].
                     ///
