@@ -16,14 +16,14 @@ Where the prescaler is a 4 bit integer.
 
 And one 1Mhz clock source which is used when the f_TIMER is at or lower than 1Mhz.
 The 1MHz clock is lower power than the 16MHz clock source, so for low applications it could be beneficial to use a
-frequency at or below 1MHz. For a list of all valid frequencies please see the 
+frequency at or below 1MHz. For a list of all valid frequencies please see the
 [`MonotonicTimer`] documentation.
 
 ### Overflow
 
 The TIMER's are configured to use a 32 bit wide counter, this means that the time until overflow is given by the following formula:
 `T_overflow = 2^32/freq`. Therefore the time until overflow for the maximum frequency (16MHz) is `2^32/(16*10^6) = 268` seconds, using a
-1MHz TIMER yields time till overflow `2^32/(10^6) = 4295` seconds or 1.2 hours. For more information on overflow please see the 
+1MHz TIMER yields time till overflow `2^32/(10^6) = 4295` seconds or 1.2 hours. For more information on overflow please see the
 [`MonotonicTimer`] documentation.
 **/
 
@@ -62,32 +62,38 @@ mod sealed {
         ///
         /// Allows modification of the registers at a type level rather than
         /// by storing the [`Instance`] at run-time.
-        fn reg<'a>() -> &'a super::RegBlock0;
-        /// Configures the [`Instance`].
-        ///
-        /// This is used to ensure that the device can be configured without needing to know
-        /// what device is being used.
-        fn init(presc: u8);
+        fn reg<'a>() -> &'a Self::RegBlock;
+    }
+
+    pub trait RateMonotonic {
+        type Instant;
+        fn _now(&mut self) -> Self::Instant;
+        fn _set_compare(&mut self, instant: Self::Instant);
+        fn _clear_compare_flag(&mut self);
+        unsafe fn _reset(&mut self);
     }
 }
-use sealed::Instance;
+use sealed::{Instance,RateMonotonic};
 
 /// A marker trait denoting
 /// that the specified [`pac`](crate::pac)
 /// peripheral is a valid timer.
 pub trait TimerInstance: Instance<RegBlock = RegBlock0> {}
 
-
 impl<T: TimerInstance, const FREQ: u32> MonotonicTimer<T, FREQ> {
     fn _new(_: T, presc: u8) -> Self {
-        T::init(presc);
+        let reg = T::reg();
+        reg.prescaler
+            .write(|w| unsafe { w.prescaler().bits(presc) });
+        reg.bitmode.write(|w| w.bitmode()._32bit());
         Self {
             instance: PhantomData,
         }
     }
 }
 
-impl<T: TimerInstance, const FREQ: u32> MonotonicTimer<T, FREQ> {
+impl<T: TimerInstance, const FREQ: u32> sealed::RateMonotonic for MonotonicTimer<T, FREQ> {
+    type Instant = fugit::TimerInstantU32<FREQ>;
     fn _now(&mut self) -> fugit::TimerInstantU32<FREQ> {
         let reg = T::reg();
         reg.tasks_capture[1].write(|w| w.tasks_capture().set_bit());
@@ -114,7 +120,7 @@ impl<T: TimerInstance, const FREQ: u32> MonotonicTimer<T, FREQ> {
     }
 }
 
-impl<T:TimerInstance,const FREQ:u32> Monotonic for MonotonicTimer<T,FREQ>{
+impl<T: TimerInstance, const FREQ: u32> Monotonic for MonotonicTimer<T, FREQ> {
     type Instant = fugit::TimerInstantU32<FREQ>;
     type Duration = fugit::TimerDurationU32<FREQ>;
     fn now(&mut self) -> Self::Instant {
@@ -145,12 +151,6 @@ macro_rules! impl_timer {
             fn reg<'a>() -> &'a RegBlock0 {
                 unsafe { &*$timer::ptr() }
             }
-            fn init(presc: u8) {
-                let reg = Self::reg();
-                reg.prescaler
-                    .write(|w| unsafe { w.prescaler().bits(presc) });
-                reg.bitmode.write(|w| w.bitmode()._32bit());
-            }
         }
     };
     ($timer:ident -> RegBlock3) => {
@@ -164,12 +164,6 @@ macro_rules! impl_timer {
                 // that TIMER3 has 6 CC registers, while TIMER0 has 4. There is
                 // appropriate padding to allow other operations to work correctly
                 unsafe { &*rb_ptr.cast() }
-            }
-            fn init(presc: u8) {
-                let reg = Self::reg();
-                reg.prescaler
-                    .write(|w| unsafe { w.prescaler().bits(presc) });
-                reg.bitmode.write(|w| w.bitmode()._32bit());
             }
         }
     };
@@ -198,7 +192,6 @@ impl_timer!(
     TIMER3 -> RegBlock3
     #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
     TIMER4 -> RegBlock3
-
 );
 
 macro_rules! timer_freq_gate {
