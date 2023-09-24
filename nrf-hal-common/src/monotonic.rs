@@ -1,3 +1,32 @@
+/*!
+Implements the [Monotonic](rtic_monotonic::Monotonic) trait for the TIMERs and the RTCs.
+
+<Här borde vi ha användings exempel>
+
+< Här borde vi ha docs om RTC>
+
+### TIMER
+
+The [`MonotonicTimer`] [§6.30](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.7.pdf#%5B%7B%22num%22%3A5455%2C%22gen%22%3A0%7D%2C%7B%22name%22%3A%22XYZ%22%7D%2C85.039%2C555.923%2Cnull%5D)
+has 2 different clock sources that can drive it, one 16Mhz clock that is used when
+the timers frequency is higher than 1 mhz where the timers frequency is given by:
+
+`f_TIMER = 16 MHz / (2^PRESCALER)`
+Where the prescaler is a 4 bit integer.
+
+And one 1Mhz clock source which is used when the f_TIMER is at or lower than 1Mhz.
+The 1MHz clock is lower power than the 16MHz clock source, so for low applications it could be beneficial to use a
+frequency at or below 1MHz. For a list of all valid frequencies please see the 
+[`MonotonicTimer`] documentation.
+
+### Overflow
+
+The TIMER's are configured to use a 32 bit wide counter, this means that the time until overflow is given by the following formula:
+`T_overflow = 2^32/freq`. Therefore the time until overflow for the maximum frequency (16MHz) is `2^32/(16*10^6) = 268` seconds, using a
+1MHz TIMER yields time till overflow `2^32/(10^6) = 4295` seconds or 1.2 hours. For more information on overflow please see the 
+[`MonotonicTimer`] documentation.
+**/
+
 #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::{
     timer0_ns::RegisterBlock as RegBlock0, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1,
@@ -23,7 +52,7 @@ use core::{convert::TryInto, marker::PhantomData};
 use paste::paste;
 use rtic_monotonic::Monotonic;
 
-mod sealed{
+mod sealed {
     /// A trait that ensures register access for the [`pac`](`crate::pac`)
     /// abstractions
     pub trait Instance {
@@ -33,7 +62,7 @@ mod sealed{
         ///
         /// Allows modification of the registers at a type level rather than
         /// by storing the [`Instance`] at run-time.
-        fn reg<'a>() -> &'a Self::RegBlock;
+        fn reg<'a>() -> &'a super::RegBlock0;
         /// Configures the [`Instance`].
         ///
         /// This is used to ensure that the device can be configured without needing to know
@@ -43,10 +72,10 @@ mod sealed{
 }
 use sealed::Instance;
 
-/// A marker trait that denotes 
-/// that the specified [`pac`](crate::pac) 
+/// A marker trait denoting
+/// that the specified [`pac`](crate::pac)
 /// peripheral is a valid timer.
-pub trait TimerInstance:Instance {}
+pub trait TimerInstance: Instance<RegBlock = RegBlock0> {}
 
 
 impl<T: TimerInstance, const FREQ: u32> MonotonicTimer<T, FREQ> {
@@ -58,7 +87,92 @@ impl<T: TimerInstance, const FREQ: u32> MonotonicTimer<T, FREQ> {
     }
 }
 
+impl<T: TimerInstance, const FREQ: u32> MonotonicTimer<T, FREQ> {
+    fn _now(&mut self) -> fugit::TimerInstantU32<FREQ> {
+        let reg = T::reg();
+        reg.tasks_capture[1].write(|w| w.tasks_capture().set_bit());
+        let ticks = reg.cc[1].read().bits();
+        fugit::TimerInstantU32::<FREQ>::from_ticks(ticks.into())
+    }
+
+    fn _set_compare(&mut self, instant: fugit::TimerInstantU32<FREQ>) {
+        T::reg().cc[0].write(|w| {
+            w.cc()
+                .variant(instant.duration_since_epoch().ticks().try_into().unwrap())
+        });
+    }
+
+    fn _clear_compare_flag(&mut self) {
+        T::reg().events_compare[0].write(|w| w.events_compare().clear_bit());
+    }
+
+    unsafe fn _reset(&mut self) {
+        let reg = T::reg();
+        reg.intenset.write(|w| w.compare0().set_bit());
+        reg.tasks_clear.write(|w| w.tasks_clear().set_bit());
+        reg.tasks_start.write(|w| w.tasks_start().set_bit());
+    }
+}
+
+impl<T:TimerInstance,const FREQ:u32> Monotonic for MonotonicTimer<T,FREQ>{
+    type Instant = fugit::TimerInstantU32<FREQ>;
+    type Duration = fugit::TimerDurationU32<FREQ>;
+    fn now(&mut self) -> Self::Instant {
+        self._now()
+    }
+
+    fn set_compare(&mut self, instant: Self::Instant) {
+        self._set_compare(instant);
+    }
+
+    fn clear_compare_flag(&mut self) {
+        self._clear_compare_flag();
+    }
+
+    fn zero() -> Self::Instant {
+        Self::Instant::from_ticks(0)
+    }
+
+    unsafe fn reset(&mut self) {
+        self._reset();
+    }
+}
+
 macro_rules! impl_timer {
+    ($timer:ident -> RegBlock0) => {
+        impl Instance for $timer {
+            type RegBlock = RegBlock0;
+            fn reg<'a>() -> &'a RegBlock0 {
+                unsafe { &*$timer::ptr() }
+            }
+            fn init(presc: u8) {
+                let reg = Self::reg();
+                reg.prescaler
+                    .write(|w| unsafe { w.prescaler().bits(presc) });
+                reg.bitmode.write(|w| w.bitmode()._32bit());
+            }
+        }
+    };
+    ($timer:ident -> RegBlock3) => {
+        impl Instance for $timer {
+            type RegBlock = RegBlock0;
+            fn reg<'a>() -> &'a RegBlock0 {
+                // Adapted from [timer.rs]
+                let rb_ptr: *const RegBlock3 = $timer::ptr();
+
+                // SAFETY: TIMER0 and TIMER3 register layouts are identical, except
+                // that TIMER3 has 6 CC registers, while TIMER0 has 4. There is
+                // appropriate padding to allow other operations to work correctly
+                unsafe { &*rb_ptr.cast() }
+            }
+            fn init(presc: u8) {
+                let reg = Self::reg();
+                reg.prescaler
+                    .write(|w| unsafe { w.prescaler().bits(presc) });
+                reg.bitmode.write(|w| w.bitmode()._32bit());
+            }
+        }
+    };
     (
         $(
             $(#[$feature_gate:meta])?
@@ -68,79 +182,10 @@ macro_rules! impl_timer {
         $(
 
             $( #[$feature_gate] )?
-            impl Instance for $timer{
-                type RegBlock = $regblock;
-                fn reg<'a>() -> &'a $regblock {
-                    unsafe{ & *$timer::ptr() }
-                }
-                fn init(presc:u8){
-                    let reg = Self::reg();
-                    reg.prescaler
-                        .write(|w| unsafe { w.prescaler().bits(presc) });
-                    reg.bitmode.write(|w| w.bitmode()._32bit());
-                }
-            }
+            impl_timer!($timer -> $regblock);
 
             $( #[$feature_gate] )?
             impl TimerInstance for $timer{}
-
-            $( #[$feature_gate] )?
-            impl<const FREQ:u32> MonotonicTimer<$timer,FREQ>{
-                fn reg<'a>() -> &'a $regblock {
-                    $timer::reg()
-                }
-                fn _now(&mut self) -> fugit::TimerInstantU32<FREQ> {
-                    let reg = Self::reg();
-                    reg.tasks_capture[1].write(|w| w.tasks_capture().set_bit());
-                    let ticks = reg.cc[1].read().bits();
-                    fugit::TimerInstantU32::<FREQ>::from_ticks(ticks.into())
-                }
-
-                fn _set_compare(&mut self, instant: fugit::TimerInstantU32<FREQ>) {
-                    Self::reg().cc[0].write(|w| {
-                        w.cc()
-                            .variant(instant.duration_since_epoch().ticks().try_into().unwrap())
-                    });
-                }
-
-                fn _clear_compare_flag(&mut self) {
-                    Self::reg().events_compare[0].write(|w| w.events_compare().clear_bit());
-                }
-
-                unsafe fn _reset(&mut self) {
-                    let reg = Self::reg();
-                    reg.intenset.write(|w| w.compare0().set_bit());
-                    reg.tasks_clear.write(|w| w.tasks_clear().set_bit());
-                    reg.tasks_start.write(|w| w.tasks_start().set_bit());
-                }
-            }
-
-            // Todo : Remove this, implement on all that implement some trait insted.
-            $( #[$feature_gate] )?
-            impl<const FREQ:u32> Monotonic for MonotonicTimer<$timer,FREQ>{
-                type Instant = fugit::TimerInstantU32<FREQ>;
-                type Duration = fugit::TimerDurationU32<FREQ>;
-                fn now(&mut self) -> Self::Instant {
-                    self._now()
-                }
-
-                fn set_compare(&mut self, instant: Self::Instant) {
-                    self._set_compare(instant);
-                }
-
-                fn clear_compare_flag(&mut self) {
-                    self._clear_compare_flag();
-                }
-
-                fn zero() -> Self::Instant {
-                    Self::Instant::from_ticks(0)
-                }
-
-                unsafe fn reset(&mut self) {
-                    self._reset();
-                }
-            }
-
         )+
     };
 }
@@ -156,7 +201,7 @@ impl_timer!(
 
 );
 
-macro_rules! freq_gate {
+macro_rules! timer_freq_gate {
     (
         $(
             $freq:literal,$presc:literal,$overflow:literal,$sck:literal
@@ -168,7 +213,7 @@ macro_rules! freq_gate {
             /// This implementation allows scheduling [rtic](https://docs.rs/rtic/latest/rtic/)
             /// applications using the [`Timer`](crate::timer) peripheral.
             /// It is only possible to instantiate this abstraction for the following
-            /// frequencies since they are the only ones that generate valid prescaler values. 
+            /// frequencies since they are the only ones that generate valid prescaler values.
             ///<center>
             ///
             ///| frequency  | source clock frequency | time until overflow |
@@ -188,7 +233,7 @@ macro_rules! freq_gate {
                     ///
                     /// This function permits construction of the
                     #[doc = "timer for `" $freq "` Hz derived from a " $sck " clock."]
-                    /// This timer will overflow after 
+                    /// This timer will overflow after
                     #[doc = $overflow "."]
                     pub fn new(instance: T) -> Self {
 
@@ -199,7 +244,7 @@ macro_rules! freq_gate {
         );
     )
 }
-freq_gate! {
+timer_freq_gate! {
     16_000_000,0,"4 min 28 seconds","16MHz"
     8_000_000,1,"8 min 56 seconds","16MHz"
     4_000_000,2,"17 min 53 seconds","16MHz"
