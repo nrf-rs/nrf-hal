@@ -21,8 +21,14 @@ pub struct MonotonicRtc<T: InstanceRtc, const FREQ: u32> {
 }
 
 impl<T: InstanceRtc, const FREQ: u32> MonotonicRtc<T, FREQ> {
-    fn new() {
-        todo!()
+    pub fn new(instance: PhantomData<T>) -> Self {
+        let rtc = Self::reg();
+        unsafe { rtc.prescaler.write(|w| w.bits(0)) };
+
+        MonotonicRtc {
+            instance: instance,
+            overflow: 0,
+        }
     }
 
     fn reg<'a>() -> &'a rtcRegBlock {
@@ -48,7 +54,25 @@ impl<T: InstanceRtc, const FREQ: u32> Monotonic for MonotonicRtc<T, FREQ> {
     }
 
     fn set_compare(&mut self, instant: Self::Instant) {
-        todo!()
+        // Credit @kroken89 on github [https://gist.github.com/korken89/fe94a475726414dd1bce031c76adc3dd]
+        let now = self.now();
+
+        const MIN_TICKS_FOR_COMPARE: u32 = 3;
+
+        // Since the timer may or may not overflow based on the requested compare val, we check
+        // how many ticks are left.
+        let val = match instant.checked_duration_since(now) {
+            Some(x) if x.ticks() <= 0xffffff && x.ticks() > MIN_TICKS_FOR_COMPARE => {
+                instant.duration_since_epoch().ticks() & 0xffffff
+            }
+            Some(x) => {
+                (instant.duration_since_epoch().ticks() + (MIN_TICKS_FOR_COMPARE - x.ticks()))
+                    & 0xffffff
+            }
+            _ => 0, // Will overflow or in the past, set the same value as after overflow to not get extra interrupts
+        } as u32;
+        let rtc = Self::reg();
+        unsafe { rtc.cc[0].write(|w| w.bits(val)) };
     }
 
     fn clear_compare_flag(&mut self) {
@@ -71,3 +95,8 @@ impl<T: InstanceRtc, const FREQ: u32> Monotonic for MonotonicRtc<T, FREQ> {
         rtc.tasks_start.write(|w| w.bits(1));
     }
 }
+
+// impl with regblocks
+// impl InstanceRtc for RTC0 {}
+// impl InstanceRtc for RTC1 {}
+// impl InstanceRtc for RTC2 {}
