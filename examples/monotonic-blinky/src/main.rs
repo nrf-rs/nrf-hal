@@ -11,12 +11,12 @@ mod app {
     use pac::TIMER0;
     use hal::{
         gpio::{p0::Parts, Level, Output, Pin, PushPull},
-        prelude::*, monotonic::Timer,
+        prelude::*, monotonic::MonotonicTimer,
     };
     use rtt_target::{rprintln, rtt_init_print};
 
     #[monotonic(binds = TIMER0, default = true)]
-    type MyMono = Timer<TIMER0,62_500>;
+    type MyMono = MonotonicTimer<TIMER0,62_500>;
 
     #[shared]
     struct Shared {}
