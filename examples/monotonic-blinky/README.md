@@ -7,14 +7,14 @@ for software task scheduling. This example shows how to use the different clocks
 
 To run the default blinky example
 ```bash
-cargo embed --release --target=thumbv7em-none-eabihf
+cargo embed --release
 ```
 To run the example using the `rtc`
 ```bash
-cargo embed --release --target=thumbv7em-none-eabihf --example rtc
+cargo embed --release --example rtc
 ```
 To run the example using the `timer`
 ```bash
-cargo embed --release --target=thumbv7em-none-eabihf --example timer
+cargo embed --release --example timer
 ```
 
