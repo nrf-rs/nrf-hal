@@ -69,8 +69,7 @@ mod sealed {
     /// peripheral is a valid timer.
     pub trait TimerInstance: Instance<RegBlock = super::TimerRegBlock0> {}
 }
-use sealed::{Instance, RateMonotonic,TimerInstance};
-
+use sealed::{Instance, RateMonotonic, TimerInstance};
 
 // Public implementation for any peripheral that implements the
 // sealed RateMonotonic trait.
@@ -103,7 +102,7 @@ where
 
 // Private implementation of monotonic for a generic timer
 impl<T: TimerInstance, const FREQ: u32> RateMonotonic<fugit::TimerInstantU32<FREQ>>
-for MonotonicTimer<T, FREQ>
+    for MonotonicTimer<T, FREQ>
 {
     fn _new(presc: u8) -> Self {
         let reg = T::reg();
@@ -138,27 +137,33 @@ for MonotonicTimer<T, FREQ>
     }
 }
 
-macro_rules! impl_timer {
+macro_rules! impl_instance {
     (
         $(
-            $(#[$feature_gate:meta])?
-            $timer:ident
+            $instance:ident with $reg:ident : {
+                $(
+                    $(#[$feature_gate:meta])?
+                    $peripheral:ident
+                )+
+            }
         )+
     ) => {
         $(
+            $(
 
-            $( #[$feature_gate] )?
-            impl Instance for $timer {
-                type RegBlock = TimerRegBlock0;
-                fn reg<'a>() -> &'a TimerRegBlock0 {
-                    // SAFETY: TIMER0 and TIMER3 register layouts are identical, except
-                    // that TIMER3 has 6 CC registers, while TIMER0 has 4. There is
-                    // appropriate padding to allow other operations to work correctly
-                    unsafe { &*Self::ptr().cast() }
+                $( #[$feature_gate] )?
+                impl Instance for $peripheral {
+                    type RegBlock = $reg;
+                    fn reg<'a>() -> &'a Self::RegBlock {
+                        // SAFETY: TIMER0 and TIMER3 register layouts are identical, except
+                        // that TIMER3 has 6 CC registers, while TIMER0 has 4. There is
+                        // appropriate padding to allow other operations to work correctly
+                        unsafe { &*Self::ptr().cast() }
+                    }
                 }
-            }
-            $( #[$feature_gate] )?
-            impl TimerInstance for $timer{}
+                $( #[$feature_gate] )?
+                impl $instance for $peripheral{}
+            )+
         )+
     };
 }
@@ -217,12 +222,14 @@ macro_rules! freq_gate {
     )
 }
 
-impl_timer!(
-    TIMER0 TIMER1 TIMER2
-    #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-    TIMER3
-    #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-    TIMER4
+impl_instance!(
+    TimerInstance with TimerRegBlock0 : {
+        TIMER0 TIMER1 TIMER2
+        #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+        TIMER3
+        #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+        TIMER4
+    }
 );
 
 freq_gate! {
