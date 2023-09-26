@@ -1,0 +1,15 @@
+[package]
+name = "monotonic-blinky"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ivar Jönsson  <ivajns-9@student.ltu.se>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rtt-target = { version = "0.3.1", features = ["cortex-m"] }
+panic-halt = "0.2"
+nrf52840-hal = {path = "../../nrf52840-hal/",features = ["monotonic"]}
+cortex-m-rtic = "1.1.4"
+fugit = "0.3.6"
+cortex-m = "0.7.6"
