@@ -165,7 +165,7 @@ macro_rules! impl_instance {
 macro_rules! freq_gate {
     (
         $(
-            $type:literal,$instant_type:ident : {
+            $type:literal,$instance_type:ident : {
                 $(
                     $freq:literal,$presc:literal,$overflow:literal,$sck:literal
                 )+
@@ -198,7 +198,7 @@ macro_rules! freq_gate {
             }
             $(
                 $(
-                    impl<T: $instant_type>  MonotonicTimer<T,$freq> {
+                    impl<T: $instance_type>  MonotonicTimer<T,$freq> {
                         /// Instantiates a new [`Monotonic`](rtic_monotonic)
                         /// timer for the specified [`TimerInstance`].
                         ///
