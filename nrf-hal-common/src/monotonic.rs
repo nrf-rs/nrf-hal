@@ -1,3 +1,8 @@
+//#![deny(missing_docs)]
+#![deny(non_camel_case_types)]
+#![deny(clippy::all)]
+#![deny(clippy::undocumented_unsafe_blocks)]
+
 #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::{rtc0_ns::RegisterBlock as rtcRegBlock, RTC0_NS as RTC0, RTC1_NS as RTC1};
 
@@ -10,10 +15,29 @@ use crate::pac::RTC2;
 use core::marker::PhantomData;
 use rtic_monotonic::Monotonic;
 
-pub trait InstanceRtc {
-    type RegBlock;
-    fn reg<'a>() -> &'a Self::RegBlock;
+mod sealed {
+    /// A trait that ensures register access for the [`pac`](`crate::pac`)
+    /// abstractions
+    pub trait Instance {
+        /// The type of the underlying register block
+        type RegBlock;
+        /// Returns a pointer to the underlying register block
+        ///
+        /// Allows modification of the registers at a type level rather than
+        /// by storing the [`Instance`] at run-time.
+        fn reg<'a>() -> &'a Self::RegBlock;
+    }
+    pub trait RateMonotonic {
+        type Instant;
+        fn _now(&mut self) -> Self::Instant;
+        fn _set_compare(&mut self, instant: Self::Instant);
+        fn _clear_compare_flag(&mut self);
+        unsafe fn _reset(&mut self);
+    }
 }
+use sealed::{Instance, RateMonotonic};
+
+pub trait RtcInstance: Instance<RegBlock = rtcRegBlock> {}
 
 pub struct MonotonicRtc<T: InstanceRtc, const FREQ: u32> {
     instance: PhantomData<T>,
