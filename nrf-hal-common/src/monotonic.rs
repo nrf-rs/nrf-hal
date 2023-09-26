@@ -54,7 +54,6 @@ use crate::pac::{TIMER3, TIMER4};
 
 /// Hides intermediate traits from end users.
 mod sealed {
-    use fugit::Rate;
 
     /// A trait that ensures register access for the [`pac`](`crate::pac`)
     /// abstractions
@@ -81,7 +80,7 @@ mod sealed {
     pub trait TimerInstance: Instance<RegBlock = super::TimerRegBlock0> {}
     pub trait RtcInstance: Instance<RegBlock = super::RtcRegBlock> {}
 }
-use sealed::{Instance, RateMonotonic, TimerInstance};
+use sealed::{Instance, RateMonotonic, RtcInstance, TimerInstance};
 
 // Public implementation for any peripheral that implements the
 // sealed RateMonotonic trait.
@@ -138,6 +137,64 @@ impl<T: TimerInstance> RateMonotonic for T {
         reg.intenset.write(|w| w.compare2().set());
         reg.tasks_clear.write(|w| w.bits(1));
         reg.tasks_start.write(|w| w.bits(1));
+    }
+}
+
+impl<T: RtcInstance> RateMonotonic for T {
+    fn _configure(presc: u8) {
+        let rtc = Self::reg();
+        unsafe { rtc.prescaler.write(|w| w.bits(presc)) };
+    }
+
+    fn _now<const FREQ: u32>() -> fugit::TimerInstantU32<FREQ> {
+        let rtc = Self::reg();
+        let cnt = rtc.counter.read().bits();
+
+        let ovf = (if rtc.events_ovrflw.read().bits() == 1 {
+            Self.overflow.wrapping_add(1)
+        } else {
+            Self.overflow
+        }) as u32;
+
+        fugit::TimerInstantU32::<FREQ>::from_ticks((ovf << 24) | cnt)
+    }
+
+    fn _set_compare<const FREQ: u32>(instant: fugit::TimerInstantU32<FREQ>) {
+        // Credit @kroken89 on github [https://gist.github.com/korken89/fe94a475726414dd1bce031c76adc3dd]
+        let now = T::_now();
+
+        const MIN_TICKS_FOR_COMPARE: u32 = 3;
+
+        // Since the timer may or may not overflow based on the requested compare val, we check
+        // how many ticks are left.
+        let val = match instant.checked_duration_since(now) {
+            Some(x) if x.ticks() <= 0xffffff && x.ticks() > MIN_TICKS_FOR_COMPARE => {
+                instant.duration_since_epoch().ticks() & 0xffffff
+            }
+            Some(x) => {
+                (instant.duration_since_epoch().ticks() + (MIN_TICKS_FOR_COMPARE - x.ticks()))
+                    & 0xffffff
+            }
+            _ => 0, // Will overflow or in the past, set the same value as after overflow to not get extra interrupts
+        } as u32;
+        let rtc = Self::reg();
+        unsafe { rtc.cc[0].write(|w| w.bits(val)) };
+    }
+
+    fn _clear_compare_flag() {
+        let rtc = Self::reg();
+        unsafe {
+            rtc.events_compare[0].write(|w| w.bits(0));
+        }
+    }
+
+    unsafe fn _reset() {
+        let rtc = Self::reg();
+        rtc.intenset.write(|w| w.compare0().set().ovrflw().set());
+        rtc.evtenset.write(|w| w.compare0().set().ovrflw().set());
+
+        rtc.tasks_clear.write(|w| w.bits(1));
+        rtc.tasks_start.write(|w| w.bits(1));
     }
 }
 
@@ -205,21 +262,24 @@ macro_rules! freq_gate {
             )+
             pub struct MonotonicTimer<T: Instance, const FREQ: u32> {
                 instance: PhantomData<T>,
+                /// Unwrapping the overflow for rtc will is allways safe.
+                overflow: u8,
             }
             $(
                 $(
                     impl<T: $instance_type>  MonotonicTimer<T,$freq> {
                         /// Instantiates a new [`Monotonic`](rtic_monotonic)
-                        /// timer for the specified [`TimerInstance`].
+                        /// rtc for the specified [`RtcInstance`].
                         ///
                         /// This function permits construction of the
-                        #[doc = "timer for `" $freq "` Hz derived from a " $sck " clock c a prescaler of " $presc "."]
-                        /// This timer will overflow after
+                        #[doc = "rtc for `" $freq "` Hz derived from a " $sck " clock c a prescaler of " $presc "."]
+                        /// This rtc will overflow after
                         #[doc = $overflow "."]
                         pub fn new(_: T) -> Self {
                             T::_configure(($presc as u8));
                             Self {
                                 instance: PhantomData,
+                                overflow: 0,
                             }
                         }
                     }
@@ -255,6 +315,10 @@ freq_gate! {
         250_000,6,"4 hours 46 min 19 seconds","1MHz"
         125_000,7,"9 hours 32 min 39 seconds","1MHz"
         62_500,8,"19 hours 5 min 19 seconds","1MHz"
+    }
+
+    "Rtc",RtcInstance : {
+        16_000_000,0,"4 min 28 seconds","16MHz" // temp data from timer
     }
     // TODO Add frequencies
 }
