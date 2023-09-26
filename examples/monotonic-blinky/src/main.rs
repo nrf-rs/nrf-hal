@@ -39,13 +39,7 @@ mod app {
 
 
 
-        let mut mono = MyMono::new(cx.device.TIMER3);
-        rprintln!("{:?}",mono.now());
-        rprintln!("{:?}",mono.now());
-        rprintln!("{:?}",mono.now());
-        rprintln!("{:?}",mono.now());
-        rprintln!("{:?}",mono.now());
-        rprintln!("{:?}",mono.now());
+        let mono = MyMono::new(cx.device.TIMER3);
         blink::spawn().ok();
         (Shared {}, Local { led }, init::Monotonics(mono))
     }

@@ -31,7 +31,7 @@ mod app {
         rtt_init_print!();
         rprintln!("init");
 
-        let mut mono = MyMono::new(cx.device.TIMER0);
+        let mono = MyMono::new(cx.device.TIMER0);
         let p0 = Parts::new(cx.device.P0);
         let led = p0.p0_13.into_push_pull_output(Level::High).degrade();
         blink::spawn_after(fugit::ExtU32::millis(50)).ok();
@@ -58,6 +58,6 @@ mod app {
             led.set_low().ok();
         }
         // spawn after current time + 1 second
-        blink::spawn_after(fugit::ExtU32::millis(50)).ok();
+        blink::spawn_after(fugit::ExtU32::millis(1000)).ok();
     }
 }
