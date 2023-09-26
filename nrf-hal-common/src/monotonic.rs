@@ -27,6 +27,10 @@ The TIMER's are configured to use a 32 bit wide counter, this means that the tim
 [`Timer`] documentation.
 **/
 
+use core::marker::PhantomData;
+use paste::paste;
+pub use rtic_monotonic::Monotonic;
+
 #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::{
     timer0_ns::RegisterBlock as TimerRegBlock0, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1,
@@ -38,10 +42,6 @@ use crate::pac::{timer0::RegisterBlock as TimerRegBlock0, TIMER0, TIMER1, TIMER2
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::{TIMER3, TIMER4};
-
-use core::marker::PhantomData;
-use paste::paste;
-pub use rtic_monotonic::Monotonic;
 
 /// Hides intermediate traits from end users.
 mod sealed {
@@ -55,11 +55,16 @@ mod sealed {
         /// Allows modification of the registers at a type level rather than
         /// by storing the [`Instance`] at run-time.
         fn reg<'a>() -> &'a Self::RegBlock;
+        /// Configures the peripheral.
         fn _configure(presc: u8);
+        /// Returns the current time
         fn _now<const FREQ: u32>() -> fugit::TimerInstantU32<FREQ>;
+        /// Sets comparison target
         fn _set_compare<const FREQ: u32>(instant: fugit::TimerInstantU32<FREQ>);
+        /// Clears the comparison flag
         fn _clear_compare_flag();
         unsafe fn _reset();
+        const DISABLE_INTERRUPT_ON_EMPTY_QUEUE: bool = true;
     }
     /// A marker trait denoting
     /// that the specified [`pac`](crate::pac)
@@ -73,6 +78,7 @@ use sealed::{Instance, TimerInstance};
 impl<T: Instance, const FREQ: u32> Monotonic for MonotonicTimer<T, FREQ> {
     type Instant = fugit::TimerInstantU32<FREQ>;
     type Duration = fugit::TimerDurationU32<FREQ>;
+    const DISABLE_INTERRUPT_ON_EMPTY_QUEUE: bool = T::DISABLE_INTERRUPT_ON_EMPTY_QUEUE;
     fn now(&mut self) -> Self::Instant {
         T::_now()
     }
