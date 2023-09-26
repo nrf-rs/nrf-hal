@@ -11,12 +11,12 @@ mod app {
     use pac::TIMER0;
     use hal::{
         gpio::{p0::Parts, Level, Output, Pin, PushPull},
-        prelude::*, monotonic::Timer,
+        prelude::*, monotonic::{MonotonicTimer,Monotonic},
     };
     use rtt_target::{rprintln, rtt_init_print};
 
     #[monotonic(binds = TIMER0, default = true)]
-    type MyMono = Timer<TIMER0,62_500>;
+    type MyMono = MonotonicTimer<TIMER0,62_500>;
 
     #[shared]
     struct Shared {}
@@ -31,11 +31,10 @@ mod app {
         rtt_init_print!();
         rprintln!("init");
 
-        let mono = MyMono::new(cx.device.TIMER0);
+        let mut mono = MyMono::new(cx.device.TIMER0);
         let p0 = Parts::new(cx.device.P0);
         let led = p0.p0_13.into_push_pull_output(Level::High).degrade();
-
-        blink::spawn().ok();
+        blink::spawn_after(fugit::ExtU32::millis(50)).ok();
         (Shared {}, Local { led }, init::Monotonics(mono))
     }
 
@@ -59,6 +58,6 @@ mod app {
             led.set_low().ok();
         }
         // spawn after current time + 1 second
-        blink::spawn_after(fugit::ExtU32::millis(1000)).ok();
+        blink::spawn_after(fugit::ExtU32::millis(50)).ok();
     }
 }
