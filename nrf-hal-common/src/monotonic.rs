@@ -64,13 +64,13 @@ mod sealed {
         fn _clear_compare_flag(&mut self);
         unsafe fn _reset(&mut self);
     }
+    /// A marker trait denoting
+    /// that the specified [`pac`](crate::pac)
+    /// peripheral is a valid timer.
+    pub trait TimerInstance: Instance<RegBlock = super::TimerRegBlock0> {}
 }
-use sealed::{Instance, RateMonotonic};
+use sealed::{Instance, RateMonotonic,TimerInstance};
 
-/// A marker trait denoting
-/// that the specified [`pac`](crate::pac)
-/// peripheral is a valid timer.
-pub trait TimerInstance: Instance<RegBlock = TimerRegBlock0> {}
 
 // Public implementation for any peripheral that implements the
 // sealed RateMonotonic trait.
@@ -102,8 +102,8 @@ where
 }
 
 // Private implementation of monotonic for a generic timer
-impl<T: TimerInstance, const FREQ: u32> sealed::RateMonotonic<fugit::TimerInstantU32<FREQ>>
-    for MonotonicTimer<T, FREQ>
+impl<T: TimerInstance, const FREQ: u32> RateMonotonic<fugit::TimerInstantU32<FREQ>>
+for MonotonicTimer<T, FREQ>
 {
     fn _new(presc: u8) -> Self {
         let reg = T::reg();
