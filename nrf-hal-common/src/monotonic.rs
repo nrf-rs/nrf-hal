@@ -45,6 +45,8 @@ use crate::pac::{TIMER3, TIMER4};
 
 /// Hides intermediate traits from end users.
 mod sealed {
+    use fugit::Rate;
+
     /// A trait that ensures register access for the [`pac`](`crate::pac`)
     /// abstractions
     pub trait Instance {
@@ -55,27 +57,25 @@ mod sealed {
         /// Allows modification of the registers at a type level rather than
         /// by storing the [`Instance`] at run-time.
         fn reg<'a>() -> &'a Self::RegBlock;
-        /// Configures the peripheral.
+        const DISABLE_INTERRUPT_ON_EMPTY_QUEUE: bool = true;
+    }
+    pub trait RateMonotonic {
         fn _configure(presc: u8);
-        /// Returns the current time
         fn _now<const FREQ: u32>() -> fugit::TimerInstantU32<FREQ>;
-        /// Sets comparison target
         fn _set_compare<const FREQ: u32>(instant: fugit::TimerInstantU32<FREQ>);
-        /// Clears the comparison flag
         fn _clear_compare_flag();
         unsafe fn _reset();
-        const DISABLE_INTERRUPT_ON_EMPTY_QUEUE: bool = true;
     }
     /// A marker trait denoting
     /// that the specified [`pac`](crate::pac)
     /// peripheral is a valid timer.
     pub trait TimerInstance: Instance<RegBlock = super::TimerRegBlock0> {}
 }
-use sealed::{Instance, TimerInstance};
+use sealed::{Instance, RateMonotonic, TimerInstance};
 
 // Public implementation for any peripheral that implements the
 // sealed RateMonotonic trait.
-impl<T: Instance, const FREQ: u32> Monotonic for MonotonicTimer<T, FREQ> {
+impl<T: RateMonotonic + Instance, const FREQ: u32> Monotonic for MonotonicTimer<T, FREQ> {
     type Instant = fugit::TimerInstantU32<FREQ>;
     type Duration = fugit::TimerDurationU32<FREQ>;
     const DISABLE_INTERRUPT_ON_EMPTY_QUEUE: bool = T::DISABLE_INTERRUPT_ON_EMPTY_QUEUE;
@@ -100,37 +100,38 @@ impl<T: Instance, const FREQ: u32> Monotonic for MonotonicTimer<T, FREQ> {
     }
 }
 
+impl<T: TimerInstance> RateMonotonic for T {
+    fn _configure(presc: u8) {
+        let reg = Self::reg();
+        reg.prescaler
+            .write(|w| unsafe { w.prescaler().bits(presc) });
+        reg.bitmode.write(|w| w.bitmode()._32bit());
+        reg.mode.write(|w| w.mode().timer());
+    }
+    fn _now<const FREQ: u32>() -> fugit::TimerInstantU32<FREQ> {
+        let reg = Self::reg();
+        reg.tasks_capture[1].write(|w| w.tasks_capture().set_bit());
+        let ticks = reg.cc[1].read().bits();
+        fugit::TimerInstantU32::<FREQ>::from_ticks(ticks.into())
+    }
+
+    fn _set_compare<const FREQ: u32>(instant: fugit::TimerInstantU32<FREQ>) {
+        Self::reg().cc[2].write(|w| w.cc().variant(instant.duration_since_epoch().ticks()));
+    }
+
+    fn _clear_compare_flag() {
+        Self::reg().events_compare[2].write(|w| w.events_compare().clear_bit());
+    }
+
+    unsafe fn _reset() {
+        let reg = Self::reg();
+        reg.intenset.write(|w| w.compare2().set());
+        reg.tasks_clear.write(|w| w.bits(1));
+        reg.tasks_start.write(|w| w.bits(1));
+    }
+}
+
 macro_rules! impl_instance {
-    (body TimerInstance) => {
-        fn _configure(presc: u8) {
-            let reg = Self::reg();
-            reg.prescaler
-                .write(|w| unsafe { w.prescaler().bits(presc) });
-            reg.bitmode.write(|w| w.bitmode()._32bit());
-            reg.mode.write(|w| w.mode().timer());
-        }
-        fn _now<const FREQ:u32>() -> fugit::TimerInstantU32<FREQ> {
-            let reg = Self::reg();
-            reg.tasks_capture[1].write(|w| w.tasks_capture().set_bit());
-            let ticks = reg.cc[1].read().bits();
-            fugit::TimerInstantU32::<FREQ>::from_ticks(ticks.into())
-        }
-
-        fn _set_compare<const FREQ:u32>(instant: fugit::TimerInstantU32<FREQ>) {
-            Self::reg().cc[2].write(|w| w.cc().variant(instant.duration_since_epoch().ticks()));
-        }
-
-        fn _clear_compare_flag() {
-            Self::reg().events_compare[2].write(|w| w.events_compare().clear_bit());
-        }
-
-        unsafe fn _reset() {
-            let reg: &TimerRegBlock0 = Self::reg();
-            reg.intenset.write(|w| w.compare2().set());
-            reg.tasks_clear.write(|w| w.bits(1));
-            reg.tasks_start.write(|w| w.bits(1));
-        }
-    };
     (
         $(
             $instance:ident with $reg:ident : {
@@ -153,7 +154,6 @@ macro_rules! impl_instance {
                         // appropriate padding to allow other operations to work correctly
                         unsafe { &*Self::ptr().cast() }
                     }
-                    impl_instance!(body $instance);
                 }
                 $( #[$feature_gate] )?
                 impl $instance for $peripheral{}
@@ -165,7 +165,7 @@ macro_rules! impl_instance {
 macro_rules! freq_gate {
     (
         $(
-            $type:literal,$instant_type:ident : {
+            $type:literal,$instance_type:ident : {
                 $(
                     $freq:literal,$presc:literal,$overflow:literal,$sck:literal
                 )+
@@ -198,7 +198,7 @@ macro_rules! freq_gate {
             }
             $(
                 $(
-                    impl<T: $instant_type>  MonotonicTimer<T,$freq> {
+                    impl<T: $instance_type>  MonotonicTimer<T,$freq> {
                         /// Instantiates a new [`Monotonic`](rtic_monotonic)
                         /// timer for the specified [`TimerInstance`].
                         ///
