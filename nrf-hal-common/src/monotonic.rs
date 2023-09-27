@@ -54,12 +54,11 @@ use crate::pac::{TIMER3, TIMER4};
 
 /// Hides intermediate traits from end users.
 mod sealed {
-
     /// A trait that ensures register access for the [`pac`](`crate::pac`)
     /// abstractions
     pub trait Instance {
         /// The type of the underlying register block
-        type RegBlock;
+        type RegBlock: RateMonotonic;
         /// Returns a pointer to the underlying register block
         ///
         /// Allows modification of the registers at a type level rather than
@@ -68,36 +67,35 @@ mod sealed {
         const DISABLE_INTERRUPT_ON_EMPTY_QUEUE: bool = true;
     }
     pub trait RateMonotonic {
-        fn _configure(presc: u8);
-        fn _now<const FREQ: u32>() -> fugit::TimerInstantU32<FREQ>;
-        fn _set_compare<const FREQ: u32>(instant: fugit::TimerInstantU32<FREQ>);
-        fn _clear_compare_flag();
-        unsafe fn _reset();
+        fn _configure(&self, presc: u8);
+        fn _now<const FREQ: u32>(&self, overflow: &mut u8) -> fugit::TimerInstantU32<FREQ>;
+        fn _set_compare<const FREQ: u32>(
+            &self,
+            instant: fugit::TimerInstantU32<FREQ>,
+            overflow: &mut u8,
+        );
+        fn _clear_compare_flag(&self);
+        unsafe fn _reset(&self);
     }
-    /// A marker trait denoting
-    /// that the specified [`pac`](crate::pac)
-    /// peripheral is a valid timer.
-    pub trait TimerInstance: Instance<RegBlock = super::TimerRegBlock0> {}
-    pub trait RtcInstance: Instance<RegBlock = super::RtcRegBlock> {}
 }
-use sealed::{Instance, RateMonotonic, RtcInstance, TimerInstance};
+use sealed::{Instance, RateMonotonic};
 
 // Public implementation for any peripheral that implements the
 // sealed RateMonotonic trait.
-impl<T: RateMonotonic + Instance, const FREQ: u32> Monotonic for MonotonicTimer<T, FREQ> {
+impl<I: Instance, const FREQ: u32> Monotonic for MonotonicTimer<I, FREQ> {
     type Instant = fugit::TimerInstantU32<FREQ>;
     type Duration = fugit::TimerDurationU32<FREQ>;
-    const DISABLE_INTERRUPT_ON_EMPTY_QUEUE: bool = T::DISABLE_INTERRUPT_ON_EMPTY_QUEUE;
+    const DISABLE_INTERRUPT_ON_EMPTY_QUEUE: bool = I::DISABLE_INTERRUPT_ON_EMPTY_QUEUE;
     fn now(&mut self) -> Self::Instant {
-        T::_now()
+        I::reg()._now(&mut self.overflow)
     }
 
     fn set_compare(&mut self, instant: Self::Instant) {
-        T::_set_compare(instant);
+        I::reg()._set_compare(instant, &mut self.overflow)
     }
 
     fn clear_compare_flag(&mut self) {
-        T::_clear_compare_flag();
+        I::reg()._clear_compare_flag()
     }
 
     fn zero() -> Self::Instant {
@@ -105,63 +103,65 @@ impl<T: RateMonotonic + Instance, const FREQ: u32> Monotonic for MonotonicTimer<
     }
 
     unsafe fn reset(&mut self) {
-        T::_reset();
+        I::reg()._reset()
     }
 }
 
-impl<T: TimerInstance> RateMonotonic for T {
-    fn _configure(presc: u8) {
-        let reg = Self::reg();
+impl RateMonotonic for TimerRegBlock0 {
+    fn _configure(&self, presc: u8) {
+        let reg = self;
         reg.prescaler
             .write(|w| unsafe { w.prescaler().bits(presc) });
         reg.bitmode.write(|w| w.bitmode()._32bit());
         reg.mode.write(|w| w.mode().timer());
     }
-    fn _now<const FREQ: u32>() -> fugit::TimerInstantU32<FREQ> {
-        let reg = Self::reg();
+    fn _now<const FREQ: u32>(&self, _: &mut u8) -> fugit::TimerInstantU32<FREQ> {
+        let reg = self;
         reg.tasks_capture[1].write(|w| w.tasks_capture().set_bit());
         let ticks = reg.cc[1].read().bits();
         fugit::TimerInstantU32::<FREQ>::from_ticks(ticks.into())
     }
 
-    fn _set_compare<const FREQ: u32>(instant: fugit::TimerInstantU32<FREQ>) {
-        Self::reg().cc[2].write(|w| w.cc().variant(instant.duration_since_epoch().ticks()));
+    fn _set_compare<const FREQ: u32>(&self, instant: fugit::TimerInstantU32<FREQ>, _: &mut u8) {
+        self.cc[2].write(|w| w.cc().variant(instant.duration_since_epoch().ticks()));
     }
 
-    fn _clear_compare_flag() {
-        Self::reg().events_compare[2].write(|w| w.events_compare().clear_bit());
+    fn _clear_compare_flag(&self) {
+        self.events_compare[2].write(|w| w.events_compare().clear_bit());
     }
 
-    unsafe fn _reset() {
-        let reg = Self::reg();
+    unsafe fn _reset(&self) {
+        let reg = self;
         reg.intenset.write(|w| w.compare2().set());
         reg.tasks_clear.write(|w| w.bits(1));
         reg.tasks_start.write(|w| w.bits(1));
     }
 }
 
-impl<T: RtcInstance> RateMonotonic for T {
-    fn _configure(presc: u8) {
-        let rtc = Self::reg();
-        unsafe { rtc.prescaler.write(|w| w.bits(presc)) };
+impl RateMonotonic for RtcRegBlock {
+    fn _configure(&self, presc: u8) {
+        unsafe { self.prescaler.write(|w| w.bits(presc as u32)) };
     }
-
-    fn _now<const FREQ: u32>() -> fugit::TimerInstantU32<FREQ> {
-        let rtc = Self::reg();
+    fn _now<const FREQ: u32>(&self, overflow: &mut u8) -> fugit::TimerInstantU32<FREQ> {
+        let rtc = self;
         let cnt = rtc.counter.read().bits();
 
         let ovf = (if rtc.events_ovrflw.read().bits() == 1 {
-            Self.overflow.wrapping_add(1)
+            overflow.wrapping_add(1)
         } else {
-            Self.overflow
+            *overflow
         }) as u32;
 
         fugit::TimerInstantU32::<FREQ>::from_ticks((ovf << 24) | cnt)
     }
 
-    fn _set_compare<const FREQ: u32>(instant: fugit::TimerInstantU32<FREQ>) {
+    fn _set_compare<const FREQ: u32>(
+        &self,
+        instant: fugit::TimerInstantU32<FREQ>,
+        overflow: &mut u8,
+    ) {
         // Credit @kroken89 on github [https://gist.github.com/korken89/fe94a475726414dd1bce031c76adc3dd]
-        let now = T::_now();
+        let now = self._now(overflow);
 
         const MIN_TICKS_FOR_COMPARE: u32 = 3;
 
@@ -177,19 +177,18 @@ impl<T: RtcInstance> RateMonotonic for T {
             }
             _ => 0, // Will overflow or in the past, set the same value as after overflow to not get extra interrupts
         } as u32;
-        let rtc = Self::reg();
+        let rtc = self;
         unsafe { rtc.cc[0].write(|w| w.bits(val)) };
     }
 
-    fn _clear_compare_flag() {
-        let rtc = Self::reg();
+    fn _clear_compare_flag(&self) {
         unsafe {
-            rtc.events_compare[0].write(|w| w.bits(0));
+            self.events_compare[0].write(|w| w.bits(0));
         }
     }
 
-    unsafe fn _reset() {
-        let rtc = Self::reg();
+    unsafe fn _reset(&self) {
+        let rtc = self;
         rtc.intenset.write(|w| w.compare0().set().ovrflw().set());
         rtc.evtenset.write(|w| w.compare0().set().ovrflw().set());
 
@@ -201,7 +200,7 @@ impl<T: RtcInstance> RateMonotonic for T {
 macro_rules! impl_instance {
     (
         $(
-            $instance:ident with $reg:ident : {
+            $reg:ident : {
                 $(
                     $(#[$feature_gate:meta])?
                     $peripheral:ident
@@ -211,7 +210,6 @@ macro_rules! impl_instance {
     ) => {
         $(
             $(
-
                 $( #[$feature_gate] )?
                 impl Instance for $peripheral {
                     type RegBlock = $reg;
@@ -219,11 +217,9 @@ macro_rules! impl_instance {
                         // SAFETY: TIMER0 and TIMER3 register layouts are identical, except
                         // that TIMER3 has 6 CC registers, while TIMER0 has 4. There is
                         // appropriate padding to allow other operations to work correctly
-                        unsafe { &*Self::ptr().cast() }
+                        unsafe { & *Self::ptr().cast() }
                     }
                 }
-                $( #[$feature_gate] )?
-                impl $instance for $peripheral{}
             )+
         )+
     };
@@ -232,7 +228,7 @@ macro_rules! impl_instance {
 macro_rules! freq_gate {
     (
         $(
-            $type:literal,$instance_type:ident : {
+            $type:literal, $reg:ident : {
                 $(
                     $freq:literal,$presc:literal,$overflow:literal,$sck:literal
                 )+
@@ -259,6 +255,7 @@ macro_rules! freq_gate {
                     )+
                     ///
                     ///</center>
+                    /// 
             )+
             pub struct MonotonicTimer<T: Instance, const FREQ: u32> {
                 instance: PhantomData<T>,
@@ -266,38 +263,44 @@ macro_rules! freq_gate {
                 overflow: u8,
             }
             $(
-                $(
-                    impl<T: $instance_type>  MonotonicTimer<T,$freq> {
-                        /// Instantiates a new [`Monotonic`](rtic_monotonic)
-                        /// rtc for the specified [`RtcInstance`].
-                        ///
-                        /// This function permits construction of the
-                        #[doc = "rtc for `" $freq "` Hz derived from a " $sck " clock c a prescaler of " $presc "."]
-                        /// This rtc will overflow after
-                        #[doc = $overflow "."]
-                        pub fn new(_: T) -> Self {
-                            T::_configure(($presc as u8));
-                            Self {
-                                instance: PhantomData,
-                                overflow: 0,
+                mod [<sealed_ $reg:lower>] {
+                    use super::*;
+                    $(
+
+                        impl<T>  MonotonicTimer<T,$freq>
+                        where T:Instance<RegBlock = $reg>{
+                            /// Instantiates a new [`Monotonic`](rtic_monotonic)
+                            /// rtc for the specified [`RtcInstance`].
+                            ///
+                            /// This function permits construction of the
+                            #[doc = "" $type:lower " for `" $freq "` Hz derived from a " $sck " clock c a prescaler of " $presc "."]
+                            /// This rtc will overflow after
+                            #[doc = $overflow "."]
+                            pub fn new(_: T) -> Self {
+                                T::reg()._configure(($presc as u8));
+                                Self {
+                                    instance: super::PhantomData,
+                                    overflow: 0,
+                                }
                             }
                         }
-                    }
-                )+
+                    )+
+                }
+                pub use [<sealed_ $reg:lower>]::*;
             )+
         );
     )
 }
 
 impl_instance!(
-    TimerInstance with TimerRegBlock0 : {
+    TimerRegBlock0 : {
         TIMER0 TIMER1 TIMER2
         #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
         TIMER3
         #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
         TIMER4
     }
-    RtcInstance with RtcRegBlock : {
+    RtcRegBlock : {
         RTC0 RTC1
         #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
         RTC2
@@ -305,7 +308,7 @@ impl_instance!(
 );
 
 freq_gate! {
-    "Timer",TimerInstance : {
+    "Timer",TimerRegBlock0:  {
         16_000_000,0,"4 min 28 seconds","16MHz"
         8_000_000,1,"8 min 56 seconds","16MHz"
         4_000_000,2,"17 min 53 seconds","16MHz"
@@ -317,8 +320,8 @@ freq_gate! {
         62_500,8,"19 hours 5 min 19 seconds","1MHz"
     }
 
-    "Rtc",RtcInstance : {
-        16_000_000,0,"4 min 28 seconds","16MHz" // temp data from timer
+    "Rtc",RtcRegBlock: {
+        123,0,"4 min 28 seconds","16MHz" // temp data from timer
     }
     // TODO Add frequencies
 }
