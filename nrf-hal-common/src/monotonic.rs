@@ -103,32 +103,28 @@ impl<T: Instance<RegBlock = TimerRegBlock0>, const FREQ: u32> Monotonic
     }
 }
 
-pub struct MonotonicRtc<
-    T: Instance<RegBlock = RtcRegBlock>,
-    const FREQ: u32,
-    O: core::default::Default,
-> {
+pub struct MonotonicRtc<T: Instance<RegBlock = RtcRegBlock>, const FREQ: u32> {
     instance: PhantomData<T>,
-    overflow: O,
+    overflow: u8,
 }
 
-impl<T, const FREQ: u32, O: core::default::Default> MonotonicRtc<T, FREQ, O>
+impl<T, const FREQ: u32> MonotonicRtc<T, FREQ>
 where
     T: Instance<RegBlock = RtcRegBlock>,
 {
     /// Instantiates a new [`Monotonic`](rtic_monotonic)
     /// rtc for the specified [`RtcInstance`].
     ///
-    /// This function permits construction of the
+    /// This function permits construction of the rtc for a given frequency, given that it is valid.
     pub fn new(_: T) -> Self {
         unsafe { T::reg().prescaler.write(|w| w.bits(Self::presc().unwrap())) };
         Self {
             instance: PhantomData,
-            overflow: O::default(),
+            overflow: 0,
         }
     }
     const fn presc() -> Option<u32> {
-        let intermediate = { 32_768 / FREQ };
+        let intermediate: u32 = 32_768 / FREQ;
         match 32_768 / intermediate == FREQ {
             true => Some(32_768 / (FREQ + 1)),
             _ => None,
@@ -136,9 +132,9 @@ where
     }
 }
 
-impl<T: RtcInstance, const FREQ: u32> Monotonic for MonotonicRtc<T, FREQ, u32> {
-    type Instant = fugit::TimerInstantU32<FREQ>;
-    type Duration = fugit::TimerDurationU32<FREQ>;
+impl<T: RtcInstance, const FREQ: u32> Monotonic for MonotonicRtc<T, FREQ> {
+    type Instant = fugit::TimerInstantU64<FREQ>;
+    type Duration = fugit::TimerDurationU64<FREQ>;
     fn now(&mut self) -> Self::Instant {
         let rtc = T::reg();
         let cnt = rtc.counter.read().bits();
@@ -147,16 +143,16 @@ impl<T: RtcInstance, const FREQ: u32> Monotonic for MonotonicRtc<T, FREQ, u32> {
             self.overflow.wrapping_add(1)
         } else {
             self.overflow
-        }) as u32;
+        }) as u64;
 
-        fugit::TimerInstantU32::<FREQ>::from_ticks((ovf << 24) | cnt)
+        Self::Instant::from_ticks((ovf << 24) | (cnt as u64))
     }
 
     fn set_compare(&mut self, instant: Self::Instant) {
         // Credit @kroken89 on github [https://gist.github.com/korken89/fe94a475726414dd1bce031c76adc3dd]
         let now = self.now();
 
-        const MIN_TICKS_FOR_COMPARE: u32 = 3;
+        const MIN_TICKS_FOR_COMPARE: u64 = 3;
 
         // Since the timer may or may not overflow based on the requested compare val, we check
         // how many ticks are left.
