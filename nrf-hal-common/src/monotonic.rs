@@ -118,11 +118,13 @@ where
     /// This function permits construction of the rtc for a given frequency, given that it is valid.
     pub fn new(_: T) -> Self {
         unsafe { T::reg().prescaler.write(|w| w.bits(Self::presc().unwrap())) };
+
         Self {
             instance: PhantomData,
             overflow: 0,
         }
     }
+
     const fn presc() -> Option<u32> {
         let intermediate: u32 = 32_768 / FREQ;
         match 32_768 / intermediate == FREQ {
@@ -130,29 +132,31 @@ where
             _ => None,
         }
     }
+
+    // reg.mode.write(|w| w.mode().timer());
 }
 
-impl<T: RtcInstance, const FREQ: u32> Monotonic for MonotonicRtc<T, FREQ> {
-    type Instant = fugit::TimerInstantU64<FREQ>;
-    type Duration = fugit::TimerDurationU64<FREQ>;
-    fn now(&mut self) -> Self::Instant {
-        let rtc = T::reg();
-        let cnt = rtc.counter.read().bits();
+impl<T: Instance<RegBlock = RtcRegBlock>, const FREQ: u32> Monotonic for MonotonicRtc<T, FREQ> {
+    type Instant = fugit::TimerInstantU32<FREQ>;
+    type Duration = fugit::TimerDurationU32<FREQ>;
 
-        let ovf = (if rtc.events_ovrflw.read().bits() == 1 {
+    fn now(&mut self) -> Self::Instant {
+        let rtcreg = T::reg();
+        let cnt = rtcreg.counter.read().bits();
+
+        let ovf = (if rtcreg.events_ovrflw.read().bits() == 1 {
             self.overflow.wrapping_add(1)
         } else {
             self.overflow
-        }) as u64;
+        }) as u32;
 
-        Self::Instant::from_ticks((ovf << 24) | (cnt as u64))
+        fugit::TimerInstantU32::<FREQ>::from_ticks((ovf << 24) | cnt)
     }
 
     fn set_compare(&mut self, instant: Self::Instant) {
-        // Credit @kroken89 on github [https://gist.github.com/korken89/fe94a475726414dd1bce031c76adc3dd]
         let now = self.now();
 
-        const MIN_TICKS_FOR_COMPARE: u64 = 3;
+        const MIN_TICKS_FOR_COMPARE: u32 = 3;
 
         // Since the timer may or may not overflow based on the requested compare val, we check
         // how many ticks are left.
@@ -166,6 +170,7 @@ impl<T: RtcInstance, const FREQ: u32> Monotonic for MonotonicRtc<T, FREQ> {
             }
             _ => 0, // Will overflow or in the past, set the same value as after overflow to not get extra interrupts
         } as u32;
+
         unsafe { T::reg().cc[0].write(|w| w.bits(val)) };
     }
 
@@ -216,6 +221,21 @@ macro_rules! impl_instance {
         )+
     };
 }
+
+impl_instance!(
+    TimerRegBlock0 : {
+        TIMER0 TIMER1 TIMER2
+        #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+        TIMER3
+        #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+        TIMER4
+    }
+    RtcRegBlock : {
+        RTC0 RTC1
+        #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
+        RTC2
+    }
+);
 
 macro_rules! freq_gate {
     (type_for TimerRegBlock0 : {
@@ -304,21 +324,6 @@ macro_rules! freq_gate {
             )+
     )
 }
-
-impl_instance!(
-    TimerRegBlock0 : {
-        TIMER0 TIMER1 TIMER2
-        #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-        TIMER3
-        #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-        TIMER4
-    }
-    RtcRegBlock : {
-        RTC0 RTC1
-        #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
-        RTC2
-    }
-);
 
 freq_gate! {
     "Timer",TimerRegBlock0:{
