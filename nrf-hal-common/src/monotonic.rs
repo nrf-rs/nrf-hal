@@ -3,11 +3,24 @@ Implements the [Monotonic](rtic_monotonic::Monotonic) trait for the TIMERs and t
 
 <Här borde vi ha användings exempel>
 
-< Här borde vi ha docs om RTC>
+### RTC - Real-time counter
+The [`rtc`] [§6.22](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.7.pdf#page=367)
+
+The prescaler is 12 bit wide, (0 <= prescaler <= 4095). The frequency can be calculated by:
+
+`f_RTC [KHz] = 32.768 / (PRESCALER + 1)`
+
+Since the rtc will only accept frequencies that have a valid prescaler.
+It is not always possible to get the exact desired frequency, however it is possible to calculate a prescaler which results in a frequency close to the desired one.
+This prescaler can be calculated by:
+
+`f_RTC = 32.768 / (round((32.768/f_desired) - 1)+1)`
+
+
 
 ### TIMER
 
-The [`Timer`] [§6.30](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.7.pdf#%5B%7B%22num%22%3A5455%2C%22gen%22%3A0%7D%2C%7B%22name%22%3A%22XYZ%22%7D%2C85.039%2C555.923%2Cnull%5D)
+The [`Timer`] [§6.30](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.7.pdf#page=462)
 has 2 different clock sources that can drive it, one 16Mhz clock that is used when
 the timers frequency is higher than 1 mhz where the timers frequency is given by:
 
@@ -115,7 +128,7 @@ where
     /// Instantiates a new [`Monotonic`](rtic_monotonic)
     /// rtc for the specified [`RtcInstance`].
     ///
-    /// This function permits construction of the rtc for a given frequency, given that it is valid.
+    /// This function permits construction of the rtc for a given frequency
     pub fn new(_: T) -> Self {
         unsafe { T::reg().prescaler.write(|w| w.bits(Self::presc().unwrap())) };
 
@@ -125,10 +138,14 @@ where
         }
     }
 
+    /// Ensures that the frequency provided is valid for the rtc.
     const fn presc() -> Option<u32> {
         let intermediate: u32 = 32_768 / FREQ;
-        match 32_768 / intermediate == FREQ {
-            true => Some(32_768 / (FREQ + 1)),
+        match FREQ >= 8 && FREQ <= 32_768 {
+            true => match 32_768 / intermediate == FREQ {
+                true => Some(32_768 / (FREQ + 1)),
+                _ => None,
+            },
             _ => None,
         }
     }
