@@ -1,25 +1,26 @@
 //! Defines a minimal blinky example.
-//! 
+//!
 //! This example is ment to showcase how to work with the [`MonotonicTimer`] abstraction
 #![no_main]
 #![no_std]
 
-use panic_halt as _;
-use nrf52840_hal as hal;
 use hal::pac;
+use nrf52840_hal as hal;
+use panic_halt as _;
 #[rtic::app(device = pac, dispatchers = [UARTE1])]
 mod app {
     use super::*;
     use cortex_m::asm;
-    use pac::TIMER3;
     use hal::{
         gpio::{p0::Parts, Level, Output, Pin, PushPull},
-        prelude::*, monotonic::MonotonicTimer,
+        monotonic::MonotonicRtc,
+        prelude::*,
     };
+    use pac::RTC0;
     use rtt_target::{rprintln, rtt_init_print};
 
-    #[monotonic(binds = TIMER3, default = true)]
-    type MyMono = MonotonicTimer<TIMER3,16_000_000>;
+    #[monotonic(binds = RTC0, default = true)]
+    type MyMono = MonotonicRtc<RTC0, 32_765>;
 
     #[shared]
     struct Shared {}
@@ -37,9 +38,10 @@ mod app {
         let p0 = Parts::new(cx.device.P0);
         let led = p0.p0_13.into_push_pull_output(Level::High).degrade();
 
-
-
-        let mono = MyMono::new(cx.device.TIMER3);
+        let clocks = hal::clocks::Clocks::new(cx.device.CLOCK);
+        let clocks = clocks.start_lfclk();
+        // Will throw error if freq is invalid
+        let mono = MyMono::new(cx.device.RTC0, &clocks).unwrap();
         blink::spawn().ok();
         (Shared {}, Local { led }, init::Monotonics(mono))
     }
