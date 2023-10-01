@@ -1,32 +1,18 @@
 /*!
 Implements the [Monotonic](rtic_monotonic::Monotonic) trait for the TIMERs and the RTCs.
 
-<Strong> Example (RTC): </Strong>
-```rust
-// RTC0 with a frequency of 32 768 Hz
-type MyMono = MonotonicRtc<RTC0, 32_768>;
+### Preface
+The links to the datasheets in the documentation are specific for the nrf52840, however the register interfaces
+should be the same for all the nRF51, nRF52 and nRF91 families of microcontrollers.
 
-// Make sure lfclk is started
-let clocks = hal::clocks::Clocks::new(cx.device.CLOCK);
-let clocks = clocks.start_lfclk();
 
-let mono = MyMono::new(cx.device.RTC0, &clocks).unwrap();
-```
-
-<Strong> Example (Timer): </Strong>
-```rust
-// TIMER0 with a frequency of 16 000 000 Hz
-type MyMono = MonotonicTimer<TIMER0, 16_000_000>;
-let mono = MyMono::new(cx.device.TIMER0);
-
-```
-
-A simple example using the timer/rtc can be found under `nrf-hal/examples/monotonic-blinky`
+A simple example using the timer/rtc can be found under the nrf-hal [examples](https://github.com/nrf-rs/nrf-hal/tree/master/examples/monotonic-blinky).
 
 ### RTC - Real-time counter
-The [`rtc`] [§6.22](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.7.pdf#page=367)
 
-The prescaler is 12 bit wide, (0 <= prescaler <= 4095). The frequency can be calculated by:
+
+The [`Rtc`](crate::rtc::Rtc) [§6.22](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.7.pdf)
+has a 12 bit wide prescaler. This allows for prescalers ranging from 0 to 4095. With the prescaler, one can calculate the frequency by:
 
 `f_RTC [KHz] = 32.768 / (PRESCALER + 1)`
 
@@ -38,9 +24,22 @@ This prescaler can be calculated by:
 
 When using the rtc, make sure that the low-frequency clock source (lfclk) is started. Other wise the rtc will not work.
 
+<Strong> Example (RTC): </Strong>
+```ignore
+// RTC0 with a frequency of 32 768 Hz
+type MyMono = MonotonicRtc<RTC0, 32_768>;
+
+// Make sure lfclk is started
+let clocks = hal::clocks::Clocks::new(cx.device.CLOCK);
+let clocks = clocks.start_lfclk();
+
+let mono = MyMono::new(cx.device.RTC0, &clocks).unwrap();
+```
+
+
 ### TIMER
 
-The [`Timer`] [§6.30](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.7.pdf#page=462)
+The [`Timer`](crate::timer::Timer) [§6.30](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.7.pdf)
 has 2 different clock sources that can drive it, one 16Mhz clock that is used when
 the timers frequency is higher than 1 mhz where the timers frequency is given by:
 
@@ -50,14 +49,22 @@ Where the prescaler is a 4 bit integer.
 And one 1Mhz clock source which is used when the f_TIMER is at or lower than 1Mhz.
 The 1MHz clock is lower power than the 16MHz clock source, so for low applications it could be beneficial to use a
 frequency at or below 1MHz. For a list of all valid frequencies please see the
-[`Timer`] documentation.
+[`Timer`](crate::timer::Timer) documentation.
+
+<Strong> Example (Timer): </Strong>
+```ignore
+// TIMER0 with a frequency of 16 000 000 Hz
+type MyMono = MonotonicTimer<TIMER0, 16_000_000>;
+let mono = MyMono::new(cx.device.TIMER0);
+
+```
 
 ### Overflow
 
 The TIMER's are configured to use a 32 bit wide counter, this means that the time until overflow is given by the following formula:
 `T_overflow = 2^32/freq`. Therefore the time until overflow for the maximum frequency (16MHz) is `2^32/(16*10^6) = 268` seconds, using a
 1MHz TIMER yields time till overflow `2^32/(10^6) = 4295` seconds or 1.2 hours. For more information on overflow please see the
-[`Timer`] documentation.
+[`Timer`](crate::timer::Timer) documentation.
 
 The RTC uses a 24 bit wide counter. The time to overflow can be calculated using:
 `T_overflow = 2^(24+overflow_bits)/freq`
@@ -128,7 +135,7 @@ pub enum Error {
 /// A [`Monotonic`] implementation for Real Time Clocks (RTC)
 ///
 /// This implementation allows scheduling [rtic](https://docs.rs/rtic/latest/rtic/)
-/// applications using the [`rtc`](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.1.pdf#page=367) (§6.22) peripheral.
+/// applications using the [`Rtc`](crate::rtc::Rtc)(https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.1.pdf) (§6.22) peripheral.
 /// It is only possible to instantiate this abstraction with frequencies using an integer prescaler between 0 <= prescaler <= 4095.
 pub struct MonotonicRtc<T: Instance<RegBlock = RtcRegBlock>, const FREQ: u32> {
     instance: PhantomData<T>,
@@ -160,12 +167,16 @@ where
     const fn prescaler() -> Result<u32, Error> {
         let intermediate: u32 = 32_768 / FREQ;
         let presc: u32 = (32_768 / FREQ) - 1;
+
+        if presc >= Self::MAX_PRESCALER {
+            return Err(Error::TooLargePrescaler(FREQ));
+        }
+
         match 32_768 / intermediate == FREQ && presc < Self::MAX_PRESCALER {
             true => Ok(presc),
             _ => Err(Error::InvalidFrequency(FREQ)),
         }
     }
-    // reg.mode.write(|w| w.mode().timer());
 }
 
 impl<T: Instance<RegBlock = RtcRegBlock>, const FREQ: u32> Monotonic for MonotonicRtc<T, FREQ> {
@@ -317,7 +328,7 @@ macro_rules! freq_gate {
             /// A [`Monotonic`] timer implementation
             ///
             /// This implementation allows scheduling [rtic](https://docs.rs/rtic/latest/rtic/)
-            /// applications using the [`Timer`](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.1.pdf#page=459) (§6.30) peripheral.
+            /// applications using the [`Timer`](crate::timer::Timer)(https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.1.pdf) (§6.30) peripheral.
             /// It is only possible to instantiate this abstraction for the following
             /// frequencies since they are the only ones that generate valid prescaler values.
             /// ## Timer

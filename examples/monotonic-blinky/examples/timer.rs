@@ -38,7 +38,7 @@ mod app {
         let p0 = Parts::new(cx.device.P0);
         let led = p0.p0_13.into_push_pull_output(Level::High).degrade();
 
-        // Will throw error if freq is invalid
+        // New does not exists for invalid frequencies
         let mono = MyMono::new(cx.device.TIMER0);
         blink::spawn().ok();
         (Shared {}, Local { led }, init::Monotonics(mono))
