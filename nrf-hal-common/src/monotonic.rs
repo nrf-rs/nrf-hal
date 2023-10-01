@@ -1,7 +1,27 @@
 /*!
 Implements the [Monotonic](rtic_monotonic::Monotonic) trait for the TIMERs and the RTCs.
 
-<Här borde vi ha användings exempel>
+<Strong> Example (RTC): </Strong>
+```rust
+// RTC0 with a frequency of 32 768 Hz
+type MyMono = MonotonicRtc<RTC0, 32_768>;
+
+// Make sure lfclk is started
+let clocks = hal::clocks::Clocks::new(cx.device.CLOCK);
+let clocks = clocks.start_lfclk();
+
+let mono = MyMono::new(cx.device.RTC0, &clocks).unwrap();
+```
+
+<Strong> Example (Timer): </Strong>
+```rust
+// TIMER0 with a frequency of 16 000 000 Hz
+type MyMono = MonotonicTimer<TIMER0, 16_000_000>;
+let mono = MyMono::new(cx.device.TIMER0);
+
+```
+
+A simple example using the timer/rtc can be found under `nrf-hal/examples/monotonic-blinky`
 
 ### RTC - Real-time counter
 The [`rtc`] [§6.22](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.7.pdf#page=367)
@@ -15,6 +35,8 @@ It is not always possible to get the exact desired frequency, however it is poss
 This prescaler can be calculated by:
 
 `f_RTC = 32.768 / (round((32.768/f_desired) - 1)+1)`
+
+When using the rtc, make sure that the low-frequency clock source (lfclk) is started. Other wise the rtc will not work.
 
 ### TIMER
 
@@ -39,6 +61,8 @@ The TIMER's are configured to use a 32 bit wide counter, this means that the tim
 
 The RTC uses a 24 bit wide counter. The time to overflow can be calculated using:
 `T_overflow = 2^(24+overflow_bits)/freq`
+Therefore, with the frequency 32.768 KHz and the overflow counter being u8, the rtc would overflow after about 36.5 hours.
+
 **/
 use crate::clocks::{Clocks, LfOscStarted};
 use core::marker::PhantomData;
@@ -101,42 +125,17 @@ pub enum Error {
     TooLargePrescaler(u32),
 }
 
-impl<T: Instance<RegBlock = TimerRegBlock0>, const FREQ: u32> Monotonic
-    for MonotonicTimer<T, FREQ>
-{
-    type Instant = fugit::TimerInstantU32<FREQ>;
-    type Duration = fugit::TimerDurationU32<FREQ>;
-    fn now(&mut self) -> Self::Instant {
-        let reg: &TimerRegBlock0 = T::reg();
-        reg.tasks_capture[1].write(|w| w.tasks_capture().set_bit());
-        let ticks = reg.cc[1].read().bits();
-        fugit::TimerInstantU32::<FREQ>::from_ticks(ticks.into())
-    }
-
-    fn set_compare(&mut self, instant: Self::Instant) {
-        T::reg().cc[2].write(|w| w.cc().variant(instant.duration_since_epoch().ticks()));
-    }
-
-    fn clear_compare_flag(&mut self) {
-        T::reg().events_compare[2].write(|w| w.events_compare().clear_bit());
-    }
-
-    fn zero() -> Self::Instant {
-        todo!()
-    }
-    unsafe fn reset(&mut self) {
-        let reg = T::reg();
-        reg.intenset.write(|w| w.compare2().set());
-        reg.tasks_clear.write(|w| w.bits(1));
-        reg.tasks_start.write(|w| w.bits(1));
-    }
-}
-
 /// A [`Monotonic`] implementation for Real Time Clocks (RTC)
+///
+/// This implementation allows scheduling [rtic](https://docs.rs/rtic/latest/rtic/)
+/// applications using the [`rtc`](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.1.pdf#page=367) (§6.22) peripheral.
+/// It is only possible to instantiate this abstraction with frequencies using an integer prescaler between 0 <= prescaler <= 4095.
 pub struct MonotonicRtc<T: Instance<RegBlock = RtcRegBlock>, const FREQ: u32> {
     instance: PhantomData<T>,
     overflow: u8,
 }
+
+// Rtc implementation
 
 impl<T, const FREQ: u32> MonotonicRtc<T, FREQ>
 where
@@ -157,6 +156,7 @@ where
     }
 
     const MAX_PRESCALER: u32 = 4095;
+    /// Checks if the given frequency is valid
     const fn prescaler() -> Result<u32, Error> {
         let intermediate: u32 = 32_768 / FREQ;
         let presc: u32 = (32_768 / FREQ) - 1;
@@ -186,6 +186,8 @@ impl<T: Instance<RegBlock = RtcRegBlock>, const FREQ: u32> Monotonic for Monoton
     }
 
     fn set_compare(&mut self, instant: Self::Instant) {
+        // Based on @korken89 implementation
+        // https://gist.github.com/korken89/fe94a475726414dd1bce031c76adc3dd
         let now = self.now();
 
         const MIN_TICKS_FOR_COMPARE: u32 = 3;
@@ -225,6 +227,42 @@ impl<T: Instance<RegBlock = RtcRegBlock>, const FREQ: u32> Monotonic for Monoton
         Self::Instant::from_ticks(0)
     }
 }
+
+// Timer implementation
+
+impl<T: Instance<RegBlock = TimerRegBlock0>, const FREQ: u32> Monotonic
+    for MonotonicTimer<T, FREQ>
+{
+    type Instant = fugit::TimerInstantU32<FREQ>;
+    type Duration = fugit::TimerDurationU32<FREQ>;
+    fn now(&mut self) -> Self::Instant {
+        let reg: &TimerRegBlock0 = T::reg();
+        reg.tasks_capture[1].write(|w| w.tasks_capture().set_bit());
+        let ticks = reg.cc[1].read().bits();
+        fugit::TimerInstantU32::<FREQ>::from_ticks(ticks.into())
+    }
+
+    fn set_compare(&mut self, instant: Self::Instant) {
+        T::reg().cc[2].write(|w| w.cc().variant(instant.duration_since_epoch().ticks()));
+    }
+
+    fn clear_compare_flag(&mut self) {
+        T::reg().events_compare[2].write(|w| w.events_compare().clear_bit());
+    }
+
+    fn zero() -> Self::Instant {
+        Self::Instant::from_ticks(0)
+    }
+
+    unsafe fn reset(&mut self) {
+        let reg = T::reg();
+        reg.intenset.write(|w| w.compare2().set());
+        reg.tasks_clear.write(|w| w.bits(1));
+        reg.tasks_start.write(|w| w.bits(1));
+    }
+}
+
+// Macros
 
 macro_rules! impl_instance {
     (
