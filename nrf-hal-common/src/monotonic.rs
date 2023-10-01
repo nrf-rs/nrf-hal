@@ -16,8 +16,6 @@ This prescaler can be calculated by:
 
 `f_RTC = 32.768 / (round((32.768/f_desired) - 1)+1)`
 
-
-
 ### TIMER
 
 The [`Timer`] [§6.30](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.7.pdf#page=462)
@@ -38,8 +36,13 @@ The TIMER's are configured to use a 32 bit wide counter, this means that the tim
 `T_overflow = 2^32/freq`. Therefore the time until overflow for the maximum frequency (16MHz) is `2^32/(16*10^6) = 268` seconds, using a
 1MHz TIMER yields time till overflow `2^32/(10^6) = 4295` seconds or 1.2 hours. For more information on overflow please see the
 [`Timer`] documentation.
-**/
 
+The RTC uses a 24 bit wide counter. The time to overflow can be calculated using:
+`T_overflow = 2^(24+overflow_bits)/freq`
+
+However with the overflow counter being u8, the overflow can be
+**/
+use crate::clocks::{Clocks, LfOscStarted};
 use core::marker::PhantomData;
 use paste::paste;
 pub use rtic_monotonic::Monotonic;
@@ -84,6 +87,13 @@ mod sealed {
     pub trait TimerInstance: Instance<RegBlock = super::TimerRegBlock0> {}
 }
 pub use sealed::{Instance, RtcInstance, TimerInstance};
+pub enum MonotonicError {
+    /// Thrown when an invivalid frequency is requsted from the [`MonotnicRtc`]
+    ///
+    /// To compute a valid frequency use the following formula
+    /// f = 32_768/(prescaler + 1)
+    InvalidFrequency(u32),
+}
 
 impl<T: Instance<RegBlock = TimerRegBlock0>, const FREQ: u32> Monotonic
     for MonotonicTimer<T, FREQ>
@@ -116,6 +126,7 @@ impl<T: Instance<RegBlock = TimerRegBlock0>, const FREQ: u32> Monotonic
     }
 }
 
+/// A [`Monotonic`] implementation for Real Time Clocks (RTC)
 pub struct MonotonicRtc<T: Instance<RegBlock = RtcRegBlock>, const FREQ: u32> {
     instance: PhantomData<T>,
     overflow: u8,
@@ -129,24 +140,22 @@ where
     /// rtc for the specified [`RtcInstance`].
     ///
     /// This function permits construction of the rtc for a given frequency
-    pub fn new(_: T) -> Self {
-        unsafe { T::reg().prescaler.write(|w| w.bits(Self::presc().unwrap())) };
+    pub fn new<H, L>(_: T, _: &Clocks<H, L, LfOscStarted>) -> Result<Self, MonotonicError> {
+        let presc = Self::presc()?;
+        unsafe { T::reg().prescaler.write(|w| w.bits(presc)) };
 
-        Self {
+        Ok(Self {
             instance: PhantomData,
             overflow: 0,
-        }
+        })
     }
 
-    /// Ensures that the frequency provided is valid for the rtc.
-    const fn presc() -> Option<u32> {
+    const MAX_PRESCALER: u32 = 4095;
+    fn presc() -> Result<u32, MonotonicError> {
         let intermediate: u32 = 32_768 / FREQ;
-        match FREQ >= 8 && FREQ <= 32_768 {
-            true => match 32_768 / intermediate == FREQ {
-                true => Some(32_768 / (FREQ + 1)),
-                _ => None,
-            },
-            _ => None,
+        match 32_768 / intermediate == FREQ && (32_768 / FREQ) - 1 < Self::MAX_PRESCALER {
+            true => Some((32_768 / FREQ) - 1),
+            _ => MonotonicError::InvalidFrequency(FREQ),
         }
     }
 
