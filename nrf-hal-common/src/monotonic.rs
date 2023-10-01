@@ -39,8 +39,6 @@ The TIMER's are configured to use a 32 bit wide counter, this means that the tim
 
 The RTC uses a 24 bit wide counter. The time to overflow can be calculated using:
 `T_overflow = 2^(24+overflow_bits)/freq`
-
-However with the overflow counter being u8, the overflow can be
 **/
 use crate::clocks::{Clocks, LfOscStarted};
 use core::marker::PhantomData;
@@ -87,12 +85,20 @@ mod sealed {
     pub trait TimerInstance: Instance<RegBlock = super::TimerRegBlock0> {}
 }
 pub use sealed::{Instance, RtcInstance, TimerInstance};
-pub enum MonotonicError {
-    /// Thrown when an invivalid frequency is requsted from the [`MonotnicRtc`]
+
+/// All of the error cases for the [`MonotonicRtc`] and
+/// [`MonotonicTimer`].
+#[derive(Debug)]
+pub enum Error {
+    /// Thrown when an invalid frequency is requested from the [`MonotonicRtc`]
     ///
     /// To compute a valid frequency use the following formula
     /// f = 32_768/(prescaler + 1)
+    /// where prescaler is an integer less than 4095
     InvalidFrequency(u32),
+    /// Thrown when the requested frequency fot the[`MonotonicRtc`]
+    /// yields a prescaler larger than 4095.
+    TooLargePrescaler(u32),
 }
 
 impl<T: Instance<RegBlock = TimerRegBlock0>, const FREQ: u32> Monotonic
@@ -140,8 +146,8 @@ where
     /// rtc for the specified [`RtcInstance`].
     ///
     /// This function permits construction of the rtc for a given frequency
-    pub fn new<H, L>(_: T, _: &Clocks<H, L, LfOscStarted>) -> Result<Self, MonotonicError> {
-        let presc = Self::presc()?;
+    pub fn new<H, L>(_: T, _: &Clocks<H, L, LfOscStarted>) -> Result<Self, Error> {
+        let presc = Self::prescaler()?;
         unsafe { T::reg().prescaler.write(|w| w.bits(presc)) };
 
         Ok(Self {
@@ -151,14 +157,14 @@ where
     }
 
     const MAX_PRESCALER: u32 = 4095;
-    fn presc() -> Result<u32, MonotonicError> {
+    const fn prescaler() -> Result<u32, Error> {
         let intermediate: u32 = 32_768 / FREQ;
-        match 32_768 / intermediate == FREQ && (32_768 / FREQ) - 1 < Self::MAX_PRESCALER {
-            true => Some((32_768 / FREQ) - 1),
-            _ => MonotonicError::InvalidFrequency(FREQ),
+        let presc: u32 = (32_768 / FREQ) - 1;
+        match 32_768 / intermediate == FREQ && presc < Self::MAX_PRESCALER {
+            true => Ok(presc),
+            _ => Err(Error::InvalidFrequency(FREQ)),
         }
     }
-
     // reg.mode.write(|w| w.mode().timer());
 }
 
@@ -264,11 +270,11 @@ impl_instance!(
 );
 
 macro_rules! freq_gate {
-    (type_for TimerRegBlock0 : {
+    (
         $(
             $freq:literal,$presc:literal,$overflow:literal,$sck:literal
         )+
-    }) => {
+    ) => (
         paste!(
             /// A [`Monotonic`] timer implementation
             ///
@@ -292,75 +298,39 @@ macro_rules! freq_gate {
             pub struct MonotonicTimer<T: Instance<RegBlock = TimerRegBlock0>, const FREQ: u32> {
                 instance:PhantomData<T>,
             }
-        );
-
-    };
-    (
-        new_for TimerRegBlock0 : {
             $(
-                $freq:literal,$presc:literal
-            )+
-        }
-    ) => {
-        paste!(
-        $(
-            impl<T> MonotonicTimer<T,$freq>
-            where T:Instance<RegBlock = TimerRegBlock0>{
-                /// Instantiates a new [`Monotonic`] enabled
-                /// timer for the specified [`TimerInstance`].
-                ///
-                /// This function permits construction of the
-                #[doc = "[`MonotonicTimer`] for `" $freq "` Hz."]
-                pub fn new(_: T) -> Self {
-                    let reg = T::reg();
-                    reg.prescaler
-                        .write(|w| unsafe { w.prescaler().bits($presc) });
-                    reg.bitmode.write(|w| w.bitmode()._32bit());
-                    reg.mode.write(|w| w.mode().timer());
-                    Self {
-                        instance: PhantomData,
+                impl<T> MonotonicTimer<T,$freq>
+                    where T:Instance<RegBlock = TimerRegBlock0>
+                {
+                    /// Instantiates a new [`Monotonic`] enabled
+                    /// timer for the specified [`TimerInstance`].
+                    ///
+                    /// This function permits construction of the
+                    #[doc = "[`MonotonicTimer`] for `" $freq "` Hz."]
+                    pub fn new(_: T) -> Self {
+                        let reg = T::reg();
+                        reg.prescaler
+                            .write(|w| unsafe { w.prescaler().bits($presc) });
+                        reg.bitmode.write(|w| w.bitmode()._32bit());
+                        reg.mode.write(|w| w.mode().timer());
+                        Self {
+                            instance: PhantomData,
+                        }
                     }
                 }
-            }
-        )+);
-    };
-    ($(
-        $type:literal, $reg:ident: {
-                $(
-                    $freq:literal,$presc:literal,$overflow:literal,$sck:literal
-                )+
-            }
-        )+
-    ) => (
-            $(
-                freq_gate!(
-                    type_for $reg : {
-                        $(
-                            $freq,$presc,$overflow,$sck
-                        )+
-                    }
-                );
-                freq_gate!(
-                    new_for $reg:{
-                        $(
-                            $freq,$presc
-                        )+
-                    }
-                );
             )+
+        );
     )
 }
 
 freq_gate! {
-    "Timer",TimerRegBlock0:{
-        16_000_000,0,"4 min 28 seconds","16MHz"
-        8_000_000,1,"8 min 56 seconds","16MHz"
-        4_000_000,2,"17 min 53 seconds","16MHz"
-        2_000_000,3,"35 min 47 seconds","16MHz"
-        1_000_000,4,"1 hour 11 min 34 seconds","1MHz"
-        500_000,5,"2 hours 23 min 9 seconds","1MHz"
-        250_000,6,"4 hours 46 min 19 seconds","1MHz"
-        125_000,7,"9 hours 32 min 39 seconds","1MHz"
-        62_500,8,"19 hours 5 min 19 seconds","1MHz"
-    }
+    16_000_000,0,"4 min 28 seconds","16MHz"
+    8_000_000,1,"8 min 56 seconds","16MHz"
+    4_000_000,2,"17 min 53 seconds","16MHz"
+    2_000_000,3,"35 min 47 seconds","16MHz"
+    1_000_000,4,"1 hour 11 min 34 seconds","1MHz"
+    500_000,5,"2 hours 23 min 9 seconds","1MHz"
+    250_000,6,"4 hours 46 min 19 seconds","1MHz"
+    125_000,7,"9 hours 32 min 39 seconds","1MHz"
+    62_500,8,"19 hours 5 min 19 seconds","1MHz"
 }
