@@ -1,6 +1,4 @@
 //! Defines a minimal blinky example.
-//!
-//! This example is ment to showcase how to work with the [`MonotonicTimer`] abstraction
 #![no_main]
 #![no_std]
 
@@ -40,7 +38,7 @@ mod app {
 
         let clocks = hal::clocks::Clocks::new(cx.device.CLOCK);
         let clocks = clocks.start_lfclk();
-        /// Will throw error if freq is invalid
+        // Will throw error if freq is invalid
         let mono = MyMono::new(cx.device.RTC0, &clocks).unwrap();
 
         blink::spawn().ok();

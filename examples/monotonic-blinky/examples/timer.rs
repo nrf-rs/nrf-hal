@@ -1,6 +1,4 @@
 //! Defines a minimal blinky example.
-//!
-//! This example is ment to showcase how to work with the [`MonotonicTimer`] abstraction
 #![no_main]
 #![no_std]
 
