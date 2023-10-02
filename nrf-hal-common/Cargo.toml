@@ -88,10 +88,6 @@ optional = true
 version = "0.3.7"
 optional = true
 
-[dependencies.paste]
-version = "1.0.14"
-optional = true
-
 [features]
 doc = []
 51 = ["nrf51-pac"]
@@ -103,4 +99,4 @@ doc = []
 5340-app = ["nrf5340-app-pac"]
 5340-net = ["nrf5340-net-pac"]
 9160 = ["nrf9160-pac"]
-monotonic = ["rtic-monotonic","fugit","paste"]
+monotonic = ["rtic-monotonic","fugit"]

@@ -12,17 +12,17 @@ A simple example using the timer/rtc can be found under the nrf-hal [examples](h
 
 
 The [`Rtc`](crate::rtc::Rtc) [§6.22](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.7.pdf)
-has a 12 bit wide prescaler. This allows for prescalers ranging from 0 to 4095. With the prescaler, one can calculate the frequency by:
+has a 12-bit wide prescaler. This allows for prescalers ranging from 0 to 4095. With the prescaler, one can calculate the frequency by:
 
 `f_RTC [KHz] = 32.768 / (PRESCALER + 1)`
 
 Since the rtc will only accept frequencies that have a valid prescaler.
-It is not always possible to get the exact desired frequency, however it is possible to calculate a prescaler which results in a frequency close to the desired one.
+It is not always possible to get the exact desired frequency, however, it is possible to calculate a prescaler which results in a frequency close to the desired one.
 This prescaler can be calculated by:
 
 `f_RTC = 32.768 / (round((32.768/f_desired) - 1)+1)`
 
-When using the rtc, make sure that the low-frequency clock source (lfclk) is started. Other wise the rtc will not work.
+When using the rtc, make sure that the low-frequency clock source (lfclk) is started. Otherwise, the rtc will not work.
 
 <Strong> Example (RTC): </Strong>
 ```ignore
@@ -40,40 +40,40 @@ let mono = MyMono::new(cx.device.RTC0, &clocks).unwrap();
 ### TIMER
 
 The [`Timer`](crate::timer::Timer) [§6.30](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.7.pdf)
-has 2 different clock sources that can drive it, one 16Mhz clock that is used when
-the timers frequency is higher than 1 mhz where the timers frequency is given by:
+has 2 different clock sources that can drive it, one 16MHz clock that is used when
+the timer frequency is higher than 1MHz and a 1MHz clock is used otherwise.
+The 1MHz clock consumes less power than the 16MHz clock source, so for low applications, it could be beneficial to use a
+frequency at or below 1MHz. For a list of all valid frequencies please see the
+[`MonotonicTimer`] documentation.
+
+
+The timer frequency is given by the formula:
 
 `f_TIMER = 16 MHz / (2^PRESCALER)`
-Where the prescaler is a 4 bit integer.
 
-And one 1Mhz clock source which is used when the f_TIMER is at or lower than 1Mhz.
-The 1MHz clock is lower power than the 16MHz clock source, so for low applications it could be beneficial to use a
-frequency at or below 1MHz. For a list of all valid frequencies please see the
-[`Timer`](crate::timer::Timer) documentation.
+Where the prescaler is a 4-bit integer.
+
 
 <Strong> Example (Timer): </Strong>
 ```ignore
 // TIMER0 with a frequency of 16 000 000 Hz
 type MyMono = MonotonicTimer<TIMER0, 16_000_000>;
 let mono = MyMono::new(cx.device.TIMER0);
-
 ```
 
 ### Overflow
 
-The TIMER's are configured to use a 32 bit wide counter, this means that the time until overflow is given by the following formula:
+The TIMERs are configured to use a 32-bit wide counter, this means that the time until overflow is given by the following formula:
 `T_overflow = 2^32/freq`. Therefore the time until overflow for the maximum frequency (16MHz) is `2^32/(16*10^6) = 268` seconds, using a
 1MHz TIMER yields time till overflow `2^32/(10^6) = 4295` seconds or 1.2 hours. For more information on overflow please see the
 [`Timer`](crate::timer::Timer) documentation.
 
-The RTC uses a 24 bit wide counter. The time to overflow can be calculated using:
+The RTC uses a 24-bit wide counter. The time to overflow can be calculated using:
 `T_overflow = 2^(24+overflow_bits)/freq`
 Therefore, with the frequency 32.768 KHz and the overflow counter being u8, the rtc would overflow after about 36.5 hours.
-
 **/
 use crate::clocks::{Clocks, LfOscStarted};
 use core::marker::PhantomData;
-use paste::paste;
 pub use rtic_monotonic::Monotonic;
 
 #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
@@ -87,19 +87,18 @@ use crate::pac::RTC2;
 
 #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::{
-    timer0_ns::RegisterBlock as TimerRegBlock0, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1,
+    timer0_ns::RegisterBlock as TimerRegBlock, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1,
     TIMER2_NS as TIMER2,
 };
 
 #[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
-use crate::pac::{timer0::RegisterBlock as TimerRegBlock0, TIMER0, TIMER1, TIMER2};
+use crate::pac::{timer0::RegisterBlock as TimerRegBlock, TIMER0, TIMER1, TIMER2};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::{TIMER3, TIMER4};
 
 /// Hides intermediate traits from end users.
 mod sealed {
-
     /// A trait that ensures register access for the [`pac`](`crate::pac`)
     /// abstractions
     pub trait Instance {
@@ -110,11 +109,13 @@ mod sealed {
         /// Allows modification of the registers at a type level rather than
         /// by storing the [`Instance`] at run-time.
         fn reg<'a>() -> &'a Self::RegBlock;
-        const DISABLE_INTERRUPT_ON_EMPTY_QUEUE: bool = true;
     }
+
     pub trait RtcInstance: Instance<RegBlock = super::RtcRegBlock> {}
-    pub trait TimerInstance: Instance<RegBlock = super::TimerRegBlock0> {}
+
+    pub trait TimerInstance: Instance<RegBlock = super::TimerRegBlock> {}
 }
+
 pub use sealed::{Instance, RtcInstance, TimerInstance};
 
 /// All of the error cases for the [`MonotonicRtc`] and
@@ -127,6 +128,7 @@ pub enum Error {
     /// f = 32_768/(prescaler + 1)
     /// where prescaler is an integer less than 4095
     InvalidFrequency(u32),
+
     /// Thrown when the requested frequency fot the[`MonotonicRtc`]
     /// yields a prescaler larger than 4095.
     TooLargePrescaler(u32),
@@ -135,18 +137,16 @@ pub enum Error {
 /// A [`Monotonic`] implementation for Real Time Clocks (RTC)
 ///
 /// This implementation allows scheduling [rtic](https://docs.rs/rtic/latest/rtic/)
-/// applications using the [`Rtc`](crate::rtc::Rtc)(https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.1.pdf) (§6.22) peripheral.
+/// applications using the [`Rtc`](crate::rtc::Rtc) (§6.22 in the [data sheet](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.1.pdf)) peripheral.
 /// It is only possible to instantiate this abstraction with frequencies using an integer prescaler between 0 <= prescaler <= 4095.
-pub struct MonotonicRtc<T: Instance<RegBlock = RtcRegBlock>, const FREQ: u32> {
+pub struct MonotonicRtc<T: RtcInstance, const FREQ: u32> {
     instance: PhantomData<T>,
     overflow: u8,
 }
 
-// Rtc implementation
-
 impl<T, const FREQ: u32> MonotonicRtc<T, FREQ>
 where
-    T: Instance<RegBlock = RtcRegBlock>,
+    T: RtcInstance,
 {
     /// Instantiates a new [`Monotonic`](rtic_monotonic)
     /// rtc for the specified [`RtcInstance`].
@@ -179,9 +179,13 @@ where
     }
 }
 
-impl<T: Instance<RegBlock = RtcRegBlock>, const FREQ: u32> Monotonic for MonotonicRtc<T, FREQ> {
+impl<T: RtcInstance, const FREQ: u32> Monotonic for MonotonicRtc<T, FREQ> {
     type Instant = fugit::TimerInstantU32<FREQ>;
     type Duration = fugit::TimerDurationU32<FREQ>;
+
+    // Since we are using extended counter we need to keep the
+    // interrupts enabled for the rtc.
+    const DISABLE_INTERRUPT_ON_EMPTY_QUEUE: bool = false;
 
     fn now(&mut self) -> Self::Instant {
         let rtcreg = T::reg();
@@ -239,15 +243,49 @@ impl<T: Instance<RegBlock = RtcRegBlock>, const FREQ: u32> Monotonic for Monoton
     }
 }
 
-// Timer implementation
+/// A [`Monotonic`] timer implementation
+///
+/// This implementation allows scheduling [rtic](https://docs.rs/rtic/latest/rtic/)
+/// applications using the [`Timer`](crate::timer::Timer) (§6.30 in the [data sheet](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.1.pdf)) peripheral.
+/// It is only possible to instantiate this abstraction for the following
+/// frequencies since they are the only ones that generate valid prescaler values.
+///
+///<center>
+///
+///| frequency \[Hz\]            | time until overflow                          | source clock frequency   |
+///|-----------------------------|----------------------------------------------|--------------------------|
+///| <center> 16000000 </center> | <center> 4 min 28 seconds </center>          | <center> 16MHz </center> |
+///| <center> 8000000 </center>  | <center> 8 min 56 seconds </center>          | <center> 16MHz </center> |
+///| <center> 4000000 </center>  | <center> 17 min 53 seconds </center>         | <center> 16MHz </center> |
+///| <center> 1000000 </center>  | <center> 1 hour 11 min 34 seconds </center>  | <center> 1MHz </center>  |
+///| <center> 500000 </center>   | <center> 2 hours 23 min 9 seconds </center>  | <center> 1MHz </center>  |
+///| <center> 250000 </center>   | <center> 4 hours 46 min 19 seconds </center> | <center> 1MHz </center>  |
+///| <center> 125000 </center>   | <center> 9 hours 32 min 39 seconds </center> | <center> 1MHz </center>  |
+///| <center> 62500 </center>    | <center> 19 hours 5 min 19 seconds </center> | <center> 1MHz </center>  |
+///
+///</center>
+pub struct MonotonicTimer<T: TimerInstance, const FREQ: u32> {
+    instance: PhantomData<T>,
+}
 
-impl<T: Instance<RegBlock = TimerRegBlock0>, const FREQ: u32> Monotonic
-    for MonotonicTimer<T, FREQ>
-{
+impl<T: TimerInstance, const FREQ: u32> MonotonicTimer<T, FREQ> {
+    pub fn internal_new<const PRESC: u8>() -> Self {
+        let reg = T::reg();
+        reg.prescaler
+            .write(|w| unsafe { w.prescaler().bits(PRESC) });
+        reg.bitmode.write(|w| w.bitmode()._32bit());
+        reg.mode.write(|w| w.mode().timer());
+        Self {
+            instance: PhantomData,
+        }
+    }
+}
+
+impl<T: TimerInstance, const FREQ: u32> Monotonic for MonotonicTimer<T, FREQ> {
     type Instant = fugit::TimerInstantU32<FREQ>;
     type Duration = fugit::TimerDurationU32<FREQ>;
     fn now(&mut self) -> Self::Instant {
-        let reg: &TimerRegBlock0 = T::reg();
+        let reg: &TimerRegBlock = T::reg();
         reg.tasks_capture[1].write(|w| w.tasks_capture().set_bit());
         let ticks = reg.cc[1].read().bits();
         fugit::TimerInstantU32::<FREQ>::from_ticks(ticks.into())
@@ -273,9 +311,13 @@ impl<T: Instance<RegBlock = TimerRegBlock0>, const FREQ: u32> Monotonic
     }
 }
 
-// Macros
-
 macro_rules! impl_instance {
+    (TimerRegBlock,$peripheral:ident) => {
+        impl TimerInstance for $peripheral {}
+    };
+    (RtcRegBlock,$peripheral:ident) => {
+        impl RtcInstance for $peripheral {}
+    };
     (
         $(
             $reg:ident : {
@@ -298,13 +340,33 @@ macro_rules! impl_instance {
                         unsafe { & *Self::ptr().cast() }
                     }
                 }
+                impl_instance!($reg,$peripheral);
             )+
         )+
     };
 }
 
-impl_instance!(
-    TimerRegBlock0 : {
+macro_rules! freq_gate {
+    (
+        $(
+            $freq:literal,$presc:literal
+        )+
+    ) => (
+        $(
+            impl<T:TimerInstance> MonotonicTimer<T,$freq>
+            {
+                /// Instantiates a new [`Monotonic`] enabled
+                /// timer for the specified [`TimerInstance`]
+                pub fn new(_: T) -> Self {
+                    Self::internal_new::<$presc>()
+                }
+            }
+        )+
+    )
+}
+
+impl_instance! {
+    TimerRegBlock : {
         TIMER0 TIMER1 TIMER2
         #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
         TIMER3
@@ -316,70 +378,16 @@ impl_instance!(
         #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
         RTC2
     }
-);
-
-macro_rules! freq_gate {
-    (
-        $(
-            $freq:literal,$presc:literal,$overflow:literal,$sck:literal
-        )+
-    ) => (
-        paste!(
-            /// A [`Monotonic`] timer implementation
-            ///
-            /// This implementation allows scheduling [rtic](https://docs.rs/rtic/latest/rtic/)
-            /// applications using the [`Timer`](crate::timer::Timer)(https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.1.pdf) (§6.30) peripheral.
-            /// It is only possible to instantiate this abstraction for the following
-            /// frequencies since they are the only ones that generate valid prescaler values.
-            /// ## Timer
-            ///
-            ///<center>
-            ///
-            ///| frequency  | source clock frequency | time until overflow |
-            ///|------------|------------------|---------------------|
-            $(
-                #[doc = "| <center> " $freq "Hz </center> | <center> " $sck " </center> | <center> " $overflow " </center> |"]
-            )+
-            ///
-            ///</center>
-            ///
-            ///
-            pub struct MonotonicTimer<T: Instance<RegBlock = TimerRegBlock0>, const FREQ: u32> {
-                instance:PhantomData<T>,
-            }
-            $(
-                impl<T> MonotonicTimer<T,$freq>
-                    where T:Instance<RegBlock = TimerRegBlock0>
-                {
-                    /// Instantiates a new [`Monotonic`] enabled
-                    /// timer for the specified [`TimerInstance`].
-                    ///
-                    /// This function permits construction of the
-                    #[doc = "[`MonotonicTimer`] for `" $freq "` Hz."]
-                    pub fn new(_: T) -> Self {
-                        let reg = T::reg();
-                        reg.prescaler
-                            .write(|w| unsafe { w.prescaler().bits($presc) });
-                        reg.bitmode.write(|w| w.bitmode()._32bit());
-                        reg.mode.write(|w| w.mode().timer());
-                        Self {
-                            instance: PhantomData,
-                        }
-                    }
-                }
-            )+
-        );
-    )
 }
 
 freq_gate! {
-    16_000_000,0,"4 min 28 seconds","16MHz"
-    8_000_000,1,"8 min 56 seconds","16MHz"
-    4_000_000,2,"17 min 53 seconds","16MHz"
-    2_000_000,3,"35 min 47 seconds","16MHz"
-    1_000_000,4,"1 hour 11 min 34 seconds","1MHz"
-    500_000,5,"2 hours 23 min 9 seconds","1MHz"
-    250_000,6,"4 hours 46 min 19 seconds","1MHz"
-    125_000,7,"9 hours 32 min 39 seconds","1MHz"
-    62_500,8,"19 hours 5 min 19 seconds","1MHz"
+    16_000_000,0
+    8_000_000,1
+    4_000_000,2
+    2_000_000,3
+    1_000_000,4
+    500_000,5
+    250_000,6
+    125_000,7
+    62_500,8
 }
