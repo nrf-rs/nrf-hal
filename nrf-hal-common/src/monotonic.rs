@@ -12,17 +12,17 @@ A simple example using the timer/rtc can be found under the nrf-hal [examples](h
 
 
 The [`Rtc`](crate::rtc::Rtc) [§6.22](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.7.pdf)
-has a 12 bit wide prescaler. This allows for prescalers ranging from 0 to 4095. With the prescaler, one can calculate the frequency by:
+has a 12-bit wide prescaler. This allows for prescalers ranging from 0 to 4095. With the prescaler, one can calculate the frequency by:
 
 `f_RTC [KHz] = 32.768 / (PRESCALER + 1)`
 
 Since the rtc will only accept frequencies that have a valid prescaler.
-It is not always possible to get the exact desired frequency, however it is possible to calculate a prescaler which results in a frequency close to the desired one.
+It is not always possible to get the exact desired frequency, however, it is possible to calculate a prescaler which results in a frequency close to the desired one.
 This prescaler can be calculated by:
 
 `f_RTC = 32.768 / (round((32.768/f_desired) - 1)+1)`
 
-When using the rtc, make sure that the low-frequency clock source (lfclk) is started. Other wise the rtc will not work.
+When using the rtc, make sure that the low-frequency clock source (lfclk) is started. Otherwise, the rtc will not work.
 
 <Strong> Example (RTC): </Strong>
 ```ignore
@@ -40,36 +40,37 @@ let mono = MyMono::new(cx.device.RTC0, &clocks).unwrap();
 ### TIMER
 
 The [`Timer`](crate::timer::Timer) [§6.30](https://infocenter.nordicsemi.com/pdf/nRF52840_PS_v1.7.pdf)
-has 2 different clock sources that can drive it, one 16Mhz clock that is used when
-the timers frequency is higher than 1 mhz where the timers frequency is given by:
+has 2 different clock sources that can drive it, one 16MHz clock that is used when
+the timer frequency is higher than 1MHz and a 1MHz clock is used otherwise.
+The 1MHz clock consumes less power than the 16MHz clock source, so for low applications, it could be beneficial to use a
+frequency at or below 1MHz. For a list of all valid frequencies please see the
+[`MonotonicTimer`] documentation.
+
+
+The timer frequency is given by the formula:
 
 `f_TIMER = 16 MHz / (2^PRESCALER)`
-Where the prescaler is a 4 bit integer.
 
-And one 1Mhz clock source which is used when the f_TIMER is at or lower than 1Mhz.
-The 1MHz clock is lower power than the 16MHz clock source, so for low applications it could be beneficial to use a
-frequency at or below 1MHz. For a list of all valid frequencies please see the
-[`Timer`](crate::timer::Timer) documentation.
+Where the prescaler is a 4-bit integer.
+
 
 <Strong> Example (Timer): </Strong>
 ```ignore
 // TIMER0 with a frequency of 16 000 000 Hz
 type MyMono = MonotonicTimer<TIMER0, 16_000_000>;
 let mono = MyMono::new(cx.device.TIMER0);
-
 ```
 
 ### Overflow
 
-The TIMER's are configured to use a 32 bit wide counter, this means that the time until overflow is given by the following formula:
+The TIMERs are configured to use a 32-bit wide counter, this means that the time until overflow is given by the following formula:
 `T_overflow = 2^32/freq`. Therefore the time until overflow for the maximum frequency (16MHz) is `2^32/(16*10^6) = 268` seconds, using a
 1MHz TIMER yields time till overflow `2^32/(10^6) = 4295` seconds or 1.2 hours. For more information on overflow please see the
 [`Timer`](crate::timer::Timer) documentation.
 
-The RTC uses a 24 bit wide counter. The time to overflow can be calculated using:
+The RTC uses a 24-bit wide counter. The time to overflow can be calculated using:
 `T_overflow = 2^(24+overflow_bits)/freq`
 Therefore, with the frequency 32.768 KHz and the overflow counter being u8, the rtc would overflow after about 36.5 hours.
-
 **/
 use crate::clocks::{Clocks, LfOscStarted};
 use core::marker::PhantomData;
