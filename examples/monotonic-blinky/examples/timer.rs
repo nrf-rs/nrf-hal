@@ -1,22 +1,26 @@
+//! Defines a minimal blinky example.
+//!
+//! This example is ment to showcase how to work with the [`MonotonicTimer`] abstraction
 #![no_main]
 #![no_std]
 
-use panic_halt as _;
-use nrf52840_hal as hal;
 use hal::pac;
+use nrf52840_hal as hal;
+use panic_halt as _;
 #[rtic::app(device = pac, dispatchers = [UARTE1])]
 mod app {
     use super::*;
     use cortex_m::asm;
-    use pac::TIMER0;
     use hal::{
         gpio::{p0::Parts, Level, Output, Pin, PushPull},
-        prelude::*, monotonic::{MonotonicTimer,Monotonic},
+        monotonic::MonotonicTimer,
+        prelude::*,
     };
+    use pac::TIMER0;
     use rtt_target::{rprintln, rtt_init_print};
 
     #[monotonic(binds = TIMER0, default = true)]
-    type MyMono = MonotonicTimer<TIMER0,62_500>;
+    type MyMono = MonotonicTimer<TIMER0, 16_000_000>;
 
     #[shared]
     struct Shared {}
@@ -31,10 +35,12 @@ mod app {
         rtt_init_print!();
         rprintln!("init");
 
-        let mono = MyMono::new(cx.device.TIMER0);
         let p0 = Parts::new(cx.device.P0);
         let led = p0.p0_13.into_push_pull_output(Level::High).degrade();
-        blink::spawn_after(fugit::ExtU32::millis(50)).ok();
+
+        // New does not exists for invalid frequencies
+        let mono = MyMono::new(cx.device.TIMER0);
+        blink::spawn().ok();
         (Shared {}, Local { led }, init::Monotonics(mono))
     }
 
@@ -43,7 +49,7 @@ mod app {
         loop {
             rprintln!("idle");
             // Put core to sleep until next interrupt
-            asm::wfi();
+            asm::wfe();
         }
     }
 
