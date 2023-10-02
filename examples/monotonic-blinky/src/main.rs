@@ -13,14 +13,14 @@ mod app {
     use cortex_m::asm;
     use hal::{
         gpio::{p0::Parts, Level, Output, Pin, PushPull},
-        monotonic::MonotonicTimer,
+        monotonic::MonotonicRtc,
         prelude::*,
     };
-    use pac::TIMER0;
+    use pac::RTC0;
     use rtt_target::{rprintln, rtt_init_print};
 
-    #[monotonic(binds = TIMER0, default = true)]
-    type MyMono = MonotonicTimer<TIMER0, 16_000_000>;
+    #[monotonic(binds = RTC0, default = true)]
+    type MyMono = MonotonicRtc<RTC0, 32_768>;
 
     #[shared]
     struct Shared {}
@@ -38,8 +38,11 @@ mod app {
         let p0 = Parts::new(cx.device.P0);
         let led = p0.p0_13.into_push_pull_output(Level::High).degrade();
 
-        // Will throw error if freq is invalid
-        let mono = MyMono::new(cx.device.TIMER0);
+        let clocks = hal::clocks::Clocks::new(cx.device.CLOCK);
+        let clocks = clocks.start_lfclk();
+        /// Will throw error if freq is invalid
+        let mono = MyMono::new(cx.device.RTC0, &clocks).unwrap();
+
         blink::spawn().ok();
         (Shared {}, Local { led }, init::Monotonics(mono))
     }
