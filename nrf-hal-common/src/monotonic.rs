@@ -162,7 +162,7 @@ where
         })
     }
 
-    const MAX_PRESCALER: u32 = 4095;
+    const MAX_PRESCALER: u32 = 4096;
     /// Checks if the given frequency is valid
     const fn prescaler() -> Result<u32, Error> {
         let intermediate: u32 = 32_768 / FREQ;
