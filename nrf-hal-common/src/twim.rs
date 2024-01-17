@@ -394,7 +394,7 @@ where
     }
 }
 
-impl<T> embedded_hal::blocking::i2c::Write for Twim<T>
+impl<T> embedded_hal_02::blocking::i2c::Write for Twim<T>
 where
     T: Instance,
 {
@@ -414,7 +414,7 @@ where
     }
 }
 
-impl<T> embedded_hal::blocking::i2c::Read for Twim<T>
+impl<T> embedded_hal_02::blocking::i2c::Read for Twim<T>
 where
     T: Instance,
 {
@@ -425,7 +425,7 @@ where
     }
 }
 
-impl<T> embedded_hal::blocking::i2c::WriteRead for Twim<T>
+impl<T> embedded_hal_02::blocking::i2c::WriteRead for Twim<T>
 where
     T: Instance,
 {

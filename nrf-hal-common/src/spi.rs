@@ -6,7 +6,7 @@ use crate::{
     pac::{spi0, SPI0},
 };
 
-pub use embedded_hal::{
+pub use embedded_hal_02::{
     blocking::spi::{transfer, write, write_iter},
     spi::{FullDuplex, Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3},
 };

@@ -20,7 +20,7 @@ use crate::pac::{
     Interrupt, TIMER0, TIMER1, TIMER2,
 };
 use cast::u32;
-use embedded_hal::{
+use embedded_hal_02::{
     blocking::delay::{DelayMs, DelayUs},
     prelude::*,
     timer,

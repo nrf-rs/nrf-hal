@@ -1,6 +1,6 @@
 //! API for the Analog to Digital converter.
 
-use embedded_hal::adc::{Channel, OneShot};
+use embedded_hal_02::adc::{Channel, OneShot};
 
 use core::hint::unreachable_unchecked;
 
@@ -128,7 +128,7 @@ macro_rules! channel_mappings {
             impl Channel<Adc> for $pin {
                 type ID = u8;
 
-                fn channel() -> <Self as embedded_hal::adc::Channel<Adc>>::ID {
+                fn channel() -> <Self as embedded_hal_02::adc::Channel<Adc>>::ID {
                     $n
                 }
             }

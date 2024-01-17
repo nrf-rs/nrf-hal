@@ -867,7 +867,7 @@ where
     }
 }
 
-impl<T: Instance> embedded_hal::Pwm for Pwm<T> {
+impl<T: Instance> embedded_hal_02::Pwm for Pwm<T> {
     type Channel = Channel;
     type Duty = u16;
     type Time = Hertz;
@@ -944,7 +944,7 @@ impl<'a, T: Instance> PwmChannel<'a, T> {
     }
 }
 
-impl<'a, T: Instance> embedded_hal::PwmPin for PwmChannel<'a, T> {
+impl<'a, T: Instance> embedded_hal_02::PwmPin for PwmChannel<'a, T> {
     type Duty = u16;
 
     fn disable(&mut self) {
@@ -1007,7 +1007,7 @@ impl<'a, T: Instance> PwmGroup<'a, T> {
     }
 }
 
-impl<'a, T: Instance> embedded_hal::PwmPin for PwmGroup<'a, T> {
+impl<'a, T: Instance> embedded_hal_02::PwmPin for PwmGroup<'a, T> {
     type Duty = u16;
 
     fn disable(&mut self) {

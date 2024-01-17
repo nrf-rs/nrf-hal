@@ -99,7 +99,7 @@ where
     }
 }
 
-impl<T> embedded_hal::serial::Read<u8> for Uart<T>
+impl<T> embedded_hal_02::serial::Read<u8> for Uart<T>
 where
     T: Instance,
 {
@@ -121,7 +121,7 @@ where
     }
 }
 
-impl<T> embedded_hal::serial::Write<u8> for Uart<T>
+impl<T> embedded_hal_02::serial::Write<u8> for Uart<T>
 where
     T: Instance,
 {
@@ -150,10 +150,10 @@ where
 
 impl<T> Write for Uart<T>
 where
-    Uart<T>: embedded_hal::serial::Write<u8>,
+    Uart<T>: embedded_hal_02::serial::Write<u8>,
 {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        use embedded_hal::serial::Write;
+        use embedded_hal_02::serial::Write;
         let _ = s.as_bytes().iter().map(|c| block!(self.write(*c))).last();
         Ok(())
     }

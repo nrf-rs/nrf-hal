@@ -85,7 +85,7 @@ use crate::pac::P1;
 #[cfg(feature = "5340-net")]
 use crate::pac::P1_NS as P1;
 
-use crate::hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
+use embedded_hal_02::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
 use void::Void;
 
 impl<MODE> Pin<MODE> {
@@ -482,7 +482,7 @@ macro_rules! gpio {
                 $PX
             };
 
-            use crate::hal::digital::v2::{OutputPin, StatefulOutputPin, InputPin};
+            use embedded_hal_02::digital::v2::{OutputPin, StatefulOutputPin, InputPin};
             use void::Void;
 
 

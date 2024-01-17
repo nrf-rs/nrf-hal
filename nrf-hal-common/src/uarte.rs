@@ -8,9 +8,9 @@ use core::fmt;
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
-use embedded_hal::blocking::serial as bserial;
-use embedded_hal::digital::v2::OutputPin;
-use embedded_hal::serial;
+use embedded_hal_02::blocking::serial as bserial;
+use embedded_hal_02::digital::v2::OutputPin;
+use embedded_hal_02::serial;
 
 #[cfg(any(feature = "52833", feature = "52840"))]
 use crate::pac::UARTE1;

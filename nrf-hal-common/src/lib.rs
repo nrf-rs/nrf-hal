@@ -4,8 +4,6 @@
 #![doc(html_root_url = "https://docs.rs/nrf-hal-common/0.16.1")]
 #![no_std]
 
-use embedded_hal as hal;
-
 #[cfg(feature = "51")]
 pub use nrf51_pac as pac;
 
@@ -114,8 +112,8 @@ pub mod usbd;
 pub mod wdt;
 
 pub mod prelude {
-    pub use crate::hal::digital::v2::*;
-    pub use crate::hal::prelude::*;
+    pub use embedded_hal_02::digital::v2::*;
+    pub use embedded_hal_02::prelude::*;
 
     #[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
     pub use crate::ppi::{ConfigurablePpi, Ppi};

@@ -250,7 +250,7 @@ where
     }
 }
 
-impl<T> embedded_hal::blocking::i2c::Write for Twi<T>
+impl<T> embedded_hal_02::blocking::i2c::Write for Twi<T>
 where
     T: Instance,
 {
@@ -261,7 +261,7 @@ where
     }
 }
 
-impl<T> embedded_hal::blocking::i2c::Read for Twi<T>
+impl<T> embedded_hal_02::blocking::i2c::Read for Twi<T>
 where
     T: Instance,
 {
@@ -272,7 +272,7 @@ where
     }
 }
 
-impl<T> embedded_hal::blocking::i2c::WriteRead for Twi<T>
+impl<T> embedded_hal_02::blocking::i2c::WriteRead for Twi<T>
 where
     T: Instance,
 {

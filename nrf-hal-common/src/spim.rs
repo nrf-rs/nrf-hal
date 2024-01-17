@@ -14,7 +14,7 @@ use crate::pac::{SPIM1_NS as SPIM1, SPIM2_NS as SPIM2, SPIM3_NS as SPIM3};
 #[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
 use crate::pac::{spim0, SPIM0};
 
-pub use embedded_hal::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};
+pub use embedded_hal_02::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};
 pub use spim0::frequency::FREQUENCY_A as Frequency;
 
 use core::iter::repeat_with;
@@ -31,7 +31,7 @@ use crate::pac::SPIM3;
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::target_constants::{EASY_DMA_SIZE, FORCE_COPY_BUFFER_SIZE};
 use crate::{slice_in_ram, slice_in_ram_or, DmaSlice};
-use embedded_hal::digital::v2::OutputPin;
+use embedded_hal_02::digital::v2::OutputPin;
 
 /// Interface to a SPIM instance.
 ///
@@ -41,7 +41,7 @@ use embedded_hal::digital::v2::OutputPin;
 ///   are disabled before using `Spim`. See product specification, section 15.2.
 pub struct Spim<T>(T);
 
-impl<T> embedded_hal::blocking::spi::Transfer<u8> for Spim<T>
+impl<T> embedded_hal_02::blocking::spi::Transfer<u8> for Spim<T>
 where
     T: Instance,
 {
@@ -59,7 +59,7 @@ where
     }
 }
 
-impl<T> embedded_hal::blocking::spi::Write<u8> for Spim<T>
+impl<T> embedded_hal_02::blocking::spi::Write<u8> for Spim<T>
 where
     T: Instance,
 {
