@@ -81,6 +81,9 @@ package = "embedded-hal"
 features = ["unproven"]
 version = "0.2.4"
 
+[dependencies.embedded-hal]
+version = "1.0.0"
+
 [features]
 doc = []
 51 = ["nrf51-pac"]
