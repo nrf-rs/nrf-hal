@@ -1,8 +1,9 @@
 //! Delays.
-use cortex_m::peripheral::syst::SystClkSource;
-use cortex_m::peripheral::SYST;
 
 use crate::clocks::HFCLK_FREQ;
+use core::convert::TryInto;
+use cortex_m::peripheral::syst::SystClkSource;
+use cortex_m::peripheral::SYST;
 use embedded_hal::delay::DelayNs;
 use embedded_hal_02::blocking::delay::{DelayMs, DelayUs};
 
@@ -66,7 +67,9 @@ impl DelayNs for Delay {
         // The SysTick Reload Value register supports values between 1 and 0x00FFFFFF.
         const MAX_RVR: u32 = 0x00FF_FFFF;
 
-        let mut total_rvr = ns * (HFCLK_FREQ / 1_000_000_000);
+        let mut total_rvr: u32 = (u64::from(ns) * u64::from(HFCLK_FREQ) / 1_000_000_000)
+            .try_into()
+            .unwrap();
 
         while total_rvr != 0 {
             let current_rvr = if total_rvr <= MAX_RVR {
