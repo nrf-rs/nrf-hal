@@ -19,3 +19,5 @@ pub use crate::temp::Temp;
 pub use crate::timer::Timer;
 pub use crate::twi::Twi;
 pub use crate::uart::Uart;
+#[cfg(feature="monotonic")]
+pub use crate::monotonic;

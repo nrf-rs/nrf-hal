@@ -36,6 +36,7 @@ doc = []
 rt = ["nrf51-pac/rt"]
 # Note: We use the xxAB package by default because it has the least amount of available resources.
 default = ["rt", "xxAB-package"]
+monotonic = ["nrf-hal-common/monotonic"]
 xxAA-package = []
 xxAB-package = []
 xxAC-package = []

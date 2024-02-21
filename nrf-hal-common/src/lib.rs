@@ -6,6 +6,9 @@
 
 use embedded_hal as hal;
 
+#[cfg(feature = "monotonic")]
+pub mod monotonic;
+
 #[cfg(feature = "51")]
 pub use nrf51_pac as pac;
 

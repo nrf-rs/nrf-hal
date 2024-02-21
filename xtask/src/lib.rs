@@ -43,6 +43,7 @@ pub static EXAMPLES: &[(&str, &[&str])] = &[
     ("twis-dma-demo", &[]),
     ("usb", &[]),
     ("wdt-demo", &[]),
+    ("monotonic-blinky",&[]),
 ];
 
 pub fn feature_to_target(feat: &str) -> &str {

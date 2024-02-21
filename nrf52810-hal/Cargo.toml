@@ -34,3 +34,4 @@ version = "0.2.3"
 doc = []
 rt = ["nrf52810-pac/rt"]
 default = ["rt"]
+monotonic = ["nrf-hal-common/monotonic"]

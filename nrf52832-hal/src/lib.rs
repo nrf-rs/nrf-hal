@@ -19,3 +19,5 @@ pub use crate::spim::Spim;
 pub use crate::temp::Temp;
 pub use crate::timer::Timer;
 pub use crate::uarte::Uarte;
+#[cfg(feature="monotonic")]
+pub use crate::monotonic;
