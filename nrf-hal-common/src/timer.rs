@@ -407,7 +407,6 @@ pub trait Instance: sealed::Sealed {
         self.as_timer0().events_compare[0].read().bits() == 0
     }
 
-    ///
     fn read_counter(&self) -> u32 {
         self.as_timer0().tasks_capture[1].write(|w| unsafe { w.bits(1) });
         self.as_timer0().cc[1].read().bits()
