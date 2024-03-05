@@ -96,7 +96,7 @@ mod app {
         let twim = ctx.local.twim;
         if ctx.local.btn1.is_low().unwrap() {
             rprintln!("\nREAD from address 0x1A");
-            let rx_buf = [0; 8];
+            let mut rx_buf = [0; 8];
             let res = twim.read(0x1A, &mut rx_buf);
             rprintln!("Result: {:?}\n{:?}", res, rx_buf);
         }
@@ -108,7 +108,7 @@ mod app {
         }
         if ctx.local.btn3.is_low().unwrap() {
             rprintln!("\nREAD from address 0x1B");
-            let rx_buf = [0; 4];
+            let mut rx_buf = [0; 4];
             let res = twim.read(0x1B, &mut rx_buf);
             rprintln!("Result: {:?}\n{:?}", res, rx_buf);
         }
