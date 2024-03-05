@@ -350,11 +350,14 @@ where
 
 /// Implemented by all TIMER* instances.
 pub trait Instance: sealed::Sealed {
-    /// This interrupt associated with this RTC instance.
+    /// The interrupt associated with this RTC instance.
     const INTERRUPT: Interrupt;
 
+    /// Returns the register block for the timer instance.
     fn as_timer0(&self) -> &RegBlock0;
 
+    /// Starts the timer after clearing the counter register and setting the events compare trigger
+    /// correctly to the numer of `cycles`.
     fn timer_start<Time>(&self, cycles: Time)
     where
         Time: Into<u32>,
@@ -369,7 +372,7 @@ pub trait Instance: sealed::Sealed {
         // nothing else this method does will reset the event, and if it's still
         // active after this method exits, then the next call to `wait` will
         // return immediately, no matter how much time has actually passed.
-        self.as_timer0().events_compare[0].reset();
+        self.timer_reset_event();
 
         // Configure timer to trigger EVENTS_COMPARE when given number of cycles
         // is reached.
@@ -389,15 +392,18 @@ pub trait Instance: sealed::Sealed {
         self.as_timer0().tasks_start.write(|w| unsafe { w.bits(1) });
     }
 
+    /// Resets event for CC[0] register.
     fn timer_reset_event(&self) {
-        self.as_timer0().events_compare[0].write(|w| w);
+        self.as_timer0().events_compare[0].reset();
     }
 
+    /// Cancels timer by setting it to stop mode and resetting the events.
     fn timer_cancel(&self) {
         self.as_timer0().tasks_stop.write(|w| unsafe { w.bits(1) });
         self.timer_reset_event();
     }
 
+    /// Checks if the timer is still running which means no event is yet generated for CC[0].
     fn timer_running(&self) -> bool {
         self.as_timer0().events_compare[0].read().bits() == 0
     }
@@ -407,28 +413,35 @@ pub trait Instance: sealed::Sealed {
         self.as_timer0().cc[1].read().bits()
     }
 
+    /// Disables interrupt for event COMPARE[0].
     fn disable_interrupt(&self) {
         self.as_timer0()
             .intenclr
             .modify(|_, w| w.compare0().clear());
     }
 
+    /// Enables interrupt for event COMPARE[0].
     fn enable_interrupt(&self) {
         self.as_timer0().intenset.modify(|_, w| w.compare0().set());
     }
 
+    /// Sets timer into periodic mode.
     fn set_shorts_periodic(&self) {
         self.as_timer0()
             .shorts
             .write(|w| w.compare0_clear().enabled().compare0_stop().disabled());
     }
 
+    /// Sets timer into oneshot mode.
     fn set_shorts_oneshot(&self) {
         self.as_timer0()
             .shorts
             .write(|w| w.compare0_clear().enabled().compare0_stop().enabled());
     }
 
+    /// Sets up timer for 1 MHz prescaled periods with 32 bits accuracy.
+    ///
+    /// This is only safe to call when the timer is stopped.
     fn set_periodic(&self) {
         self.set_shorts_periodic();
         self.as_timer0().prescaler.write(
@@ -437,6 +450,9 @@ pub trait Instance: sealed::Sealed {
         self.as_timer0().bitmode.write(|w| w.bitmode()._32bit());
     }
 
+    /// Sets up timer for a 1 MHz prescaled oneshot with 32 bits accuracy.
+    ///
+    /// This is only safe to call when the timer is stopped.
     fn set_oneshot(&self) {
         self.set_shorts_oneshot();
         self.as_timer0().prescaler.write(
