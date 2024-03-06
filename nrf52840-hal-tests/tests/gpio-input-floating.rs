@@ -21,7 +21,8 @@ struct State {
 #[defmt_test::tests]
 mod tests {
     use defmt::{assert, unwrap};
-    use nrf52840_hal::{gpio::p0, pac, prelude::*};
+    use embedded_hal::digital::InputPin;
+    use nrf52840_hal::{gpio::p0, pac};
 
     use super::State;
 
