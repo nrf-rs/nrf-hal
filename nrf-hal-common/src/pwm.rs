@@ -15,10 +15,12 @@ use crate::{
 };
 use core::{
     cell::Cell,
+    convert::Infallible,
     ops::Deref,
     sync::atomic::{compiler_fence, Ordering},
 };
 use embedded_dma::*;
+use embedded_hal::pwm::{ErrorType, SetDutyCycle};
 
 const MAX_SEQ_LEN: usize = 0x7FFF;
 
@@ -867,7 +869,7 @@ where
     }
 }
 
-impl<T: Instance> embedded_hal::Pwm for Pwm<T> {
+impl<T: Instance> embedded_hal_02::Pwm for Pwm<T> {
     type Channel = Channel;
     type Duty = u16;
     type Time = Hertz;
@@ -944,7 +946,7 @@ impl<'a, T: Instance> PwmChannel<'a, T> {
     }
 }
 
-impl<'a, T: Instance> embedded_hal::PwmPin for PwmChannel<'a, T> {
+impl<'a, T: Instance> embedded_hal_02::PwmPin for PwmChannel<'a, T> {
     type Duty = u16;
 
     fn disable(&mut self) {
@@ -965,6 +967,21 @@ impl<'a, T: Instance> embedded_hal::PwmPin for PwmChannel<'a, T> {
 
     fn set_duty(&mut self, duty: u16) {
         self.set_duty_on(duty)
+    }
+}
+
+impl<'a, T: Instance> ErrorType for PwmChannel<'a, T> {
+    type Error = Infallible;
+}
+
+impl<'a, T: Instance> SetDutyCycle for PwmChannel<'a, T> {
+    fn max_duty_cycle(&self) -> u16 {
+        self.max_duty()
+    }
+
+    fn set_duty_cycle(&mut self, duty: u16) -> Result<(), Self::Error> {
+        self.set_duty_on(duty);
+        Ok(())
     }
 }
 
@@ -1007,7 +1024,7 @@ impl<'a, T: Instance> PwmGroup<'a, T> {
     }
 }
 
-impl<'a, T: Instance> embedded_hal::PwmPin for PwmGroup<'a, T> {
+impl<'a, T: Instance> embedded_hal_02::PwmPin for PwmGroup<'a, T> {
     type Duty = u16;
 
     fn disable(&mut self) {
@@ -1028,6 +1045,21 @@ impl<'a, T: Instance> embedded_hal::PwmPin for PwmGroup<'a, T> {
 
     fn set_duty(&mut self, duty: u16) {
         self.set_duty_on(duty)
+    }
+}
+
+impl<'a, T: Instance> ErrorType for PwmGroup<'a, T> {
+    type Error = Infallible;
+}
+
+impl<'a, T: Instance> SetDutyCycle for PwmGroup<'a, T> {
+    fn max_duty_cycle(&self) -> u16 {
+        self.max_duty()
+    }
+
+    fn set_duty_cycle(&mut self, duty: u16) -> Result<(), Self::Error> {
+        self.set_duty_on(duty);
+        Ok(())
     }
 }
 

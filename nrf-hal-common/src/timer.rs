@@ -20,7 +20,8 @@ use crate::pac::{
     Interrupt, TIMER0, TIMER1, TIMER2,
 };
 use cast::u32;
-use embedded_hal::{
+use embedded_hal::delay::DelayNs;
+use embedded_hal_02::{
     blocking::delay::{DelayMs, DelayUs},
     prelude::*,
     timer,
@@ -299,7 +300,7 @@ where
     T: Instance,
 {
     fn delay_ms(&mut self, ms: u32) {
-        self.delay_us(ms * 1_000);
+        DelayUs::delay_us(self, ms * 1_000);
     }
 }
 
@@ -308,7 +309,7 @@ where
     T: Instance,
 {
     fn delay_ms(&mut self, ms: u16) {
-        self.delay_ms(u32(ms));
+        DelayMs::delay_ms(self, u32(ms));
     }
 }
 
@@ -317,7 +318,7 @@ where
     T: Instance,
 {
     fn delay_ms(&mut self, ms: u8) {
-        self.delay_ms(u32(ms));
+        DelayMs::delay_ms(self, u32(ms));
     }
 }
 
@@ -335,7 +336,7 @@ where
     T: Instance,
 {
     fn delay_us(&mut self, us: u16) {
-        self.delay_us(u32(us))
+        DelayUs::delay_us(self, u32(us))
     }
 }
 
@@ -344,7 +345,13 @@ where
     T: Instance,
 {
     fn delay_us(&mut self, us: u8) {
-        self.delay_us(u32(us))
+        DelayUs::delay_us(self, u32(us))
+    }
+}
+
+impl<T: Instance, U> DelayNs for Timer<T, U> {
+    fn delay_ns(&mut self, ns: u32) {
+        self.delay(ns / 1_000);
     }
 }
 

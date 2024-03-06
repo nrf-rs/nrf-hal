@@ -36,7 +36,7 @@ use core::{
     hint::unreachable_unchecked,
     sync::atomic::{compiler_fence, Ordering::SeqCst},
 };
-use embedded_hal::adc::{Channel, OneShot};
+use embedded_hal_02::adc::{Channel, OneShot};
 
 pub use saadc::{
     ch::config::{GAIN_A as Gain, REFSEL_A as Reference, RESP_A as Resistor, TACQ_A as Time},
@@ -230,7 +230,7 @@ macro_rules! channel_mappings {
             impl<STATE> Channel<Saadc> for crate::gpio::p0::$pin<STATE> {
                 type ID = u8;
 
-                fn channel() -> <Self as embedded_hal::adc::Channel<Saadc>>::ID {
+                fn channel() -> <Self as embedded_hal_02::adc::Channel<Saadc>>::ID {
                     $n
                 }
             }
@@ -266,7 +266,7 @@ channel_mappings! {
 impl Channel<Saadc> for InternalVdd {
     type ID = u8;
 
-    fn channel() -> <Self as embedded_hal::adc::Channel<Saadc>>::ID {
+    fn channel() -> <Self as embedded_hal_02::adc::Channel<Saadc>>::ID {
         8
     }
 }
@@ -279,7 +279,7 @@ pub struct InternalVdd;
 impl Channel<Saadc> for InternalVddHdiv5 {
     type ID = u8;
 
-    fn channel() -> <Self as embedded_hal::adc::Channel<Saadc>>::ID {
+    fn channel() -> <Self as embedded_hal_02::adc::Channel<Saadc>>::ID {
         13
     }
 }

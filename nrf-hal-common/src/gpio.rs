@@ -1,4 +1,4 @@
-use core::marker::PhantomData;
+use core::{convert::Infallible, marker::PhantomData};
 
 /// Disconnected pin in input mode (type state, reset value).
 pub struct Disconnected;
@@ -85,7 +85,7 @@ use crate::pac::P1;
 #[cfg(feature = "5340-net")]
 use crate::pac::P1_NS as P1;
 
-use crate::hal::digital::v2::{InputPin, OutputPin, StatefulOutputPin};
+use embedded_hal::digital::{ErrorType, InputPin, OutputPin, StatefulOutputPin};
 use void::Void;
 
 impl<MODE> Pin<MODE> {
@@ -348,19 +348,63 @@ impl<MODE> Pin<MODE> {
     }
 }
 
-impl<MODE> InputPin for Pin<Input<MODE>> {
-    type Error = Void;
+impl<MODE> ErrorType for Pin<MODE> {
+    type Error = Infallible;
+}
 
-    fn is_high(&self) -> Result<bool, Self::Error> {
+impl<MODE> InputPin for Pin<Input<MODE>> {
+    fn is_high(&mut self) -> Result<bool, Self::Error> {
         self.is_low().map(|v| !v)
     }
 
-    fn is_low(&self) -> Result<bool, Self::Error> {
+    fn is_low(&mut self) -> Result<bool, Self::Error> {
         Ok(self.block().in_.read().bits() & (1 << self.pin()) == 0)
     }
 }
 
 impl InputPin for Pin<Output<OpenDrainIO>> {
+    fn is_high(&mut self) -> Result<bool, Self::Error> {
+        self.is_low().map(|v| !v)
+    }
+
+    fn is_low(&mut self) -> Result<bool, Self::Error> {
+        Ok(self.block().in_.read().bits() & (1 << self.pin()) == 0)
+    }
+}
+
+impl<MODE> OutputPin for Pin<Output<MODE>> {
+    fn set_high(&mut self) -> Result<(), Self::Error> {
+        // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+        // TODO - I wish I could do something like `.pins$i()`...
+        unsafe {
+            self.block().outset.write(|w| w.bits(1u32 << self.pin()));
+        }
+        Ok(())
+    }
+
+    fn set_low(&mut self) -> Result<(), Self::Error> {
+        // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+        // TODO - I wish I could do something like `.pins$i()`...
+        unsafe {
+            self.block().outclr.write(|w| w.bits(1u32 << self.pin()));
+        }
+        Ok(())
+    }
+}
+
+impl<MODE> StatefulOutputPin for Pin<Output<MODE>> {
+    fn is_set_high(&mut self) -> Result<bool, Self::Error> {
+        self.is_set_low().map(|v| !v)
+    }
+
+    fn is_set_low(&mut self) -> Result<bool, Self::Error> {
+        // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
+        // TODO - I wish I could do something like `.pins$i()`...
+        Ok(self.block().out.read().bits() & (1 << self.pin()) == 0)
+    }
+}
+
+impl<MODE> embedded_hal_02::digital::v2::InputPin for Pin<Input<MODE>> {
     type Error = Void;
 
     fn is_high(&self) -> Result<bool, Self::Error> {
@@ -372,7 +416,19 @@ impl InputPin for Pin<Output<OpenDrainIO>> {
     }
 }
 
-impl<MODE> OutputPin for Pin<Output<MODE>> {
+impl embedded_hal_02::digital::v2::InputPin for Pin<Output<OpenDrainIO>> {
+    type Error = Void;
+
+    fn is_high(&self) -> Result<bool, Self::Error> {
+        self.is_low().map(|v| !v)
+    }
+
+    fn is_low(&self) -> Result<bool, Self::Error> {
+        Ok(self.block().in_.read().bits() & (1 << self.pin()) == 0)
+    }
+}
+
+impl<MODE> embedded_hal_02::digital::v2::OutputPin for Pin<Output<MODE>> {
     type Error = Void;
 
     /// Set the output as high.
@@ -396,7 +452,7 @@ impl<MODE> OutputPin for Pin<Output<MODE>> {
     }
 }
 
-impl<MODE> StatefulOutputPin for Pin<Output<MODE>> {
+impl<MODE> embedded_hal_02::digital::v2::StatefulOutputPin for Pin<Output<MODE>> {
     /// Is the output pin set as high?
     fn is_set_high(&self) -> Result<bool, Self::Error> {
         self.is_set_low().map(|v| !v)
@@ -482,9 +538,9 @@ macro_rules! gpio {
                 $PX
             };
 
-            use crate::hal::digital::v2::{OutputPin, StatefulOutputPin, InputPin};
+            use core::convert::Infallible;
+            use embedded_hal::digital::{ErrorType, InputPin, OutputPin, StatefulOutputPin};
             use void::Void;
-
 
             // ===============================================================
             // This chunk allows you to obtain an nrf-hal gpio from the
@@ -695,7 +751,58 @@ macro_rules! gpio {
                     }
                 }
 
+                impl<MODE> ErrorType for $PXi<MODE> {
+                    type Error = Infallible;
+                }
+
                 impl<MODE> InputPin for $PXi<Input<MODE>> {
+                    fn is_high(&mut self) -> Result<bool, Self::Error> {
+                        self.is_low().map(|v| !v)
+                    }
+
+                    fn is_low(&mut self) -> Result<bool, Self::Error> {
+                        Ok(unsafe { ((*$PX::ptr()).in_.read().bits() & (1 << $i)) == 0 })
+                    }
+                }
+
+                impl InputPin for $PXi<Output<OpenDrainIO>> {
+                    fn is_high(&mut self) -> Result<bool, Self::Error> {
+                        self.is_low().map(|v| !v)
+                    }
+
+                    fn is_low(&mut self) -> Result<bool, Self::Error> {
+                        Ok(unsafe { ((*$PX::ptr()).in_.read().bits() & (1 << $i)) == 0 })
+                    }
+                }
+                impl<MODE> OutputPin for $PXi<Output<MODE>> {
+                    fn set_high(&mut self) -> Result<(), Self::Error> {
+                        // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+                        // TODO - I wish I could do something like `.pins$i()`...
+                        unsafe { (*$PX::ptr()).outset.write(|w| w.bits(1u32 << $i)); }
+                        Ok(())
+                    }
+
+                    fn set_low(&mut self) -> Result<(), Self::Error> {
+                        // NOTE(unsafe) atomic write to a stateless register - TODO(AJM) verify?
+                        // TODO - I wish I could do something like `.pins$i()`...
+                        unsafe { (*$PX::ptr()).outclr.write(|w| w.bits(1u32 << $i)); }
+                        Ok(())
+                    }
+                }
+
+                impl<MODE> StatefulOutputPin for $PXi<Output<MODE>> {
+                    fn is_set_high(&mut self) -> Result<bool, Self::Error> {
+                        self.is_set_low().map(|v| !v)
+                    }
+
+                    fn is_set_low(&mut self) -> Result<bool, Self::Error> {
+                        // NOTE(unsafe) atomic read with no side effects - TODO(AJM) verify?
+                        // TODO - I wish I could do something like `.pins$i()`...
+                        Ok(unsafe { ((*$PX::ptr()).out.read().bits() & (1 << $i)) == 0 })
+                    }
+                }
+
+                impl<MODE> embedded_hal_02::digital::v2::InputPin for $PXi<Input<MODE>> {
                     type Error = Void;
 
                     fn is_high(&self) -> Result<bool, Self::Error> {
@@ -707,7 +814,7 @@ macro_rules! gpio {
                     }
                 }
 
-                impl InputPin for $PXi<Output<OpenDrainIO>> {
+                impl embedded_hal_02::digital::v2::InputPin for $PXi<Output<OpenDrainIO>> {
                     type Error = Void;
 
                     fn is_high(&self) -> Result<bool, Self::Error> {
@@ -725,7 +832,7 @@ macro_rules! gpio {
                     }
                 }
 
-                impl<MODE> OutputPin for $PXi<Output<MODE>> {
+                impl<MODE> embedded_hal_02::digital::v2::OutputPin for $PXi<Output<MODE>> {
                     type Error = Void;
 
                     /// Set the output as high
@@ -745,7 +852,7 @@ macro_rules! gpio {
                     }
                 }
 
-                impl<MODE> StatefulOutputPin for $PXi<Output<MODE>> {
+                impl<MODE> embedded_hal_02::digital::v2::StatefulOutputPin for $PXi<Output<MODE>> {
                     /// Is the output pin set as high?
                     fn is_set_high(&self) -> Result<bool, Self::Error> {
                         self.is_set_low().map(|v| !v)

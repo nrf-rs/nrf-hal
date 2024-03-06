@@ -6,7 +6,7 @@ use core::{
     sync::atomic::{self, Ordering},
 };
 
-use embedded_hal::timer::CountDown as _;
+use embedded_hal_02::timer::CountDown as _;
 
 use crate::{
     clocks::{Clocks, ExternalOscillator},
