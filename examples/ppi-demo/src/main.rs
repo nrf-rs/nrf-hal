@@ -41,7 +41,6 @@ use {
     },
     cortex_m::interrupt::Mutex,
     cortex_m_rt::entry,
-    embedded_hal::timer::CountDown,
     hal::{
         pac::{interrupt, Interrupt, RADIO},
         ppi,

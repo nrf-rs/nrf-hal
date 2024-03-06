@@ -14,7 +14,6 @@ use embedded_hal_02::blocking::serial as bserial;
 use embedded_hal_02::digital::v2::OutputPin;
 use embedded_hal_02::serial;
 use embedded_hal_02::serial::Write as _;
-use embedded_hal_02::timer::CountDown as _;
 use embedded_io::{ErrorKind, ErrorType, ReadReady, WriteReady};
 
 #[cfg(any(feature = "52833", feature = "52840"))]
@@ -264,7 +263,7 @@ where
 
         loop {
             event_complete |= self.0.events_endrx.read().bits() != 0;
-            timeout_occured |= timer.wait().is_ok();
+            timeout_occured |= timer.reset_if_finished();
             if event_complete || timeout_occured {
                 break;
             }
