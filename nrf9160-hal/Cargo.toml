@@ -25,5 +25,6 @@ version = "=0.16.1"
 
 [features]
 doc = []
+embedded-hal-02 = ["nrf-hal-common/embedded-hal-02"]
 rt = ["nrf9160-pac/rt"]
-default = ["rt"]
+default = ["rt", "embedded-hal-02"]

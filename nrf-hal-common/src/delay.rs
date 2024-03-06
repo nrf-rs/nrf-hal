@@ -5,7 +5,6 @@ use core::convert::TryInto;
 use cortex_m::peripheral::syst::SystClkSource;
 use cortex_m::peripheral::SYST;
 use embedded_hal::delay::DelayNs;
-use embedded_hal_02::blocking::delay::{DelayMs, DelayUs};
 
 /// System timer (SysTick) as a delay provider.
 pub struct Delay {
@@ -26,37 +25,43 @@ impl Delay {
     }
 }
 
-impl DelayMs<u32> for Delay {
+#[cfg(feature = "embedded-hal-02")]
+impl embedded_hal_02::blocking::delay::DelayMs<u32> for Delay {
     fn delay_ms(&mut self, ms: u32) {
         DelayNs::delay_ms(self, ms);
     }
 }
 
-impl DelayMs<u16> for Delay {
+#[cfg(feature = "embedded-hal-02")]
+impl embedded_hal_02::blocking::delay::DelayMs<u16> for Delay {
     fn delay_ms(&mut self, ms: u16) {
         DelayNs::delay_ms(self, ms.into());
     }
 }
 
-impl DelayMs<u8> for Delay {
+#[cfg(feature = "embedded-hal-02")]
+impl embedded_hal_02::blocking::delay::DelayMs<u8> for Delay {
     fn delay_ms(&mut self, ms: u8) {
         DelayNs::delay_ms(self, ms.into());
     }
 }
 
-impl DelayUs<u32> for Delay {
+#[cfg(feature = "embedded-hal-02")]
+impl embedded_hal_02::blocking::delay::DelayUs<u32> for Delay {
     fn delay_us(&mut self, us: u32) {
         DelayNs::delay_us(self, us);
     }
 }
 
-impl DelayUs<u16> for Delay {
+#[cfg(feature = "embedded-hal-02")]
+impl embedded_hal_02::blocking::delay::DelayUs<u16> for Delay {
     fn delay_us(&mut self, us: u16) {
         DelayNs::delay_us(self, us.into());
     }
 }
 
-impl DelayUs<u8> for Delay {
+#[cfg(feature = "embedded-hal-02")]
+impl embedded_hal_02::blocking::delay::DelayUs<u8> for Delay {
     fn delay_us(&mut self, us: u8) {
         DelayNs::delay_us(self, us.into());
     }

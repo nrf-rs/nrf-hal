@@ -80,6 +80,7 @@ optional = true
 package = "embedded-hal"
 features = ["unproven"]
 version = "0.2.7"
+optional = true
 
 [dependencies.embedded-hal]
 version = "1.0.0"

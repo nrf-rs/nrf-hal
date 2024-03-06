@@ -21,7 +21,7 @@ use crate::pac::TWIM1;
 
 use crate::{
     gpio::{Floating, Input, Pin},
-    slice_in_ram, slice_in_ram_or,
+    slice_in_ram_or,
     target_constants::{EASY_DMA_SIZE, FORCE_COPY_BUFFER_SIZE},
 };
 
@@ -394,6 +394,7 @@ where
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl<T> embedded_hal_02::blocking::i2c::Write for Twim<T>
 where
     T: Instance,
@@ -401,7 +402,7 @@ where
     type Error = Error;
 
     fn write<'w>(&mut self, addr: u8, bytes: &'w [u8]) -> Result<(), Error> {
-        if slice_in_ram(bytes) {
+        if crate::slice_in_ram(bytes) {
             self.write(addr, bytes)
         } else {
             let buf = &mut [0; FORCE_COPY_BUFFER_SIZE][..];
@@ -414,6 +415,7 @@ where
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl<T> embedded_hal_02::blocking::i2c::Read for Twim<T>
 where
     T: Instance,
@@ -425,6 +427,7 @@ where
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl<T> embedded_hal_02::blocking::i2c::WriteRead for Twim<T>
 where
     T: Instance,
@@ -437,7 +440,7 @@ where
         bytes: &'w [u8],
         buffer: &'w mut [u8],
     ) -> Result<(), Error> {
-        if slice_in_ram(bytes) {
+        if crate::slice_in_ram(bytes) {
             self.write_then_read(addr, bytes, buffer)
         } else {
             self.copy_write_then_read(addr, bytes, buffer)

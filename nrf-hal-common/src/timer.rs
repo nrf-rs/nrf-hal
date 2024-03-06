@@ -19,12 +19,9 @@ use crate::pac::{
     },
     Interrupt, TIMER0, TIMER1, TIMER2,
 };
+#[cfg(feature = "embedded-hal-02")]
 use cast::u32;
 use embedded_hal::delay::DelayNs;
-use embedded_hal_02::{
-    blocking::delay::{DelayMs, DelayUs},
-    timer,
-};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::{TIMER3, TIMER4};
@@ -263,7 +260,8 @@ where
     }
 }
 
-impl<T, U> timer::CountDown for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::timer::CountDown for Timer<T, U>
 where
     T: Instance,
 {
@@ -297,7 +295,8 @@ where
     }
 }
 
-impl<T, U> timer::Cancel for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::timer::Cancel for Timer<T, U>
 where
     T: Instance,
 {
@@ -309,36 +308,41 @@ where
     }
 }
 
-impl<T> timer::Periodic for Timer<T, Periodic> where T: Instance {}
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::timer::Periodic for Timer<T, Periodic> where T: Instance {}
 
-impl<T, U> DelayMs<u32> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayMs<u32> for Timer<T, U>
 where
     T: Instance,
 {
     fn delay_ms(&mut self, ms: u32) {
-        DelayUs::delay_us(self, ms * 1_000);
+        embedded_hal_02::blocking::delay::DelayUs::delay_us(self, ms * 1_000);
     }
 }
 
-impl<T, U> DelayMs<u16> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayMs<u16> for Timer<T, U>
 where
     T: Instance,
 {
     fn delay_ms(&mut self, ms: u16) {
-        DelayMs::delay_ms(self, u32(ms));
+        embedded_hal_02::blocking::delay::DelayMs::delay_ms(self, u32(ms));
     }
 }
 
-impl<T, U> DelayMs<u8> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayMs<u8> for Timer<T, U>
 where
     T: Instance,
 {
     fn delay_ms(&mut self, ms: u8) {
-        DelayMs::delay_ms(self, u32(ms));
+        embedded_hal_02::blocking::delay::DelayMs::delay_ms(self, u32(ms));
     }
 }
 
-impl<T, U> DelayUs<u32> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayUs<u32> for Timer<T, U>
 where
     T: Instance,
 {
@@ -347,21 +351,23 @@ where
     }
 }
 
-impl<T, U> DelayUs<u16> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayUs<u16> for Timer<T, U>
 where
     T: Instance,
 {
     fn delay_us(&mut self, us: u16) {
-        DelayUs::delay_us(self, u32(us))
+        embedded_hal_02::blocking::delay::DelayUs::delay_us(self, u32(us))
     }
 }
 
-impl<T, U> DelayUs<u8> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayUs<u8> for Timer<T, U>
 where
     T: Instance,
 {
     fn delay_us(&mut self, us: u8) {
-        DelayUs::delay_us(self, u32(us))
+        embedded_hal_02::blocking::delay::DelayUs::delay_us(self, u32(us))
     }
 }
 
