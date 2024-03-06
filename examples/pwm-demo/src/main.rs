@@ -5,7 +5,7 @@ use {core::panic::PanicInfo, nrf52840_hal as hal, rtt_target::rprintln};
 
 #[rtic::app(device = crate::hal::pac, peripherals = true, dispatchers = [SWI0_EGU0])]
 mod app {
-    use embedded_hal::digital::v2::InputPin;
+    use embedded_hal::digital::InputPin;
     use {
         hal::{
             gpio::{p0::Parts, Input, Level, Pin, PullUp},

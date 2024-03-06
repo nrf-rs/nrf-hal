@@ -11,10 +11,6 @@ publish = false
 cortex-m = "0.7.3"
 cortex-m-rt = "0.7.0"
 
-[dependencies.embedded-hal]
-version = "0.2.3"
-features = ["unproven"]
-
 [dependencies.nrf9160-hal]
 features = ["rt"]
 path = "../../nrf9160-hal"
