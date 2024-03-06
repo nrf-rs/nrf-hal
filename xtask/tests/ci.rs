@@ -33,10 +33,30 @@ fn main() {
 
     // Build-test every HAL.
     for (hal, target) in HALS {
-        let mut cargo = Command::new("cargo");
         let toml_path = format!("{}/Cargo.toml", hal);
+        // With default features.
+        let mut cargo = Command::new("cargo");
         let status = cargo
             .args(&["build", "--manifest-path", &toml_path, "--target", target])
+            .status()
+            .map_err(|e| format!("could not execute {:?}: {}", cargo, e))
+            .unwrap();
+        assert!(
+            status.success(),
+            "command exited with error status: {:?}",
+            cargo
+        );
+        // Without default features.
+        let mut cargo = Command::new("cargo");
+        let status = cargo
+            .args(&[
+                "build",
+                "--manifest-path",
+                &toml_path,
+                "--target",
+                target,
+                "--no-default-features",
+            ])
             .status()
             .map_err(|e| format!("could not execute {:?}: {}", cargo, e))
             .unwrap();
@@ -104,11 +124,17 @@ fn main() {
         }
     }
 
-
     let mut cargo = Command::new("cargo");
     let toml_path = "nrf52840-hal-tests/Cargo.toml";
     let status = cargo
-        .args(&["build", "--manifest-path", &toml_path, "--target", "thumbv7em-none-eabihf", "--tests"])
+        .args(&[
+            "build",
+            "--manifest-path",
+            &toml_path,
+            "--target",
+            "thumbv7em-none-eabihf",
+            "--tests",
+        ])
         .status()
         .map_err(|e| format!("could not execute {:?}: {}", cargo, e))
         .unwrap();
