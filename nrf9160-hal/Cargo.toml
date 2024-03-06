@@ -23,10 +23,6 @@ default-features = false
 features = ["9160"]
 version = "=0.16.1"
 
-[dependencies.embedded-hal]
-features = ["unproven"]
-version = "0.2.3"
-
 [features]
 doc = []
 rt = ["nrf9160-pac/rt"]

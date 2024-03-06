@@ -1,11 +1,9 @@
 #![no_std]
 #![doc(html_root_url = "https://docs.rs/nrf52840-hal/0.16.1")]
 
-use embedded_hal as hal;
 pub use nrf_hal_common::*;
 
 pub mod prelude {
-    pub use crate::hal::prelude::*;
     pub use nrf_hal_common::prelude::*;
 
     pub use crate::time::U32Ext;

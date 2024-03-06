@@ -27,10 +27,6 @@ default-features = false
 features = ["52833"]
 version = "=0.16.1"
 
-[dependencies.embedded-hal]
-features = ["unproven"]
-version = "0.2.3"
-
 [features]
 doc = []
 rt = ["nrf52833-pac/rt"]

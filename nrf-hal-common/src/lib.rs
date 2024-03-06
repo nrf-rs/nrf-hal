@@ -112,9 +112,6 @@ pub mod usbd;
 pub mod wdt;
 
 pub mod prelude {
-    pub use embedded_hal_02::digital::v2::*;
-    pub use embedded_hal_02::prelude::*;
-
     #[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
     pub use crate::ppi::{ConfigurablePpi, Ppi};
     pub use crate::time::U32Ext;

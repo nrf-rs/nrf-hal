@@ -6,6 +6,7 @@
 #![cfg_attr(not(feature = "52840"), doc = "```ignore")]
 //! # use nrf_hal_common as hal;
 //! # use hal::pac::{saadc, SAADC};
+//! # use embedded_hal_02::adc::OneShot;
 //! // substitute `hal` with the HAL of your board, e.g. `nrf52840_hal`
 //! use hal::{
 //!    pac::Peripherals,

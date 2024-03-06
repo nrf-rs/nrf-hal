@@ -20,10 +20,6 @@ default-features = false
 features = ["5340-net"]
 version = "=0.16.1"
 
-[dependencies.embedded-hal]
-features = ["unproven"]
-version = "0.2.3"
-
 [features]
 doc = []
 rt = ["nrf5340-net-pac/rt"]

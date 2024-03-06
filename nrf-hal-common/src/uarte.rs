@@ -13,6 +13,8 @@ use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 use embedded_hal_02::blocking::serial as bserial;
 use embedded_hal_02::digital::v2::OutputPin;
 use embedded_hal_02::serial;
+use embedded_hal_02::serial::Write as _;
+use embedded_hal_02::timer::CountDown as _;
 use embedded_io::{ErrorKind, ErrorType, ReadReady, WriteReady};
 
 #[cfg(any(feature = "52833", feature = "52840"))]
@@ -34,7 +36,6 @@ use crate::pac::UARTE1_NS as UARTE1;
 use crate::pac::{uarte0, UARTE0};
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
-use crate::prelude::*;
 use crate::slice_in_ram_or;
 use crate::target_constants::EASY_DMA_SIZE;
 use crate::timer::{self, Timer};
