@@ -8,9 +8,8 @@
 
 use defmt_rtt as _;
 use nrf52840_hal as _;
-use panic_probe as _;
-
 use nrf52840_hal::gpio::{Floating, Input, Pin};
+use panic_probe as _;
 
 struct State {
     input_pin: Pin<Input<Floating>>,
@@ -21,7 +20,8 @@ struct State {
 mod tests {
     use cortex_m::asm;
     use defmt::{assert, unwrap};
-    use nrf52840_hal::{gpio::p0, pac, prelude::*};
+    use embedded_hal::digital::InputPin;
+    use nrf52840_hal::{gpio::p0, pac};
 
     use super::State;
 
@@ -43,7 +43,7 @@ mod tests {
     fn pulldown_is_low(state: &mut State) {
         let puller_pin = unwrap!(state.puller_pin.take());
 
-        let pulldown_pin = puller_pin.into_pulldown_input();
+        let mut pulldown_pin = puller_pin.into_pulldown_input();
         // GPIO re-configuration is not instantaneous so a delay is needed
         asm::delay(100);
         assert!(pulldown_pin.is_low().unwrap());
@@ -65,7 +65,7 @@ mod tests {
     fn pullup_is_high(state: &mut State) {
         let puller_pin = unwrap!(state.puller_pin.take());
 
-        let pullup_pin = puller_pin.into_pullup_input();
+        let mut pullup_pin = puller_pin.into_pullup_input();
         // GPIO re-configuration is not instantaneous so a delay is needed
         asm::delay(100);
         assert!(pullup_pin.is_high().unwrap());

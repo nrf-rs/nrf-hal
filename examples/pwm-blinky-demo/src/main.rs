@@ -1,8 +1,12 @@
 #![no_main]
 #![no_std]
 
-use hal::{gpio, prelude::*, pwm, pwm::Pwm, timer, timer::Timer};
-use nb::block;
+use hal::{
+    gpio,
+    prelude::*,
+    pwm::{Channel, Pwm},
+    timer::Timer,
+};
 #[cfg(feature = "52832")]
 use nrf52832_hal as hal;
 #[cfg(feature = "52840")]
@@ -30,11 +34,11 @@ fn main() -> ! {
 
     rprintln!("PWM Blinky demo starting");
 
-    let wait_time = 1_000_000u32 / pwm.get_max_duty() as u32;
+    let wait_time = 1_000_000u32 / pwm.max_duty() as u32;
     loop {
-        for duty in 0..pwm.get_max_duty() {
+        for duty in 0..pwm.max_duty() {
             pwm.set_duty_on_common(duty);
-            delay(&mut timer, wait_time);
+            timer.delay(wait_time);
         }
     }
 }
@@ -45,7 +49,7 @@ fn init_device(p: hal::pac::Peripherals) -> (Pwm<hal::pac::PWM0_NS>, Timer<hal::
 
     let pwm = Pwm::new(p.PWM0_NS);
     pwm.set_output_pin(
-        pwm::Channel::C0,
+        Channel::C0,
         p0.p0_02.into_push_pull_output(gpio::Level::High).degrade(),
     );
 
@@ -60,7 +64,7 @@ fn init_device(p: hal::pac::Peripherals) -> (Pwm<hal::pac::PWM0>, Timer<hal::pac
 
     let pwm = Pwm::new(p.PWM0);
     pwm.set_output_pin(
-        pwm::Channel::C0,
+        Channel::C0,
         p0.p0_13.into_push_pull_output(gpio::Level::High).degrade(),
     );
 
@@ -75,19 +79,11 @@ fn init_device(p: hal::pac::Peripherals) -> (Pwm<hal::pac::PWM0>, Timer<hal::pac
 
     let pwm = Pwm::new(p.PWM0);
     pwm.set_output_pin(
-        pwm::Channel::C0,
+        Channel::C0,
         p0.p0_30.into_push_pull_output(gpio::Level::High).degrade(),
     );
 
     let timer = Timer::new(p.TIMER0);
 
     (pwm, timer)
-}
-
-fn delay<T>(timer: &mut Timer<T>, cycles: u32)
-where
-    T: timer::Instance,
-{
-    timer.start(cycles);
-    let _ = block!(timer.wait());
 }

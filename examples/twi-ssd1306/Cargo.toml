@@ -14,10 +14,6 @@ ssd1306 = "0.2.6"
 embedded-graphics = "0.4.7"
 panic-semihosting = "0.5.3"
 
-[dependencies.embedded-hal]
-features = ["unproven"]
-version = "0.2"
-
 [dependencies.nrf52832-hal]
 path = "../../nrf52832-hal"
 optional = true

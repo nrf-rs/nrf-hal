@@ -19,7 +19,7 @@ mod app {
         spim::{self, Frequency, Mode as SPIMode, Phase, Polarity, Spim},
     };
     use crate::Aligned;
-    use embedded_hal::blocking::spi::Write;
+    use embedded_hal::spi::SpiBus;
     use rtt_target::{rprintln, rtt_init_print};
 
     const OFF: [u8; 9] = [0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF];
@@ -105,7 +105,7 @@ mod app {
                 10_338..=16_383 => &ORANGE,
                 _ => &RED,
             };
-            <Spim<SPIM0> as Write<u8>>::write(ctx.local.rgb, color).ok();
+            <Spim<SPIM0> as SpiBus<u8>>::write(ctx.local.rgb, color).ok();
         }
         *ctx.local.transfer = i2s.rx(rx_buf).ok();
     }

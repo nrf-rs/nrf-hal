@@ -3,13 +3,11 @@
 
 extern crate cortex_m_rt as rt; // v0.5.x
 
-extern crate embedded_hal_spy;
 extern crate nrf52832_hal;
 extern crate panic_halt;
-use embedded_hal::blocking::spi::*;
-
 use cortex_m_rt::entry;
-use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::digital::OutputPin;
+use embedded_hal::spi::SpiBus;
 use nrf52832_hal::gpio;
 use nrf52832_hal::gpio::p0::*;
 use nrf52832_hal::gpio::Level;
@@ -90,10 +88,7 @@ fn main() -> ! {
         }
     }
 
-    // Wrap interface in embedded-hal-spy to access embedded_hal traits
-    let mut eh_spi = embedded_hal_spy::new(spi, |_| {});
-    use embedded_hal::blocking::spi::Write;
-    match eh_spi.write(reference_data) {
+    match SpiBus::write(&mut spi, reference_data) {
         Ok(_) => {}
         Err(_) => {
             tests_ok = false;
@@ -102,7 +97,7 @@ fn main() -> ! {
     }
 
     let mut test_vec2 = *reference_data;
-    match eh_spi.transfer(&mut test_vec2) {
+    match SpiBus::transfer_in_place(&mut spi, &mut test_vec2) {
         Ok(_) => {
             for i in 0..test_vec2.len() {
                 if test_vec2[i] != reference_data[i] {

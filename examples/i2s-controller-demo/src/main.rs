@@ -13,7 +13,7 @@ pub struct Aligned<T: ?Sized>(T);
 #[rtic::app(device = crate::hal::pac, peripherals = true, dispatchers = [SWI0_EGU0, SWI1_EGU1])]
 mod app {
     use crate::{hal, triangle_wave, Aligned};
-    use embedded_hal::digital::v2::{InputPin, OutputPin};
+    use embedded_hal::digital::{InputPin, OutputPin};
     use heapless::spsc::{Consumer, Producer, Queue};
     use small_morse::{encode, State};
     use systick_monotonic::*;

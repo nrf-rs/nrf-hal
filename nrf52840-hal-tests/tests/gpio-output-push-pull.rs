@@ -8,9 +8,8 @@
 
 use defmt_rtt as _;
 use nrf52840_hal as _;
-use panic_probe as _;
-
 use nrf52840_hal::gpio::{Floating, Input, Output, Pin, PushPull};
+use panic_probe as _;
 
 struct State {
     input_pin: Pin<Input<Floating>>,
@@ -21,10 +20,10 @@ struct State {
 mod tests {
     use cortex_m::asm;
     use defmt::{assert, unwrap};
+    use embedded_hal::digital::{InputPin, OutputPin};
     use nrf52840_hal::{
         gpio::{p0, Level},
         pac,
-        prelude::*,
     };
 
     use super::State;
