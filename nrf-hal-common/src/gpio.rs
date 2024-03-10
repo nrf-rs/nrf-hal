@@ -86,7 +86,6 @@ use crate::pac::P1;
 use crate::pac::P1_NS as P1;
 
 use embedded_hal::digital::{ErrorType, InputPin, OutputPin, StatefulOutputPin};
-use void::Void;
 
 impl<MODE> Pin<MODE> {
     fn new(port: Port, pin: u8) -> Self {
@@ -232,9 +231,11 @@ impl<MODE> Pin<MODE> {
     }
 
     /// Convert the pin to be a push-pull output with specified drive.
-    pub fn into_push_pull_output_drive(self, initial_output: Level, drive: DriveConfig) ->
-        Pin<Output<PushPull>>
-    {
+    pub fn into_push_pull_output_drive(
+        self,
+        initial_output: Level,
+        drive: DriveConfig,
+    ) -> Pin<Output<PushPull>> {
         let mut pin = Pin {
             _mode: PhantomData,
             pin_port: self.pin_port,
@@ -404,8 +405,9 @@ impl<MODE> StatefulOutputPin for Pin<Output<MODE>> {
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl<MODE> embedded_hal_02::digital::v2::InputPin for Pin<Input<MODE>> {
-    type Error = Void;
+    type Error = void::Void;
 
     fn is_high(&self) -> Result<bool, Self::Error> {
         self.is_low().map(|v| !v)
@@ -416,8 +418,9 @@ impl<MODE> embedded_hal_02::digital::v2::InputPin for Pin<Input<MODE>> {
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl embedded_hal_02::digital::v2::InputPin for Pin<Output<OpenDrainIO>> {
-    type Error = Void;
+    type Error = void::Void;
 
     fn is_high(&self) -> Result<bool, Self::Error> {
         self.is_low().map(|v| !v)
@@ -428,8 +431,9 @@ impl embedded_hal_02::digital::v2::InputPin for Pin<Output<OpenDrainIO>> {
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl<MODE> embedded_hal_02::digital::v2::OutputPin for Pin<Output<MODE>> {
-    type Error = Void;
+    type Error = void::Void;
 
     /// Set the output as high.
     fn set_high(&mut self) -> Result<(), Self::Error> {
@@ -452,6 +456,7 @@ impl<MODE> embedded_hal_02::digital::v2::OutputPin for Pin<Output<MODE>> {
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl<MODE> embedded_hal_02::digital::v2::StatefulOutputPin for Pin<Output<MODE>> {
     /// Is the output pin set as high?
     fn is_set_high(&self) -> Result<bool, Self::Error> {
@@ -540,7 +545,6 @@ macro_rules! gpio {
 
             use core::convert::Infallible;
             use embedded_hal::digital::{ErrorType, InputPin, OutputPin, StatefulOutputPin};
-            use void::Void;
 
             // ===============================================================
             // This chunk allows you to obtain an nrf-hal gpio from the
@@ -802,8 +806,9 @@ macro_rules! gpio {
                     }
                 }
 
+                #[cfg(feature = "embedded-hal-02")]
                 impl<MODE> embedded_hal_02::digital::v2::InputPin for $PXi<Input<MODE>> {
-                    type Error = Void;
+                    type Error = void::Void;
 
                     fn is_high(&self) -> Result<bool, Self::Error> {
                         self.is_low().map(|v| !v)
@@ -814,8 +819,9 @@ macro_rules! gpio {
                     }
                 }
 
+                #[cfg(feature = "embedded-hal-02")]
                 impl embedded_hal_02::digital::v2::InputPin for $PXi<Output<OpenDrainIO>> {
-                    type Error = Void;
+                    type Error = void::Void;
 
                     fn is_high(&self) -> Result<bool, Self::Error> {
                         self.is_low().map(|v| !v)
@@ -832,8 +838,9 @@ macro_rules! gpio {
                     }
                 }
 
+                #[cfg(feature = "embedded-hal-02")]
                 impl<MODE> embedded_hal_02::digital::v2::OutputPin for $PXi<Output<MODE>> {
-                    type Error = Void;
+                    type Error = void::Void;
 
                     /// Set the output as high
                     fn set_high(&mut self) -> Result<(), Self::Error> {
@@ -852,6 +859,7 @@ macro_rules! gpio {
                     }
                 }
 
+                #[cfg(feature = "embedded-hal-02")]
                 impl<MODE> embedded_hal_02::digital::v2::StatefulOutputPin for $PXi<Output<MODE>> {
                     /// Is the output pin set as high?
                     fn is_set_high(&self) -> Result<bool, Self::Error> {

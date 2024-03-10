@@ -869,6 +869,7 @@ where
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl<T: Instance> embedded_hal_02::Pwm for Pwm<T> {
     type Channel = Channel;
     type Duty = u16;
@@ -946,6 +947,7 @@ impl<'a, T: Instance> PwmChannel<'a, T> {
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl<'a, T: Instance> embedded_hal_02::PwmPin for PwmChannel<'a, T> {
     type Duty = u16;
 
@@ -1024,6 +1026,7 @@ impl<'a, T: Instance> PwmGroup<'a, T> {
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl<'a, T: Instance> embedded_hal_02::PwmPin for PwmGroup<'a, T> {
     type Duty = u16;
 

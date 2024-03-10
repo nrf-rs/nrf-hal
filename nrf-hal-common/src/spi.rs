@@ -7,11 +7,7 @@ use crate::{
 };
 
 use core::{cmp::max, convert::Infallible, hint::spin_loop};
-use embedded_hal::spi::{ErrorType, SpiBus};
-pub use embedded_hal_02::{
-    blocking::spi::{transfer, write, write_iter},
-    spi::{FullDuplex, Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3},
-};
+use embedded_hal::spi::{ErrorType, Mode, SpiBus, MODE_0, MODE_1, MODE_2, MODE_3};
 pub use spi0::frequency::FREQUENCY_A as Frequency;
 
 /// Value written out if the caller requests a read without data to write.
@@ -20,26 +16,32 @@ const DEFAULT_WRITE: u8 = 0x00;
 /// Interface to a SPI instance.
 pub struct Spi<T>(T);
 
-impl<T> write::Default<u8> for Spi<T>
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::blocking::spi::write::Default<u8> for Spi<T>
 where
-    Spi<T>: FullDuplex<u8>,
-    T: Instance,
-{
-}
-impl<T> write_iter::Default<u8> for Spi<T>
-where
-    Spi<T>: FullDuplex<u8>,
-    T: Instance,
-{
-}
-impl<T> transfer::Default<u8> for Spi<T>
-where
-    Spi<T>: FullDuplex<u8>,
+    Spi<T>: embedded_hal_02::spi::FullDuplex<u8>,
     T: Instance,
 {
 }
 
-impl<T> FullDuplex<u8> for Spi<T>
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::blocking::spi::write_iter::Default<u8> for Spi<T>
+where
+    Spi<T>: embedded_hal_02::spi::FullDuplex<u8>,
+    T: Instance,
+{
+}
+
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::blocking::spi::transfer::Default<u8> for Spi<T>
+where
+    Spi<T>: embedded_hal_02::spi::FullDuplex<u8>,
+    T: Instance,
+{
+}
+
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::spi::FullDuplex<u8> for Spi<T>
 where
     T: Instance,
 {

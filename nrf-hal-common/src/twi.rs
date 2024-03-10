@@ -250,6 +250,7 @@ where
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl<T> embedded_hal_02::blocking::i2c::Write for Twi<T>
 where
     T: Instance,
@@ -261,6 +262,7 @@ where
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl<T> embedded_hal_02::blocking::i2c::Read for Twi<T>
 where
     T: Instance,
@@ -272,6 +274,7 @@ where
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl<T> embedded_hal_02::blocking::i2c::WriteRead for Twi<T>
 where
     T: Instance,

@@ -4,9 +4,7 @@ use core::convert::Infallible;
 use core::fmt::{self, Write};
 use core::hint::spin_loop;
 use core::ops::Deref;
-use embedded_io::{ErrorType, Read, ReadReady, WriteReady};
-use nb::block;
-use void::Void;
+use embedded_io::{ErrorType, Read, ReadReady, Write as _, WriteReady};
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::pac::{uart0, UART0};
@@ -165,6 +163,7 @@ impl<T: Instance> embedded_io::Write for Uart<T> {
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl<T> embedded_hal_02::serial::Read<u8> for Uart<T>
 where
     T: Instance,
@@ -187,11 +186,12 @@ where
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl<T> embedded_hal_02::serial::Write<u8> for Uart<T>
 where
     T: Instance,
 {
-    type Error = Void;
+    type Error = void::Void;
 
     fn flush(&mut self) -> nb::Result<(), Self::Error> {
         Ok(())
@@ -216,12 +216,10 @@ where
 
 impl<T> Write for Uart<T>
 where
-    Uart<T>: embedded_hal_02::serial::Write<u8>,
+    Uart<T>: embedded_io::Write,
 {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        use embedded_hal_02::serial::Write;
-        let _ = s.as_bytes().iter().map(|c| block!(self.write(*c))).last();
-        Ok(())
+        self.write_all(s.as_bytes()).map_err(|_| fmt::Error)
     }
 }
 

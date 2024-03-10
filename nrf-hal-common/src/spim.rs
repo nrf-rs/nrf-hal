@@ -16,7 +16,7 @@ use crate::pac::{SPIM1_NS as SPIM1, SPIM2_NS as SPIM2, SPIM3_NS as SPIM3};
 #[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
 use crate::pac::{spim0, SPIM0};
 
-pub use embedded_hal_02::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};
+pub use embedded_hal::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};
 pub use spim0::frequency::FREQUENCY_A as Frequency;
 
 use core::iter::repeat_with;
@@ -97,6 +97,7 @@ impl<T: Instance> SpiBus for Spim<T> {
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl<T> embedded_hal_02::blocking::spi::Transfer<u8> for Spim<T>
 where
     T: Instance,
@@ -115,6 +116,7 @@ where
     }
 }
 
+#[cfg(feature = "embedded-hal-02")]
 impl<T> embedded_hal_02::blocking::spi::Write<u8> for Spim<T>
 where
     T: Instance,
@@ -146,10 +148,12 @@ impl<T> Spim<T>
 where
     T: Instance,
 {
+    #[cfg(feature = "embedded-hal-02")]
     fn spi_dma_no_copy(&mut self, chunk: &[u8]) -> Result<(), Error> {
         self.do_spi_dma_transfer(DmaSlice::from_slice(chunk), DmaSlice::null())
     }
 
+    #[cfg(feature = "embedded-hal-02")]
     fn spi_dma_copy(&mut self, chunk: &[u8]) -> Result<(), Error> {
         let mut buf = [0u8; FORCE_COPY_BUFFER_SIZE];
         buf[..chunk.len()].copy_from_slice(chunk);

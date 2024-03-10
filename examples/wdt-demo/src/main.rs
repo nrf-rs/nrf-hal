@@ -14,10 +14,7 @@
 #![no_std]
 #![no_main]
 
-use embedded_hal::{
-    digital::v2::{InputPin, OutputPin},
-    timer::CountDown,
-};
+use embedded_hal::digital::{InputPin, OutputPin};
 use {
     core::panic::PanicInfo,
     hal::{
@@ -37,10 +34,10 @@ fn main() -> ! {
     rtt_init_print!();
     let p0 = hal::gpio::p0::Parts::new(p.P0);
 
-    let btn1 = p0.p0_11.into_pullup_input().degrade();
-    let btn2 = p0.p0_12.into_pullup_input().degrade();
-    let btn3 = p0.p0_24.into_pullup_input().degrade();
-    let btn4 = p0.p0_25.into_pullup_input().degrade();
+    let mut btn1 = p0.p0_11.into_pullup_input().degrade();
+    let mut btn2 = p0.p0_12.into_pullup_input().degrade();
+    let mut btn3 = p0.p0_24.into_pullup_input().degrade();
+    let mut btn4 = p0.p0_25.into_pullup_input().degrade();
 
     let mut led1 = p0.p0_13.into_push_pull_output(Level::High).degrade();
     let mut led2 = p0.p0_14.into_push_pull_output(Level::High).degrade();
@@ -102,7 +99,7 @@ fn main() -> ! {
         rprintln!("Not restarted by the dog!");
     }
 
-    let buttons = [&btn1, &btn2, &btn3, &btn4];
+    let buttons = [&mut btn1, &mut btn2, &mut btn3, &mut btn4];
 
     let leds = [&mut led1, &mut led2, &mut led3, &mut led4];
 

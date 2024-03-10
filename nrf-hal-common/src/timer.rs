@@ -19,15 +19,9 @@ use crate::pac::{
     },
     Interrupt, TIMER0, TIMER1, TIMER2,
 };
+#[cfg(feature = "embedded-hal-02")]
 use cast::u32;
 use embedded_hal::delay::DelayNs;
-use embedded_hal_02::{
-    blocking::delay::{DelayMs, DelayUs},
-    prelude::*,
-    timer,
-};
-use nb::{self, block};
-use void::{unreachable, Void};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::{TIMER3, TIMER4};
@@ -45,7 +39,7 @@ use crate::pac::timer0::{
     RegisterBlock as RegBlock3, EVENTS_COMPARE as EventsCompare3, TASKS_CAPTURE as TasksCapture3,
 };
 
-use core::marker::PhantomData;
+use core::{hint::spin_loop, marker::PhantomData};
 
 pub struct OneShot;
 pub struct Periodic;
@@ -146,11 +140,34 @@ where
         self.0.disable_interrupt();
     }
 
+    /// Starts the timer.
+    ///
+    /// The timer will run for the given number of cycles, then it will stop and
+    /// reset.
+    pub fn start(&mut self, cycles: u32) {
+        self.0.timer_start(cycles)
+    }
+
+    /// If the timer has finished, resets it and returns true.
+    ///
+    /// Returns false if the timer is still running.
+    pub fn reset_if_finished(&mut self) -> bool {
+        if self.0.timer_running() {
+            // EVENTS_COMPARE has not been triggered yet
+            return false;
+        }
+
+        self.0.timer_reset_event();
+
+        true
+    }
+
+    /// Starts the timer for the given number of cycles and waits for it to
+    /// finish.
     pub fn delay(&mut self, cycles: u32) {
         self.start(cycles);
-        match block!(self.wait()) {
-            Ok(_) => {}
-            Err(x) => unreachable(x),
+        while !self.reset_if_finished() {
+            spin_loop();
         }
     }
 
@@ -243,7 +260,8 @@ where
     }
 }
 
-impl<T, U> timer::CountDown for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::timer::CountDown for Timer<T, U>
 where
     T: Instance,
 {
@@ -268,20 +286,17 @@ where
     ///
     /// To block until the timer has stopped, use the `block!` macro from the
     /// `nb` crate. Please refer to the documentation of `nb` for other options.
-    fn wait(&mut self) -> nb::Result<(), Void> {
-        if self.0.timer_running() {
-            // EVENTS_COMPARE has not been triggered yet
-            return Err(nb::Error::WouldBlock);
+    fn wait(&mut self) -> nb::Result<(), void::Void> {
+        if self.reset_if_finished() {
+            Ok(())
+        } else {
+            Err(nb::Error::WouldBlock)
         }
-
-        // Reset the event, otherwise it will always read `1` from now on.
-        self.0.timer_reset_event();
-
-        Ok(())
     }
 }
 
-impl<T, U> timer::Cancel for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::timer::Cancel for Timer<T, U>
 where
     T: Instance,
 {
@@ -293,36 +308,41 @@ where
     }
 }
 
-impl<T> timer::Periodic for Timer<T, Periodic> where T: Instance {}
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::timer::Periodic for Timer<T, Periodic> where T: Instance {}
 
-impl<T, U> DelayMs<u32> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayMs<u32> for Timer<T, U>
 where
     T: Instance,
 {
     fn delay_ms(&mut self, ms: u32) {
-        DelayUs::delay_us(self, ms * 1_000);
+        embedded_hal_02::blocking::delay::DelayUs::delay_us(self, ms * 1_000);
     }
 }
 
-impl<T, U> DelayMs<u16> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayMs<u16> for Timer<T, U>
 where
     T: Instance,
 {
     fn delay_ms(&mut self, ms: u16) {
-        DelayMs::delay_ms(self, u32(ms));
+        embedded_hal_02::blocking::delay::DelayMs::delay_ms(self, u32(ms));
     }
 }
 
-impl<T, U> DelayMs<u8> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayMs<u8> for Timer<T, U>
 where
     T: Instance,
 {
     fn delay_ms(&mut self, ms: u8) {
-        DelayMs::delay_ms(self, u32(ms));
+        embedded_hal_02::blocking::delay::DelayMs::delay_ms(self, u32(ms));
     }
 }
 
-impl<T, U> DelayUs<u32> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayUs<u32> for Timer<T, U>
 where
     T: Instance,
 {
@@ -331,21 +351,23 @@ where
     }
 }
 
-impl<T, U> DelayUs<u16> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayUs<u16> for Timer<T, U>
 where
     T: Instance,
 {
     fn delay_us(&mut self, us: u16) {
-        DelayUs::delay_us(self, u32(us))
+        embedded_hal_02::blocking::delay::DelayUs::delay_us(self, u32(us))
     }
 }
 
-impl<T, U> DelayUs<u8> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayUs<u8> for Timer<T, U>
 where
     T: Instance,
 {
     fn delay_us(&mut self, us: u8) {
-        DelayUs::delay_us(self, u32(us))
+        embedded_hal_02::blocking::delay::DelayUs::delay_us(self, u32(us))
     }
 }
 

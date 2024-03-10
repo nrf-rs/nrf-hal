@@ -27,15 +27,12 @@ default-features = false
 features = ["51"]
 version = "=0.16.1"
 
-[dependencies.embedded-hal]
-features = ["unproven"]
-version = "0.2.3"
-
 [features]
 doc = []
+embedded-hal-02 = ["nrf-hal-common/embedded-hal-02"]
 rt = ["nrf51-pac/rt"]
 # Note: We use the xxAB package by default because it has the least amount of available resources.
-default = ["rt", "xxAB-package"]
+default = ["rt", "xxAB-package", "embedded-hal-02"]
 xxAA-package = []
 xxAB-package = []
 xxAC-package = []
