@@ -552,6 +552,7 @@ impl Instance for TWIS0 {
         feature = "9160",
         feature = "5340-app",
         feature = "5340-net",
+        feature = "52805",
         feature = "52810",
         feature = "52811"
     )))]
@@ -560,7 +561,7 @@ impl Instance for TWIS0 {
     const INTERRUPT: Interrupt = Interrupt::SERIAL0;
     #[cfg(feature = "9160")]
     const INTERRUPT: Interrupt = Interrupt::UARTE0_SPIM0_SPIS0_TWIM0_TWIS0;
-    #[cfg(feature = "52810")]
+    #[cfg(any(feature = "52805", feature = "52810"))]
     const INTERRUPT: Interrupt = Interrupt::TWIM0_TWIS0_TWI0;
     #[cfg(feature = "52811")]
     const INTERRUPT: Interrupt = Interrupt::TWIM0_TWIS0_TWI0_SPIM0_SPIS0_SPI0;

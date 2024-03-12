@@ -6,6 +6,7 @@ The AES electronic codebook mode (ECB) demo demonstrates a blocking 128-bit AES 
 
 Choose the microcontroller with one of the following features:
 - 51
+- 52805
 - 52810
 - 52811
 - 52832

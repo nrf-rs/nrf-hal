@@ -620,7 +620,8 @@ mod sealed {
         feature = "9160",
         feature = "5340-app",
         feature = "5340-net",
-        feature = "52810"
+        feature = "52810",
+        feature = "52805"
     )))]
     impl Sealed for super::SPIS1 {}
     #[cfg(not(any(
@@ -628,7 +629,8 @@ mod sealed {
         feature = "5340-app",
         feature = "5340-net",
         feature = "52811",
-        feature = "52810"
+        feature = "52810",
+        feature = "52805"
     )))]
     impl Sealed for super::SPIS2 {}
 }
@@ -643,14 +645,15 @@ impl Instance for SPIS0 {
         feature = "5340-app",
         feature = "5340-net",
         feature = "52811",
-        feature = "52810"
+        feature = "52810",
+        feature = "52805"
     )))]
     const INTERRUPT: Interrupt = Interrupt::SPIM0_SPIS0_TWIM0_TWIS0_SPI0_TWI0;
     #[cfg(feature = "9160")]
     const INTERRUPT: Interrupt = Interrupt::UARTE0_SPIM0_SPIS0_TWIM0_TWIS0;
     #[cfg(any(feature = "5340-app", feature = "5340-net"))]
     const INTERRUPT: Interrupt = Interrupt::SERIAL0;
-    #[cfg(feature = "52810")]
+    #[cfg(any(feature = "52805", feature = "52810"))]
     const INTERRUPT: Interrupt = Interrupt::SPIM0_SPIS0_SPI0;
     #[cfg(feature = "52811")]
     const INTERRUPT: Interrupt = Interrupt::TWIM0_TWIS0_TWI0_SPIM0_SPIS0_SPI0;
@@ -660,7 +663,8 @@ impl Instance for SPIS0 {
     feature = "9160",
     feature = "5340-app",
     feature = "5340-net",
-    feature = "52810"
+    feature = "52810",
+    feature = "52805"
 )))]
 impl Instance for SPIS1 {
     #[cfg(not(feature = "52811"))]
@@ -674,7 +678,8 @@ impl Instance for SPIS1 {
     feature = "5340-app",
     feature = "5340-net",
     feature = "52811",
-    feature = "52810"
+    feature = "52810",
+    feature = "52805"
 )))]
 impl Instance for SPIS2 {
     const INTERRUPT: Interrupt = Interrupt::SPIM2_SPIS2_SPI2;

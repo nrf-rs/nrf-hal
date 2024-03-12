@@ -3,6 +3,7 @@
 
 #[cfg(not(any(
     feature = "51",
+    feature = "52805",
     feature = "52810",
     feature = "52811",
     feature = "52832",
@@ -12,6 +13,7 @@
 compile_error!(
     "This example requires one of the following device features enabled:
         51
+        52805
         52810
         52811
         52832
@@ -22,6 +24,8 @@ compile_error!(
 // Import the right HAL/PAC crate, depending on the target chip
 #[cfg(feature = "51")]
 pub use nrf51_hal as hal;
+#[cfg(feature = "52805")]
+pub use nrf52805_hal as hal;
 #[cfg(feature = "52810")]
 pub use nrf52810_hal as hal;
 #[cfg(feature = "52811")]

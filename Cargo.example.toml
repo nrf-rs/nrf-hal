@@ -16,6 +16,7 @@
 resolver = "2"
 members = [
 #  Uncomment ONLY ONE of the hals below, depending on your target
+#  "nrf52805-hal",
 #  "nrf52810-hal",
 #  "nrf52811-hal",
 #  "nrf52832-hal",
