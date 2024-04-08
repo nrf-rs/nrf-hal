@@ -32,10 +32,7 @@ use crate::pac::{saadc_ns as saadc, SAADC_NS as SAADC};
 #[cfg(not(any(feature = "9160", feature = "5340-app")))]
 use crate::pac::{saadc, SAADC};
 
-use core::{
-    hint::unreachable_unchecked,
-    sync::atomic::{compiler_fence, Ordering::SeqCst},
-};
+use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
 pub use saadc::{
     ch::config::{GAIN_A as Gain, REFSEL_A as Reference, RESP_A as Resistor, TACQ_A as Time},
@@ -123,9 +120,9 @@ impl Saadc {
             8 => self.0.ch[0].pselp.write(|w| w.pselp().vdd()),
             #[cfg(any(feature = "52833", feature = "52840"))]
             13 => self.0.ch[0].pselp.write(|w| w.pselp().vddhdiv5()),
-            // This can never happen the only analog pins have already been defined
-            // PAY CLOSE ATTENTION TO ANY CHANGES TO THIS IMPL OR THE `channel_mappings!` MACRO
-            _ => unsafe { unreachable_unchecked() },
+            // This can never happen with the `Channel` implementations provided, as the only analog
+            // pins have already been covered.
+            _ => return Err(()),
         }
 
         let mut val: i16 = 0;
