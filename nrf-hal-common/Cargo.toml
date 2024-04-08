@@ -20,13 +20,13 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [dependencies]
-cortex-m = "0.7.3"
-nb = "1.0.0"
-fixed = "1.0.0"
-rand_core = "0.6.3"
+cortex-m = "0.7.7"
+nb = "1.1.0"
+fixed = "1.25.1"
+rand_core = "0.6.4"
 cfg-if = "1.0.0"
 embedded-dma = "0.2.0"
-embedded-storage = "0.3.0"
+embedded-storage = "0.3.1"
 
 [dependencies.void]
 default-features = false
@@ -79,7 +79,8 @@ optional = true
 [dependencies.embedded-hal-02]
 package = "embedded-hal"
 features = ["unproven"]
-version = "0.2.4"
+version = "0.2.7"
+optional = true
 
 [dependencies.embedded-hal]
 version = "1.0.0"

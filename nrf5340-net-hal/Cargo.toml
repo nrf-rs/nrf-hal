@@ -20,11 +20,8 @@ default-features = false
 features = ["5340-net"]
 version = "=0.16.1"
 
-[dependencies.embedded-hal]
-features = ["unproven"]
-version = "0.2.3"
-
 [features]
 doc = []
+embedded-hal-02 = ["nrf-hal-common/embedded-hal-02"]
 rt = ["nrf5340-net-pac/rt"]
-default = ["rt"]
+default = ["rt", "embedded-hal-02"]

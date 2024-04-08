@@ -1,9 +1,5 @@
 //! API for the Analog to Digital converter.
 
-use embedded_hal_02::adc::{Channel, OneShot};
-
-use core::hint::unreachable_unchecked;
-
 use crate::{
     gpio::{Floating, Input},
     pac::{
@@ -11,6 +7,15 @@ use crate::{
         ADC,
     },
 };
+use core::hint::unreachable_unchecked;
+
+#[cfg(feature = "embedded-hal-02")]
+pub trait Channel: embedded_hal_02::adc::Channel<Adc, ID = u8> {}
+
+#[cfg(not(feature = "embedded-hal-02"))]
+pub trait Channel {
+    fn channel() -> u8;
+}
 
 pub struct Adc(ADC);
 
@@ -57,32 +62,9 @@ impl Adc {
 
         Self(adc)
     }
-}
 
-pub struct AdcConfig {
-    pub resolution: Resolution,
-    pub input_selection: InputSelection,
-    pub reference: Reference,
-}
-
-// 0 volts reads as 0, VDD volts reads as 2^10.
-impl Default for AdcConfig {
-    fn default() -> Self {
-        Self {
-            resolution: Resolution::_10BIT,
-            input_selection: InputSelection::ANALOG_INPUT_ONE_THIRD_PRESCALING,
-            reference: Reference::SUPPLY_ONE_THIRD_PRESCALING,
-        }
-    }
-}
-
-impl<PIN> OneShot<Adc, i16, PIN> for Adc
-where
-    PIN: Channel<Adc, ID = u8>,
-{
-    type Error = ();
-
-    fn read(&mut self, _pin: &mut PIN) -> nb::Result<i16, Self::Error> {
+    /// Samples the given channel of the ADC and returns the value read.
+    pub fn read_channel<PIN: Channel>(&mut self, _pin: &PIN) -> i16 {
         let original_inpsel = self.0.config.read().inpsel();
         match PIN::channel() {
             0 => self.0.config.modify(|_, w| w.psel().analog_input0()),
@@ -118,17 +100,54 @@ where
             .modify(|_, w| w.inpsel().variant(original_inpsel.variant().unwrap()));
 
         // Max resolution is 10 bits so casting is always safe
-        Ok(self.0.result.read().result().bits() as i16)
+        self.0.result.read().result().bits() as i16
+    }
+}
+
+pub struct AdcConfig {
+    pub resolution: Resolution,
+    pub input_selection: InputSelection,
+    pub reference: Reference,
+}
+
+// 0 volts reads as 0, VDD volts reads as 2^10.
+impl Default for AdcConfig {
+    fn default() -> Self {
+        Self {
+            resolution: Resolution::_10BIT,
+            input_selection: InputSelection::ANALOG_INPUT_ONE_THIRD_PRESCALING,
+            reference: Reference::SUPPLY_ONE_THIRD_PRESCALING,
+        }
+    }
+}
+
+#[cfg(feature = "embedded-hal-02")]
+impl<PIN> embedded_hal_02::adc::OneShot<Adc, i16, PIN> for Adc
+where
+    PIN: Channel,
+{
+    type Error = ();
+
+    fn read(&mut self, pin: &mut PIN) -> nb::Result<i16, Self::Error> {
+        Ok(self.read_channel(pin))
     }
 }
 
 macro_rules! channel_mappings {
     ($($n:expr => $pin:path),*) => {
         $(
-            impl Channel<Adc> for $pin {
+            #[cfg(feature = "embedded-hal-02")]
+            impl embedded_hal_02::adc::Channel<Adc> for $pin {
                 type ID = u8;
 
-                fn channel() -> <Self as embedded_hal_02::adc::Channel<Adc>>::ID {
+                fn channel() -> u8 {
+                    $n
+                }
+            }
+
+            impl Channel for $pin {
+                #[cfg(not(feature = "embedded-hal-02"))]
+                fn channel() -> u8 {
                     $n
                 }
             }

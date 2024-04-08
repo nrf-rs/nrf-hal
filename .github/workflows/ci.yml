@@ -12,7 +12,7 @@ jobs:
     continue-on-error: ${{ matrix.rust_version == 'nightly' }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install Rust stable
       uses: actions-rs/toolchain@v1
       with:
@@ -44,10 +44,20 @@ jobs:
           - rust_version: stable
             rustflags: --deny warnings
 
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy Cargo.toml
+        run: cp Cargo.ci.toml Cargo.toml
+      - name: Format Rust code
+        run: cargo fmt --all -- --check
+
   ci:
     if: ${{ success() }}
     # all new jobs must be added to this list
-    needs: [build]
+    needs: [build, format]
     runs-on: ubuntu-latest
     steps:
       - name: CI succeeded

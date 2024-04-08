@@ -23,7 +23,7 @@
 //! let mut saadc_pin = gpios.p0_02; // the pin your analog device is connected to
 //!
 //! // blocking read from saadc for `saadc_config.time` microseconds
-//! let _saadc_result = saadc.read(&mut saadc_pin);
+//! let _saadc_result = saadc.read_channel(&mut saadc_pin);
 //! ```
 
 #[cfg(any(feature = "9160", feature = "5340-app"))]
@@ -32,17 +32,21 @@ use crate::pac::{saadc_ns as saadc, SAADC_NS as SAADC};
 #[cfg(not(any(feature = "9160", feature = "5340-app")))]
 use crate::pac::{saadc, SAADC};
 
-use core::{
-    hint::unreachable_unchecked,
-    sync::atomic::{compiler_fence, Ordering::SeqCst},
-};
-use embedded_hal_02::adc::{Channel, OneShot};
+use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 
 pub use saadc::{
     ch::config::{GAIN_A as Gain, REFSEL_A as Reference, RESP_A as Resistor, TACQ_A as Time},
     oversample::OVERSAMPLE_A as Oversample,
     resolution::VAL_A as Resolution,
 };
+
+#[cfg(feature = "embedded-hal-02")]
+pub trait Channel: embedded_hal_02::adc::Channel<Saadc, ID = u8> {}
+
+#[cfg(not(feature = "embedded-hal-02"))]
+pub trait Channel {
+    fn channel() -> u8;
+}
 
 // Only 1 channel is allowed right now, a discussion needs to be had as to how
 // multiple channels should work (See "scan mode" in the datasheet).
@@ -98,6 +102,58 @@ impl Saadc {
     pub fn free(self) -> SAADC {
         self.0.enable.write(|w| w.enable().disabled());
         self.0
+    }
+
+    /// Sample channel `PIN` for the configured ADC acquisition time in differential input mode.
+    /// Note that this is a blocking operation.
+    pub fn read_channel<PIN: Channel>(&mut self, _pin: &mut PIN) -> Result<i16, ()> {
+        match PIN::channel() {
+            0 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input0()),
+            1 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input1()),
+            2 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input2()),
+            3 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input3()),
+            4 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input4()),
+            5 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input5()),
+            6 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input6()),
+            7 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input7()),
+            #[cfg(not(feature = "9160"))]
+            8 => self.0.ch[0].pselp.write(|w| w.pselp().vdd()),
+            #[cfg(any(feature = "52833", feature = "52840"))]
+            13 => self.0.ch[0].pselp.write(|w| w.pselp().vddhdiv5()),
+            // This can never happen with the `Channel` implementations provided, as the only analog
+            // pins have already been covered.
+            _ => return Err(()),
+        }
+
+        let mut val: i16 = 0;
+        self.0
+            .result
+            .ptr
+            .write(|w| unsafe { w.ptr().bits(((&mut val) as *mut _) as u32) });
+        self.0
+            .result
+            .maxcnt
+            .write(|w| unsafe { w.maxcnt().bits(1) });
+
+        // Conservative compiler fence to prevent starting the ADC before the
+        // pointer and maxcount have been set.
+        compiler_fence(SeqCst);
+
+        self.0.tasks_start.write(|w| unsafe { w.bits(1) });
+        self.0.tasks_sample.write(|w| unsafe { w.bits(1) });
+
+        while self.0.events_end.read().bits() == 0 {}
+        self.0.events_end.reset();
+
+        // Will only occur if more than one channel has been enabled.
+        if self.0.result.amount.read().bits() != 1 {
+            return Err(());
+        }
+
+        // Second fence to prevent optimizations creating issues with the EasyDMA-modified `val`.
+        compiler_fence(SeqCst);
+
+        Ok(val)
     }
 }
 
@@ -165,72 +221,35 @@ impl Default for SaadcConfig {
     }
 }
 
-impl<PIN> OneShot<Saadc, i16, PIN> for Saadc
+#[cfg(feature = "embedded-hal-02")]
+impl<PIN> embedded_hal_02::adc::OneShot<Saadc, i16, PIN> for Saadc
 where
-    PIN: Channel<Saadc, ID = u8>,
+    PIN: Channel,
 {
     type Error = ();
 
     /// Sample channel `PIN` for the configured ADC acquisition time in differential input mode.
     /// Note that this is a blocking operation.
-    fn read(&mut self, _pin: &mut PIN) -> nb::Result<i16, Self::Error> {
-        match PIN::channel() {
-            0 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input0()),
-            1 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input1()),
-            2 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input2()),
-            3 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input3()),
-            4 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input4()),
-            5 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input5()),
-            6 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input6()),
-            7 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input7()),
-            #[cfg(not(feature = "9160"))]
-            8 => self.0.ch[0].pselp.write(|w| w.pselp().vdd()),
-            #[cfg(any(feature = "52833", feature = "52840"))]
-            13 => self.0.ch[0].pselp.write(|w| w.pselp().vddhdiv5()),
-            // This can never happen the only analog pins have already been defined
-            // PAY CLOSE ATTENTION TO ANY CHANGES TO THIS IMPL OR THE `channel_mappings!` MACRO
-            _ => unsafe { unreachable_unchecked() },
-        }
-
-        let mut val: i16 = 0;
-        self.0
-            .result
-            .ptr
-            .write(|w| unsafe { w.ptr().bits(((&mut val) as *mut _) as u32) });
-        self.0
-            .result
-            .maxcnt
-            .write(|w| unsafe { w.maxcnt().bits(1) });
-
-        // Conservative compiler fence to prevent starting the ADC before the
-        // pointer and maxcount have been set.
-        compiler_fence(SeqCst);
-
-        self.0.tasks_start.write(|w| unsafe { w.bits(1) });
-        self.0.tasks_sample.write(|w| unsafe { w.bits(1) });
-
-        while self.0.events_end.read().bits() == 0 {}
-        self.0.events_end.reset();
-
-        // Will only occur if more than one channel has been enabled.
-        if self.0.result.amount.read().bits() != 1 {
-            return Err(nb::Error::Other(()));
-        }
-
-        // Second fence to prevent optimizations creating issues with the EasyDMA-modified `val`.
-        compiler_fence(SeqCst);
-
-        Ok(val)
+    fn read(&mut self, pin: &mut PIN) -> nb::Result<i16, Self::Error> {
+        Ok(self.read_channel(pin)?)
     }
 }
 
 macro_rules! channel_mappings {
     ( $($n:expr => $pin:ident,)*) => {
         $(
-            impl<STATE> Channel<Saadc> for crate::gpio::p0::$pin<STATE> {
+            #[cfg(feature = "embedded-hal-02")]
+            impl<STATE> embedded_hal_02::adc::Channel<Saadc> for crate::gpio::p0::$pin<STATE> {
                 type ID = u8;
 
-                fn channel() -> <Self as embedded_hal_02::adc::Channel<Saadc>>::ID {
+                fn channel() -> u8 {
+                    $n
+                }
+            }
+
+            impl<STATE> Channel for crate::gpio::p0::$pin<STATE> {
+                #[cfg(not(feature = "embedded-hal-02"))]
+                fn channel() -> u8 {
                     $n
                 }
             }
@@ -262,11 +281,19 @@ channel_mappings! {
     7 => P0_31,
 }
 
-#[cfg(not(feature = "9160"))]
-impl Channel<Saadc> for InternalVdd {
+#[cfg(all(not(feature = "9160"), feature = "embedded-hal-02"))]
+impl embedded_hal_02::adc::Channel<Saadc> for InternalVdd {
     type ID = u8;
 
-    fn channel() -> <Self as embedded_hal_02::adc::Channel<Saadc>>::ID {
+    fn channel() -> u8 {
+        8
+    }
+}
+
+#[cfg(not(feature = "9160"))]
+impl Channel for InternalVdd {
+    #[cfg(not(feature = "embedded-hal-02"))]
+    fn channel() -> u8 {
         8
     }
 }
@@ -275,11 +302,19 @@ impl Channel<Saadc> for InternalVdd {
 /// Channel that doesn't sample a pin, but the internal VDD voltage.
 pub struct InternalVdd;
 
-#[cfg(any(feature = "52833", feature = "52840"))]
-impl Channel<Saadc> for InternalVddHdiv5 {
+#[cfg(all(any(feature = "52833", feature = "52840"), feature = "embedded-hal-02"))]
+impl embedded_hal_02::adc::Channel<Saadc> for InternalVddHdiv5 {
     type ID = u8;
 
-    fn channel() -> <Self as embedded_hal_02::adc::Channel<Saadc>>::ID {
+    fn channel() -> u8 {
+        13
+    }
+}
+
+#[cfg(any(feature = "52833", feature = "52840"))]
+impl Channel for InternalVddHdiv5 {
+    #[cfg(not(feature = "embedded-hal-02"))]
+    fn channel() -> u8 {
         13
     }
 }

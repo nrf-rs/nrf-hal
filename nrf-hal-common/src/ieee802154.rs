@@ -6,8 +6,6 @@ use core::{
     sync::atomic::{self, Ordering},
 };
 
-use embedded_hal_02::timer::CountDown as _;
-
 use crate::{
     clocks::{Clocks, ExternalOscillator},
     pac::{
@@ -366,7 +364,7 @@ impl<'c> Radio<'c> {
                 break;
             }
 
-            if timer.wait().is_ok() {
+            if timer.reset_if_finished() {
                 // timeout
                 break;
             }
