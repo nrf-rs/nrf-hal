@@ -12,7 +12,7 @@ jobs:
     continue-on-error: ${{ matrix.rust_version == 'nightly' }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install Rust stable
       uses: actions-rs/toolchain@v1
       with:
