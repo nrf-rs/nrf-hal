@@ -7,7 +7,6 @@ use crate::{
         ADC,
     },
 };
-use core::hint::unreachable_unchecked;
 
 #[cfg(feature = "embedded-hal-02")]
 pub trait Channel: embedded_hal_02::adc::Channel<Adc, ID = u8> {}
@@ -83,9 +82,9 @@ impl Adc {
                 .0
                 .config
                 .modify(|_, w| w.inpsel().supply_two_thirds_prescaling()),
-            // This can never happen the only analog pins have already been defined
-            // PAY CLOSE ATTENTION TO ANY CHANGES TO THIS IMPL OR THE `channel_mappings!` MACRO
-            _ => unsafe { unreachable_unchecked() },
+            // This can never happen with the `Channel` implementations provided, as the only analog
+            // pins have already been covered.
+            _ => panic!("Invalid channel"),
         }
 
         self.0.events_end.write(|w| unsafe { w.bits(0) });
