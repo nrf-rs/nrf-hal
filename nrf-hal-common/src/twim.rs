@@ -6,6 +6,7 @@
 //! - nRF52840: Section 6.31
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
+use embedded_hal::i2c::{self, ErrorKind, ErrorType, I2c, NoAcknowledgeSource, Operation};
 
 #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::{twim0_ns as twim0, TWIM0_NS as TWIM0};
@@ -192,6 +193,10 @@ where
         loop {
             if self.0.events_stopped.read().bits() != 0 {
                 self.0.events_stopped.reset();
+                break;
+            }
+            if self.0.events_suspended.read().bits() != 0 {
+                self.0.events_suspended.reset();
                 break;
             }
             if self.0.events_error.read().bits() != 0 {
@@ -392,6 +397,124 @@ where
             },
         )
     }
+
+    fn write_part(
+        &mut self,
+        buffer: &[u8],
+        last_operation_read: Option<bool>,
+        final_operation: bool,
+    ) -> Result<(), Error> {
+        unsafe { self.set_tx_buffer(buffer)? };
+
+        // Set appropriate lasttx shortcut.
+        if final_operation {
+            self.0.shorts.write(|w| w.lasttx_stop().enabled());
+        } else {
+            self.0.shorts.write(|w| w.lasttx_suspend().enabled());
+        }
+
+        if last_operation_read != Some(false) {
+            // Start write.
+            self.0.tasks_starttx.write(|w| unsafe { w.bits(1) });
+        }
+        self.0.tasks_resume.write(|w| unsafe { w.bits(1) });
+
+        self.wait();
+        self.read_errorsrc()?;
+        if self.0.txd.amount.read().bits() != buffer.len() as u32 {
+            return Err(Error::Transmit);
+        }
+
+        Ok(())
+    }
+}
+
+impl<T> ErrorType for Twim<T> {
+    type Error = Error;
+}
+
+impl<T: Instance> I2c for Twim<T> {
+    fn transaction(
+        &mut self,
+        address: u8,
+        operations: &mut [Operation],
+    ) -> Result<(), Self::Error> {
+        compiler_fence(SeqCst);
+
+        self.0
+            .address
+            .write(|w| unsafe { w.address().bits(address) });
+
+        // `Some(true)` if the last operation was a read, `Some(false)` if it was a write.
+        let mut last_operation_read = None;
+        let operations_count = operations.len();
+        for (i, operation) in operations.into_iter().enumerate() {
+            // Clear events
+            self.0.events_stopped.reset();
+            self.0.events_error.reset();
+            self.0.events_lasttx.reset();
+            self.0.events_lastrx.reset();
+            self.clear_errorsrc();
+
+            match operation {
+                Operation::Read(buffer) => {
+                    unsafe { self.set_rx_buffer(buffer)? };
+
+                    // Set appropriate lastrx shortcut.
+                    if i == operations_count - 1 {
+                        self.0.shorts.write(|w| w.lastrx_stop().enabled());
+                    } else {
+                        #[cfg(not(any(
+                            feature = "5340-app",
+                            feature = "5340-net",
+                            feature = "52832"
+                        )))]
+                        self.0.shorts.write(|w| w.lastrx_suspend().enabled());
+                    }
+
+                    if last_operation_read != Some(true) {
+                        // Start read.
+                        self.0.tasks_startrx.write(|w| unsafe { w.bits(1) });
+                    }
+                    self.0.tasks_resume.write(|w| unsafe { w.bits(1) });
+
+                    self.wait();
+                    self.read_errorsrc()?;
+                    if self.0.rxd.amount.read().bits() != buffer.len() as u32 {
+                        return Err(Error::Receive);
+                    }
+
+                    last_operation_read = Some(true);
+                }
+                Operation::Write(buffer) => {
+                    if crate::slice_in_ram(buffer) {
+                        self.write_part(buffer, last_operation_read, i == operations_count - 1)?;
+                    } else if buffer.len() > FORCE_COPY_BUFFER_SIZE {
+                        return Err(Error::TxBufferTooLong);
+                    } else {
+                        let mut copy = [0; FORCE_COPY_BUFFER_SIZE];
+                        let num_chunks = buffer.len().div_ceil(FORCE_COPY_BUFFER_SIZE);
+                        for (chunk_index, chunk) in buffer
+                            .chunks(FORCE_COPY_BUFFER_SIZE)
+                            .into_iter()
+                            .enumerate()
+                        {
+                            copy[..chunk.len()].copy_from_slice(chunk);
+                            self.write_part(
+                                &copy[..chunk.len()],
+                                last_operation_read,
+                                i == operations_count - 1 && chunk_index == num_chunks - 1,
+                            )?;
+                        }
+                    }
+
+                    last_operation_read = Some(false);
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(feature = "embedded-hal-02")]
@@ -471,6 +594,23 @@ pub enum Error {
     AddressNack,
     DataNack,
     Overrun,
+}
+
+impl i2c::Error for Error {
+    fn kind(&self) -> ErrorKind {
+        match self {
+            Self::TxBufferTooLong
+            | Self::RxBufferTooLong
+            | Self::TxBufferZeroLength
+            | Self::RxBufferZeroLength
+            | Self::Transmit
+            | Self::Receive
+            | Self::DMABufferNotInDataMemory => ErrorKind::Other,
+            Self::AddressNack => ErrorKind::NoAcknowledge(NoAcknowledgeSource::Address),
+            Self::DataNack => ErrorKind::NoAcknowledge(NoAcknowledgeSource::Data),
+            Self::Overrun => ErrorKind::Overrun,
+        }
+    }
 }
 
 /// Implemented by all TWIM instances
