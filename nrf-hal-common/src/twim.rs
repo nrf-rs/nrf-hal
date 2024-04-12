@@ -398,12 +398,7 @@ where
         )
     }
 
-    fn write_part(
-        &mut self,
-        buffer: &[u8],
-        last_operation_read: Option<bool>,
-        final_operation: bool,
-    ) -> Result<(), Error> {
+    fn write_part(&mut self, buffer: &[u8], final_operation: bool) -> Result<(), Error> {
         unsafe { self.set_tx_buffer(buffer)? };
 
         // Set appropriate lasttx shortcut.
@@ -413,10 +408,8 @@ where
             self.0.shorts.write(|w| w.lasttx_suspend().enabled());
         }
 
-        if last_operation_read != Some(false) {
-            // Start write.
-            self.0.tasks_starttx.write(|w| unsafe { w.bits(1) });
-        }
+        // Start write.
+        self.0.tasks_starttx.write(|w| unsafe { w.bits(1) });
         self.0.tasks_resume.write(|w| unsafe { w.bits(1) });
 
         self.wait();
@@ -441,14 +434,23 @@ impl<T: Instance> I2c for Twim<T> {
     ) -> Result<(), Self::Error> {
         compiler_fence(SeqCst);
 
+        // Buffer used when writing data from flash, or combining multiple consecutive write operations.
+        let mut tx_copy = [0; FORCE_COPY_BUFFER_SIZE];
+        // Number of bytes waiting in `tx_copy` to be sent.
+        let mut pending_tx_bytes = 0;
+
         self.0
             .address
             .write(|w| unsafe { w.address().bits(address) });
 
-        // `Some(true)` if the last operation was a read, `Some(false)` if it was a write.
-        let mut last_operation_read = None;
-        let operations_count = operations.len();
-        for (i, operation) in operations.into_iter().enumerate() {
+        for i in 0..operations.len() {
+            let next_operation_write = match operations.get(i + 1) {
+                None => None,
+                Some(Operation::Write(_)) => Some(true),
+                Some(Operation::Read(_)) => Some(false),
+            };
+            let operation = &mut operations[i];
+
             // Clear events
             self.0.events_stopped.reset();
             self.0.events_error.reset();
@@ -461,7 +463,7 @@ impl<T: Instance> I2c for Twim<T> {
                     unsafe { self.set_rx_buffer(buffer)? };
 
                     // Set appropriate lastrx shortcut.
-                    if i == operations_count - 1 {
+                    if next_operation_write.is_none() {
                         self.0.shorts.write(|w| w.lastrx_stop().enabled());
                     } else {
                         #[cfg(not(any(
@@ -472,10 +474,8 @@ impl<T: Instance> I2c for Twim<T> {
                         self.0.shorts.write(|w| w.lastrx_suspend().enabled());
                     }
 
-                    if last_operation_read != Some(true) {
-                        // Start read.
-                        self.0.tasks_startrx.write(|w| unsafe { w.bits(1) });
-                    }
+                    // Start read.
+                    self.0.tasks_startrx.write(|w| unsafe { w.bits(1) });
                     self.0.tasks_resume.write(|w| unsafe { w.bits(1) });
 
                     self.wait();
@@ -483,32 +483,59 @@ impl<T: Instance> I2c for Twim<T> {
                     if self.0.rxd.amount.read().bits() != buffer.len() as u32 {
                         return Err(Error::Receive);
                     }
-
-                    last_operation_read = Some(true);
                 }
                 Operation::Write(buffer) => {
-                    if crate::slice_in_ram(buffer) {
-                        self.write_part(buffer, last_operation_read, i == operations_count - 1)?;
+                    // Will the current buffer fit in the remaining space in `tx_copy`? If not,
+                    // send `tx_copy` immediately.
+                    if buffer.len() > FORCE_COPY_BUFFER_SIZE - pending_tx_bytes
+                        && pending_tx_bytes > 0
+                    {
+                        self.write_part(&tx_copy[..pending_tx_bytes], false)?;
+                        pending_tx_bytes = 0;
+                    }
+
+                    if crate::slice_in_ram(buffer)
+                        && pending_tx_bytes == 0
+                        && next_operation_write != Some(true)
+                    {
+                        // Simple case: the buffer is in RAM, and there are no consecutive write
+                        // operations, so send it directly.
+                        self.write_part(buffer, next_operation_write.is_none())?;
                     } else if buffer.len() > FORCE_COPY_BUFFER_SIZE {
-                        return Err(Error::TxBufferTooLong);
-                    } else {
-                        let mut copy = [0; FORCE_COPY_BUFFER_SIZE];
+                        // This must be true because if it wasn't we must have hit the case above to send
+                        // `tx_copy` immediately and reset `pending_tx_bytes` to 0.
+                        assert!(pending_tx_bytes == 0);
+
+                        // Send the buffer in chunks immediately.
                         let num_chunks = buffer.len().div_ceil(FORCE_COPY_BUFFER_SIZE);
                         for (chunk_index, chunk) in buffer
                             .chunks(FORCE_COPY_BUFFER_SIZE)
                             .into_iter()
                             .enumerate()
                         {
-                            copy[..chunk.len()].copy_from_slice(chunk);
+                            tx_copy[..chunk.len()].copy_from_slice(chunk);
                             self.write_part(
-                                &copy[..chunk.len()],
-                                last_operation_read,
-                                i == operations_count - 1 && chunk_index == num_chunks - 1,
+                                &tx_copy[..chunk.len()],
+                                next_operation_write.is_none() && chunk_index == num_chunks - 1,
                             )?;
                         }
-                    }
+                    } else {
+                        // Copy the current buffer to `tx_copy`. It must fit, as otherwise we
+                        // would have hit one of the cases above.
+                        tx_copy[pending_tx_bytes..pending_tx_bytes + buffer.len()]
+                            .copy_from_slice(&buffer);
+                        pending_tx_bytes += buffer.len();
 
-                    last_operation_read = Some(false);
+                        // If the next operation is not a write (or there is no next operation),
+                        // send `tx_copy` now.
+                        if next_operation_write != Some(true) {
+                            self.write_part(
+                                &tx_copy[..pending_tx_bytes],
+                                next_operation_write == None,
+                            )?;
+                            pending_tx_bytes = 0;
+                        }
+                    }
                 }
             }
         }
