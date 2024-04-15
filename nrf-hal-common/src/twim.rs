@@ -425,13 +425,10 @@ where
         compiler_fence(SeqCst);
         unsafe { self.set_rx_buffer(buffer)? };
 
-        // Set appropriate lastrx shortcut.
-        if next_operation_write.is_none() {
-            self.0.shorts.write(|w| w.lastrx_stop().enabled());
-        } else {
-            #[cfg(not(any(feature = "5340-app", feature = "5340-net", feature = "52832")))]
-            self.0.shorts.write(|w| w.lastrx_suspend().enabled());
-        }
+        // TODO: We should suspend rather than stopping if there are more operations to
+        // follow, but for some reason that results in an overrun error and reading bad
+        // data in the next read.
+        self.0.shorts.write(|w| w.lastrx_stop().enabled());
 
         // Start read.
         self.0.tasks_startrx.write(|w| unsafe { w.bits(1) });
