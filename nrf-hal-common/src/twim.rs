@@ -420,6 +420,31 @@ where
 
         Ok(())
     }
+
+    fn read_part(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
+        compiler_fence(SeqCst);
+        unsafe { self.set_rx_buffer(buffer)? };
+
+        // Set appropriate lastrx shortcut.
+        if next_operation_write.is_none() {
+            self.0.shorts.write(|w| w.lastrx_stop().enabled());
+        } else {
+            #[cfg(not(any(feature = "5340-app", feature = "5340-net", feature = "52832")))]
+            self.0.shorts.write(|w| w.lastrx_suspend().enabled());
+        }
+
+        // Start read.
+        self.0.tasks_startrx.write(|w| unsafe { w.bits(1) });
+        self.0.tasks_resume.write(|w| unsafe { w.bits(1) });
+
+        self.wait();
+        self.read_errorsrc()?;
+        if self.0.rxd.amount.read().bits() != buffer.len() as u32 {
+            return Err(Error::Receive);
+        }
+
+        Ok(())
+    }
 }
 
 impl<T> ErrorType for Twim<T> {
@@ -438,6 +463,10 @@ impl<T: Instance> I2c for Twim<T> {
         let mut tx_copy = [0; FORCE_COPY_BUFFER_SIZE];
         // Number of bytes waiting in `tx_copy` to be sent.
         let mut pending_tx_bytes = 0;
+        // Buffer used when combining multiple consecutive read operations.
+        let mut rx_copy = [0; FORCE_COPY_BUFFER_SIZE];
+        // Number of bytes from earlier read operations not yet actually read.
+        let mut pending_rx_bytes = 0;
 
         self.0
             .address
@@ -460,28 +489,36 @@ impl<T: Instance> I2c for Twim<T> {
 
             match operation {
                 Operation::Read(buffer) => {
-                    unsafe { self.set_rx_buffer(buffer)? };
-
-                    // Set appropriate lastrx shortcut.
-                    if next_operation_write.is_none() {
-                        self.0.shorts.write(|w| w.lastrx_stop().enabled());
+                    if buffer.len() > FORCE_COPY_BUFFER_SIZE - pending_rx_bytes {
+                        // Splitting into multiple reads isn't going to work, so just return an
+                        // error.
+                        return Err(Error::RxBufferTooLong);
+                    } else if pending_rx_bytes == 0 && next_operation_write != Some(false) {
+                        // Simple case: there are no consecutive read operations, so receive
+                        // directly.
+                        self.read_part(buffer)?;
                     } else {
-                        #[cfg(not(any(
-                            feature = "5340-app",
-                            feature = "5340-net",
-                            feature = "52832"
-                        )))]
-                        self.0.shorts.write(|w| w.lastrx_suspend().enabled());
-                    }
+                        pending_rx_bytes += buffer.len();
 
-                    // Start read.
-                    self.0.tasks_startrx.write(|w| unsafe { w.bits(1) });
-                    self.0.tasks_resume.write(|w| unsafe { w.bits(1) });
+                        // If the next operation is not a read (or these is no next operation),
+                        // receive into `rx_copy` now.
+                        if next_operation_write != Some(false) {
+                            self.read_part(&mut rx_copy[..pending_rx_bytes])?;
 
-                    self.wait();
-                    self.read_errorsrc()?;
-                    if self.0.rxd.amount.read().bits() != buffer.len() as u32 {
-                        return Err(Error::Receive);
+                            // Copy the resulting data back to the various buffers.
+                            for j in (0..=i).rev() {
+                                if let Operation::Read(buffer) = &mut operations[j] {
+                                    buffer.copy_from_slice(
+                                        &rx_copy[pending_rx_bytes - buffer.len()..pending_rx_bytes],
+                                    );
+                                    pending_rx_bytes -= buffer.len();
+                                } else {
+                                    break;
+                                }
+                            }
+
+                            assert_eq!(pending_rx_bytes, 0);
+                        }
                     }
                 }
                 Operation::Write(buffer) => {
