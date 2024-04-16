@@ -399,6 +399,7 @@ where
     }
 
     fn write_part(&mut self, buffer: &[u8], final_operation: bool) -> Result<(), Error> {
+        compiler_fence(SeqCst);
         unsafe { self.set_tx_buffer(buffer)? };
 
         // Set appropriate lasttx shortcut.
@@ -413,6 +414,7 @@ where
         self.0.tasks_resume.write(|w| unsafe { w.bits(1) });
 
         self.wait();
+        compiler_fence(SeqCst);
         self.read_errorsrc()?;
         if self.0.txd.amount.read().bits() != buffer.len() as u32 {
             return Err(Error::Transmit);
@@ -435,6 +437,7 @@ where
         self.0.tasks_resume.write(|w| unsafe { w.bits(1) });
 
         self.wait();
+        compiler_fence(SeqCst);
         self.read_errorsrc()?;
         if self.0.rxd.amount.read().bits() != buffer.len() as u32 {
             return Err(Error::Receive);
