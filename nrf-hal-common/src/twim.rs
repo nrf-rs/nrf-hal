@@ -448,6 +448,12 @@ impl<T> ErrorType for Twim<T> {
     type Error = Error;
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum OperationType {
+    Read,
+    Write,
+}
+
 impl<T: Instance> I2c for Twim<T> {
     fn transaction(
         &mut self,
@@ -470,10 +476,10 @@ impl<T: Instance> I2c for Twim<T> {
             .write(|w| unsafe { w.address().bits(address) });
 
         for i in 0..operations.len() {
-            let next_operation_write = match operations.get(i + 1) {
+            let next_operation_type = match operations.get(i + 1) {
                 None => None,
-                Some(Operation::Write(_)) => Some(true),
-                Some(Operation::Read(_)) => Some(false),
+                Some(Operation::Write(_)) => Some(OperationType::Write),
+                Some(Operation::Read(_)) => Some(OperationType::Read),
             };
             let operation = &mut operations[i];
 
@@ -490,7 +496,9 @@ impl<T: Instance> I2c for Twim<T> {
                         // Splitting into multiple reads isn't going to work, so just return an
                         // error.
                         return Err(Error::RxBufferTooLong);
-                    } else if pending_rx_bytes == 0 && next_operation_write != Some(false) {
+                    } else if pending_rx_bytes == 0
+                        && next_operation_type != Some(OperationType::Read)
+                    {
                         // Simple case: there are no consecutive read operations, so receive
                         // directly.
                         self.read_part(buffer)?;
@@ -499,7 +507,7 @@ impl<T: Instance> I2c for Twim<T> {
 
                         // If the next operation is not a read (or these is no next operation),
                         // receive into `rx_copy` now.
-                        if next_operation_write != Some(false) {
+                        if next_operation_type != Some(OperationType::Read) {
                             self.read_part(&mut rx_copy[..pending_rx_bytes])?;
 
                             // Copy the resulting data back to the various buffers.
@@ -530,11 +538,11 @@ impl<T: Instance> I2c for Twim<T> {
 
                     if crate::slice_in_ram(buffer)
                         && pending_tx_bytes == 0
-                        && next_operation_write != Some(true)
+                        && next_operation_type != Some(OperationType::Write)
                     {
                         // Simple case: the buffer is in RAM, and there are no consecutive write
                         // operations, so send it directly.
-                        self.write_part(buffer, next_operation_write.is_none())?;
+                        self.write_part(buffer, next_operation_type.is_none())?;
                     } else if buffer.len() > FORCE_COPY_BUFFER_SIZE {
                         // This must be true because if it wasn't we must have hit the case above to send
                         // `tx_copy` immediately and reset `pending_tx_bytes` to 0.
@@ -550,7 +558,7 @@ impl<T: Instance> I2c for Twim<T> {
                             tx_copy[..chunk.len()].copy_from_slice(chunk);
                             self.write_part(
                                 &tx_copy[..chunk.len()],
-                                next_operation_write.is_none() && chunk_index == num_chunks - 1,
+                                next_operation_type.is_none() && chunk_index == num_chunks - 1,
                             )?;
                         }
                     } else {
@@ -562,10 +570,10 @@ impl<T: Instance> I2c for Twim<T> {
 
                         // If the next operation is not a write (or there is no next operation),
                         // send `tx_copy` now.
-                        if next_operation_write != Some(true) {
+                        if next_operation_type != Some(OperationType::Write) {
                             self.write_part(
                                 &tx_copy[..pending_tx_bytes],
-                                next_operation_write == None,
+                                next_operation_type.is_none(),
                             )?;
                             pending_tx_bytes = 0;
                         }
