@@ -6,6 +6,7 @@
 //! - nRF52840: Section 6.31
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
+use embedded_hal::i2c::{self, ErrorKind, ErrorType, I2c, NoAcknowledgeSource, Operation};
 
 #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::{twim0_ns as twim0, TWIM0_NS as TWIM0};
@@ -192,6 +193,10 @@ where
         loop {
             if self.0.events_stopped.read().bits() != 0 {
                 self.0.events_stopped.reset();
+                break;
+            }
+            if self.0.events_suspended.read().bits() != 0 {
+                self.0.events_suspended.reset();
                 break;
             }
             if self.0.events_error.read().bits() != 0 {
@@ -392,6 +397,196 @@ where
             },
         )
     }
+
+    fn write_part(&mut self, buffer: &[u8], final_operation: bool) -> Result<(), Error> {
+        compiler_fence(SeqCst);
+        unsafe { self.set_tx_buffer(buffer)? };
+
+        // Set appropriate lasttx shortcut.
+        if final_operation {
+            self.0.shorts.write(|w| w.lasttx_stop().enabled());
+        } else {
+            self.0.shorts.write(|w| w.lasttx_suspend().enabled());
+        }
+
+        // Start write.
+        self.0.tasks_starttx.write(|w| unsafe { w.bits(1) });
+        self.0.tasks_resume.write(|w| unsafe { w.bits(1) });
+
+        self.wait();
+        compiler_fence(SeqCst);
+        self.read_errorsrc()?;
+        if self.0.txd.amount.read().bits() != buffer.len() as u32 {
+            return Err(Error::Transmit);
+        }
+
+        Ok(())
+    }
+
+    fn read_part(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
+        compiler_fence(SeqCst);
+        unsafe { self.set_rx_buffer(buffer)? };
+
+        // TODO: We should suspend rather than stopping if there are more operations to
+        // follow, but for some reason that results in an overrun error and reading bad
+        // data in the next read.
+        self.0.shorts.write(|w| w.lastrx_stop().enabled());
+
+        // Start read.
+        self.0.tasks_startrx.write(|w| unsafe { w.bits(1) });
+        self.0.tasks_resume.write(|w| unsafe { w.bits(1) });
+
+        self.wait();
+        compiler_fence(SeqCst);
+        self.read_errorsrc()?;
+        if self.0.rxd.amount.read().bits() != buffer.len() as u32 {
+            return Err(Error::Receive);
+        }
+
+        Ok(())
+    }
+}
+
+impl<T> ErrorType for Twim<T> {
+    type Error = Error;
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum OperationType {
+    Read,
+    Write,
+}
+
+impl<T: Instance> I2c for Twim<T> {
+    fn transaction(
+        &mut self,
+        address: u8,
+        operations: &mut [Operation],
+    ) -> Result<(), Self::Error> {
+        compiler_fence(SeqCst);
+
+        // Buffer used when writing data from flash, or combining multiple consecutive write operations.
+        let mut tx_copy = [0; FORCE_COPY_BUFFER_SIZE];
+        // Number of bytes waiting in `tx_copy` to be sent.
+        let mut pending_tx_bytes = 0;
+        // Buffer used when combining multiple consecutive read operations.
+        let mut rx_copy = [0; FORCE_COPY_BUFFER_SIZE];
+        // Number of bytes from earlier read operations not yet actually read.
+        let mut pending_rx_bytes = 0;
+
+        self.0
+            .address
+            .write(|w| unsafe { w.address().bits(address) });
+
+        for i in 0..operations.len() {
+            let next_operation_type = match operations.get(i + 1) {
+                None => None,
+                Some(Operation::Write(_)) => Some(OperationType::Write),
+                Some(Operation::Read(_)) => Some(OperationType::Read),
+            };
+            let operation = &mut operations[i];
+
+            // Clear events
+            self.0.events_stopped.reset();
+            self.0.events_error.reset();
+            self.0.events_lasttx.reset();
+            self.0.events_lastrx.reset();
+            self.clear_errorsrc();
+
+            match operation {
+                Operation::Read(buffer) => {
+                    if buffer.len() > FORCE_COPY_BUFFER_SIZE - pending_rx_bytes {
+                        // Splitting into multiple reads isn't going to work, so just return an
+                        // error.
+                        return Err(Error::RxBufferTooLong);
+                    } else if pending_rx_bytes == 0
+                        && next_operation_type != Some(OperationType::Read)
+                    {
+                        // Simple case: there are no consecutive read operations, so receive
+                        // directly.
+                        self.read_part(buffer)?;
+                    } else {
+                        pending_rx_bytes += buffer.len();
+
+                        // If the next operation is not a read (or these is no next operation),
+                        // receive into `rx_copy` now.
+                        if next_operation_type != Some(OperationType::Read) {
+                            self.read_part(&mut rx_copy[..pending_rx_bytes])?;
+
+                            // Copy the resulting data back to the various buffers.
+                            for j in (0..=i).rev() {
+                                if let Operation::Read(buffer) = &mut operations[j] {
+                                    buffer.copy_from_slice(
+                                        &rx_copy[pending_rx_bytes - buffer.len()..pending_rx_bytes],
+                                    );
+                                    pending_rx_bytes -= buffer.len();
+                                } else {
+                                    break;
+                                }
+                            }
+
+                            assert_eq!(pending_rx_bytes, 0);
+                        }
+                    }
+                }
+                Operation::Write(buffer) => {
+                    // Will the current buffer fit in the remaining space in `tx_copy`? If not,
+                    // send `tx_copy` immediately.
+                    if buffer.len() > FORCE_COPY_BUFFER_SIZE - pending_tx_bytes
+                        && pending_tx_bytes > 0
+                    {
+                        self.write_part(&tx_copy[..pending_tx_bytes], false)?;
+                        pending_tx_bytes = 0;
+                    }
+
+                    if crate::slice_in_ram(buffer)
+                        && pending_tx_bytes == 0
+                        && next_operation_type != Some(OperationType::Write)
+                    {
+                        // Simple case: the buffer is in RAM, and there are no consecutive write
+                        // operations, so send it directly.
+                        self.write_part(buffer, next_operation_type.is_none())?;
+                    } else if buffer.len() > FORCE_COPY_BUFFER_SIZE {
+                        // This must be true because if it wasn't we must have hit the case above to send
+                        // `tx_copy` immediately and reset `pending_tx_bytes` to 0.
+                        assert!(pending_tx_bytes == 0);
+
+                        // Send the buffer in chunks immediately.
+                        let num_chunks = buffer.len().div_ceil(FORCE_COPY_BUFFER_SIZE);
+                        for (chunk_index, chunk) in buffer
+                            .chunks(FORCE_COPY_BUFFER_SIZE)
+                            .into_iter()
+                            .enumerate()
+                        {
+                            tx_copy[..chunk.len()].copy_from_slice(chunk);
+                            self.write_part(
+                                &tx_copy[..chunk.len()],
+                                next_operation_type.is_none() && chunk_index == num_chunks - 1,
+                            )?;
+                        }
+                    } else {
+                        // Copy the current buffer to `tx_copy`. It must fit, as otherwise we
+                        // would have hit one of the cases above.
+                        tx_copy[pending_tx_bytes..pending_tx_bytes + buffer.len()]
+                            .copy_from_slice(&buffer);
+                        pending_tx_bytes += buffer.len();
+
+                        // If the next operation is not a write (or there is no next operation),
+                        // send `tx_copy` now.
+                        if next_operation_type != Some(OperationType::Write) {
+                            self.write_part(
+                                &tx_copy[..pending_tx_bytes],
+                                next_operation_type.is_none(),
+                            )?;
+                            pending_tx_bytes = 0;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(feature = "embedded-hal-02")]
@@ -471,6 +666,23 @@ pub enum Error {
     AddressNack,
     DataNack,
     Overrun,
+}
+
+impl i2c::Error for Error {
+    fn kind(&self) -> ErrorKind {
+        match self {
+            Self::TxBufferTooLong
+            | Self::RxBufferTooLong
+            | Self::TxBufferZeroLength
+            | Self::RxBufferZeroLength
+            | Self::Transmit
+            | Self::Receive
+            | Self::DMABufferNotInDataMemory => ErrorKind::Other,
+            Self::AddressNack => ErrorKind::NoAcknowledge(NoAcknowledgeSource::Address),
+            Self::DataNack => ErrorKind::NoAcknowledge(NoAcknowledgeSource::Data),
+            Self::Overrun => ErrorKind::Overrun,
+        }
+    }
 }
 
 /// Implemented by all TWIM instances
