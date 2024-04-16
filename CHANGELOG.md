@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+(no changes)
+
+## [0.17.1]
+
 ### New features
 
 - Implemented `embedded-hal` 1.0 `I2c` trait for `Twi` and `Twim` [#440].
@@ -410,3 +414,4 @@ None
 [0.16.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.16.0
 [0.16.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.16.1
 [0.17.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.17.0
+[0.17.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.17.1
