@@ -10,7 +10,7 @@ publish = false
 
 [dependencies]
 cortex-m-rt = "0.7.0"
-ssd1306 = "0.2.6"
+ssd1306 = "0.8.4"
 embedded-graphics = "0.4.7"
 panic-semihosting = "0.6.0"
 
