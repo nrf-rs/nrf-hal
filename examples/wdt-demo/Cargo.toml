@@ -9,5 +9,5 @@ publish = false
 cortex-m = "0.7.3"
 cortex-m-rt = { version = "0.7.0", features = ["device"] }
 embedded-hal = "1.0.0"
-rtt-target = { version = "0.3.1", features = ["cortex-m"] }
+rtt-target = { version = "0.5.0", features = ["cortex-m"] }
 nrf52840-hal = { features = ["rt"], path = "../../nrf52840-hal" }
