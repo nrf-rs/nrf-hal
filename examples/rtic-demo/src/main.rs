@@ -33,14 +33,14 @@ mod app {
 
     #[init]
     fn init(_: init::Context) -> (Shared, Local, init::Monotonics) {
-        hprintln!("init").unwrap();
+        hprintln!("init");
 
         (Shared {}, Local {}, init::Monotonics())
     }
 
     #[idle]
     fn idle(_: idle::Context) -> ! {
-        hprintln!("idle").unwrap();
+        hprintln!("idle");
 
         debug::exit(debug::EXIT_SUCCESS);
 
