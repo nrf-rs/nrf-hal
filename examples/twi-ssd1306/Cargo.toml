@@ -12,7 +12,7 @@ publish = false
 cortex-m-rt = "0.7.0"
 ssd1306 = "0.2.6"
 embedded-graphics = "0.4.7"
-panic-semihosting = "0.5.3"
+panic-semihosting = "0.6.0"
 
 [dependencies.nrf52832-hal]
 path = "../../nrf52832-hal"
