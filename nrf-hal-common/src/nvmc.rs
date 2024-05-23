@@ -186,6 +186,7 @@ where
 //
 // 2. The nRF52820 supports 2 writes per word but doesn't have an associated feature.
 #[cfg(any(
+    feature = "52805",
     feature = "52810",
     feature = "52811",
     feature = "52833",

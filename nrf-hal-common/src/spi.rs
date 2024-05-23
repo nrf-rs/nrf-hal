@@ -238,9 +238,9 @@ mod sealed {
 impl sealed::Sealed for SPI0 {}
 impl Instance for SPI0 {}
 
-#[cfg(not(feature = "52810"))]
+#[cfg(not(any(feature = "52805", feature = "52810")))]
 impl sealed::Sealed for crate::pac::SPI1 {}
-#[cfg(not(feature = "52810"))]
+#[cfg(not(any(feature = "52805", feature = "52810")))]
 impl Instance for crate::pac::SPI1 {}
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]

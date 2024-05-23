@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-(no changes)
+- add support for nRF52805
 
 ## [0.17.1]
 
