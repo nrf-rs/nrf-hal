@@ -114,7 +114,16 @@ mod sealed {
 
     pub trait RtcInstance: Instance<RegBlock = super::RtcRegBlock> {}
 
-    pub trait TimerInstance: Instance<RegBlock = super::TimerRegBlock> {}
+    pub trait TimerInstance: Instance<RegBlock = super::TimerRegBlock> {
+        /// Sets the compare value for the [`Instance`].
+        fn set_compare<const IDX: usize>(compare: u32);
+
+        /// Clears the compare event.
+        fn clear_compare_flag<const IDX: usize>();
+
+        /// Enables the comparator for this [`Instance`].
+        fn enable_compare<const IDX: usize>();
+    }
 }
 
 pub use sealed::{Instance, RtcInstance, TimerInstance};
@@ -283,19 +292,21 @@ impl<T: TimerInstance, const FREQ: u32> MonotonicTimer<T, FREQ> {
 impl<T: TimerInstance, const FREQ: u32> Monotonic for MonotonicTimer<T, FREQ> {
     type Instant = fugit::TimerInstantU32<FREQ>;
     type Duration = fugit::TimerDurationU32<FREQ>;
+
     fn now(&mut self) -> Self::Instant {
         let reg: &TimerRegBlock = T::reg();
-        reg.tasks_capture[1].write(|w| w.tasks_capture().set_bit());
+        T::enable_compare::<1>();
+
         let ticks = reg.cc[1].read().bits();
         fugit::TimerInstantU32::<FREQ>::from_ticks(ticks.into())
     }
 
     fn set_compare(&mut self, instant: Self::Instant) {
-        T::reg().cc[2].write(|w| w.cc().variant(instant.duration_since_epoch().ticks()));
+        T::set_compare::<2>(instant.duration_since_epoch().ticks())
     }
 
     fn clear_compare_flag(&mut self) {
-        T::reg().events_compare[2].write(|w| w.events_compare().clear_bit());
+        T::clear_compare_flag::<2>();
     }
 
     fn zero() -> Self::Instant {
@@ -312,7 +323,35 @@ impl<T: TimerInstance, const FREQ: u32> Monotonic for MonotonicTimer<T, FREQ> {
 
 macro_rules! impl_instance {
     (TimerRegBlock,$peripheral:ident) => {
-        impl TimerInstance for $peripheral {}
+        impl TimerInstance for $peripheral {
+            fn set_compare<const IDX:usize>(compare:u32){
+                #[cfg(any(feature = "52832", feature = "51"))]
+                Self::reg().cc[IDX].write(|w| unsafe{w.bits(compare)});
+
+                #[cfg(not(any(feature = "52832", feature = "51")))]
+                Self::reg().cc[IDX].write(|w| w.cc().variant(compare));
+            }
+
+            fn clear_compare_flag<const IDX:usize>(){
+                // We clear the top bits manually.
+                #[cfg(any(feature = "52832", feature = "51"))]
+                Self::reg().events_compare[2].write(|w| unsafe { w.bits(0) });
+
+                #[cfg(not(any(feature = "52832", feature = "51")))]
+                Self::reg().events_compare[2].write(|w| w.events_compare().clear_bit());
+
+            }
+
+            fn enable_compare<const IDX:usize>() {
+                // Bit idx 31 is the same as enabling tasks_capture.
+                #[cfg(any(feature = "52832", feature = "51"))]
+                Self::reg().tasks_capture[IDX].write(|w| unsafe { w.bits(1 << 31) });
+
+                #[cfg(not(any(feature = "52832", feature = "51")))]
+                Self::reg().reg.tasks_capture[IDX].write(|w| w.tasks_capture().set_bit());
+
+            }
+        }
     };
     (RtcRegBlock,$peripheral:ident) => {
         impl RtcInstance for $peripheral {}
