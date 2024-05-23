@@ -1,4 +1,4 @@
-//! Defines a minimal blinky example.
+//! A minimal blinky example using `MonotonicRtc`.
 #![no_main]
 #![no_std]
 
@@ -9,10 +9,10 @@ use panic_halt as _;
 mod app {
     use super::*;
     use cortex_m::asm;
+    use embedded_hal::digital::{OutputPin, StatefulOutputPin};
     use hal::{
         gpio::{p0::Parts, Level, Output, Pin, PushPull},
         monotonic::MonotonicRtc,
-        prelude::*,
     };
     use pac::RTC0;
     use rtt_target::{rprintln, rtt_init_print};
