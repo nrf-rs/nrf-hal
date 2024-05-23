@@ -365,18 +365,26 @@ macro_rules! freq_gate {
     )
 }
 
+#[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 impl_instance! {
     TimerRegBlock : {
         TIMER0 TIMER1 TIMER2
-        #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
         TIMER3
-        #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
         TIMER4
     }
     RtcRegBlock : {
         RTC0 RTC1
-        #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
         RTC2
+    }
+}
+
+#[cfg(not(any(feature = "52832", feature = "52833", feature = "52840")))]
+impl_instance! {
+    TimerRegBlock : {
+        TIMER0 TIMER1 TIMER2
+    }
+    RtcRegBlock : {
+        RTC0 RTC1
     }
 }
 
