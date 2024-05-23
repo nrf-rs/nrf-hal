@@ -348,7 +348,7 @@ macro_rules! impl_instance {
                 Self::reg().tasks_capture[IDX].write(|w| unsafe { w.bits(1 << 31) });
 
                 #[cfg(not(any(feature = "52832", feature = "51")))]
-                Self::reg().reg.tasks_capture[IDX].write(|w| w.tasks_capture().set_bit());
+                Self::reg().tasks_capture[IDX].write(|w| w.tasks_capture().set_bit());
 
             }
         }
