@@ -30,4 +30,5 @@ version = "=0.17.1"
 doc = []
 embedded-hal-02 = ["nrf-hal-common/embedded-hal-02"]
 rt = ["nrf52805-pac/rt"]
+monotonic = ["nrf-hal-common/monotonic"]
 default = ["rt", "embedded-hal-02"]
