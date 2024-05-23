@@ -325,10 +325,10 @@ macro_rules! impl_instance {
     (TimerRegBlock,$peripheral:ident) => {
         impl TimerInstance for $peripheral {
             fn set_compare<const IDX:usize>(compare:u32){
-                #[cfg(any(feature = "52832", feature = "51"))]
+                #[cfg(feature = "51")]
                 Self::reg().cc[IDX].write(|w| unsafe{w.bits(compare)});
 
-                #[cfg(not(any(feature = "52832", feature = "51")))]
+                #[cfg(not(feature = "51"))]
                 Self::reg().cc[IDX].write(|w| w.cc().variant(compare));
             }
 
