@@ -5,7 +5,7 @@ use {core::panic::PanicInfo, nrf52840_hal as hal, rtt_target::rprintln};
 
 #[rtic::app(device = crate::hal::pac, peripherals = true, dispatchers = [SWI0_EGU0])]
 mod app {
-    use embedded_hal::digital::v2::InputPin;
+    use embedded_hal::digital::InputPin;
     use systick_monotonic::*;
     use {
         hal::{
@@ -96,26 +96,26 @@ mod app {
         let twim = ctx.local.twim;
         if ctx.local.btn1.is_low().unwrap() {
             rprintln!("\nREAD from address 0x1A");
-            let rx_buf = &mut [0; 8][..];
-            let res = twim.read(0x1A, rx_buf);
+            let mut rx_buf = [0; 8];
+            let res = twim.read(0x1A, &mut rx_buf);
             rprintln!("Result: {:?}\n{:?}", res, rx_buf);
         }
         if ctx.local.btn2.is_low().unwrap() {
             rprintln!("\nWRITE to address 0x1A");
             let tx_buf = [1, 2, 3, 4, 5, 6, 7, 8];
-            let res = twim.write(0x1A, &tx_buf[..]);
+            let res = twim.write(0x1A, &tx_buf);
             rprintln!("Result: {:?}\n{:?}", res, tx_buf);
         }
         if ctx.local.btn3.is_low().unwrap() {
             rprintln!("\nREAD from address 0x1B");
-            let rx_buf = &mut [0; 4][..];
-            let res = twim.read(0x1B, rx_buf);
+            let mut rx_buf = [0; 4];
+            let res = twim.read(0x1B, &mut rx_buf);
             rprintln!("Result: {:?}\n{:?}", res, rx_buf);
         }
         if ctx.local.btn4.is_low().unwrap() {
             rprintln!("\nWRITE to address 0x1B");
             let tx_buf = [9, 10, 11, 12];
-            let res = twim.write(0x1B, &tx_buf[..]);
+            let res = twim.write(0x1B, &tx_buf);
             rprintln!("Result: {:?}\n{:?}", res, tx_buf);
         }
     }

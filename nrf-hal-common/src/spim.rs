@@ -4,6 +4,8 @@
 
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
+use embedded_hal::digital::OutputPin;
+use embedded_hal::spi::{self, ErrorKind, ErrorType, SpiBus};
 
 #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::{spim0_ns as spim0, SPIM0_NS as SPIM0};
@@ -31,7 +33,6 @@ use crate::pac::SPIM3;
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::target_constants::{EASY_DMA_SIZE, FORCE_COPY_BUFFER_SIZE};
 use crate::{slice_in_ram, slice_in_ram_or, DmaSlice};
-use embedded_hal::digital::v2::OutputPin;
 
 /// Interface to a SPIM instance.
 ///
@@ -41,7 +42,63 @@ use embedded_hal::digital::v2::OutputPin;
 ///   are disabled before using `Spim`. See product specification, section 15.2.
 pub struct Spim<T>(T);
 
-impl<T> embedded_hal::blocking::spi::Transfer<u8> for Spim<T>
+impl<T> ErrorType for Spim<T> {
+    type Error = Error;
+}
+
+impl<T: Instance> SpiBus for Spim<T> {
+    fn read(&mut self, words: &mut [u8]) -> Result<(), Self::Error> {
+        // A mutable slice can only be built from data in RAM.
+        assert!(slice_in_ram(words));
+
+        for chunk in words.chunks(EASY_DMA_SIZE) {
+            self.do_spi_dma_transfer(DmaSlice::null(), DmaSlice::from_slice(chunk))?;
+        }
+        Ok(())
+    }
+
+    fn write(&mut self, words: &[u8]) -> Result<(), Self::Error> {
+        if slice_in_ram(words) {
+            for chunk in words.chunks(EASY_DMA_SIZE) {
+                self.do_spi_dma_transfer(DmaSlice::from_slice(chunk), DmaSlice::null())?;
+            }
+        } else {
+            let mut buf = [0u8; FORCE_COPY_BUFFER_SIZE];
+            for chunk in words.chunks(FORCE_COPY_BUFFER_SIZE) {
+                buf[..chunk.len()].copy_from_slice(chunk);
+                self.do_spi_dma_transfer(
+                    DmaSlice::from_slice(&buf[..chunk.len()]),
+                    DmaSlice::null(),
+                )?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn transfer(&mut self, read: &mut [u8], write: &[u8]) -> Result<(), Self::Error> {
+        self.transfer_split_uneven_internal(write, read)
+    }
+
+    fn transfer_in_place(&mut self, words: &mut [u8]) -> Result<(), Self::Error> {
+        // A mutable slice can only be built from data in RAM.
+        assert!(slice_in_ram(words));
+
+        words.chunks(EASY_DMA_SIZE).try_for_each(|chunk| {
+            self.do_spi_dma_transfer(DmaSlice::from_slice(chunk), DmaSlice::from_slice(chunk))
+        })?;
+
+        Ok(())
+    }
+
+    fn flush(&mut self) -> Result<(), Self::Error> {
+        // This implementation doesn't buffer operations, so there is nothing to flush.
+        Ok(())
+    }
+}
+
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::blocking::spi::Transfer<u8> for Spim<T>
 where
     T: Instance,
 {
@@ -59,7 +116,8 @@ where
     }
 }
 
-impl<T> embedded_hal::blocking::spi::Write<u8> for Spim<T>
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::blocking::spi::Write<u8> for Spim<T>
 where
     T: Instance,
 {
@@ -85,14 +143,17 @@ where
         words.chunks(chunk_sz).try_for_each(|c| step(self, c))
     }
 }
+
 impl<T> Spim<T>
 where
     T: Instance,
 {
+    #[cfg(feature = "embedded-hal-02")]
     fn spi_dma_no_copy(&mut self, chunk: &[u8]) -> Result<(), Error> {
         self.do_spi_dma_transfer(DmaSlice::from_slice(chunk), DmaSlice::null())
     }
 
+    #[cfg(feature = "embedded-hal-02")]
     fn spi_dma_copy(&mut self, chunk: &[u8]) -> Result<(), Error> {
         let mut buf = [0u8; FORCE_COPY_BUFFER_SIZE];
         buf[..chunk.len()].copy_from_slice(chunk);
@@ -304,48 +365,63 @@ where
         tx_buffer: &[u8],
         rx_buffer: &mut [u8],
     ) -> Result<(), Error> {
-        // NOTE: RAM slice check for `rx_buffer` is not necessary, as a mutable
-        // slice can only be built from data located in RAM.
         slice_in_ram_or(tx_buffer, Error::DMABufferNotInDataMemory)?;
 
-        // For the tx and rx, we want to return Some(chunk)
-        // as long as there is data to send. We then chain a repeat to
-        // the end so once all chunks have been exhausted, we will keep
-        // getting Nones out of the iterators.
-        let txi = tx_buffer
-            .chunks(EASY_DMA_SIZE)
-            .map(Some)
-            .chain(repeat_with(|| None));
-
-        let rxi = rx_buffer
-            .chunks_mut(EASY_DMA_SIZE)
-            .map(Some)
-            .chain(repeat_with(|| None));
-
         chip_select.set_low().unwrap();
-
-        // We then chain the iterators together, and once BOTH are feeding
-        // back Nones, then we are done sending and receiving.
-        //
         // Don't return early, as we must reset the CS pin.
-        let res = txi
-            .zip(rxi)
-            .take_while(|(t, r)| t.is_some() || r.is_some())
-            // We also turn the slices into either a DmaSlice (if there was data), or a null
-            // DmaSlice (if there is no data).
-            .map(|(t, r)| {
-                (
-                    t.map(|t| DmaSlice::from_slice(t))
-                        .unwrap_or_else(DmaSlice::null),
-                    r.map(|r| DmaSlice::from_slice(r))
-                        .unwrap_or_else(DmaSlice::null),
-                )
-            })
-            .try_for_each(|(t, r)| self.do_spi_dma_transfer(t, r));
-
+        let res = self.transfer_split_uneven_internal(tx_buffer, rx_buffer);
         chip_select.set_high().unwrap();
-
         res
+    }
+
+    pub fn transfer_split_uneven_internal(
+        &mut self,
+        tx_buffer: &[u8],
+        rx_buffer: &mut [u8],
+    ) -> Result<(), Error> {
+        // NOTE: RAM slice check for `rx_buffer` is not necessary, as a mutable
+        // slice can only be built from data located in RAM.
+        if slice_in_ram(tx_buffer) {
+            // For the tx and rx, we want to return a DmaSlice with a chunk as long
+            // as there is data to send. We then chain a repeat to the end so once
+            // all chunks have been exhausted, we will keep DmaSlice::null() out of
+            // the iterators.
+            let txi = tx_buffer
+                .chunks(EASY_DMA_SIZE)
+                .map(|chunk| DmaSlice::from_slice(chunk))
+                .chain(repeat_with(DmaSlice::null));
+            let rxi = rx_buffer
+                .chunks_mut(EASY_DMA_SIZE)
+                .map(|chunk| DmaSlice::from_slice(chunk))
+                .chain(repeat_with(DmaSlice::null));
+
+            // We then chain the iterators together, and once BOTH are giving null
+            // DmaSlices, then we are done sending and receiving.
+            for (t, r) in txi.zip(rxi).take_while(|(t, r)| t.ptr != 0 || r.ptr != 0) {
+                self.do_spi_dma_transfer(t, r)?;
+            }
+        } else {
+            let mut buf = [0u8; FORCE_COPY_BUFFER_SIZE];
+            let txi = tx_buffer
+                .chunks(FORCE_COPY_BUFFER_SIZE)
+                .map(Some)
+                .chain(repeat_with(|| None));
+            let rxi = rx_buffer
+                .chunks_mut(FORCE_COPY_BUFFER_SIZE)
+                .map(|chunk| DmaSlice::from_slice(chunk))
+                .chain(repeat_with(DmaSlice::null));
+            for (tx_chunk, r) in txi.zip(rxi).take_while(|(t, r)| t.is_some() || r.ptr != 0) {
+                let t = if let Some(tx_chunk) = tx_chunk {
+                    buf[..tx_chunk.len()].copy_from_slice(tx_chunk);
+                    DmaSlice::from_slice(&buf[..tx_chunk.len()])
+                } else {
+                    DmaSlice::null()
+                };
+                self.do_spi_dma_transfer(t, r)?;
+            }
+        }
+
+        Ok(())
     }
 
     /// Write to an SPI slave.
@@ -411,12 +487,16 @@ pub struct Pins {
 
 #[derive(Debug)]
 pub enum Error {
-    TxBufferTooLong,
-    RxBufferTooLong,
     /// EasyDMA can only read from data memory, read only buffers in flash will fail.
     DMABufferNotInDataMemory,
     Transmit,
     Receive,
+}
+
+impl spi::Error for Error {
+    fn kind(&self) -> ErrorKind {
+        ErrorKind::Other
+    }
 }
 
 /// Implemented by all SPIM instances.

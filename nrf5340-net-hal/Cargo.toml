@@ -1,6 +1,6 @@
 [package]
 name = "nrf5340-net-hal"
-version = "0.16.0"
+version = "0.17.1"
 description = "HAL for nRF5340 net SoC"
 readme = "../README.md"
 
@@ -18,14 +18,11 @@ nrf5340-net-pac = "0.12.2"
 path = "../nrf-hal-common"
 default-features = false
 features = ["5340-net"]
-version = "=0.16.0"
-
-[dependencies.embedded-hal]
-features = ["unproven"]
-version = "0.2.3"
+version = "=0.17.1"
 
 [features]
 doc = []
+embedded-hal-02 = ["nrf-hal-common/embedded-hal-02"]
 rt = ["nrf5340-net-pac/rt"]
-default = ["rt"]
 monotonic = ["nrf-hal-common/monotonic"]
+default = ["rt", "embedded-hal-02"]

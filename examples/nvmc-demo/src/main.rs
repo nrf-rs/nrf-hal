@@ -6,7 +6,7 @@
 #[cfg(feature = "52840")]
 use nrf52840_hal as hal;
 
-use core::convert::TryInto;
+use core::{convert::TryInto, ptr::addr_of_mut};
 use embedded_storage::nor_flash::NorFlash;
 use embedded_storage::nor_flash::ReadNorFlash;
 use hal::nvmc::Nvmc;
@@ -33,7 +33,7 @@ fn main() -> ! {
     let p = hal::pac::Peripherals::take().unwrap();
 
     #[cfg(feature = "52840")]
-    let mut nvmc = Nvmc::new(p.NVMC, unsafe { &mut CONFIG });
+    let mut nvmc = Nvmc::new(p.NVMC, unsafe { addr_of_mut!(CONFIG).as_mut().unwrap() });
 
     erase_if_needed(&mut nvmc, LAST_PAGE);
 

@@ -5,6 +5,7 @@ use defmt_rtt as _;
 use nrf52840_hal as _;
 use panic_probe as _;
 
+use core::ptr::addr_of_mut;
 use embedded_storage::nor_flash::{NorFlash, ReadNorFlash};
 use nrf52840_hal::{nvmc::Nvmc, pac};
 
@@ -32,7 +33,7 @@ mod tests {
         let p = unwrap!(pac::Peripherals::take());
 
         State {
-            nvmc: Nvmc::new(p.NVMC, unsafe { &mut CONFIG }),
+            nvmc: Nvmc::new(p.NVMC, unsafe { addr_of_mut!(CONFIG).as_mut().unwrap() }),
         }
     }
 

@@ -9,6 +9,9 @@ use rtic::app;
 #[cfg(feature = "51")]
 use nrf51_hal as hal;
 
+#[cfg(feature = "52805")]
+use nrf52805_hal as hal;
+
 #[cfg(feature = "52810")]
 use nrf52810_hal as hal;
 
@@ -33,14 +36,14 @@ mod app {
 
     #[init]
     fn init(_: init::Context) -> (Shared, Local, init::Monotonics) {
-        hprintln!("init").unwrap();
+        hprintln!("init");
 
         (Shared {}, Local {}, init::Monotonics())
     }
 
     #[idle]
     fn idle(_: idle::Context) -> ! {
-        hprintln!("idle").unwrap();
+        hprintln!("idle");
 
         debug::exit(debug::EXIT_SUCCESS);
 

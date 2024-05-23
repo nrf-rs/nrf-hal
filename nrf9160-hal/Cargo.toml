@@ -1,6 +1,6 @@
 [package]
 name = "nrf9160-hal"
-version = "0.16.0"
+version = "0.17.1"
 description = "HAL for nRF9160 system-in-package"
 readme = "README.md"
 
@@ -21,14 +21,11 @@ nrf9160-pac = "0.12.2"
 path = "../nrf-hal-common"
 default-features = false
 features = ["9160"]
-version = "=0.16.0"
-
-[dependencies.embedded-hal]
-features = ["unproven"]
-version = "0.2.3"
+version = "=0.17.1"
 
 [features]
 doc = []
+embedded-hal-02 = ["nrf-hal-common/embedded-hal-02"]
 rt = ["nrf9160-pac/rt"]
-default = ["rt"]
 monotonic = ["nrf-hal-common/monotonic"]
+default = ["rt", "embedded-hal-02"]

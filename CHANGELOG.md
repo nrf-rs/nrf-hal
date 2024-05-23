@@ -2,7 +2,50 @@
 
 ## Unreleased
 
-(no changes)
+- add support for nRF52805
+
+## [0.17.1]
+
+### New features
+
+- Implemented `embedded-hal` 1.0 `I2c` trait for `Twi` and `Twim` [#440].
+
+[#440]: https://github.com/nrf-rs/nrf-hal/pull/440
+
+## [0.17.0]
+
+### New features
+
+- Added support for `embedded-hal` 1.0 traits. `embedded-hal` 0.2 traits are
+  retained for now, behind the `embedded-hal-02` feature ([#431], [#435],
+  [#436]). Some new intrinsic methods were also added to allow usage of features
+  which aren't part of the `embedded-hal` 1.0 traits.
+
+[#431]: https://github.com/nrf-rs/nrf-hal/pull/431
+[#435]: https://github.com/nrf-rs/nrf-hal/pull/435
+[#436]: https://github.com/nrf-rs/nrf-hal/pull/436
+
+## [0.16.1]
+
+### New features
+
+- Added `is_done` method to `i2s::Transfer` ([#412], [#413])
+- Added support for configuring GPIO output drive level ([#424])
+
+### Enhancements
+
+- Fixed README links for `nrf5340-app-hal` and `nrf9160-hal` ([#409])
+- Documentation improvements ([#425], [#417], [#394])
+- Cleanup to TWIM demo ([#421])
+
+[#394]: https://github.com/nrf-rs/nrf-hal/pull/394
+[#409]: https://github.com/nrf-rs/nrf-hal/pull/409
+[#412]: https://github.com/nrf-rs/nrf-hal/pull/412
+[#413]: https://github.com/nrf-rs/nrf-hal/pull/413
+[#417]: https://github.com/nrf-rs/nrf-hal/pull/417
+[#421]: https://github.com/nrf-rs/nrf-hal/pull/421
+[#424]: https://github.com/nrf-rs/nrf-hal/pull/424
+[#425]: https://github.com/nrf-rs/nrf-hal/pull/425
 
 ## [0.16.0]
 
@@ -369,3 +412,6 @@ None
 [0.15.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.15.0
 [0.15.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.15.1
 [0.16.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.16.0
+[0.16.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.16.1
+[0.17.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.17.0
+[0.17.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.17.1

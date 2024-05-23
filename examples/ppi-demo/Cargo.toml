@@ -6,10 +6,11 @@ authors = [ "Thales Fragoso <thales.fragosoz@gmail.com>"]
 publish = false
 
 [dependencies]
-cortex-m = "0.7.3"
+cortex-m = { version = "0.7.3", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7.0"
-rtt-target = { version = "0.3.1", features = ["cortex-m"] }
+rtt-target = "0.5.0"
 
+nrf52805-hal = { path = "../../nrf52805-hal", features = ["rt"], optional = true }
 nrf52810-hal = { path = "../../nrf52810-hal", features = ["rt"], optional = true }
 nrf52811-hal = { path = "../../nrf52811-hal", features = ["rt"], optional = true }
 nrf52832-hal = { path = "../../nrf52832-hal", features = ["rt"], optional = true }
@@ -24,6 +25,7 @@ test = false
 
 [features]
 51 = ["nrf51-hal"]
+52805 = ["nrf52805-hal"]
 52810 = ["nrf52810-hal"]
 52811 = ["nrf52811-hal"]
 52832 = ["nrf52832-hal"]

@@ -4,23 +4,21 @@
 //!
 //! - nrf52832: Section 35
 //! - nrf52840: Section 6.34
+
+use core::cmp::min;
 use core::fmt;
+use core::hint::spin_loop;
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
-
-use embedded_hal::blocking::serial as bserial;
-use embedded_hal::digital::v2::OutputPin;
-use embedded_hal::serial;
+use embedded_hal::digital::OutputPin;
+use embedded_io::{ErrorKind, ErrorType, ReadReady, Write as _, WriteReady};
 
 #[cfg(any(feature = "52833", feature = "52840"))]
 use crate::pac::UARTE1;
 
 #[cfg(feature = "9160")]
 use crate::pac::{
-    uarte0_ns as uarte0,
-    UARTE0_NS as UARTE0,
-    UARTE1_NS as UARTE1,
-    UARTE2_NS as UARTE2,
+    uarte0_ns as uarte0, UARTE0_NS as UARTE0, UARTE1_NS as UARTE1, UARTE2_NS as UARTE2,
     UARTE3_NS as UARTE3,
 };
 
@@ -34,7 +32,6 @@ use crate::pac::UARTE1_NS as UARTE1;
 use crate::pac::{uarte0, UARTE0};
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
-use crate::prelude::*;
 use crate::slice_in_ram_or;
 use crate::target_constants::EASY_DMA_SIZE;
 use crate::timer::{self, Timer};
@@ -263,7 +260,7 @@ where
 
         loop {
             event_complete |= self.0.events_endrx.read().bits() != 0;
-            timeout_occured |= timer.wait().is_ok();
+            timeout_occured |= timer.reset_if_finished();
             if event_complete || timeout_occured {
                 break;
             }
@@ -421,6 +418,9 @@ fn start_read(uarte: &uarte0::RegisterBlock, rx_buffer: &mut [u8]) -> Result<(),
     uarte.tasks_startrx.write(|w|
             // `1` is a valid value to write to task registers.
             unsafe { w.bits(1) });
+    while uarte.events_rxstarted.read().bits() == 0 {
+        spin_loop();
+    }
 
     Ok(())
 }
@@ -490,6 +490,20 @@ pub enum Error {
     Receive,
     Timeout(usize),
     BufferNotInRAM,
+}
+
+impl embedded_io::Error for Error {
+    fn kind(&self) -> ErrorKind {
+        match self {
+            Self::TxBufferTooSmall
+            | Self::RxBufferTooSmall
+            | Self::TxBufferTooLong
+            | Self::RxBufferTooLong
+            | Self::BufferNotInRAM => ErrorKind::InvalidInput,
+            Self::Transmit | Self::Receive => ErrorKind::Interrupted,
+            Self::Timeout(_) => ErrorKind::TimedOut,
+        }
+    }
 }
 
 pub trait Instance: Deref<Target = uarte0::RegisterBlock> + sealed::Sealed {
@@ -595,6 +609,51 @@ where
             written: 0,
         })
     }
+
+    fn flush_nonblocking(&mut self) -> nb::Result<(), Error> {
+        let uarte = unsafe { &*T::ptr() };
+
+        // If txstarted is set, we are in the process of transmitting.
+        let in_progress = uarte.events_txstarted.read().bits() == 1;
+
+        if in_progress {
+            let endtx = uarte.events_endtx.read().bits() != 0;
+            let txstopped = uarte.events_txstopped.read().bits() != 0;
+            if endtx || txstopped {
+                // We are done, cleanup the state.
+                uarte.events_txstarted.reset();
+                self.written = 0;
+
+                // Conservative compiler fence to prevent optimizations that do not
+                // take in to account actions by DMA. The fence has been placed here,
+                // after all possible DMA actions have completed.
+                compiler_fence(SeqCst);
+
+                if txstopped {
+                    return Err(nb::Error::Other(Error::Transmit));
+                }
+
+                // Lower power consumption by disabling the transmitter once we're
+                // finished.
+                stop_write(uarte);
+
+                compiler_fence(SeqCst);
+                Ok(())
+            } else {
+                // Still not done, don't block.
+                Err(nb::Error::WouldBlock)
+            }
+        } else {
+            // No need to trigger transmit if we don't have anything written
+            if self.written == 0 {
+                return Ok(());
+            }
+
+            start_write(uarte, &self.tx_buf[0..self.written]);
+
+            Err(nb::Error::WouldBlock)
+        }
+    }
 }
 
 impl<T> UarteRx<T>
@@ -662,7 +721,54 @@ where
     }
 }
 
-impl<T> serial::Write<u8> for UarteTx<T>
+impl<T: Instance> ErrorType for UarteTx<T> {
+    type Error = Error;
+}
+
+impl<T: Instance> WriteReady for UarteTx<T> {
+    fn write_ready(&mut self) -> Result<bool, Self::Error> {
+        let uarte = unsafe { &*T::ptr() };
+
+        let dma_transfer_in_progress =
+            uarte.events_txstarted.read().bits() == 1 && uarte.events_endtx.read().bits() == 0;
+
+        Ok(!dma_transfer_in_progress && self.written < self.tx_buf.len())
+    }
+}
+
+impl<T: Instance> embedded_io::Write for UarteTx<T> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+
+        // If the internal buffer is full or a DMA transfer is in progress, flush and block until it
+        // is finished.
+        if !self.write_ready()? {
+            embedded_io::Write::flush(self)?;
+        }
+
+        // Copy as many bytes as possible to the internal TX buffer.
+        let length_to_copy = min(buf.len(), self.tx_buf.len() - self.written);
+        self.tx_buf[self.written..].copy_from_slice(&buf[..length_to_copy]);
+        self.written += length_to_copy;
+
+        // If the internal buffer is now full, flush but don't block.
+        match self.flush_nonblocking() {
+            Err(nb::Error::Other(e)) => return Err(e),
+            _ => {}
+        }
+
+        Ok(length_to_copy)
+    }
+
+    fn flush(&mut self) -> Result<(), Self::Error> {
+        nb::block!(self.flush_nonblocking())
+    }
+}
+
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::serial::Write<u8> for UarteTx<T>
 where
     T: Instance,
 {
@@ -678,7 +784,7 @@ where
         }
 
         if self.written >= self.tx_buf.len() {
-            self.flush()?;
+            self.flush_nonblocking()?;
         }
 
         self.tx_buf[self.written] = b;
@@ -688,67 +794,78 @@ where
 
     /// Flush the TX buffer non-blocking. Returns nb::Error::WouldBlock if not yet flushed.
     fn flush(&mut self) -> nb::Result<(), Self::Error> {
-        let uarte = unsafe { &*T::ptr() };
-
-        // If txstarted is set, we are in the process of transmitting.
-        let in_progress = uarte.events_txstarted.read().bits() == 1;
-
-        if in_progress {
-            let endtx = uarte.events_endtx.read().bits() != 0;
-            let txstopped = uarte.events_txstopped.read().bits() != 0;
-            if endtx || txstopped {
-                // We are done, cleanup the state.
-                uarte.events_txstarted.reset();
-                self.written = 0;
-
-                // Conservative compiler fence to prevent optimizations that do not
-                // take in to account actions by DMA. The fence has been placed here,
-                // after all possible DMA actions have completed.
-                compiler_fence(SeqCst);
-
-                if txstopped {
-                    return Err(nb::Error::Other(Error::Transmit));
-                }
-
-                // Lower power consumption by disabling the transmitter once we're
-                // finished.
-                stop_write(uarte);
-
-                compiler_fence(SeqCst);
-                Ok(())
-            } else {
-                // Still not done, don't block.
-                Err(nb::Error::WouldBlock)
-            }
-        } else {
-            // No need to trigger transmit if we don't have anything written
-            if self.written == 0 {
-                return Ok(());
-            }
-
-            start_write(uarte, &self.tx_buf[0..self.written]);
-
-            Err(nb::Error::WouldBlock)
-        }
+        self.flush_nonblocking()
     }
 }
 
 // Auto-implement the blocking variant
-impl<T> bserial::write::Default<u8> for UarteTx<T> where T: Instance {}
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::blocking::serial::write::Default<u8> for UarteTx<T> where T: Instance {}
 
 impl<T> core::fmt::Write for UarteTx<T>
 where
     T: Instance,
 {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        s.as_bytes()
-            .iter()
-            .try_for_each(|c| nb::block!(self.write(*c)))
-            .map_err(|_| core::fmt::Error)
+        self.write_all(s.as_bytes()).map_err(|_| core::fmt::Error)
     }
 }
 
-impl<T> serial::Read<u8> for UarteRx<T>
+impl<T: Instance> ErrorType for UarteRx<T> {
+    type Error = Error;
+}
+
+impl<T: Instance> ReadReady for UarteRx<T> {
+    fn read_ready(&mut self) -> Result<bool, Self::Error> {
+        let uarte = unsafe { &*T::ptr() };
+
+        compiler_fence(SeqCst);
+
+        if uarte.events_rxstarted.read().bits() == 0 {
+            start_read(uarte, self.rx_buf)?;
+            Ok(false)
+        } else {
+            Ok(uarte.events_endrx.read().bits() != 0)
+        }
+    }
+}
+
+impl<T: Instance> embedded_io::Read for UarteRx<T> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+
+        let uarte = unsafe { &*T::ptr() };
+
+        compiler_fence(SeqCst);
+
+        // This complexity to handle in-progress reads is needed because calls to this read method
+        // might be interleaved with calls to embedded_hal_02::serial::Read::read.
+
+        // If no read transaction is started yet, start one and wait for it to start.
+        if uarte.events_rxstarted.read().bits() == 0 {
+            start_read(&uarte, self.rx_buf)?;
+        }
+
+        // Wait for the transaction to finish.
+        while uarte.events_endrx.read().bits() == 0 {
+            spin_loop();
+        }
+
+        // Tidy up and return the byte read.
+        uarte.events_rxstarted.reset();
+        finalize_read(uarte);
+        if uarte.rxd.amount.read().bits() != 1 {
+            return Err(Error::Receive);
+        }
+        buf[0] = self.rx_buf[0];
+        Ok(1)
+    }
+}
+
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::serial::Read<u8> for UarteRx<T>
 where
     T: Instance,
 {
@@ -768,7 +885,7 @@ where
 
             finalize_read(uarte);
 
-            if uarte.rxd.amount.read().bits() != 1 as u32 {
+            if uarte.rxd.amount.read().bits() != 1 {
                 return Err(nb::Error::Other(Error::Receive));
             }
             Ok(self.rx_buf[0])

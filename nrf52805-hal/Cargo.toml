@@ -1,8 +1,8 @@
 [package]
-name = "nrf52810-hal"
+name = "nrf52805-hal"
 version = "0.17.1"
 edition = "2018"
-description = "HAL for nRF52810 microcontrollers"
+description = "HAL for nRF52805 microcontrollers"
 readme = "../README.md"
 
 repository = "https://github.com/nrf-rs/nrf-hal"
@@ -14,21 +14,20 @@ authors = [
     "Ferdia McKeogh <ferdia@mckeogh.tech>",
 ]
 categories = ["embedded", "hardware-support", "no-std"]
-keywords = ["arm", "cortex-m", "nrf52", "hal", "nrf52810"]
+keywords = ["arm", "cortex-m", "nrf52", "hal", "nrf52805"]
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-nrf52810-pac = "0.12.2"
+nrf52805-pac = "0.12.2"
 
 [dependencies.nrf-hal-common]
 path = "../nrf-hal-common"
 default-features = false
-features = ["52810"]
+features = ["52805"]
 version = "=0.17.1"
 
 [features]
 doc = []
 embedded-hal-02 = ["nrf-hal-common/embedded-hal-02"]
-rt = ["nrf52810-pac/rt"]
-monotonic = ["nrf-hal-common/monotonic"]
+rt = ["nrf52805-pac/rt"]
 default = ["rt", "embedded-hal-02"]

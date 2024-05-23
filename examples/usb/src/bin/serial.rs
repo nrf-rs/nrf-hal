@@ -7,7 +7,7 @@ use cortex_m_rt::entry;
 use nrf52840_hal::clocks::Clocks;
 use nrf52840_hal::usbd::{UsbPeripheral, Usbd};
 use usb_device::class_prelude::UsbBusAllocator;
-use usb_device::device::{UsbDeviceBuilder, UsbVidPid};
+use usb_device::device::{StringDescriptors, UsbDeviceBuilder, UsbVidPid};
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
 #[entry]
@@ -20,11 +20,14 @@ fn main() -> ! {
     let mut serial = SerialPort::new(&usb_bus);
 
     let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x16c0, 0x27dd))
-        .manufacturer("Fake company")
-        .product("Serial port")
-        .serial_number("TEST")
+        .strings(&[StringDescriptors::default()
+            .manufacturer("Fake company")
+            .product("Serial port")
+            .serial_number("TEST")])
+        .unwrap()
         .device_class(USB_CLASS_CDC)
         .max_packet_size_0(64) // (makes control transfers 8x faster)
+        .unwrap()
         .build();
 
     loop {

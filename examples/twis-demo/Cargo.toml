@@ -4,15 +4,10 @@ version = "0.1.0"
 authors = ["Henrik Alsér"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-cortex-m = "0.7.3"
+cortex-m = { version = "0.7.3", features = ["critical-section-single-core"] }
 cortex-m-rt = { version = "0.7.0", features = ["device"] }
 cortex-m-rtic = { version = "1.0.0", default-features = false }
-rtt-target = { version = "0.3.1", features = ["cortex-m"] }
+embedded-hal = "1.0.0"
+rtt-target = "0.5.0"
 nrf52840-hal = { features = ["rt"], path = "../../nrf52840-hal" }
-
-[dependencies.embedded-hal]
-version = "0.2.3"
-features = ["unproven"]

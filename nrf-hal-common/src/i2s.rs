@@ -682,10 +682,7 @@ struct Inner<B> {
 impl<B> Transfer<B> {
     /// Returns `true` if the transfer is done.
     pub fn is_done(&self) -> bool {
-        if let Some(inner) = self
-            .inner
-            .as_ref()
-        {
+        if let Some(inner) = self.inner.as_ref() {
             inner.i2s.is_event_triggered(I2SEvent::RxPtrUpdated)
                 || inner.i2s.is_event_triggered(I2SEvent::TxPtrUpdated)
         } else {

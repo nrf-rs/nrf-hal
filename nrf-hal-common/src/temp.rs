@@ -20,6 +20,19 @@ impl Temp {
     /// Starts a new measurement and blocks until completion.
     ///
     /// If a measurement was already started, it will be canceled.
+    ///
+    /// Returns the measured temperature in °C.
+    ///
+    /// Note: This return type is [fixed::types::I30F2]. It
+    /// can be converted into [f32] or [f64] (or other numeric types)
+    /// via the `to_num()` method.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// let mut temp = Temp::new(board.TEMP);
+    /// let deg_c: f32 = temp.measure().to_num();
+    /// ```
     pub fn measure(&mut self) -> I30F2 {
         self.stop_measurement();
         self.start_measurement();

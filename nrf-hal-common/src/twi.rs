@@ -1,11 +1,11 @@
 //! HAL interface to the TWI peripheral.
 
-use core::ops::Deref;
-
 use crate::{
     gpio::{Floating, Input, Pin},
     pac::{twi0, GPIO, TWI0, TWI1},
 };
+use core::ops::Deref;
+use embedded_hal::i2c::{self, ErrorKind, ErrorType, I2c, Operation};
 
 pub use twi0::frequency::FREQUENCY_A as Frequency;
 
@@ -250,7 +250,94 @@ where
     }
 }
 
-impl<T> embedded_hal::blocking::i2c::Write for Twi<T>
+impl<T> ErrorType for Twi<T> {
+    type Error = Error;
+}
+
+impl<T: Instance> I2c for Twi<T> {
+    fn transaction(
+        &mut self,
+        address: u8,
+        operations: &mut [Operation],
+    ) -> Result<(), Self::Error> {
+        // Make sure all previously used shortcuts are disabled.
+        self.0
+            .shorts
+            .write(|w| w.bb_stop().disabled().bb_suspend().disabled());
+
+        // Set Slave I2C address.
+        self.0
+            .address
+            .write(|w| unsafe { w.address().bits(address.into()) });
+
+        // `Some(true)` if the last operation was a read, `Some(false)` if it was a write.
+        let mut last_operation_read = None;
+        let operations_count = operations.len();
+        for (i, operation) in operations.into_iter().enumerate() {
+            match operation {
+                Operation::Read(buffer) => {
+                    // Clear reception event.
+                    self.0.events_rxdready.write(|w| unsafe { w.bits(0) });
+
+                    if last_operation_read != Some(true) {
+                        // Start data reception.
+                        self.0.tasks_startrx.write(|w| unsafe { w.bits(1) });
+                    }
+
+                    if let Some((last, before)) = buffer.split_last_mut() {
+                        for byte in before {
+                            *byte = self.recv_byte()?;
+                        }
+
+                        if i == operations_count - 1 {
+                            // Send stop after receiving the last byte.
+                            self.0.events_stopped.write(|w| unsafe { w.bits(0) });
+                            self.0.tasks_stop.write(|w| unsafe { w.bits(1) });
+
+                            *last = self.recv_byte()?;
+
+                            // Wait until stop was sent.
+                            while self.0.events_stopped.read().bits() == 0 {
+                                // Bail out if we get an error instead.
+                                if self.0.events_error.read().bits() != 0 {
+                                    self.0.events_error.write(|w| unsafe { w.bits(0) });
+                                    return Err(Error::Transmit);
+                                }
+                            }
+                        } else {
+                            *last = self.recv_byte()?;
+                        }
+                    } else {
+                        self.send_stop()?;
+                    }
+                    last_operation_read = Some(true);
+                }
+                Operation::Write(buffer) => {
+                    if last_operation_read != Some(false) {
+                        // Start data transmission.
+                        self.0.tasks_starttx.write(|w| unsafe { w.bits(1) });
+                    }
+
+                    // Clock out all bytes.
+                    for byte in *buffer {
+                        self.send_byte(*byte)?;
+                    }
+
+                    if i == operations_count - 1 {
+                        // Send stop.
+                        self.send_stop()?;
+                    }
+                    last_operation_read = Some(false);
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::blocking::i2c::Write for Twi<T>
 where
     T: Instance,
 {
@@ -261,7 +348,8 @@ where
     }
 }
 
-impl<T> embedded_hal::blocking::i2c::Read for Twi<T>
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::blocking::i2c::Read for Twi<T>
 where
     T: Instance,
 {
@@ -272,7 +360,8 @@ where
     }
 }
 
-impl<T> embedded_hal::blocking::i2c::WriteRead for Twi<T>
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::blocking::i2c::WriteRead for Twi<T>
 where
     T: Instance,
 {
@@ -303,6 +392,13 @@ pub struct Pins {
 pub enum Error {
     Transmit,
     Receive,
+}
+
+impl i2c::Error for Error {
+    fn kind(&self) -> ErrorKind {
+        // TODO
+        ErrorKind::Other
+    }
 }
 
 /// Implemented by all TWIM instances.

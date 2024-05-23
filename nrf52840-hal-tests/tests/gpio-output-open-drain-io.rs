@@ -8,9 +8,8 @@
 
 use defmt_rtt as _;
 use nrf52840_hal as _;
-use panic_probe as _;
-
 use nrf52840_hal::gpio::{Input, OpenDrainIO, Output, Pin, PullUp};
+use panic_probe as _;
 
 struct State {
     input_pin: Option<Pin<Input<PullUp>>>,
@@ -21,10 +20,10 @@ struct State {
 mod tests {
     use cortex_m::asm;
     use defmt::{assert, unwrap};
+    use embedded_hal::digital::{InputPin, OutputPin};
     use nrf52840_hal::{
         gpio::{p0, Level, OpenDrainConfig},
         pac,
-        prelude::*,
     };
 
     use super::State;
@@ -51,7 +50,7 @@ mod tests {
         state.output_pin.set_low().unwrap();
         // GPIO operations are not instantaneous so a delay is needed
         asm::delay(100);
-        assert!(state.input_pin.as_ref().unwrap().is_low().unwrap());
+        assert!(state.input_pin.as_mut().unwrap().is_low().unwrap());
     }
 
     #[test]
@@ -59,9 +58,9 @@ mod tests {
         state.output_pin.set_high().unwrap();
         // GPIO operations are not instantaneous so a delay is needed
         asm::delay(100);
-        assert!(state.input_pin.as_ref().unwrap().is_high().unwrap());
+        assert!(state.input_pin.as_mut().unwrap().is_high().unwrap());
 
-        let pulled_down_input_pin = state.input_pin.take().unwrap().into_pulldown_input();
+        let mut pulled_down_input_pin = state.input_pin.take().unwrap().into_pulldown_input();
         // GPIO operations are not instantaneous so a delay is needed
         asm::delay(100);
         assert!(pulled_down_input_pin.is_low().unwrap());
@@ -82,7 +81,7 @@ mod tests {
     fn open_pulldown_reads_low(state: &mut State) {
         state.output_pin.set_high().unwrap();
 
-        let pulled_down_input_pin = state.input_pin.take().unwrap().into_pulldown_input();
+        let mut pulled_down_input_pin = state.input_pin.take().unwrap().into_pulldown_input();
         // GPIO operations are not instantaneous so a delay is needed
         asm::delay(100);
         assert!(pulled_down_input_pin.is_low().unwrap());

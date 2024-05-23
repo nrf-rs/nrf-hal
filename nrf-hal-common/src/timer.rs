@@ -19,14 +19,9 @@ use crate::pac::{
     },
     Interrupt, TIMER0, TIMER1, TIMER2,
 };
+#[cfg(feature = "embedded-hal-02")]
 use cast::u32;
-use embedded_hal::{
-    blocking::delay::{DelayMs, DelayUs},
-    prelude::*,
-    timer,
-};
-use nb::{self, block};
-use void::{unreachable, Void};
+use embedded_hal::delay::DelayNs;
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::{TIMER3, TIMER4};
@@ -44,7 +39,7 @@ use crate::pac::timer0::{
     RegisterBlock as RegBlock3, EVENTS_COMPARE as EventsCompare3, TASKS_CAPTURE as TasksCapture3,
 };
 
-use core::marker::PhantomData;
+use core::{hint::spin_loop, marker::PhantomData};
 
 pub struct OneShot;
 pub struct Periodic;
@@ -54,7 +49,7 @@ pub struct Periodic;
 /// Right now, this is a very basic interface. The timer will always be
 /// hardcoded to a frequency of 1 MHz and 32 bits accuracy.
 ///
-/// CC[0] is used for the current/most-recent delay period and CC[1] is used
+/// CC\[0\] is used for the current/most-recent delay period and CC\[1\] is used
 /// to grab the current value of the counter at a given instant.
 pub struct Timer<T, U = OneShot>(T, PhantomData<U>);
 
@@ -107,7 +102,7 @@ where
         self.0
     }
 
-    /// Return the current value of the counter, by capturing to CC[1].
+    /// Return the current value of the counter, by capturing to CC\[1\].
     pub fn read(&self) -> u32 {
         self.0.read_counter()
     }
@@ -145,11 +140,34 @@ where
         self.0.disable_interrupt();
     }
 
+    /// Starts the timer.
+    ///
+    /// The timer will run for the given number of cycles, then it will stop and
+    /// reset.
+    pub fn start(&mut self, cycles: u32) {
+        self.0.timer_start(cycles)
+    }
+
+    /// If the timer has finished, resets it and returns true.
+    ///
+    /// Returns false if the timer is still running.
+    pub fn reset_if_finished(&mut self) -> bool {
+        if self.0.timer_running() {
+            // EVENTS_COMPARE has not been triggered yet
+            return false;
+        }
+
+        self.0.timer_reset_event();
+
+        true
+    }
+
+    /// Starts the timer for the given number of cycles and waits for it to
+    /// finish.
     pub fn delay(&mut self, cycles: u32) {
         self.start(cycles);
-        match block!(self.wait()) {
-            Ok(_) => {}
-            Err(x) => unreachable(x),
+        while !self.reset_if_finished() {
+            spin_loop();
         }
     }
 
@@ -181,68 +199,69 @@ where
         &self.0.as_timer0().tasks_clear
     }
 
-    /// Returns reference to the CC[0] `CAPTURE` task endpoint for PPI.
-    /// Captures timer value to the CC[0] register.
+    /// Returns reference to the CC\[0\] `CAPTURE` task endpoint for PPI.
+    /// Captures timer value to the CC\[0\] register.
     #[inline(always)]
     pub fn task_capture_cc0(&self) -> &TASKS_CAPTURE {
         &self.0.as_timer0().tasks_capture[0]
     }
 
-    /// Returns reference to the CC[1] `CAPTURE` task endpoint for PPI.
-    /// Captures timer value to the CC[1] register.
+    /// Returns reference to the CC\[1\] `CAPTURE` task endpoint for PPI.
+    /// Captures timer value to the CC\[1\] register.
     #[inline(always)]
     pub fn task_capture_cc1(&self) -> &TASKS_CAPTURE {
         &self.0.as_timer0().tasks_capture[1]
     }
 
-    /// Returns reference to the CC[2] `CAPTURE` task endpoint for PPI.
-    /// Captures timer value to the CC[2] register.
+    /// Returns reference to the CC\[2\] `CAPTURE` task endpoint for PPI.
+    /// Captures timer value to the CC\[2\] register.
     #[inline(always)]
     pub fn task_capture_cc2(&self) -> &TASKS_CAPTURE {
         &self.0.as_timer0().tasks_capture[2]
     }
 
-    /// Returns reference to the CC[3] `CAPTURE` task endpoint for PPI.
-    /// Captures timer value to the CC[3] register.
+    /// Returns reference to the CC\[3\] `CAPTURE` task endpoint for PPI.
+    /// Captures timer value to the CC\[3\] register.
     #[inline(always)]
     pub fn task_capture_cc3(&self) -> &TASKS_CAPTURE {
         &self.0.as_timer0().tasks_capture[3]
     }
 
-    /// Returns reference to the CC[0] `COMPARE` event endpoint for PPI.
+    /// Returns reference to the CC\[0\] `COMPARE` event endpoint for PPI.
     /// Generated when the counter is incremented and then matches the value
-    /// specified in the CC[0] register.
+    /// specified in the CC\[0\] register.
     #[inline(always)]
     pub fn event_compare_cc0(&self) -> &EVENTS_COMPARE {
         &self.0.as_timer0().events_compare[0]
     }
 
-    /// Returns reference to the CC[1] `COMPARE` event endpoint for PPI.
+    /// Returns reference to the CC\[1\] `COMPARE` event endpoint for PPI.
     /// Generated when the counter is incremented and then matches the value
-    /// specified in the CC[1] register.
+    /// specified in the CC\[1\] register.
     #[inline(always)]
     pub fn event_compare_cc1(&self) -> &EVENTS_COMPARE {
         &self.0.as_timer0().events_compare[1]
     }
 
-    /// Returns reference to the CC[2] `COMPARE` event endpoint for PPI.
+    /// Returns reference to the CC\[2\] `COMPARE` event endpoint for PPI.
     /// Generated when the counter is incremented and then matches the value
-    /// specified in the CC[2] register.
+    /// specified in the CC\[2\] register.
     #[inline(always)]
     pub fn event_compare_cc2(&self) -> &EVENTS_COMPARE {
         &self.0.as_timer0().events_compare[2]
     }
 
-    /// Returns reference to the CC[3] `COMPARE` event endpoint for PPI.
+    /// Returns reference to the CC\[3\] `COMPARE` event endpoint for PPI.
     /// Generated when the counter is incremented and then matches the value
-    /// specified in the CC[3] register.
+    /// specified in the CC\[3\] register.
     #[inline(always)]
     pub fn event_compare_cc3(&self) -> &EVENTS_COMPARE {
         &self.0.as_timer0().events_compare[3]
     }
 }
 
-impl<T, U> timer::CountDown for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::timer::CountDown for Timer<T, U>
 where
     T: Instance,
 {
@@ -267,20 +286,17 @@ where
     ///
     /// To block until the timer has stopped, use the `block!` macro from the
     /// `nb` crate. Please refer to the documentation of `nb` for other options.
-    fn wait(&mut self) -> nb::Result<(), Void> {
-        if self.0.timer_running() {
-            // EVENTS_COMPARE has not been triggered yet
-            return Err(nb::Error::WouldBlock);
+    fn wait(&mut self) -> nb::Result<(), void::Void> {
+        if self.reset_if_finished() {
+            Ok(())
+        } else {
+            Err(nb::Error::WouldBlock)
         }
-
-        // Reset the event, otherwise it will always read `1` from now on.
-        self.0.timer_reset_event();
-
-        Ok(())
     }
 }
 
-impl<T, U> timer::Cancel for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::timer::Cancel for Timer<T, U>
 where
     T: Instance,
 {
@@ -292,36 +308,41 @@ where
     }
 }
 
-impl<T> timer::Periodic for Timer<T, Periodic> where T: Instance {}
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::timer::Periodic for Timer<T, Periodic> where T: Instance {}
 
-impl<T, U> DelayMs<u32> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayMs<u32> for Timer<T, U>
 where
     T: Instance,
 {
     fn delay_ms(&mut self, ms: u32) {
-        self.delay_us(ms * 1_000);
+        embedded_hal_02::blocking::delay::DelayUs::delay_us(self, ms * 1_000);
     }
 }
 
-impl<T, U> DelayMs<u16> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayMs<u16> for Timer<T, U>
 where
     T: Instance,
 {
     fn delay_ms(&mut self, ms: u16) {
-        self.delay_ms(u32(ms));
+        embedded_hal_02::blocking::delay::DelayMs::delay_ms(self, u32(ms));
     }
 }
 
-impl<T, U> DelayMs<u8> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayMs<u8> for Timer<T, U>
 where
     T: Instance,
 {
     fn delay_ms(&mut self, ms: u8) {
-        self.delay_ms(u32(ms));
+        embedded_hal_02::blocking::delay::DelayMs::delay_ms(self, u32(ms));
     }
 }
 
-impl<T, U> DelayUs<u32> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayUs<u32> for Timer<T, U>
 where
     T: Instance,
 {
@@ -330,31 +351,42 @@ where
     }
 }
 
-impl<T, U> DelayUs<u16> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayUs<u16> for Timer<T, U>
 where
     T: Instance,
 {
     fn delay_us(&mut self, us: u16) {
-        self.delay_us(u32(us))
+        embedded_hal_02::blocking::delay::DelayUs::delay_us(self, u32(us))
     }
 }
 
-impl<T, U> DelayUs<u8> for Timer<T, U>
+#[cfg(feature = "embedded-hal-02")]
+impl<T, U> embedded_hal_02::blocking::delay::DelayUs<u8> for Timer<T, U>
 where
     T: Instance,
 {
     fn delay_us(&mut self, us: u8) {
-        self.delay_us(u32(us))
+        embedded_hal_02::blocking::delay::DelayUs::delay_us(self, u32(us))
+    }
+}
+
+impl<T: Instance, U> DelayNs for Timer<T, U> {
+    fn delay_ns(&mut self, ns: u32) {
+        self.delay(ns / 1_000);
     }
 }
 
 /// Implemented by all TIMER* instances.
 pub trait Instance: sealed::Sealed {
-    /// This interrupt associated with this RTC instance.
+    /// The interrupt associated with this RTC instance.
     const INTERRUPT: Interrupt;
 
+    /// Returns the register block for the timer instance.
     fn as_timer0(&self) -> &RegBlock0;
 
+    /// Starts the timer after clearing the counter register and setting the events compare trigger
+    /// correctly to the numer of `cycles`.
     fn timer_start<Time>(&self, cycles: Time)
     where
         Time: Into<u32>,
@@ -369,7 +401,7 @@ pub trait Instance: sealed::Sealed {
         // nothing else this method does will reset the event, and if it's still
         // active after this method exits, then the next call to `wait` will
         // return immediately, no matter how much time has actually passed.
-        self.as_timer0().events_compare[0].reset();
+        self.timer_reset_event();
 
         // Configure timer to trigger EVENTS_COMPARE when given number of cycles
         // is reached.
@@ -389,15 +421,18 @@ pub trait Instance: sealed::Sealed {
         self.as_timer0().tasks_start.write(|w| unsafe { w.bits(1) });
     }
 
+    /// Resets event for CC[0] register.
     fn timer_reset_event(&self) {
-        self.as_timer0().events_compare[0].write(|w| w);
+        self.as_timer0().events_compare[0].reset();
     }
 
+    /// Cancels timer by setting it to stop mode and resetting the events.
     fn timer_cancel(&self) {
         self.as_timer0().tasks_stop.write(|w| unsafe { w.bits(1) });
         self.timer_reset_event();
     }
 
+    /// Checks if the timer is still running which means no event is yet generated for CC[0].
     fn timer_running(&self) -> bool {
         self.as_timer0().events_compare[0].read().bits() == 0
     }
@@ -407,28 +442,35 @@ pub trait Instance: sealed::Sealed {
         self.as_timer0().cc[1].read().bits()
     }
 
+    /// Disables interrupt for event COMPARE[0].
     fn disable_interrupt(&self) {
         self.as_timer0()
             .intenclr
             .modify(|_, w| w.compare0().clear());
     }
 
+    /// Enables interrupt for event COMPARE[0].
     fn enable_interrupt(&self) {
         self.as_timer0().intenset.modify(|_, w| w.compare0().set());
     }
 
+    /// Sets timer into periodic mode.
     fn set_shorts_periodic(&self) {
         self.as_timer0()
             .shorts
             .write(|w| w.compare0_clear().enabled().compare0_stop().disabled());
     }
 
+    /// Sets timer into oneshot mode.
     fn set_shorts_oneshot(&self) {
         self.as_timer0()
             .shorts
             .write(|w| w.compare0_clear().enabled().compare0_stop().enabled());
     }
 
+    /// Sets up timer for 1 MHz prescaled periods with 32 bits accuracy.
+    ///
+    /// This is only safe to call when the timer is stopped.
     fn set_periodic(&self) {
         self.set_shorts_periodic();
         self.as_timer0().prescaler.write(
@@ -437,6 +479,9 @@ pub trait Instance: sealed::Sealed {
         self.as_timer0().bitmode.write(|w| w.bitmode()._32bit());
     }
 
+    /// Sets up timer for a 1 MHz prescaled oneshot with 32 bits accuracy.
+    ///
+    /// This is only safe to call when the timer is stopped.
     fn set_oneshot(&self) {
         self.set_shorts_oneshot();
         self.as_timer0().prescaler.write(
@@ -505,7 +550,7 @@ impl Instance for TIMER4 {
     }
 }
 
-/// Adds task- and event PPI endpoint getters for CC[4] and CC[5] on supported instances.
+/// Adds task- and event PPI endpoint getters for CC\[4\] and CC\[5\] on supported instances.
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 pub trait ExtendedCCTimer {
     fn task_capture_cc4(&self) -> &TasksCapture3;
@@ -516,25 +561,25 @@ pub trait ExtendedCCTimer {
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 impl ExtendedCCTimer for Timer<TIMER3> {
-    /// Returns reference to the CC[4] `CAPTURE` task endpoint for PPI.
+    /// Returns reference to the CC\[4\] `CAPTURE` task endpoint for PPI.
     #[inline(always)]
     fn task_capture_cc4(&self) -> &TasksCapture3 {
         &self.0.tasks_capture[4]
     }
 
-    /// Returns reference to the CC[5] `CAPTURE` task endpoint for PPI.
+    /// Returns reference to the CC\[5\] `CAPTURE` task endpoint for PPI.
     #[inline(always)]
     fn task_capture_cc5(&self) -> &TasksCapture3 {
         &self.0.tasks_capture[5]
     }
 
-    /// Returns reference to the CC[4] `COMPARE` event endpoint for PPI.
+    /// Returns reference to the CC\[4\] `COMPARE` event endpoint for PPI.
     #[inline(always)]
     fn event_compare_cc4(&self) -> &EventsCompare3 {
         &self.0.events_compare[4]
     }
 
-    /// Returns reference to the CC[5] `COMPARE` event endpoint for PPI.
+    /// Returns reference to the CC\[5\] `COMPARE` event endpoint for PPI.
     #[inline(always)]
     fn event_compare_cc5(&self) -> &EventsCompare3 {
         &self.0.events_compare[5]
@@ -543,25 +588,25 @@ impl ExtendedCCTimer for Timer<TIMER3> {
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 impl ExtendedCCTimer for Timer<TIMER4> {
-    /// Returns reference to the CC[4] `CAPTURE` task endpoint for PPI.
+    /// Returns reference to the CC\[4\] `CAPTURE` task endpoint for PPI.
     #[inline(always)]
     fn task_capture_cc4(&self) -> &TasksCapture3 {
         &self.0.tasks_capture[4]
     }
 
-    /// Returns reference to the CC[5] `CAPTURE` task endpoint for PPI.
+    /// Returns reference to the CC\[5\] `CAPTURE` task endpoint for PPI.
     #[inline(always)]
     fn task_capture_cc5(&self) -> &TasksCapture3 {
         &self.0.tasks_capture[5]
     }
 
-    /// Returns reference to the CC[4] `COMPARE` event endpoint for PPI.
+    /// Returns reference to the CC\[4\] `COMPARE` event endpoint for PPI.
     #[inline(always)]
     fn event_compare_cc4(&self) -> &EventsCompare3 {
         &self.0.events_compare[4]
     }
 
-    /// Returns reference to the CC[5] `COMPARE` event endpoint for PPI.
+    /// Returns reference to the CC\[5\] `COMPARE` event endpoint for PPI.
     #[inline(always)]
     fn event_compare_cc5(&self) -> &EventsCompare3 {
         &self.0.events_compare[5]

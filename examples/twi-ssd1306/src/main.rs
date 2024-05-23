@@ -4,11 +4,9 @@
 extern crate panic_semihosting;
 
 use cortex_m_rt::entry;
-
-use embedded_graphics::fonts::Font6x8;
-use embedded_graphics::prelude::*;
-use ssd1306::prelude::*;
-use ssd1306::Builder;
+use embedded_graphics::{mono_font::ascii::FONT_5X8, text::Text};
+use embedded_graphics::{mono_font::MonoTextStyle, pixelcolor::BinaryColor, prelude::*};
+use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
 
 #[cfg(feature = "52832")]
 use nrf52832_hal::{
@@ -42,17 +40,17 @@ fn main() -> ! {
 
     let i2c = Twim::new(p.TWIM0, pins, twim::Frequency::K100);
 
-    let mut disp: GraphicsMode<_> = Builder::new().connect_i2c(i2c).into();
+    let interface = I2CDisplayInterface::new(i2c);
+    let mut disp = Ssd1306::new(interface, DisplaySize128x64, DisplayRotation::Rotate0)
+        .into_buffered_graphics_mode();
 
     disp.init().expect("Display initialization");
     disp.flush().expect("Cleans the display");
 
-    disp.draw(
-        Font6x8::render_str("Hello Rust!")
-            .with_stroke(Some(1u8.into()))
-            .translate(Coord::new(10, 24))
-            .into_iter(),
-    );
+    let style = MonoTextStyle::new(&FONT_5X8, BinaryColor::On);
+    Text::new("Hello Rust!", Point::new(10, 24), style)
+        .draw(&mut disp)
+        .expect("Drawing text");
 
     disp.flush().expect("Render display");
 

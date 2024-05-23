@@ -10,13 +10,9 @@ publish = false
 
 [dependencies]
 cortex-m-rt = "0.7.0"
-ssd1306 = "0.2.6"
-embedded-graphics = "0.4.7"
-panic-semihosting = "0.5.3"
-
-[dependencies.embedded-hal]
-features = ["unproven"]
-version = "0.2"
+ssd1306 = "0.8.4"
+embedded-graphics = "0.8.1"
+panic-semihosting = "0.6.0"
 
 [dependencies.nrf52832-hal]
 path = "../../nrf52832-hal"

@@ -1,10 +1,10 @@
 //! HAL interface to the UART peripheral.
 
+use core::convert::Infallible;
 use core::fmt::{self, Write};
+use core::hint::spin_loop;
 use core::ops::Deref;
-
-use nb::block;
-use void::Void;
+use embedded_io::{ErrorType, Read, ReadReady, Write as _, WriteReady};
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
 use crate::pac::{uart0, UART0};
@@ -99,7 +99,72 @@ where
     }
 }
 
-impl<T> embedded_hal::serial::Read<u8> for Uart<T>
+impl<T> ErrorType for Uart<T> {
+    type Error = Infallible;
+}
+
+impl<T: Instance> ReadReady for Uart<T> {
+    fn read_ready(&mut self) -> Result<bool, Self::Error> {
+        Ok(self.0.events_rxdrdy.read().bits() != 0)
+    }
+}
+
+impl<T: Instance> Read for Uart<T> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+
+        while !self.read_ready()? {
+            spin_loop();
+        }
+
+        // Reset ready for receive event.
+        self.0.events_rxdrdy.reset();
+
+        // Read one 8bit value.
+        buf[0] = self.0.rxd.read().bits() as u8;
+
+        Ok(1)
+    }
+}
+
+impl<T: Instance> WriteReady for Uart<T> {
+    fn write_ready(&mut self) -> Result<bool, Self::Error> {
+        Ok(self.0.events_txdrdy.read().bits() == 1)
+    }
+}
+
+impl<T: Instance> embedded_io::Write for Uart<T> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+
+        // Wait until we are ready to send out a byte.
+        while !self.write_ready()? {
+            spin_loop();
+        }
+
+        // Reset ready for transmit event.
+        self.0.events_txdrdy.reset();
+
+        // Send a single byte.
+        self.0.txd.write(|w| unsafe { w.bits(buf[0].into()) });
+
+        Ok(1)
+    }
+
+    fn flush(&mut self) -> Result<(), Self::Error> {
+        while !self.write_ready()? {
+            spin_loop();
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::serial::Read<u8> for Uart<T>
 where
     T: Instance,
 {
@@ -121,11 +186,12 @@ where
     }
 }
 
-impl<T> embedded_hal::serial::Write<u8> for Uart<T>
+#[cfg(feature = "embedded-hal-02")]
+impl<T> embedded_hal_02::serial::Write<u8> for Uart<T>
 where
     T: Instance,
 {
-    type Error = Void;
+    type Error = void::Void;
 
     fn flush(&mut self) -> nb::Result<(), Self::Error> {
         Ok(())
@@ -150,12 +216,10 @@ where
 
 impl<T> Write for Uart<T>
 where
-    Uart<T>: embedded_hal::serial::Write<u8>,
+    Uart<T>: embedded_io::Write,
 {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        use embedded_hal::serial::Write;
-        let _ = s.as_bytes().iter().map(|c| block!(self.write(*c))).last();
-        Ok(())
+        self.write_all(s.as_bytes()).map_err(|_| fmt::Error)
     }
 }
 

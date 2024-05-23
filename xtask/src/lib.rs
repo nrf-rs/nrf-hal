@@ -5,6 +5,7 @@ pub static HALS: &[(&str, &str)] = &[
     ("nrf9160-hal", "thumbv8m.main-none-eabihf"),
     ("nrf5340-app-hal", "thumbv8m.main-none-eabihf"),
     ("nrf5340-net-hal", "thumbv8m.main-none-eabihf"),
+    ("nrf52805-hal", "thumbv7em-none-eabi"),
     ("nrf52810-hal", "thumbv7em-none-eabi"),
     ("nrf52811-hal", "thumbv7em-none-eabi"),
     ("nrf52832-hal", "thumbv7em-none-eabihf"),
@@ -14,11 +15,14 @@ pub static HALS: &[(&str, &str)] = &[
 
 pub static EXAMPLES: &[(&str, &[&str])] = &[
     ("blinky-button-demo", &[]),
-    ("ccm-demo", &["52810", "52811", "52832", "52833", "52840"]),
+    (
+        "ccm-demo",
+        &["52805", "52810", "52811", "52832", "52833", "52840"],
+    ),
     ("comp-demo", &[]),
     (
         "ecb-demo",
-        &["51", "52810", "52811", "52832", "52833", "52840"],
+        &["51", "52805", "52810", "52811", "52832", "52833", "52840"],
     ),
     ("hello-world", &["52840", "9160"]),
     ("gpiote-demo", &[]),
@@ -27,14 +31,17 @@ pub static EXAMPLES: &[(&str, &[&str])] = &[
     ("lpcomp-demo", &[]),
     (
         "ppi-demo",
-        &["51", "52810", "52811", "52832", "52833", "52840"],
+        &["51", "52805", "52810", "52811", "52832", "52833", "52840"],
     ),
     ("nvmc-demo", &["52840"]),
     ("pwm-blinky-demo", &["52840"]),
     ("pwm-demo", &[]),
     ("qdec-demo", &[]),
     ("rtc-demo", &[]),
-    ("rtic-demo", &["51", "52810", "52811", "52832", "52840"]),
+    (
+        "rtic-demo",
+        &["51", "52805", "52810", "52811", "52832", "52840"],
+    ),
     ("spi-demo", &[]),
     ("spis-demo", &[]),
     ("twi-ssd1306", &["52832", "52840"]),
@@ -49,7 +56,7 @@ pub static EXAMPLES: &[(&str, &[&str])] = &[
 pub fn feature_to_target(feat: &str) -> &str {
     match feat {
         "51" => "thumbv6m-none-eabi",
-        "52810" | "52811" => "thumbv7em-none-eabi",
+        "52805" | "52810" | "52811" => "thumbv7em-none-eabi",
         "9160" | "5340-app" | "5340-net" => "thumbv8m.main-none-eabihf",
         _ if feat.starts_with("52") => "thumbv7em-none-eabihf",
         _ => panic!("unknown Cargo feature `{}`", feat),

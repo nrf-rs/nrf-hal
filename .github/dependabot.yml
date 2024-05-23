@@ -1,0 +1,150 @@
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/examples/blinky-button-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/ccm-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/comp-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/ecb-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/gpiote-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/hello-world/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/i2s-controller-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/i2s-peripheral-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/lpcomp-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/nvmc-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/ppi-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/pwm-blinky-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/pwm-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/qdec-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/rtc-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/rtic-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/spi-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/spis-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/twi-ssd1306/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/twim-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/twis-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/twis-dma-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/usb/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/examples/wdt-demo/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/nrf-hal-common/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/nrf51-hal/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/nrf52810-hal/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/nrf52811-hal/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/nrf52832-hal/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/nrf52833-hal/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/nrf52840-hal-tests/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/nrf52840-hal/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/nrf5340-app-hal/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/nrf5340-net-hal/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/nrf9160-hal/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/xtask/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
