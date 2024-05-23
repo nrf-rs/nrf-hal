@@ -5,16 +5,12 @@ for software task scheduling. This example shows how to use the different clocks
 
 ## How to run
 
-To run the default blinky example
-```bash
-cargo embed --release
-```
 To run the example using the `rtc`
 ```bash
-cargo embed --release --example rtc
+cargo embed --release --bin rtc
 ```
 To run the example using the `timer`
 ```bash
-cargo embed --release --example timer
+cargo embed --release --bin timer
 ```
 
