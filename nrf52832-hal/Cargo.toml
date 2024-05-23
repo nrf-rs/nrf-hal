@@ -30,6 +30,7 @@ embedded-hal-02 = ["nrf-hal-common/embedded-hal-02"]
 rt = ["nrf52832-pac/rt"]
 xxAA-package = []
 xxAB-package = []
+rtic-monotonic = ["nrf-hal-common/monotonic"]
 
 # Note: We use the xxAB package because it has the least amount of available resources.
 #   However, most users will want to use the xxAA package.

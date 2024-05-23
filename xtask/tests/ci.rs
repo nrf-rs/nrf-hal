@@ -56,7 +56,7 @@ fn main() {
                 "--target",
                 target,
                 "--features",
-                "monotonic",
+                "rtic-monotonic",
             ])
             .status()
             .map_err(|e| format!("could not execute {:?}: {}", cargo, e))

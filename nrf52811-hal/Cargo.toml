@@ -29,5 +29,5 @@ version = "=0.17.1"
 [features]
 embedded-hal-02 = ["nrf-hal-common/embedded-hal-02"]
 rt = ["nrf52811-pac/rt"]
-monotonic = ["nrf-hal-common/monotonic"]
+rtic-monotonic = ["nrf-hal-common/monotonic"]
 default = ["rt", "embedded-hal-02"]

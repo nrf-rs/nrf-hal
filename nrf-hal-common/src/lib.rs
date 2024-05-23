@@ -4,7 +4,7 @@
 #![doc(html_root_url = "https://docs.rs/nrf-hal-common/0.17.1")]
 #![no_std]
 
-#[cfg(feature = "monotonic")]
+#[cfg(feature = "rtic-monotonic")]
 pub mod monotonic;
 
 #[cfg(feature = "51")]
