@@ -1,5 +1,5 @@
 #![no_std]
-#![doc(html_root_url = "https://docs.rs/nrf52840-hal/0.17.1")]
+#![doc(html_root_url = "https://docs.rs/nrf52840-hal/0.18.0")]
 
 pub use nrf_hal_common::*;
 
