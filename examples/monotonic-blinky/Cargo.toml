@@ -12,3 +12,11 @@ nrf52840-hal = { path = "../../nrf52840-hal/", features = ["monotonic"] }
 cortex-m-rtic = "1.1.4"
 fugit = "0.3.7"
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
+
+[[bin]]
+name = "rtc"
+path = "src/rtc.rs"
+
+[[bin]]
+name = "timer"
+path = "src/timer.rs"
