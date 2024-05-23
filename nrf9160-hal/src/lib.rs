@@ -9,8 +9,6 @@ pub mod prelude {
 
 pub use crate::clocks::Clocks;
 pub use crate::delay::Delay;
-#[cfg(feature = "monotonic")]
-pub use crate::monotonic;
 pub use crate::rtc::Rtc;
 pub use crate::saadc::Saadc;
 pub use crate::spim::Spim;
