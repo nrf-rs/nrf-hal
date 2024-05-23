@@ -150,9 +150,19 @@ pub mod target_constants {
     pub const SRAM_LOWER: usize = 0x2000_0000;
     pub const SRAM_UPPER: usize = 0x3000_0000;
 
-    #[cfg(any(feature = "51", feature = "52805", feature = "52810", feature = "52832"))]
+    #[cfg(any(
+        feature = "51",
+        feature = "52805",
+        feature = "52810",
+        feature = "52832"
+    ))]
     pub const FORCE_COPY_BUFFER_SIZE: usize = 255;
-    #[cfg(not(any(feature = "51", feature = "52805", feature = "52810", feature = "52832")))]
+    #[cfg(not(any(
+        feature = "51",
+        feature = "52805",
+        feature = "52810",
+        feature = "52832"
+    )))]
     pub const FORCE_COPY_BUFFER_SIZE: usize = 1024;
     const _CHECK_FORCE_COPY_BUFFER_SIZE: usize = EASY_DMA_SIZE - FORCE_COPY_BUFFER_SIZE;
     // ERROR: FORCE_COPY_BUFFER_SIZE must be <= EASY_DMA_SIZE

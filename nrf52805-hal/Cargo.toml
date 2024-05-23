@@ -1,6 +1,6 @@
 [package]
 name = "nrf52805-hal"
-version = "0.16.0"
+version = "0.17.1"
 edition = "2018"
 description = "HAL for nRF52805 microcontrollers"
 readme = "../README.md"
@@ -24,13 +24,10 @@ nrf52805-pac = "0.12.2"
 path = "../nrf-hal-common"
 default-features = false
 features = ["52805"]
-version = "=0.16.0"
-
-[dependencies.embedded-hal]
-features = ["unproven"]
-version = "0.2.3"
+version = "=0.17.1"
 
 [features]
 doc = []
+embedded-hal-02 = ["nrf-hal-common/embedded-hal-02"]
 rt = ["nrf52805-pac/rt"]
-default = ["rt"]
+default = ["rt", "embedded-hal-02"]
