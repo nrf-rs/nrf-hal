@@ -11,11 +11,11 @@ pub use crate::adc::Adc;
 pub use crate::ccm::Ccm;
 pub use crate::clocks::Clocks;
 pub use crate::ecb::Ecb;
+#[cfg(feature = "monotonic")]
+pub use crate::monotonic;
 pub use crate::rtc::Rtc;
 pub use crate::spi::Spi;
 pub use crate::temp::Temp;
 pub use crate::timer::Timer;
 pub use crate::twi::Twi;
 pub use crate::uart::Uart;
-#[cfg(feature="monotonic")]
-pub use crate::monotonic;
