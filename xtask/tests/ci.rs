@@ -46,6 +46,26 @@ fn main() {
             "command exited with error status: {:?}",
             cargo
         );
+        // With default features plus `monotonic`.
+        let mut cargo = Command::new("cargo");
+        let status = cargo
+            .args(&[
+                "build",
+                "--manifest-path",
+                &toml_path,
+                "--target",
+                target,
+                "--features",
+                "monotonic",
+            ])
+            .status()
+            .map_err(|e| format!("could not execute {:?}: {}", cargo, e))
+            .unwrap();
+        assert!(
+            status.success(),
+            "command exited with error status: {:?}",
+            cargo
+        );
         // Without default features.
         let mut cargo = Command::new("cargo");
         let status = cargo
