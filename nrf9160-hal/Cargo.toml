@@ -27,4 +27,5 @@ version = "=0.17.1"
 doc = []
 embedded-hal-02 = ["nrf-hal-common/embedded-hal-02"]
 rt = ["nrf9160-pac/rt"]
+rtic-monotonic = ["nrf-hal-common/rtic-monotonic"]
 default = ["rt", "embedded-hal-02"]

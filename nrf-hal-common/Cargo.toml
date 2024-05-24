@@ -20,13 +20,15 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [dependencies]
-cortex-m = "0.7.7"
-nb = "1.1.0"
-fixed = "1.25.1"
-rand_core = "0.6.4"
 cfg-if = "1.0.0"
+cortex-m = "0.7.7"
 embedded-dma = "0.2.0"
+embedded-hal = "1.0.0"
+embedded-io = "0.6.1"
 embedded-storage = "0.3.1"
+fixed = "1.25.1"
+nb = "1.1.0"
+rand_core = "0.6.4"
 
 [dependencies.void]
 default-features = false
@@ -86,11 +88,13 @@ features = ["unproven"]
 version = "0.2.7"
 optional = true
 
-[dependencies.embedded-hal]
+[dependencies.rtic-monotonic]
 version = "1.0.0"
+optional = true
 
-[dependencies.embedded-io]
-version = "0.6.1"
+[dependencies.fugit]
+version = "0.3.7"
+optional = true
 
 [features]
 doc = []
@@ -104,3 +108,4 @@ doc = []
 5340-app = ["nrf5340-app-pac"]
 5340-net = ["nrf5340-net-pac"]
 9160 = ["nrf9160-pac"]
+rtic-monotonic = ["dep:rtic-monotonic", "dep:fugit"]

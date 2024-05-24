@@ -31,6 +31,7 @@ version = "=0.17.1"
 doc = []
 embedded-hal-02 = ["nrf-hal-common/embedded-hal-02"]
 rt = ["nrf51-pac/rt"]
+rtic-monotonic = ["nrf-hal-common/rtic-monotonic"]
 # Note: We use the xxAB package by default because it has the least amount of available resources.
 default = ["rt", "xxAB-package", "embedded-hal-02"]
 xxAA-package = []
