@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+(no changes)
+
+## [0.18.0]
+
+### Breaking changes
+
+- Updated `nrf-usbd` to 0.3.0. ([#460])
+
 ### New features
 
 - Added support for nRF52805 ([#422]).
@@ -9,6 +17,7 @@
 
 [#422]: https://github.com/nrf-rs/nrf-hal/pull/422
 [#427]: https://github.com/nrf-rs/nrf-hal/pull/427
+[#460]: https://github.com/nrf-rs/nrf-hal/pull/440
 
 ## [0.17.1]
 
@@ -421,3 +430,4 @@ None
 [0.16.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.16.1
 [0.17.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.17.0
 [0.17.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.17.1
+[0.18.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.18.0

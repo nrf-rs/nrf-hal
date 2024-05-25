@@ -1,6 +1,6 @@
 [package]
 name = "nrf52810-hal"
-version = "0.17.1"
+version = "0.18.0"
 edition = "2018"
 description = "HAL for nRF52810 microcontrollers"
 readme = "../README.md"
@@ -24,7 +24,7 @@ nrf52810-pac = "0.12.2"
 path = "../nrf-hal-common"
 default-features = false
 features = ["52810"]
-version = "=0.17.1"
+version = "=0.18.0"
 
 [features]
 doc = []
