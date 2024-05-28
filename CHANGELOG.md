@@ -13,7 +13,8 @@
 ### New features
 
 - Added support for nRF52805 ([#422]).
-- Added implementation of RTIC `Monotonic` for RTC and TIMER, behind new `monotonic` feature ([#427]).
+- Added implementation of RTIC `Monotonic` for RTC and TIMER, behind new `rtic-monotonic` feature
+  ([#427]).
 
 [#422]: https://github.com/nrf-rs/nrf-hal/pull/422
 [#427]: https://github.com/nrf-rs/nrf-hal/pull/427
