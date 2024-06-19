@@ -18,7 +18,7 @@
 
 [#422]: https://github.com/nrf-rs/nrf-hal/pull/422
 [#427]: https://github.com/nrf-rs/nrf-hal/pull/427
-[#460]: https://github.com/nrf-rs/nrf-hal/pull/440
+[#460]: https://github.com/nrf-rs/nrf-hal/pull/460
 
 ## [0.17.1]
 
