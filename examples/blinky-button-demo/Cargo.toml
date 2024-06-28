@@ -9,4 +9,17 @@ cortex-m = { version = "0.7.3", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7.0"
 embedded-hal = "1.0.0"
 rtt-target = "0.5.0"
-nrf52832-hal = { features = ["rt"], path = "../../nrf52832-hal" }
+
+[dependencies.nrf52832-hal]
+features = ["rt"]
+path = "../../nrf52832-hal"
+optional = true
+
+[dependencies.nrf9120-hal]
+features = ["rt"]
+path = "../../nrf9120-hal"
+optional = true
+
+[features]
+52832 = ["nrf52832-hal"]
+9120 = ["nrf9120-hal"]
