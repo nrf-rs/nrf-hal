@@ -6,7 +6,7 @@
 use cfg_if::cfg_if;
 
 cfg_if! {
-    if #[cfg(any(feature = "9160", feature = "5340-net"))] {
+    if #[cfg(any(feature = "9160", feature = "9120", feature = "5340-net"))] {
         use crate::pac::WDT_NS as WDT;
     } else if #[cfg(feature = "5340-app")] {
         use crate::pac::WDT0_NS as WDT;
@@ -214,7 +214,7 @@ where
     #[inline(always)]
     pub fn is_active(&self) -> bool {
         cfg_if! {
-            if #[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))] {
+            if #[cfg(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net"))] {
                 self.wdt.runstatus.read().runstatuswdt().bit_is_set()
             } else {
                 self.wdt.runstatus.read().runstatus().bit_is_set()

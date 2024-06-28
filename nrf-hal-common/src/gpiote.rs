@@ -6,10 +6,10 @@
 #[cfg(feature = "51")]
 use crate::pac::GPIO as P0;
 
-#[cfg(any(feature = "9160", feature = "5340-net"))]
+#[cfg(any(feature = "9160", feature = "9120", feature = "5340-net"))]
 use crate::pac::P0_NS as P0;
 
-#[cfg(not(any(feature = "51", feature = "9160", feature = "5340-net")))]
+#[cfg(not(any(feature = "51", feature = "9160", feature = "9120", feature = "5340-net")))]
 use crate::pac::P0;
 
 #[cfg(any(feature = "52833", feature = "52840"))]
@@ -22,13 +22,13 @@ use crate::gpio::{
     Floating, Input, Level, OpenDrain, Output, Pin, Port, PullDown, PullUp, PushPull,
 };
 
-#[cfg(not(any(feature = "9160", feature = "5340-net")))]
+#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-net")))]
 use {
     crate::pac::gpiote::{EVENTS_IN, EVENTS_PORT, TASKS_OUT},
     crate::pac::GPIOTE,
 };
 
-#[cfg(feature = "9160")]
+#[cfg(any(feature = "9160", feature = "9120"))]
 use {
     crate::pac::gpiote0_s::{EVENTS_IN, EVENTS_PORT, TASKS_CLR, TASKS_OUT, TASKS_SET},
     crate::pac::GPIOTE1_NS as GPIOTE,
@@ -40,7 +40,7 @@ use {
     crate::pac::GPIOTE_NS as GPIOTE,
 };
 
-#[cfg(not(any(feature = "51", feature = "9160", feature = "5340-net")))]
+#[cfg(not(any(feature = "51", feature = "9160", feature = "9120", feature = "5340-net")))]
 use crate::pac::gpiote::{TASKS_CLR, TASKS_SET};
 
 #[cfg(not(feature = "51"))]

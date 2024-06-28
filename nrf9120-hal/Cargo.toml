@@ -1,0 +1,32 @@
+[package]
+name = "nrf9120-hal"
+version = "0.18.0"
+description = "HAL for nRF9120 system-in-package"
+readme = "README.md"
+
+repository = "https://github.com/nrf-rs/nrf-hal"
+authors = [
+    "Jonathan Pallant (42 Technology) <jonathan.pallant@42technology.com>",
+]
+
+categories = ["embedded", "hardware-support", "no-std"]
+keywords = ["arm", "cortex-m", "nrf91", "hal", "nrf9120"]
+license = "MIT OR Apache-2.0"
+edition = "2018"
+
+[dependencies]
+# nrf9120-pac = "0.12.2"
+nrf9120-pac = { path = "../../nrf-pacs/pacs/nrf9120-pac" }
+
+[dependencies.nrf-hal-common]
+path = "../nrf-hal-common"
+default-features = false
+features = ["9120"]
+version = "=0.18.0"
+
+[features]
+doc = []
+embedded-hal-02 = ["nrf-hal-common/embedded-hal-02"]
+rt = ["nrf9120-pac/rt"]
+rtic-monotonic = ["nrf-hal-common/rtic-monotonic"]
+default = ["rt", "embedded-hal-02"]

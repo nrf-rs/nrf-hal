@@ -78,6 +78,11 @@ version = "0.12.2"
 optional = true
 version = "0.12.2"
 
+[dependencies.nrf9120-pac]
+optional = true
+version = "0.12.2"
+path = "../../nrf-pacs/pacs/nrf9120-pac"
+
 [dependencies.nrf-usbd]
 version = "0.3.0"
 optional = true
@@ -108,4 +113,5 @@ doc = []
 5340-app = ["nrf5340-app-pac"]
 5340-net = ["nrf5340-net-pac"]
 9160 = ["nrf9160-pac"]
+9120 = ["nrf9120-pac"]
 rtic-monotonic = ["dep:rtic-monotonic", "dep:fugit"]

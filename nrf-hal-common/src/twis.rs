@@ -6,10 +6,10 @@ use core::{
     sync::atomic::{compiler_fence, Ordering::SeqCst},
 };
 
-#[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
+#[cfg(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::{twis0_ns as twis0, P0_NS as P0, TWIS0_NS as TWIS0};
 
-#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
+#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
 use crate::pac::{twis0, P0, TWIS0};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
@@ -550,6 +550,7 @@ pub trait Instance: sealed::Sealed + Deref<Target = twis0::RegisterBlock> {
 impl Instance for TWIS0 {
     #[cfg(not(any(
         feature = "9160",
+        feature = "9120",
         feature = "5340-app",
         feature = "5340-net",
         feature = "52805",
@@ -561,6 +562,8 @@ impl Instance for TWIS0 {
     const INTERRUPT: Interrupt = Interrupt::SERIAL0;
     #[cfg(feature = "9160")]
     const INTERRUPT: Interrupt = Interrupt::UARTE0_SPIM0_SPIS0_TWIM0_TWIS0;
+    #[cfg(feature = "9120")]
+    const INTERRUPT: Interrupt = Interrupt::SPIM0_SPIS0_TWIM0_TWIS0_UARTE0;
     #[cfg(any(feature = "52805", feature = "52810"))]
     const INTERRUPT: Interrupt = Interrupt::TWIM0_TWIS0_TWI0;
     #[cfg(feature = "52811")]

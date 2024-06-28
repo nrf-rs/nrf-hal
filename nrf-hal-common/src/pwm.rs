@@ -2,9 +2,9 @@
 //!
 //! The pulse with modulation (PWM) module enables the generation of pulse width modulated signals on GPIO.
 
-#[cfg(not(any(feature = "9160", feature = "5340-app")))]
+#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app")))]
 use crate::pac::pwm0::*;
-#[cfg(any(feature = "9160", feature = "5340-app"))]
+#[cfg(any(feature = "9160", feature = "9120", feature = "5340-app"))]
 use crate::pac::pwm0_ns::*;
 
 use crate::{
@@ -1203,7 +1203,7 @@ static mut BUF2: [u16; 4] = [0; 4];
 #[cfg(not(any(feature = "52810", feature = "52811", feature = "52832")))]
 static mut BUF3: [u16; 4] = [0; 4];
 
-#[cfg(not(any(feature = "9160", feature = "5340-app")))]
+#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app")))]
 impl Instance for crate::pac::PWM0 {
     const INTERRUPT: Interrupt = Interrupt::PWM0;
     #[inline(always)]
@@ -1216,6 +1216,7 @@ impl Instance for crate::pac::PWM0 {
     feature = "52810",
     feature = "52811",
     feature = "9160",
+    feature = "9120",
     feature = "5340-app"
 )))]
 impl Instance for crate::pac::PWM1 {
@@ -1229,6 +1230,7 @@ impl Instance for crate::pac::PWM1 {
     feature = "52810",
     feature = "52811",
     feature = "9160",
+    feature = "9120",
     feature = "5340-app"
 )))]
 impl Instance for crate::pac::PWM2 {
@@ -1243,7 +1245,8 @@ impl Instance for crate::pac::PWM2 {
     feature = "52811",
     feature = "52832",
     feature = "5340-app",
-    feature = "9160"
+    feature = "9160",
+    feature = "9120"
 )))]
 impl Instance for crate::pac::PWM3 {
     const INTERRUPT: Interrupt = Interrupt::PWM3;
@@ -1252,7 +1255,7 @@ impl Instance for crate::pac::PWM3 {
     }
 }
 
-#[cfg(any(feature = "9160", feature = "5340-app"))]
+#[cfg(any(feature = "9160", feature = "9120", feature = "5340-app"))]
 impl Instance for crate::pac::PWM0_NS {
     const INTERRUPT: Interrupt = Interrupt::PWM0;
     #[inline(always)]
@@ -1261,7 +1264,7 @@ impl Instance for crate::pac::PWM0_NS {
     }
 }
 
-#[cfg(any(feature = "9160", feature = "5340-app"))]
+#[cfg(any(feature = "9160", feature = "9120", feature = "5340-app"))]
 impl Instance for crate::pac::PWM1_NS {
     const INTERRUPT: Interrupt = Interrupt::PWM1;
     fn buffer() -> *mut [u16; 4] {
@@ -1269,7 +1272,7 @@ impl Instance for crate::pac::PWM1_NS {
     }
 }
 
-#[cfg(any(feature = "9160", feature = "5340-app"))]
+#[cfg(any(feature = "9160", feature = "9120", feature = "5340-app"))]
 impl Instance for crate::pac::PWM2_NS {
     const INTERRUPT: Interrupt = Interrupt::PWM2;
     fn buffer() -> *mut [u16; 4] {
@@ -1277,7 +1280,7 @@ impl Instance for crate::pac::PWM2_NS {
     }
 }
 
-#[cfg(any(feature = "9160", feature = "5340-app"))]
+#[cfg(any(feature = "9160", feature = "9120", feature = "5340-app"))]
 impl Instance for crate::pac::PWM3_NS {
     const INTERRUPT: Interrupt = Interrupt::PWM3;
     fn buffer() -> *mut [u16; 4] {
@@ -1287,14 +1290,15 @@ impl Instance for crate::pac::PWM3_NS {
 mod sealed {
     pub trait Sealed {}
 
-    #[cfg(not(any(feature = "5340-app", feature = "9160")))]
+    #[cfg(not(any(feature = "5340-app", feature = "9160", feature = "9120")))]
     impl Sealed for crate::pac::PWM0 {}
 
     #[cfg(not(any(
         feature = "52810",
         feature = "52811",
         feature = "5340-app",
-        feature = "9160"
+        feature = "9160",
+        feature = "9120"
     )))]
     impl Sealed for crate::pac::PWM1 {}
 
@@ -1302,7 +1306,8 @@ mod sealed {
         feature = "52810",
         feature = "52811",
         feature = "5340-app",
-        feature = "9160"
+        feature = "9160",
+        feature = "9120"
     )))]
     impl Sealed for crate::pac::PWM2 {}
 
@@ -1311,19 +1316,20 @@ mod sealed {
         feature = "52811",
         feature = "52832",
         feature = "5340-app",
-        feature = "9160"
+        feature = "9160",
+        feature = "9120"
     )))]
     impl Sealed for crate::pac::PWM3 {}
 
-    #[cfg(any(feature = "9160", feature = "5340-app"))]
+    #[cfg(any(feature = "9160", feature = "9120", feature = "5340-app"))]
     impl Sealed for crate::pac::PWM0_NS {}
 
-    #[cfg(any(feature = "9160", feature = "5340-app"))]
+    #[cfg(any(feature = "9160", feature = "9120", feature = "5340-app"))]
     impl Sealed for crate::pac::PWM1_NS {}
 
-    #[cfg(any(feature = "9160", feature = "5340-app"))]
+    #[cfg(any(feature = "9160", feature = "9120", feature = "5340-app"))]
     impl Sealed for crate::pac::PWM2_NS {}
 
-    #[cfg(any(feature = "9160", feature = "5340-app"))]
+    #[cfg(any(feature = "9160", feature = "9120", feature = "5340-app"))]
     impl Sealed for crate::pac::PWM3_NS {}
 }

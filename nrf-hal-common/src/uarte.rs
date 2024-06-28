@@ -16,7 +16,7 @@ use embedded_io::{ErrorKind, ErrorType, ReadReady, Write as _, WriteReady};
 #[cfg(any(feature = "52833", feature = "52840"))]
 use crate::pac::UARTE1;
 
-#[cfg(feature = "9160")]
+#[cfg(any(feature = "9160", feature = "9120"))]
 use crate::pac::{
     uarte0_ns as uarte0, UARTE0_NS as UARTE0, UARTE1_NS as UARTE1, UARTE2_NS as UARTE2,
     UARTE3_NS as UARTE3,
@@ -28,7 +28,7 @@ use crate::pac::{uarte0_ns as uarte0, UARTE0_NS as UARTE0};
 #[cfg(feature = "5340-app")]
 use crate::pac::UARTE1_NS as UARTE1;
 
-#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
+#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
 use crate::pac::{uarte0, UARTE0};
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
@@ -114,12 +114,12 @@ where
         u
     }
 
-    #[cfg(not(any(feature = "9160", feature = "5340-app")))]
+    #[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app")))]
     fn apply_workaround_for_enable_anomaly(&mut self) {
         // Do nothing
     }
 
-    #[cfg(any(feature = "9160", feature = "5340-app"))]
+    #[cfg(any(feature = "9160", feature = "9120", feature = "5340-app"))]
     fn apply_workaround_for_enable_anomaly(&mut self) {
         // Apply workaround for anomalies:
         // - nRF9160 - anomaly 23
@@ -525,6 +525,7 @@ impl Instance for UARTE0 {
     feature = "52833",
     feature = "52840",
     feature = "9160",
+    feature = "9120",
     feature = "5340-app"
 ))]
 mod _uarte1 {
@@ -537,7 +538,7 @@ mod _uarte1 {
     }
 }
 
-#[cfg(feature = "9160")]
+#[cfg(any(feature = "9160", feature = "9120"))]
 mod _uarte2 {
     use super::*;
     impl sealed::Sealed for UARTE2 {}
@@ -548,7 +549,7 @@ mod _uarte2 {
     }
 }
 
-#[cfg(feature = "9160")]
+#[cfg(any(feature = "9160", feature = "9120"))]
 mod _uarte3 {
     use super::*;
     impl sealed::Sealed for UARTE3 {}

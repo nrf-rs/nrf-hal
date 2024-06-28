@@ -76,22 +76,22 @@ use crate::clocks::{Clocks, LfOscStarted};
 use core::marker::PhantomData;
 pub use rtic_monotonic::Monotonic;
 
-#[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
+#[cfg(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::{rtc0_ns::RegisterBlock as RtcRegBlock, RTC0_NS as RTC0, RTC1_NS as RTC1};
 
-#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
+#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
 use crate::pac::{rtc0::RegisterBlock as RtcRegBlock, RTC0, RTC1};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]
 use crate::pac::RTC2;
 
-#[cfg(any(feature = "9160", feature = "5340-app", feature = "5340-net"))]
+#[cfg(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net"))]
 use crate::pac::{
     timer0_ns::RegisterBlock as TimerRegBlock, TIMER0_NS as TIMER0, TIMER1_NS as TIMER1,
     TIMER2_NS as TIMER2,
 };
 
-#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
+#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
 use crate::pac::{timer0::RegisterBlock as TimerRegBlock, TIMER0, TIMER1, TIMER2};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]

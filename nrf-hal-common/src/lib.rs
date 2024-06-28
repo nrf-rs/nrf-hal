@@ -37,22 +37,26 @@ pub use nrf5340_net_pac as pac;
 #[cfg(feature = "9160")]
 pub use nrf9160_pac as pac;
 
+#[cfg(feature = "9120")]
+pub use nrf9120_pac as pac;
+
 #[cfg(feature = "51")]
 pub mod adc;
-#[cfg(not(any(feature = "9160", feature = "5340-app")))]
+#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app")))]
 pub mod ccm;
 pub mod clocks;
 #[cfg(not(any(
     feature = "51",
     feature = "52805",
     feature = "9160",
+    feature = "9120",
     feature = "5340-app",
     feature = "5340-net"
 )))]
 pub mod comp;
 #[cfg(not(feature = "51"))]
 pub mod delay;
-#[cfg(not(any(feature = "9160", feature = "5340-app")))]
+#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app")))]
 pub mod ecb;
 pub mod gpio;
 #[cfg(not(feature = "5340-app"))]
@@ -72,35 +76,37 @@ pub mod ieee802154;
     feature = "52810",
     feature = "52811",
     feature = "9160",
+    feature = "9120",
     feature = "5340-app",
     feature = "5340-net"
 )))]
 pub mod lpcomp;
 #[cfg(not(feature = "51"))]
 pub mod nvmc;
-#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
+#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
 pub mod ppi;
 #[cfg(not(any(feature = "51", feature = "52805", feature = "5340-net")))]
 pub mod pwm;
 #[cfg(not(any(
     feature = "51",
     feature = "9160",
+    feature = "9120",
     feature = "5340-app",
     feature = "5340-net"
 )))]
 pub mod qdec;
-#[cfg(not(any(feature = "9160", feature = "5340-app")))]
+#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app")))]
 pub mod rng;
 pub mod rtc;
 #[cfg(not(any(feature = "51", feature = "5340-net")))]
 pub mod saadc;
-#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
+#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
 pub mod spi;
 #[cfg(not(feature = "51"))]
 pub mod spim;
 #[cfg(not(feature = "51"))]
 pub mod spis;
-#[cfg(not(any(feature = "9160", feature = "5340-app")))]
+#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app")))]
 pub mod temp;
 pub mod time;
 pub mod timer;
@@ -114,14 +120,14 @@ pub mod twis;
 pub mod uart;
 #[cfg(not(feature = "51"))]
 pub mod uarte;
-#[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
+#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
 pub mod uicr;
 #[cfg(feature = "nrf-usbd")]
 pub mod usbd;
 pub mod wdt;
 
 pub mod prelude {
-    #[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
+    #[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
     pub use crate::ppi::{ConfigurablePpi, Ppi};
     pub use crate::time::U32Ext;
 }
@@ -146,7 +152,7 @@ pub mod target_constants {
     pub const EASY_DMA_SIZE: usize = (1 << 16) - 1;
     #[cfg(any(feature = "5340-app", feature = "5340-net"))]
     pub const EASY_DMA_SIZE: usize = (1 << 16) - 1;
-    #[cfg(feature = "9160")]
+    #[cfg(any(feature = "9160", feature = "9120"))]
     pub const EASY_DMA_SIZE: usize = (1 << 12) - 1;
 
     // Limits for Easy DMA - it can only read from data ram
@@ -213,7 +219,7 @@ impl DmaSlice {
 pub use crate::clocks::Clocks;
 #[cfg(not(feature = "51"))]
 pub use crate::delay::Delay;
-#[cfg(not(any(feature = "9160", feature = "5340-app")))]
+#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app")))]
 pub use crate::rng::Rng;
 pub use crate::rtc::Rtc;
 pub use crate::timer::Timer;
