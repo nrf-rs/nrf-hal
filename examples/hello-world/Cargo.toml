@@ -16,6 +16,11 @@ features = ["rt"]
 path = "../../nrf9160-hal"
 optional = true
 
+[dependencies.nrf9120-hal]
+features = ["rt"]
+path = "../../nrf9120-hal"
+optional = true
+
 [dependencies.nrf52840-hal]
 features = ["rt"]
 path = "../../nrf52840-hal"
@@ -23,4 +28,5 @@ optional = true
 
 [features]
 9160 = ["nrf9160-hal"]
+9120 = ["nrf9120-hal"]
 52840 = ["nrf52840-hal"]

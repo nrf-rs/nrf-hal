@@ -7,6 +7,8 @@
 use nrf52840_hal as hal;
 #[cfg(feature = "9160")]
 use nrf9160_hal as hal;
+#[cfg(feature = "9120")]
+use nrf9120_hal as hal;
 
 use core::fmt::Write;
 use hal::{gpio, uarte, uarte::Uarte};
@@ -38,6 +40,19 @@ fn main() -> ! {
                 rxd: p0.p0_28.into_floating_input().degrade(),
                 cts: Some(p0.p0_26.into_floating_input().degrade()),
                 rts: Some(p0.p0_27.into_push_pull_output(gpio::Level::High).degrade()),
+            },
+        )
+    };
+    #[cfg(feature = "9120")]
+    let (uart0, cdc_pins) = {
+        let p0 = gpio::p0::Parts::new(p.P0_NS);
+        (
+            p.UARTE0_NS,
+            uarte::Pins {
+                txd: p0.p0_27.into_push_pull_output(gpio::Level::High).degrade(),
+                rxd: p0.p0_26.into_floating_input().degrade(),
+                cts: Some(p0.p0_15.into_floating_input().degrade()),
+                rts: Some(p0.p0_14.into_push_pull_output(gpio::Level::High).degrade()),
             },
         )
     };
