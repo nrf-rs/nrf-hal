@@ -15,8 +15,7 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [dependencies]
-# nrf9120-pac = "0.12.2"
-nrf9120-pac = { path = "../../nrf-pacs/pacs/nrf9120-pac" }
+nrf9120-pac = "0.12.2"
 
 [dependencies.nrf-hal-common]
 path = "../nrf-hal-common"
