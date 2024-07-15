@@ -3,6 +3,7 @@ use std::{fs, process::Command};
 pub static HALS: &[(&str, &str)] = &[
     ("nrf51-hal", "thumbv6m-none-eabi"),
     ("nrf9160-hal", "thumbv8m.main-none-eabihf"),
+    ("nrf9120-hal", "thumbv8m.main-none-eabihf"),
     ("nrf5340-app-hal", "thumbv8m.main-none-eabihf"),
     ("nrf5340-net-hal", "thumbv8m.main-none-eabihf"),
     ("nrf52805-hal", "thumbv7em-none-eabi"),
@@ -17,14 +18,14 @@ pub static EXAMPLES: &[(&str, &[&str])] = &[
     ("blinky-button-demo", &[]),
     (
         "ccm-demo",
-        &["52805", "52810", "52811", "52832", "52833", "52840"],
+        &["52805", "52810", "52811", "52832", "52833", "52840", "9120"],
     ),
     ("comp-demo", &[]),
     (
         "ecb-demo",
         &["51", "52805", "52810", "52811", "52832", "52833", "52840"],
     ),
-    ("hello-world", &["52840", "9160"]),
+    ("hello-world", &["52840", "9160", "9120"]),
     ("gpiote-demo", &[]),
     ("i2s-controller-demo", &[]),
     ("i2s-peripheral-demo", &[]),
@@ -57,7 +58,7 @@ pub fn feature_to_target(feat: &str) -> &str {
     match feat {
         "51" => "thumbv6m-none-eabi",
         "52805" | "52810" | "52811" => "thumbv7em-none-eabi",
-        "9160" | "5340-app" | "5340-net" => "thumbv8m.main-none-eabihf",
+        "9160" | "9120" | "5340-app" | "5340-net" => "thumbv8m.main-none-eabihf",
         _ if feat.starts_with("52") => "thumbv7em-none-eabihf",
         _ => panic!("unknown Cargo feature `{}`", feat),
     }
