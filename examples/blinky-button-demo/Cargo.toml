@@ -21,5 +21,6 @@ path = "../../nrf9120-hal"
 optional = true
 
 [features]
+default = ["52832"]
 52832 = ["nrf52832-hal"]
 9120 = ["nrf9120-hal"]
