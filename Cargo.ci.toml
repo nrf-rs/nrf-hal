@@ -12,6 +12,7 @@ members = [
   "nrf5340-app-hal",
   "nrf5340-net-hal",
   "nrf9160-hal",
+  "nrf9120-hal",
   "examples/*",
 ]
 default-members = ["xtask"]

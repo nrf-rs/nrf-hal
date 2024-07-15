@@ -141,6 +141,10 @@ updates:
     schedule:
       interval: "daily"
   - package-ecosystem: "cargo"
+    directory: "/nrf9120-hal/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
     directory: "/xtask/"
     schedule:
       interval: "daily"
