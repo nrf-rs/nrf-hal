@@ -81,7 +81,6 @@ version = "0.12.2"
 [dependencies.nrf9120-pac]
 optional = true
 version = "0.12.2"
-path = "../../nrf-pacs/pacs/nrf9120-pac"
 
 [dependencies.nrf-usbd]
 version = "0.3.0"
