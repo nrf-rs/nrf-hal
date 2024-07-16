@@ -7,13 +7,23 @@ use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
 use embedded_hal::digital::OutputPin;
 use embedded_hal::spi::{self, ErrorKind, ErrorType, SpiBus};
 
-#[cfg(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net"))]
+#[cfg(any(
+    feature = "9160",
+    feature = "9120",
+    feature = "5340-app",
+    feature = "5340-net"
+))]
 use crate::pac::{spim0_ns as spim0, SPIM0_NS as SPIM0};
 
 #[cfg(any(feature = "9160", feature = "9120"))]
 use crate::pac::{SPIM1_NS as SPIM1, SPIM2_NS as SPIM2, SPIM3_NS as SPIM3};
 
-#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
+#[cfg(not(any(
+    feature = "9160",
+    feature = "9120",
+    feature = "5340-app",
+    feature = "5340-net"
+)))]
 use crate::pac::{spim0, SPIM0};
 
 pub use embedded_hal::spi::{Mode, Phase, Polarity, MODE_0, MODE_1, MODE_2, MODE_3};
@@ -536,7 +546,12 @@ mod _spim2 {
     impl sealed::Sealed for SPIM2 {}
 }
 
-#[cfg(any(feature = "52833", feature = "52840", feature = "9160", feature = "9120"))]
+#[cfg(any(
+    feature = "52833",
+    feature = "52840",
+    feature = "9160",
+    feature = "9120"
+))]
 mod _spim3 {
     use super::*;
     impl Instance for SPIM3 {}

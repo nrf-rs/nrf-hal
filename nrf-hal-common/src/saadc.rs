@@ -281,7 +281,10 @@ channel_mappings! {
     7 => P0_31,
 }
 
-#[cfg(all(not(any(feature = "9160", feature = "9120")), feature = "embedded-hal-02"))]
+#[cfg(all(
+    not(any(feature = "9160", feature = "9120")),
+    feature = "embedded-hal-02"
+))]
 impl embedded_hal_02::adc::Channel<Saadc> for InternalVdd {
     type ID = u8;
 

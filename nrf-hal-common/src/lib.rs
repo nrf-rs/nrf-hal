@@ -83,7 +83,12 @@ pub mod ieee802154;
 pub mod lpcomp;
 #[cfg(not(feature = "51"))]
 pub mod nvmc;
-#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
+#[cfg(not(any(
+    feature = "9160",
+    feature = "9120",
+    feature = "5340-app",
+    feature = "5340-net"
+)))]
 pub mod ppi;
 #[cfg(not(any(feature = "51", feature = "52805", feature = "5340-net")))]
 pub mod pwm;
@@ -100,7 +105,12 @@ pub mod rng;
 pub mod rtc;
 #[cfg(not(any(feature = "51", feature = "5340-net")))]
 pub mod saadc;
-#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
+#[cfg(not(any(
+    feature = "9160",
+    feature = "9120",
+    feature = "5340-app",
+    feature = "5340-net"
+)))]
 pub mod spi;
 #[cfg(not(feature = "51"))]
 pub mod spim;
@@ -120,14 +130,24 @@ pub mod twis;
 pub mod uart;
 #[cfg(not(feature = "51"))]
 pub mod uarte;
-#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
+#[cfg(not(any(
+    feature = "9160",
+    feature = "9120",
+    feature = "5340-app",
+    feature = "5340-net"
+)))]
 pub mod uicr;
 #[cfg(feature = "nrf-usbd")]
 pub mod usbd;
 pub mod wdt;
 
 pub mod prelude {
-    #[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
+    #[cfg(not(any(
+        feature = "9160",
+        feature = "9120",
+        feature = "5340-app",
+        feature = "5340-net"
+    )))]
     pub use crate::ppi::{ConfigurablePpi, Ppi};
     pub use crate::time::U32Ext;
 }

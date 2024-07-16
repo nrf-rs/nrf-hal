@@ -7,7 +7,12 @@ use core::{
     sync::atomic::{compiler_fence, Ordering},
 };
 
-#[cfg(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net"))]
+#[cfg(any(
+    feature = "9160",
+    feature = "9120",
+    feature = "5340-app",
+    feature = "5340-net"
+))]
 use crate::pac::{
     spis0_ns::{
         self as spis0, EVENTS_ACQUIRED, EVENTS_END, EVENTS_ENDRX, TASKS_ACQUIRE, TASKS_RELEASE,
@@ -15,7 +20,12 @@ use crate::pac::{
     SPIS0_NS as SPIS0,
 };
 
-#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
+#[cfg(not(any(
+    feature = "9160",
+    feature = "9120",
+    feature = "5340-app",
+    feature = "5340-net"
+)))]
 use crate::pac::{
     spis0::{self, EVENTS_ACQUIRED, EVENTS_END, EVENTS_ENDRX, TASKS_ACQUIRE, TASKS_RELEASE},
     SPIS0,

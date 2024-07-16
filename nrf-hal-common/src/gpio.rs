@@ -65,7 +65,12 @@ pub struct Pin<MODE> {
 #[cfg(feature = "51")]
 use crate::pac::{gpio, GPIO as P0};
 
-#[cfg(any(feature = "5340-app", feature = "5340-net", feature = "9160", feature = "9120"))]
+#[cfg(any(
+    feature = "5340-app",
+    feature = "5340-net",
+    feature = "9160",
+    feature = "9120"
+))]
 use crate::pac::{p0_ns as gpio, P0_NS as P0};
 
 #[cfg(feature = "5340-app")]
@@ -491,7 +496,12 @@ pub enum DriveConfig {
 #[cfg(feature = "51")]
 use crate::pac::gpio::pin_cnf;
 
-#[cfg(any(feature = "5340-app", feature = "5340-net", feature = "9160", feature = "9120"))]
+#[cfg(any(
+    feature = "5340-app",
+    feature = "5340-net",
+    feature = "9160",
+    feature = "9120"
+))]
 use crate::pac::p0_ns::pin_cnf;
 
 #[cfg(not(any(

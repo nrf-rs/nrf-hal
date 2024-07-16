@@ -9,7 +9,12 @@ use crate::pac::GPIO as P0;
 #[cfg(any(feature = "9160", feature = "9120", feature = "5340-net"))]
 use crate::pac::P0_NS as P0;
 
-#[cfg(not(any(feature = "51", feature = "9160", feature = "9120", feature = "5340-net")))]
+#[cfg(not(any(
+    feature = "51",
+    feature = "9160",
+    feature = "9120",
+    feature = "5340-net"
+)))]
 use crate::pac::P0;
 
 #[cfg(any(feature = "52833", feature = "52840"))]
@@ -40,7 +45,12 @@ use {
     crate::pac::GPIOTE_NS as GPIOTE,
 };
 
-#[cfg(not(any(feature = "51", feature = "9160", feature = "9120", feature = "5340-net")))]
+#[cfg(not(any(
+    feature = "51",
+    feature = "9160",
+    feature = "9120",
+    feature = "5340-net"
+)))]
 use crate::pac::gpiote::{TASKS_CLR, TASKS_SET};
 
 #[cfg(not(feature = "51"))]

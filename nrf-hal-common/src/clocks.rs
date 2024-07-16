@@ -1,9 +1,19 @@
 //! Configuration and control of the High and Low Frequency Clock sources.
 
-#[cfg(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net"))]
+#[cfg(any(
+    feature = "9160",
+    feature = "9120",
+    feature = "5340-app",
+    feature = "5340-net"
+))]
 use crate::pac::CLOCK_NS as CLOCK;
 
-#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
+#[cfg(not(any(
+    feature = "9160",
+    feature = "9120",
+    feature = "5340-app",
+    feature = "5340-net"
+)))]
 use crate::pac::CLOCK;
 
 // ZST Type States

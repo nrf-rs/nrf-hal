@@ -6,10 +6,20 @@ use core::{
     sync::atomic::{compiler_fence, Ordering::SeqCst},
 };
 
-#[cfg(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net"))]
+#[cfg(any(
+    feature = "9160",
+    feature = "9120",
+    feature = "5340-app",
+    feature = "5340-net"
+))]
 use crate::pac::{twis0_ns as twis0, P0_NS as P0, TWIS0_NS as TWIS0};
 
-#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
+#[cfg(not(any(
+    feature = "9160",
+    feature = "9120",
+    feature = "5340-app",
+    feature = "5340-net"
+)))]
 use crate::pac::{twis0, P0, TWIS0};
 
 #[cfg(any(feature = "52832", feature = "52833", feature = "52840"))]

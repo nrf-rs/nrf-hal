@@ -28,7 +28,12 @@ use crate::pac::{uarte0_ns as uarte0, UARTE0_NS as UARTE0};
 #[cfg(feature = "5340-app")]
 use crate::pac::UARTE1_NS as UARTE1;
 
-#[cfg(not(any(feature = "9160", feature = "9120", feature = "5340-app", feature = "5340-net")))]
+#[cfg(not(any(
+    feature = "9160",
+    feature = "9120",
+    feature = "5340-app",
+    feature = "5340-net"
+)))]
 use crate::pac::{uarte0, UARTE0};
 
 use crate::gpio::{Floating, Input, Output, Pin, PushPull};
