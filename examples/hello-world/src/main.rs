@@ -5,10 +5,10 @@
 
 #[cfg(feature = "52840")]
 use nrf52840_hal as hal;
-#[cfg(feature = "9160")]
-use nrf9160_hal as hal;
 #[cfg(feature = "9120")]
 use nrf9120_hal as hal;
+#[cfg(feature = "9160")]
+use nrf9160_hal as hal;
 
 use core::fmt::Write;
 use hal::{gpio, uarte, uarte::Uarte};
