@@ -269,7 +269,7 @@ channel_mappings! {
     7 => P0_20,
 }
 
-#[cfg(any(feature = "9160", feature = "9120"))]
+#[cfg(not(any(feature = "9160", feature = "9120")))]
 channel_mappings! {
     0 => P0_02,
     1 => P0_03,
