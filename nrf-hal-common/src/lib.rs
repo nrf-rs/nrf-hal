@@ -136,8 +136,10 @@ pub mod target_constants {
     pub const EASY_DMA_SIZE: usize = (1 << 10) - 1;
     #[cfg(feature = "52811")]
     pub const EASY_DMA_SIZE: usize = (1 << 14) - 1;
-    #[cfg(feature = "52820")]
-    pub const EASY_DMA_SIZE: usize = (1 << 15) - 1;
+    //  Currently there is no nrf52820-hal. Would be great
+    //  to fix this.
+    //  #[cfg(feature = "52820")]
+    //  pub const EASY_DMA_SIZE: usize = (1 << 15) - 1;
     #[cfg(feature = "52832")]
     pub const EASY_DMA_SIZE: usize = (1 << 8) - 1;
     #[cfg(feature = "52833")]
