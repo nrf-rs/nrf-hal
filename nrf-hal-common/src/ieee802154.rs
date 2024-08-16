@@ -6,6 +6,8 @@ use core::{
     sync::atomic::{self, Ordering},
 };
 
+use nb::block;
+
 use crate::{
     clocks::{Clocks, ExternalOscillator},
     pac::{
@@ -14,6 +16,47 @@ use crate::{
     },
     timer::{self, Timer},
 };
+
+/// Non-blocking receive
+pub struct Recv<'a, 'c> {
+    radio: &'a mut Radio<'c>,
+}
+
+impl<'a, 'c> Recv<'a, 'c> {
+    fn new(radio: &'a mut Radio<'c>) -> Self {
+        Self { radio }
+    }
+
+    /// Check if receive is done
+    ///
+    /// This methods returns the `Ok` variant if the CRC included the
+    /// packet was successfully validated by the hardware. It returns
+    /// `Err(nb::Error::WouldBlock)` if a packet hasn't been received
+    /// yet, and `Err(nb::Error::Other)` if the CRC check failed.
+    pub fn is_done(&mut self) -> nb::Result<u16, u16> {
+        if self.radio.radio.events_end.read().events_end().bit_is_set() {
+            self.radio.radio.events_end.reset();
+
+            dma_end_fence();
+
+            let crc = self.radio.radio.rxcrc.read().rxcrc().bits() as u16;
+
+            if self.radio.radio.crcstatus.read().crcstatus().bit_is_set() {
+                Ok(crc)
+            } else {
+                Err(nb::Error::Other(crc))
+            }
+        } else {
+            Err(nb::Error::WouldBlock)
+        }
+    }
+}
+
+impl<'a, 'c> Drop for Recv<'a, 'c> {
+    fn drop(&mut self) {
+        self.radio.cancel_recv();
+    }
+}
 
 /// IEEE 802.15.4 radio
 pub struct Radio<'c> {
@@ -305,22 +348,26 @@ impl<'c> Radio<'c> {
     /// validated by the hardware; otherwise it returns the `Err` variant. In either case, `packet`
     /// will be updated with the received packet's data
     pub fn recv(&mut self, packet: &mut Packet) -> Result<u16, u16> {
+        // Start non-blocking receive
+        let mut recv = self.recv_non_blocking(packet);
+
+        // Block untill receive is done
+        block!(recv.is_done())
+    }
+
+    /// Receives one radio packet and copies its contents into the given `packet` buffer
+    ///
+    /// This method is non-blocking
+    pub fn recv_non_blocking<'a>(&'a mut self, packet: &'a mut Packet) -> Recv<'a, 'c> {
         // Start the read
-        // NOTE(unsafe) We block until reception completes or errors
+        // NOTE(unsafe)
+        // The packet must live until the transfer is done. Recv takes
+        // a mutable reference to the packet to enforce this.
         unsafe {
             self.start_recv(packet);
         }
 
-        // wait until we have received something
-        self.wait_for_event(Event::End);
-        dma_end_fence();
-
-        let crc = self.radio.rxcrc.read().rxcrc().bits() as u16;
-        if self.radio.crcstatus.read().crcstatus().bit_is_set() {
-            Ok(crc)
-        } else {
-            Err(crc)
-        }
+        Recv::new(self)
     }
 
     /// Listens for a packet for no longer than the specified amount of microseconds
@@ -347,39 +394,23 @@ impl<'c> Radio<'c> {
         // Start the timeout timer
         timer.start(microseconds);
 
-        // Start the read
-        // NOTE(unsafe) We block until reception completes or errors
-        unsafe {
-            self.start_recv(packet);
-        }
+        // Start non-blocking receive
+        let mut recv = self.recv_non_blocking(packet);
 
-        // Wait for transmission to end
-        let mut recv_completed = false;
-
+        // Check if either receive is done or timeout occured
         loop {
-            if self.radio.events_end.read().bits() != 0 {
-                // transfer complete
-                dma_end_fence();
-                recv_completed = true;
-                break;
+            match recv.is_done() {
+                Ok(crc) => break Ok(crc),
+                Err(err) => match err {
+                    nb::Error::Other(crc) => break Err(Error::Crc(crc)),
+                    nb::Error::WouldBlock => (),
+                },
             }
 
             if timer.reset_if_finished() {
-                // timeout
-                break;
-            }
-        }
-
-        if !recv_completed {
-            // Cancel the reception if it did not complete until now
-            self.cancel_recv();
-            Err(Error::Timeout)
-        } else {
-            let crc = self.radio.rxcrc.read().rxcrc().bits() as u16;
-            if self.radio.crcstatus.read().crcstatus().bit_is_set() {
-                Ok(crc)
-            } else {
-                Err(Error::Crc(crc))
+                // Break loop in case of timeout. Receive is
+                // cancelled when `recv` is dropped.
+                break Err(Error::Timeout);
             }
         }
     }
@@ -674,10 +705,6 @@ impl<'c> Radio<'c> {
 
     fn wait_for_event(&self, event: Event) {
         match event {
-            Event::End => {
-                while self.radio.events_end.read().events_end().bit_is_clear() {}
-                self.radio.events_end.reset();
-            }
             Event::PhyEnd => {
                 while self
                     .radio
@@ -728,7 +755,6 @@ fn dma_end_fence() {
 }
 
 enum Event {
-    End,
     PhyEnd,
 }
 
