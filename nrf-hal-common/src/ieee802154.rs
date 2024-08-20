@@ -33,7 +33,7 @@ impl<'a, 'c> Recv<'a, 'c> {
     /// packet was successfully validated by the hardware. It returns
     /// `Err(nb::Error::WouldBlock)` if a packet hasn't been received
     /// yet, and `Err(nb::Error::Other)` if the CRC check failed.
-    pub fn is_done(&mut self) -> nb::Result<u16, u16> {
+    pub fn is_done(&self) -> nb::Result<u16, u16> {
         if self.radio.radio.events_end.read().events_end().bit_is_set() {
             self.radio.radio.events_end.reset();
 
@@ -349,25 +349,30 @@ impl<'c> Radio<'c> {
     /// will be updated with the received packet's data
     pub fn recv(&mut self, packet: &mut Packet) -> Result<u16, u16> {
         // Start non-blocking receive
-        let mut recv = self.recv_non_blocking(packet);
-
-        // Block untill receive is done
-        block!(recv.is_done())
+        self.recv_non_blocking(packet, |recv| {
+            // Block untill receive is done
+            block!(recv.is_done())
+        })
     }
 
     /// Receives one radio packet and copies its contents into the given `packet` buffer
     ///
     /// This method is non-blocking
-    pub fn recv_non_blocking<'a>(&'a mut self, packet: &'a mut Packet) -> Recv<'a, 'c> {
+    pub fn recv_non_blocking<'a, T>(
+        &'a mut self,
+        packet: &'a mut Packet,
+        f: impl FnOnce(&Recv<'a, 'c>) -> T,
+    ) -> T {
         // Start the read
         // NOTE(unsafe)
-        // The packet must live until the transfer is done. Recv takes
-        // a mutable reference to the packet to enforce this.
+        // The packet must live until the transfer is done. Receive is handled inside
+        // a closure to ensure this
         unsafe {
             self.start_recv(packet);
         }
 
-        Recv::new(self)
+        let recv = Recv::new(self);
+        f(&recv)
     }
 
     /// Listens for a packet for no longer than the specified amount of microseconds
@@ -395,24 +400,24 @@ impl<'c> Radio<'c> {
         timer.start(microseconds);
 
         // Start non-blocking receive
-        let mut recv = self.recv_non_blocking(packet);
+        self.recv_non_blocking(packet, |recv| {
+            // Check if either receive is done or timeout occured
+            loop {
+                match recv.is_done() {
+                    Ok(crc) => break Ok(crc),
+                    Err(err) => match err {
+                        nb::Error::Other(crc) => break Err(Error::Crc(crc)),
+                        nb::Error::WouldBlock => (),
+                    },
+                }
 
-        // Check if either receive is done or timeout occured
-        loop {
-            match recv.is_done() {
-                Ok(crc) => break Ok(crc),
-                Err(err) => match err {
-                    nb::Error::Other(crc) => break Err(Error::Crc(crc)),
-                    nb::Error::WouldBlock => (),
-                },
+                if timer.reset_if_finished() {
+                    // Break loop in case of timeout. Receive is
+                    // cancelled when `recv` is dropped.
+                    break Err(Error::Timeout);
+                }
             }
-
-            if timer.reset_if_finished() {
-                // Break loop in case of timeout. Receive is
-                // cancelled when `recv` is dropped.
-                break Err(Error::Timeout);
-            }
-        }
+        })
     }
 
     unsafe fn start_recv(&mut self, packet: &mut Packet) {
