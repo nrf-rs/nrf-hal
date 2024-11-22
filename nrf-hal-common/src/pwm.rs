@@ -1208,7 +1208,10 @@ impl Instance for crate::pac::PWM0 {
     const INTERRUPT: Interrupt = Interrupt::PWM0;
     #[inline(always)]
     fn buffer() -> *mut [u16; 4] {
-        unsafe { addr_of_mut!(BUF0) }
+        #[allow(unused_unsafe)]
+        unsafe {
+            addr_of_mut!(BUF0)
+        }
     }
 }
 
@@ -1221,7 +1224,10 @@ impl Instance for crate::pac::PWM0 {
 impl Instance for crate::pac::PWM1 {
     const INTERRUPT: Interrupt = Interrupt::PWM1;
     fn buffer() -> *mut [u16; 4] {
-        unsafe { addr_of_mut!(BUF1) }
+        #[allow(unused_unsafe)]
+        unsafe {
+            addr_of_mut!(BUF1)
+        }
     }
 }
 
@@ -1234,7 +1240,10 @@ impl Instance for crate::pac::PWM1 {
 impl Instance for crate::pac::PWM2 {
     const INTERRUPT: Interrupt = Interrupt::PWM2;
     fn buffer() -> *mut [u16; 4] {
-        unsafe { addr_of_mut!(BUF2) }
+        #[allow(unused_unsafe)]
+        unsafe {
+            addr_of_mut!(BUF2)
+        }
     }
 }
 
@@ -1248,7 +1257,10 @@ impl Instance for crate::pac::PWM2 {
 impl Instance for crate::pac::PWM3 {
     const INTERRUPT: Interrupt = Interrupt::PWM3;
     fn buffer() -> *mut [u16; 4] {
-        unsafe { addr_of_mut!(BUF3) }
+        #[allow(unused_unsafe)]
+        unsafe {
+            addr_of_mut!(BUF3)
+        }
     }
 }
 
@@ -1257,7 +1269,10 @@ impl Instance for crate::pac::PWM0_NS {
     const INTERRUPT: Interrupt = Interrupt::PWM0;
     #[inline(always)]
     fn buffer() -> *mut [u16; 4] {
-        unsafe { addr_of_mut!(BUF0) }
+        #[allow(unused_unsafe)]
+        unsafe {
+            addr_of_mut!(BUF0)
+        }
     }
 }
 
@@ -1265,7 +1280,10 @@ impl Instance for crate::pac::PWM0_NS {
 impl Instance for crate::pac::PWM1_NS {
     const INTERRUPT: Interrupt = Interrupt::PWM1;
     fn buffer() -> *mut [u16; 4] {
-        unsafe { addr_of_mut!(BUF1) }
+        #[allow(unused_unsafe)]
+        unsafe {
+            addr_of_mut!(BUF1)
+        }
     }
 }
 
@@ -1273,7 +1291,10 @@ impl Instance for crate::pac::PWM1_NS {
 impl Instance for crate::pac::PWM2_NS {
     const INTERRUPT: Interrupt = Interrupt::PWM2;
     fn buffer() -> *mut [u16; 4] {
-        unsafe { addr_of_mut!(BUF2) }
+        #[allow(unused_unsafe)]
+        unsafe {
+            addr_of_mut!(BUF2)
+        }
     }
 }
 
@@ -1281,7 +1302,10 @@ impl Instance for crate::pac::PWM2_NS {
 impl Instance for crate::pac::PWM3_NS {
     const INTERRUPT: Interrupt = Interrupt::PWM3;
     fn buffer() -> *mut [u16; 4] {
-        unsafe { addr_of_mut!(BUF3) }
+        #[allow(unused_unsafe)]
+        unsafe {
+            addr_of_mut!(BUF3)
+        }
     }
 }
 mod sealed {
