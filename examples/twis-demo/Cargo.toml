@@ -9,5 +9,5 @@ cortex-m = { version = "0.7.3", features = ["critical-section-single-core"] }
 cortex-m-rt = { version = "0.7.0", features = ["device"] }
 cortex-m-rtic = { version = "1.0.0", default-features = false }
 embedded-hal = "1.0.0"
-rtt-target = "0.5.0"
+rtt-target = "0.6.0"
 nrf52840-hal = { features = ["rt"], path = "../../nrf52840-hal" }
