@@ -8,7 +8,7 @@ publish = false
 [dependencies]
 cortex-m-rt = "0.7.0"
 embedded-hal = "1.0.0"
-panic-halt = "0.2.0"
+panic-halt = "1.0.0"
 
 [dependencies.nrf52832-hal]
 path = "../../nrf52832-hal"
