@@ -41,4 +41,4 @@ defmt-test = "0.3.0"
 embedded-hal = "1.0.0"
 embedded-storage = "0.3.0"
 nrf52840-hal = { path = "../nrf52840-hal" }
-panic-probe = { version = "0.3.0", features = ["print-defmt"] }
+panic-probe = { version = "1.0.0", features = ["print-defmt"] }
