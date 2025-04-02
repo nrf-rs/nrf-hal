@@ -36,7 +36,7 @@ harness = false
 cortex-m = "0.7.3"
 cortex-m-rt = { version = "0.7.1", features = ["device"] }
 defmt = "1.0.1"
-defmt-rtt = "0.4.0"
+defmt-rtt = "1.0.0"
 defmt-test = "0.4.0"
 embedded-hal = "1.0.0"
 embedded-storage = "0.3.0"
