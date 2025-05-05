@@ -24,7 +24,11 @@ pub struct LfOscStarted;
 pub struct LfOscStopped;
 
 /// High Frequency Clock Frequency (in Hz).
+#[cfg(not(feature = "51"))]
 pub const HFCLK_FREQ: u32 = 64_000_000;
+#[cfg(feature = "51")]
+pub const HFCLK_FREQ: u32 = 16_000_000;
+
 /// Low Frequency Clock Frequency (in Hz).
 pub const LFCLK_FREQ: u32 = 32_768;
 
