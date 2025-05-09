@@ -8,7 +8,7 @@ This hello world example turns on LED 1 when you press Button 1 on the nrf52-dk 
 Install `cargo-embed` if you don't have it already:
 
 ```console
-$ cargo install cargo-embed
+$ cargo install probe-rs-tools
 ```
 
 Then just `cd` to the example folder and run

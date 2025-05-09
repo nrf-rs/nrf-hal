@@ -38,7 +38,7 @@ $ rustup target add thumbv7em-none-eabihf
 ```
 Install the tools to flash the device.
 ```console
-$ cargo install cargo-embed
+$ cargo install probe-rs-tools
 ```
 
 ### For Every Project (optional)
