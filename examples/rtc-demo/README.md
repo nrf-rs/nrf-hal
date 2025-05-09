@@ -8,7 +8,7 @@ Runs on the nRF52840_DK but can easily be adapted for other hardware.
 Install `cargo-embed` if you don't have it already:
 
 ```console
-$ cargo install cargo-embed
+$ cargo install probe-rs-tools
 ```
 
 Then just `cd` to the example folder and run
