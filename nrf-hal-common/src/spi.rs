@@ -172,13 +172,13 @@ where
     #[cfg(not(feature = "51"))]
     fn set_pins(spi: &mut T, pins: Pins) {
         if let Some(ref pin) = pins.sck {
-            spi.psel.sck.write(|w| unsafe { w.bits(pin.pin().into()) });
+            spi.psel.sck.write(|w| unsafe { w.bits(pin.psel_bits()) });
         }
         if let Some(ref pin) = pins.mosi {
-            spi.psel.mosi.write(|w| unsafe { w.bits(pin.pin().into()) });
+            spi.psel.mosi.write(|w| unsafe { w.bits(pin.psel_bits()) });
         }
         if let Some(ref pin) = pins.miso {
-            spi.psel.miso.write(|w| unsafe { w.bits(pin.pin().into()) });
+            spi.psel.miso.write(|w| unsafe { w.bits(pin.psel_bits()) });
         }
     }
 
