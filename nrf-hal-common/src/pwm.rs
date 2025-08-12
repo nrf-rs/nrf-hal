@@ -738,7 +738,14 @@ where
 
     /// Returns individual handles to the four PWM channels.
     #[inline(always)]
-    pub fn split_channels(&self) -> (PwmChannel<T>, PwmChannel<T>, PwmChannel<T>, PwmChannel<T>) {
+    pub fn split_channels(
+        &self,
+    ) -> (
+        PwmChannel<'_, T>,
+        PwmChannel<'_, T>,
+        PwmChannel<'_, T>,
+        PwmChannel<'_, T>,
+    ) {
         (
             PwmChannel::new(self, Channel::C0),
             PwmChannel::new(self, Channel::C1),
@@ -748,7 +755,7 @@ where
     }
 
     /// Returns individual handles to the two PWM groups.
-    pub fn split_groups(&self) -> (PwmGroup<T>, PwmGroup<T>) {
+    pub fn split_groups(&self) -> (PwmGroup<'_, T>, PwmGroup<'_, T>) {
         (
             PwmGroup::new(self, Group::G0),
             PwmGroup::new(self, Group::G1),

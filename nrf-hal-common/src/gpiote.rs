@@ -59,42 +59,42 @@ impl Gpiote {
         Self { gpiote }
     }
 
-    fn channel(&self, channel: usize) -> GpioteChannel {
+    fn channel(&self, channel: usize) -> GpioteChannel<'_> {
         GpioteChannel {
             gpiote: &self.gpiote,
             channel,
         }
     }
-    pub fn channel0(&self) -> GpioteChannel {
+    pub fn channel0(&self) -> GpioteChannel<'_> {
         self.channel(0)
     }
-    pub fn channel1(&self) -> GpioteChannel {
+    pub fn channel1(&self) -> GpioteChannel<'_> {
         self.channel(1)
     }
-    pub fn channel2(&self) -> GpioteChannel {
+    pub fn channel2(&self) -> GpioteChannel<'_> {
         self.channel(2)
     }
-    pub fn channel3(&self) -> GpioteChannel {
+    pub fn channel3(&self) -> GpioteChannel<'_> {
         self.channel(3)
     }
     #[cfg(not(feature = "51"))]
-    pub fn channel4(&self) -> GpioteChannel {
+    pub fn channel4(&self) -> GpioteChannel<'_> {
         self.channel(4)
     }
     #[cfg(not(feature = "51"))]
-    pub fn channel5(&self) -> GpioteChannel {
+    pub fn channel5(&self) -> GpioteChannel<'_> {
         self.channel(5)
     }
     #[cfg(not(feature = "51"))]
-    pub fn channel6(&self) -> GpioteChannel {
+    pub fn channel6(&self) -> GpioteChannel<'_> {
         self.channel(6)
     }
     #[cfg(not(feature = "51"))]
-    pub fn channel7(&self) -> GpioteChannel {
+    pub fn channel7(&self) -> GpioteChannel<'_> {
         self.channel(7)
     }
 
-    pub fn port(&self) -> GpiotePort {
+    pub fn port(&self) -> GpiotePort<'_> {
         GpiotePort {
             gpiote: &self.gpiote,
         }
