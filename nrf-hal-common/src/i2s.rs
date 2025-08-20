@@ -365,6 +365,11 @@ impl I2S {
     }
 
     /// Sets the receive buffer RAM start address.
+    ///
+    /// # Safety
+    ///
+    /// `addr` must be the address of writeable static memory of
+    /// sufficient size to hold the specified receive buffer.
     #[inline(always)]
     pub unsafe fn set_rx_ptr(&self, addr: u32) -> Result<(), Error> {
         if (addr as usize) < SRAM_LOWER || (addr as usize) > SRAM_UPPER {
@@ -375,6 +380,11 @@ impl I2S {
     }
 
     /// Sets the size (in 32bit words) of the receive and transmit buffers.
+    ///
+    /// # Safety
+    ///
+    /// `n_32bit` must be no longer than the DMA buffer pointed to
+    /// by this struct.
     #[inline(always)]
     pub unsafe fn set_buffersize(&self, n_32bit: u32) -> Result<(), Error> {
         if n_32bit > MAX_DMA_MAXCNT {

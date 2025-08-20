@@ -241,7 +241,7 @@ impl Ccm {
 
         // Shortcut, CCM won't encrypt packet with empty payloads, it will just copy the header
         if payload_len == 0 {
-            (&mut cipher_packet[..HEADER_SIZE]).copy_from_slice(&clear_packet[..HEADER_SIZE]);
+            cipher_packet[..HEADER_SIZE].copy_from_slice(&clear_packet[..HEADER_SIZE]);
             return Ok(());
         }
 
@@ -367,7 +367,7 @@ impl Ccm {
 
         // Shortcut, CCM won't decrypt packet with empty payloads, it will just copy the header
         if payload_len == 0 {
-            (&mut clear_packet[..HEADER_SIZE]).copy_from_slice(&cipher_packet[..HEADER_SIZE]);
+            clear_packet[..HEADER_SIZE].copy_from_slice(&cipher_packet[..HEADER_SIZE]);
             return Ok(());
         }
 

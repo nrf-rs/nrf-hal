@@ -121,16 +121,16 @@ impl<'a> GpioteChannel<'_> {
     /// Configures the channel as an event input with associated pin.
     pub fn input_pin<P: GpioteInputPin>(&'a self, pin: &'a P) -> GpioteChannelEvent<'a, P> {
         GpioteChannelEvent {
-            gpiote: &self.gpiote,
-            pin: pin,
+            gpiote: self.gpiote,
+            pin,
             channel: self.channel,
         }
     }
     /// Configures the channel as a task output with associated pin.
     pub fn output_pin<P: GpioteOutputPin>(&'a self, pin: P) -> GpioteTask<'a, P> {
         GpioteTask {
-            gpiote: &self.gpiote,
-            pin: pin,
+            gpiote: self.gpiote,
+            pin,
             channel: self.channel,
             task_out_polarity: TaskOutPolarity::Toggle,
         }
@@ -220,7 +220,7 @@ pub struct GpioteChannelEvent<'a, P: GpioteInputPin> {
     channel: usize,
 }
 
-impl<'a, P: GpioteInputPin> GpioteChannelEvent<'_, P> {
+impl<P: GpioteInputPin> GpioteChannelEvent<'_, P> {
     /// Generates event on falling edge.
     pub fn hi_to_lo(&self) -> &Self {
         config_channel_event_pin(self.gpiote, self.channel, self.pin, EventPolarity::HiToLo);
@@ -284,7 +284,7 @@ pub struct GpiotePortEvent<'a, P: GpioteInputPin> {
     pin: &'a P,
 }
 
-impl<'a, P: GpioteInputPin> GpiotePortEvent<'_, P> {
+impl<P: GpioteInputPin> GpiotePortEvent<'_, P> {
     /// Generates event on pin low.
     pub fn low(&self) {
         config_port_event_pin(self.pin, PortEventSense::Low);
@@ -325,7 +325,7 @@ pub struct GpioteTask<'a, P: GpioteOutputPin> {
     task_out_polarity: TaskOutPolarity,
 }
 
-impl<'a, P: GpioteOutputPin> GpioteTask<'_, P> {
+impl<P: GpioteOutputPin> GpioteTask<'_, P> {
     /// Sets initial task output pin state to high.
     pub fn init_high(&self) {
         config_channel_task_pin(

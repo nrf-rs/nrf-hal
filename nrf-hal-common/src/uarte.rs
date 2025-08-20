@@ -174,7 +174,7 @@ where
     /// The buffer must have a length of at most 255 bytes on the nRF52832
     /// and at most 65535 bytes on the nRF52840.
     pub fn write(&mut self, tx_buffer: &[u8]) -> Result<(), Error> {
-        if tx_buffer.len() == 0 {
+        if tx_buffer.is_empty() {
             return Err(Error::TxBufferTooSmall);
         }
 
@@ -185,7 +185,7 @@ where
         // We can only DMA out of RAM.
         slice_in_ram_or(tx_buffer, Error::BufferNotInRAM)?;
 
-        start_write(&*self.0, tx_buffer);
+        start_write(&self.0, tx_buffer);
 
         // Wait for transmission to end.
         while self.0.events_endtx.read().bits() == 0 {
@@ -200,7 +200,7 @@ where
         // Reset the event
         self.0.events_txstopped.reset();
 
-        stop_write(&*self.0);
+        stop_write(&self.0);
         Ok(())
     }
 
@@ -211,12 +211,12 @@ where
     ///
     /// The buffer must have a length of at most 255 bytes.
     pub fn read(&mut self, rx_buffer: &mut [u8]) -> Result<(), Error> {
-        start_read(&*self.0, rx_buffer)?;
+        start_read(&self.0, rx_buffer)?;
 
         // Wait for transmission to end.
         while self.0.events_endrx.read().bits() == 0 {}
 
-        finalize_read(&*self.0);
+        finalize_read(&self.0);
 
         if self.0.rxd.amount.read().bits() != rx_buffer.len() as u32 {
             return Err(Error::Receive);
@@ -280,7 +280,7 @@ where
             return Err(Error::Timeout(bytes_read));
         }
 
-        if bytes_read != rx_buffer.len() as usize {
+        if bytes_read != rx_buffer.len() {
             return Err(Error::Receive);
         }
 
@@ -380,7 +380,7 @@ fn stop_write(uarte: &uarte0::RegisterBlock) {
 /// Start a UARTE read transaction by setting the control
 /// values and triggering a read task.
 fn start_read(uarte: &uarte0::RegisterBlock, rx_buffer: &mut [u8]) -> Result<(), Error> {
-    if rx_buffer.len() == 0 {
+    if rx_buffer.is_empty() {
         return Err(Error::RxBufferTooSmall);
     }
 
@@ -559,7 +559,7 @@ mod _uarte3 {
     }
 }
 
-#[cfg(any(feature = "5340-app"))]
+#[cfg(feature = "5340-app")]
 mod _uarte0_s {
     use super::*;
     use crate::pac::UARTE0_S;
@@ -595,7 +595,7 @@ where
     T: Instance,
 {
     fn new(tx_buf: &'static mut [u8]) -> Result<UarteTx<T>, Error> {
-        if tx_buf.len() == 0 {
+        if tx_buf.is_empty() {
             return Err(Error::TxBufferTooSmall);
         }
 
@@ -661,7 +661,7 @@ where
     T: Instance,
 {
     fn new(rx_buf: &'static mut [u8]) -> Result<UarteRx<T>, Error> {
-        if rx_buf.len() == 0 {
+        if rx_buf.is_empty() {
             return Err(Error::RxBufferTooSmall);
         }
 
@@ -754,9 +754,8 @@ impl<T: Instance> embedded_io::Write for UarteTx<T> {
         self.written += length_to_copy;
 
         // If the internal buffer is now full, flush but don't block.
-        match self.flush_nonblocking() {
-            Err(nb::Error::Other(e)) => return Err(e),
-            _ => {}
+        if let Err(nb::Error::Other(e)) = self.flush_nonblocking() {
+            return Err(e);
         }
 
         Ok(length_to_copy)
@@ -845,7 +844,7 @@ impl<T: Instance> embedded_io::Read for UarteRx<T> {
 
         // If no read transaction is started yet, start one and wait for it to start.
         if uarte.events_rxstarted.read().bits() == 0 {
-            start_read(&uarte, self.rx_buf)?;
+            start_read(uarte, self.rx_buf)?;
         }
 
         // Wait for the transaction to finish.

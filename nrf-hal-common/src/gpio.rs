@@ -41,7 +41,7 @@ pub enum Port {
     /// Port 0, available on all nRF52 and nRF51 MCUs.
     Port0,
     /// Port 0 Secure, available on nRF53
-    #[cfg(any(feature = "5340-app"))]
+    #[cfg(feature = "5340-app")]
     Port0Secure,
     /// Port 1, only available on some nRF52 MCUs and nRF5340.
     #[cfg(any(feature = "52833", feature = "52840", feature = "5340-net"))]
@@ -91,7 +91,7 @@ impl<MODE> Pin<MODE> {
     fn new(port: Port, pin: u8) -> Self {
         let port_bits = match port {
             Port::Port0 => 0x00,
-            #[cfg(any(feature = "5340-app"))]
+            #[cfg(feature = "5340-app")]
             Port::Port0Secure => 0x20,
             #[cfg(any(feature = "52833", feature = "52840", feature = "5340-net"))]
             Port::Port1 => 0x20,
@@ -102,6 +102,11 @@ impl<MODE> Pin<MODE> {
         }
     }
 
+    /// Construct a GPIO directly from port selection bits.
+    ///
+    /// # Safety
+    ///
+    /// Must be called with valid `psel_bits`.
     pub unsafe fn from_psel_bits(psel_bits: u32) -> Self {
         Self {
             pin_port: psel_bits as u8,
@@ -143,7 +148,7 @@ impl<MODE> Pin<MODE> {
             }
         }
 
-        #[cfg(any(feature = "5340-app"))]
+        #[cfg(feature = "5340-app")]
         {
             if self.pin_port & 0x20 == 0 {
                 Port::Port0

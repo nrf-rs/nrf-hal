@@ -541,6 +541,7 @@ where
     /// Loads the given sequence buffers and optionally (re-)starts sequence playback.
     /// Returns a `PemSeq`, containing `Pwm<T>` and the buffers.
     #[allow(unused_mut)]
+    #[allow(clippy::type_complexity)]
     pub fn load<B0, B1>(
         mut self,
         seq0_buffer: Option<B0>,
