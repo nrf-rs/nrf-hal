@@ -13,5 +13,5 @@ embedded-hal = "1.0.0"
 systick-monotonic = "1.0.0"
 rtt-target = "0.6.0"
 nrf52840-hal = { features = ["rt"], path = "../../nrf52840-hal" }
-heapless = "0.8.0"
+heapless = "0.9.1"
 small_morse = "0.1.0"
