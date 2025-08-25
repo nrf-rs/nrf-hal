@@ -15,7 +15,7 @@ protocol = "Swd"
 enabled = true
 # Whether or not the target should be halted after reset.
 # DEPRECATED, moved to reset section
-halt_afterwards = false
+#halt_afterwards = false
 # Whether or not bytes erased but not rewritten with data from the ELF
 # should be restored with their contents before erasing.
 restore_unwritten_bytes = false
@@ -43,13 +43,14 @@ log_level = "WARN"
 # This is exclusive and cannot be used with GDB at the moment.
 enabled = true
 # A list of channel associations to be displayed. If left empty, all channels are displayed.
-channels = [
-    # { up = 0, down = 0, name = "name", format = "String" }
+up_channels = [
+    # { name = "name", format = "String" }
+]
+down_channels = [
+    # { name = "name", format = "String" }
 ]
 # The duration in ms for which the logger should retry to attach to RTT.
 timeout = 3000
-# Whether timestamps in the RTTUI are enabled
-show_timestamps = true
 # Whether to save rtt history buffer on exit.
 log_enabled = false
 # Where to save rtt history buffer relative to manifest path.

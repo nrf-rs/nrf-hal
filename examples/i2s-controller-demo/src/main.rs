@@ -41,8 +41,8 @@ mod app {
     struct Local {
         signal_buf: &'static [i16; 32],
         mute_buf: &'static [i16; 32],
-        producer: Producer<'static, State, 257>,
-        consumer: Consumer<'static, State, 257>,
+        producer: Producer<'static, State>,
+        consumer: Consumer<'static, State>,
         uarte: Uarte<UARTE0>,
         uarte_timer: Timer<TIMER0>,
         gpiote: Gpiote,
