@@ -12,7 +12,7 @@ jobs:
     continue-on-error: ${{ matrix.rust_version == 'nightly' }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install Rust stable
       uses: actions-rs/toolchain@v1
       with:
@@ -48,7 +48,7 @@ jobs:
     name: Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Copy Cargo.toml
         run: cp Cargo.ci.toml Cargo.toml
       - name: Format Rust code
