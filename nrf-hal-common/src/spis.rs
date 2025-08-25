@@ -356,6 +356,7 @@ where
     /// The buffers must be located in RAM.
     /// Returns a value that represents the in-progress DMA transfer.
     #[allow(unused_mut)]
+    #[allow(clippy::type_complexity)]
     pub fn transfer_split<TxW, RxW, TxB, RxB>(
         mut self,
         tx_buffer: TxB,

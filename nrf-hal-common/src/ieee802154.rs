@@ -458,6 +458,7 @@ impl<'c> Radio<'c> {
     /// ensure the `packet` buffer is allocated in RAM, which is required by the RADIO peripheral
     // NOTE we do NOT check the address of `packet` because the mutable reference ensures it's
     // allocated in RAM
+    #[allow(clippy::result_unit_err)]
     pub fn try_send(&mut self, packet: &mut Packet) -> Result<(), ()> {
         // enable radio to perform cca
         self.put_in_rx_mode();
@@ -779,6 +780,12 @@ pub struct Packet {
 }
 
 // See figure 124 in nRF52840-PS
+impl Default for Packet {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Packet {
     // for indexing purposes
     const PHY_HDR: usize = 0;
@@ -812,6 +819,7 @@ impl Packet {
     }
 
     /// Returns the size of this packet's payload
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> u8 {
         self.buffer[Self::PHY_HDR] - Self::CRC
     }

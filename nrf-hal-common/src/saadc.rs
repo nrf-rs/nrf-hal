@@ -106,6 +106,7 @@ impl Saadc {
 
     /// Sample channel `PIN` for the configured ADC acquisition time in differential input mode.
     /// Note that this is a blocking operation.
+    #[allow(clippy::result_unit_err)]
     pub fn read_channel<PIN: Channel>(&mut self, _pin: &mut PIN) -> Result<i16, ()> {
         match PIN::channel() {
             0 => self.0.ch[0].pselp.write(|w| w.pselp().analog_input0()),

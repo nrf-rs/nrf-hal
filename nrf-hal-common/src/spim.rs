@@ -388,7 +388,7 @@ where
             // the iterators.
             let txi = tx_buffer
                 .chunks(EASY_DMA_SIZE)
-                .map(|chunk| DmaSlice::from_slice(chunk))
+                .map(DmaSlice::from_slice)
                 .chain(repeat_with(DmaSlice::null));
             let rxi = rx_buffer
                 .chunks_mut(EASY_DMA_SIZE)

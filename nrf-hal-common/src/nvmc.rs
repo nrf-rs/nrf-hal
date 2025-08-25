@@ -16,8 +16,7 @@ use embedded_storage::nor_flash::{
     ErrorType, NorFlash, NorFlashError, NorFlashErrorKind, ReadNorFlash,
 };
 
-type WORD = u32;
-const WORD_SIZE: usize = core::mem::size_of::<WORD>();
+const WORD_SIZE: usize = core::mem::size_of::<u32>();
 const PAGE_SIZE: usize = 4 * 1024;
 
 /// Interface to an NVMC instance.
@@ -162,7 +161,7 @@ where
 
     fn write(&mut self, offset: u32, bytes: &[u8]) -> Result<(), Self::Error> {
         let offset = offset as usize;
-        if bytes.len() > self.capacity() || offset as usize > self.capacity() - bytes.len() {
+        if bytes.len() > self.capacity() || offset > self.capacity() - bytes.len() {
             return Err(NvmcError::OutOfBounds);
         }
         if offset % WORD_SIZE != 0 || bytes.len() % WORD_SIZE != 0 {

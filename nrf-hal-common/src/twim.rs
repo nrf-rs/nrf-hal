@@ -105,7 +105,7 @@ where
     unsafe fn set_tx_buffer(&mut self, buffer: &[u8]) -> Result<(), Error> {
         slice_in_ram_or(buffer, Error::DMABufferNotInDataMemory)?;
 
-        if buffer.len() == 0 {
+        if buffer.is_empty() {
             return Err(Error::TxBufferZeroLength);
         }
         if buffer.len() > EASY_DMA_SIZE {
@@ -137,7 +137,7 @@ where
         // NOTE: RAM slice check is not necessary, as a mutable
         // slice can only be built from data located in RAM.
 
-        if buffer.len() == 0 {
+        if buffer.is_empty() {
             return Err(Error::RxBufferZeroLength);
         }
         if buffer.len() > EASY_DMA_SIZE {
@@ -553,11 +553,8 @@ impl<T: Instance> I2c for Twim<T> {
 
                         // Send the buffer in chunks immediately.
                         let num_chunks = buffer.len().div_ceil(FORCE_COPY_BUFFER_SIZE);
-                        for (chunk_index, chunk) in buffer
-                            .chunks(FORCE_COPY_BUFFER_SIZE)
-                            .into_iter()
-                            .enumerate()
-                        {
+                        let chunks = buffer.chunks(FORCE_COPY_BUFFER_SIZE).enumerate();
+                        for (chunk_index, chunk) in chunks {
                             tx_copy[..chunk.len()].copy_from_slice(chunk);
                             self.write_part(
                                 &tx_copy[..chunk.len()],
@@ -568,7 +565,7 @@ impl<T: Instance> I2c for Twim<T> {
                         // Copy the current buffer to `tx_copy`. It must fit, as otherwise we
                         // would have hit one of the cases above.
                         tx_copy[pending_tx_bytes..pending_tx_bytes + buffer.len()]
-                            .copy_from_slice(&buffer);
+                            .copy_from_slice(buffer);
                         pending_tx_bytes += buffer.len();
 
                         // If the next operation is not a write (or there is no next operation),
