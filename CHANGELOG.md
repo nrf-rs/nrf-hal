@@ -11,6 +11,11 @@
 - Updated `embedded-io` to 0.7.1
 - Added `core::fmt::Error` implementation to `uarte::Error`.
 
+### New features
+
+- Optional `defmt` feature for all HALs
+- Basic derives for and defmt support for `ieee802154` module
+
 ## [0.18.0]
 
 ### Breaking changes

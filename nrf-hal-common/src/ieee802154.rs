@@ -81,6 +81,8 @@ pub const DEFAULT_SFD: u8 = 0xA7;
 
 // TODO expose the other variants in `pac::CCAMODE_A`
 /// Clear Channel Assessment method
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Cca {
     /// Carrier sense
     CarrierSense,
@@ -98,6 +100,8 @@ pub enum Cca {
 /// IEEE 802.15.4 channels
 ///
 /// NOTE these are NOT the same as WiFi 2.4 GHz channels
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Channel {
     /// 2_405 MHz
     _11 = 5,
@@ -135,7 +139,8 @@ pub enum Channel {
 
 /// Transmission power in dBm (decibel milliwatt)
 // TXPOWERA enum minus the deprecated Neg30dBm variant and with better docs
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum TxPower {
     /// +8 dBm
     Pos8dBm,
@@ -732,6 +737,7 @@ impl<'c> Radio<'c> {
 
 /// Error
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Error {
     /// Incorrect CRC
     Crc(u16),
@@ -744,6 +750,7 @@ pub enum Error {
 /// After, or at the start of, any method call the RADIO will be in one of these states
 // This is a subset of the STATE_A enum
 #[derive(Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum State {
     Disabled,
     RxIdle,
@@ -751,15 +758,19 @@ enum State {
 }
 
 /// NOTE must be followed by a volatile write operation
+#[inline]
 fn dma_start_fence() {
     atomic::compiler_fence(Ordering::Release);
 }
 
 /// NOTE must be preceded by a volatile read operation
+#[inline]
 fn dma_end_fence() {
     atomic::compiler_fence(Ordering::Acquire);
 }
 
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum Event {
     PhyEnd,
 }

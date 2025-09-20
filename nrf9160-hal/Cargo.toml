@@ -25,6 +25,7 @@ version = "=0.19.0"
 
 [features]
 doc = []
+defmt = ["nrf-hal-common/defmt"]
 embedded-hal-02 = ["nrf-hal-common/embedded-hal-02"]
 rt = ["nrf9160-pac/rt"]
 rtic-monotonic = ["nrf-hal-common/rtic-monotonic"]
