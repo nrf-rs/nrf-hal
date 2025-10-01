@@ -492,6 +492,24 @@ pub enum Error {
     BufferNotInRAM,
 }
 
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Error::*;
+        match self {
+            TxBufferTooSmall => writeln!(f, "tx buffer too small"),
+            RxBufferTooSmall => writeln!(f, "rx buffer too small"),
+            TxBufferTooLong => writeln!(f, "tx buffer too long"),
+            RxBufferTooLong => writeln!(f, "rx buffer too long"),
+            Transmit => writeln!(f, "transmit error"),
+            Receive => writeln!(f, "receive error"),
+            Timeout(t) => writeln!(f, "timeout ({})", t),
+            BufferNotInRAM => writeln!(f, "buffer not in ram"),
+        }
+    }
+}
+
+impl core::error::Error for Error {}
+
 impl embedded_io::Error for Error {
     fn kind(&self) -> ErrorKind {
         match self {
