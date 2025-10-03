@@ -1,6 +1,6 @@
 [package]
 name = "nrf9160-hal"
-version = "0.18.0"
+version = "0.19.0"
 description = "HAL for nRF9160 system-in-package"
 readme = "README.md"
 
@@ -21,7 +21,7 @@ nrf9160-pac = "0.12.2"
 path = "../nrf-hal-common"
 default-features = false
 features = ["9160"]
-version = "=0.18.0"
+version = "=0.19.0"
 
 [features]
 doc = []
