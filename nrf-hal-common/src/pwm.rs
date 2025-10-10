@@ -62,7 +62,7 @@ where
         self
     }
 
-    /// Sets the PWM clock prescaler.
+    /// Returns the PWM clock prescaler.
     #[inline(always)]
     pub fn prescaler(&self) -> Prescaler {
         match self.pwm.prescaler.read().prescaler().bits() {
