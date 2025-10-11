@@ -26,6 +26,7 @@ version = "=0.19.0"
 
 [features]
 doc = []
+defmt = ["nrf-hal-common/defmt"]
 embedded-hal-02 = ["nrf-hal-common/embedded-hal-02"]
 rt = ["nrf52832-pac/rt"]
 xxAA-package = []
