@@ -78,7 +78,8 @@ where
         }
     }
 
-    /// Sets the maximum duty cycle value.
+    /// Sets the maximum duty cycle value. Values above `32767`
+    /// will be reduced to `32767`.
     #[inline(always)]
     pub fn set_max_duty(&self, duty: u16) -> &Self {
         self.pwm
@@ -92,7 +93,16 @@ where
         self.pwm.countertop.read().countertop().bits()
     }
 
-    /// Sets the PWM output frequency.
+    /// Sets the PWM output period from the given input
+    /// frequency. (This calculates the period by dividing
+    /// the current PWM clock rate by `freq`.)
+    ///
+    /// This calculation takes the current [Prescaler]
+    /// setting into account.
+    ///
+    /// Subsequent use of `set_duty_on_common()`,
+    /// `set_duty_on_group()`, *etc* will override this
+    /// period setting.
     #[inline(always)]
     pub fn set_period(&self, freq: Hertz) -> &Self {
         let duty = match self.prescaler() {
@@ -112,7 +122,11 @@ where
         self
     }
 
-    /// Returns the PWM output frequency.
+    /// Returns the PWM output frequency (in spite of the name).
+    ///
+    /// The frequency calculation divides the current PWM
+    /// clock by the PWM period in ticks. The PWM period
+    /// takes the current [Prescaler] setting into account.
     #[inline(always)]
     pub fn period(&self) -> Hertz {
         let max_duty = self.max_duty() as u32;
@@ -174,6 +188,9 @@ where
         let psel = &self.pwm.psel.out[usize::from(channel)];
         let old = psel.read();
         let old = if old.connect().is_connected() {
+            // Safety: We owned the pin previously, and
+            // are about to give up that ownership. Thus
+            // the newly-constructed pin must be unique.
             unsafe { Some(Pin::from_psel_bits(old.bits())) }
         } else {
             None
@@ -240,10 +257,14 @@ where
         self
     }
 
-    /// Cofigures how a sequence is read from RAM and is spread to the compare register.
+    /// Configures how a sequence is read from RAM and is
+    /// spread to the compare register. Disables
+    /// [Channel::C3] for [LoadMode::Waveform], and enables
+    /// it otherwise.
     #[inline(always)]
     pub fn set_load_mode(&self, mode: LoadMode) -> &Self {
         self.pwm.decoder.modify(|_r, w| w.load().bits(mode.into()));
+        // Why?
         if mode == LoadMode::Waveform {
             self.disable_channel(Channel::C3);
         } else {
@@ -252,7 +273,8 @@ where
         self
     }
 
-    /// Returns how a sequence is read from RAM and is spread to the compare register.
+    /// Returns how a sequence is read from RAM and is
+    /// spread to the compare register.
     #[inline(always)]
     pub fn load_mode(&self) -> LoadMode {
         match self.pwm.decoder.read().load().bits() {
@@ -264,14 +286,14 @@ where
         }
     }
 
-    /// Selects operating mode of the wave counter.
+    /// Selects operating counter mode of the wave counter.
     #[inline(always)]
     pub fn set_counter_mode(&self, mode: CounterMode) -> &Self {
         self.pwm.mode.write(|w| w.updown().bit(mode.into()));
         self
     }
 
-    /// Returns selected operating mode of the wave counter.
+    /// Returns selected operating counter mode of the wave counter.
     #[inline(always)]
     pub fn counter_mode(&self) -> CounterMode {
         match self.pwm.mode.read().updown().bit() {
@@ -320,6 +342,10 @@ where
 
     /// Sets duty cycle (15 bit) for all PWM channels.
     /// Will replace any ongoing sequence playback.
+    ///
+    /// Subsequent use of `set_period()`,
+    /// `set_duty_on_group()`, *etc* will override this duty
+    /// cycle setting.
     pub fn set_duty_on_common(&self, duty: u16) {
         let buffer = T::buffer();
         unsafe {
@@ -337,6 +363,10 @@ where
 
     /// Sets inverted duty cycle (15 bit) for all PWM channels.
     /// Will replace any ongoing sequence playback.
+    ///
+    /// Subsequent use of `set_period()`,
+    /// `set_duty_on_common()`, *etc* will override this duty
+    /// cycle setting.
     pub fn set_duty_off_common(&self, duty: u16) {
         let buffer = T::buffer();
         unsafe {
@@ -352,7 +382,8 @@ where
         self.start_seq(Seq::Seq0);
     }
 
-    /// Returns the common duty cycle value for all PWM channels in `Common` load mode.
+    /// Returns the common duty cycle value for all PWM
+    /// channels in `Common` load mode.
     #[inline(always)]
     pub fn duty_on_common(&self) -> u16 {
         self.duty_on_value(0)
@@ -366,6 +397,10 @@ where
 
     /// Sets duty cycle (15 bit) for a PWM group.
     /// Will replace any ongoing sequence playback.
+    ///
+    /// Subsequent use of `set_period()`,
+    /// `set_duty_on_common()`, *etc* will override this duty
+    /// cycle setting.
     pub fn set_duty_on_group(&self, group: Group, duty: u16) {
         let buffer = T::buffer();
         unsafe {
@@ -383,6 +418,10 @@ where
 
     /// Sets inverted duty cycle (15 bit) for a PWM group.
     /// Will replace any ongoing sequence playback.
+    ///
+    /// Subsequent use of `set_period()`,
+    /// `set_duty_on_group()`, *etc* will override this duty
+    /// cycle setting.
     pub fn set_duty_off_group(&self, group: Group, duty: u16) {
         let buffer = T::buffer();
         unsafe {
@@ -411,7 +450,14 @@ where
     }
 
     /// Sets duty cycle (15 bit) for a PWM channel.
-    /// Will replace any ongoing sequence playback and the other channels will return to their previously set value.
+    ///
+    /// Will replace any ongoing sequence playback and the
+    /// other channels will return to their previously set
+    /// value.
+    ///
+    /// Subsequent use of `set_period()`,
+    /// `set_duty_on_group()`, *etc* will override this duty
+    /// cycle setting.
     pub fn set_duty_on(&self, channel: Channel, duty: u16) {
         let buffer = T::buffer();
         unsafe {
@@ -428,7 +474,14 @@ where
     }
 
     /// Sets inverted duty cycle (15 bit) for a PWM channel.
-    /// Will replace any ongoing sequence playback and the other channels will return to their previously set value.
+    ///
+    /// Will replace any ongoing sequence playback and the
+    /// other channels will return to their previously set
+    /// value.
+    ///
+    /// Subsequent use of `set_period()`,
+    /// `set_duty_on_group()`, *etc* will override this duty
+    /// cycle setting.
     pub fn set_duty_off(&self, channel: Channel, duty: u16) {
         let buffer = T::buffer();
         unsafe {
@@ -491,7 +544,8 @@ where
         self
     }
 
-    /// Sets number of additional PWM periods between samples loaded into compare register.
+    /// Sets number of additional PWM periods between
+    /// samples loaded into compare register.
     #[inline(always)]
     pub fn set_seq_refresh(&self, seq: Seq, periods: u32) -> &Self {
         match seq {
@@ -511,7 +565,9 @@ where
         self
     }
 
-    /// Loads the first PWM value on all enabled channels from a sequence and starts playing that sequence.
+    /// Loads the first PWM value on all enabled channels
+    /// from a sequence and starts playing that sequence.
+    ///
     /// Causes PWM generation to start if not running.
     #[inline(always)]
     pub fn start_seq(&self, seq: Seq) {
@@ -523,14 +579,19 @@ where
         self.pwm.events_seqend[1].write(|w| w);
     }
 
-    /// Steps by one value in the current sequence on all enabled channels, if the `NextStep` step mode is selected.
+    /// Steps by one value in the current sequence on all
+    /// enabled channels, if the `NextStep` step mode is
+    /// selected.
+    ///
     /// Does not cause PWM generation to start if not running.
     #[inline(always)]
     pub fn next_step(&self) {
         self.pwm.tasks_nextstep.write(|w| unsafe { w.bits(1) });
     }
 
-    /// Stops PWM pulse generation on all channels at the end of current PWM period, and stops sequence playback.
+    /// Stops PWM pulse generation on all channels at the
+    /// end of current PWM period, and stops sequence
+    /// playback.
     #[inline(always)]
     pub fn stop(&self) {
         compiler_fence(Ordering::SeqCst);
@@ -538,8 +599,12 @@ where
         while self.pwm.events_stopped.read().bits() == 0 {}
     }
 
-    /// Loads the given sequence buffers and optionally (re-)starts sequence playback.
-    /// Returns a `PemSeq`, containing `Pwm<T>` and the buffers.
+    /// Loads the given sequence buffers and optionally
+    /// (re-)starts sequence playback.
+    ///
+    /// On success, returns a `PwmSeq` containing `Pwm<T>`
+    /// and the buffers. This can be used for later buffer
+    /// loading and PWM control.
     #[allow(unused_mut)]
     #[allow(clippy::type_complexity)]
     pub fn load<B0, B1>(
@@ -764,6 +829,8 @@ where
     }
 
     /// Consumes `self` and returns back the raw peripheral.
+    /// (This functionality is often named `into_inner()` in
+    /// other Rust code.)
     pub fn free(self) -> (T, Pins) {
         let ch0 = self.pwm.psel.out[0].read();
         let ch1 = self.pwm.psel.out[1].read();
