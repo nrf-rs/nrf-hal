@@ -39,6 +39,8 @@ Every nRF chip has its own crate, listed below:
 
 \* These devices do not have a separate development kit and share the [NRF52 DK](https://www.nordicsemi.com/Software-and-tools/Development-Kits/nRF52-DK)
 
+There are currently no crates here for `nRF54` parts. Pull requests are welcome. In the meantime, we recommend the `embassy-nrf` crate for this purpose. In spite of its name `embassy-nrf` also supplies a normal `embedded-hal` style interface.
+
 ## Development
 
 Be sure to copy and edit the `Cargo.example.toml` file to `Cargo.toml`. The file will require editing dependent on the target you wish to work with and contains some further
