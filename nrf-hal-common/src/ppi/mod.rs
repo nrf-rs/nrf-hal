@@ -1,13 +1,12 @@
 //! HAL interface for the PPI peripheral.
 //!
-//! The Programmable Peripheral Interconnect interface allows for an autonomous interoperability
-//! between peripherals through their events and tasks. There are fixed PPI channels and fully
-//! configurable ones, fixed channels can only connect specific events to specific tasks. For fully
-//! configurable channels, it is possible to choose, via software, the event and the task that it
-//! will triggered by the event.
+//! The Programmable Peripheral Interconnect interface allows autonomous interaction between
+//! peripherals through their events and tasks. There are fixed PPI channels and fully configurable
+//! ones. Fixed channels can only connect specific events to specific tasks. Fully configurable
+//! channels allow software to choose which event will trigger which task.
 //!
-//! On nRF52 devices, there is also a fork task endpoint, where the user can configure one more task
-//! to be triggered by the same event, even fixed PPI channels have a configurable fork task.
+//! On nRF52 devices, there is also a fork task endpoint, allowing one additional task to be
+//! triggered by the same event. Even fixed PPI channels provide a configurable fork task.
 
 use crate::pac::ppi::tasks_chg::{DIS, EN};
 use crate::pac::PPI;
