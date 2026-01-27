@@ -20,6 +20,21 @@ impl Rng {
         Self(rng)
     }
 
+    /// By default, the RNG peripheral uses a "debiasing
+    /// algorithm" (undocumented, but probably a Von Neumann
+    /// Corrector) to improve output quality. You can
+    /// `set_debiasing(false)` to disable the debiasing,
+    /// which will make the RNG peripheral deliver bits
+    /// faster, but will likely substantially reduce the
+    /// quality of these bits.
+    pub fn set_debiasing(&mut self, enabled: bool) {
+        if enabled {
+            self.0.config.write(|w| w.dercen().enabled());
+        } else {
+            self.0.config.write(|w| w.dercen().disabled());
+        }
+    }
+
     /// Fill the provided buffer with random bytes.
     ///
     /// Will block until the buffer is full.
