@@ -26,7 +26,7 @@ use {
         rng::Rng,
         Ccm, Clocks,
     },
-    rand_core::RngCore,
+    rand_core::Rng as _,
     rtt_target::{rprintln, rtt_init_print},
 };
 
