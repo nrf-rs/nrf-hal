@@ -2,7 +2,8 @@
 //!
 //! See nRF52832 product specification, chapter 26.
 
-use rand_core::{CryptoRng, RngCore};
+use core::convert::Infallible;
+use rand_core::{TryCryptoRng, TryRng};
 
 #[cfg(not(feature = "5340-net"))]
 use crate::pac::RNG;
@@ -88,18 +89,21 @@ impl Rng {
     }
 }
 
-impl RngCore for Rng {
-    fn next_u32(&mut self) -> u32 {
-        self.random_u32()
+impl TryRng for Rng {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        Ok(self.random_u32())
     }
 
-    fn next_u64(&mut self) -> u64 {
-        self.random_u64()
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        Ok(self.random_u64())
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        self.random(dest)
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
+        self.random(dest);
+        Ok(())
     }
 }
 
-impl CryptoRng for Rng {}
+impl TryCryptoRng for Rng {}
