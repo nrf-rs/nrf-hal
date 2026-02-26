@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-(no changes)
+### Breaking changes
+
+- Made input pin modes for `qdec` generic
 
 ## [0.19.0]
 

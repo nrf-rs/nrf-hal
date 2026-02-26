@@ -4,18 +4,20 @@
 //! It is suitable for mechanical and optical sensors.
 
 use {
-    crate::gpio::{Input, Pin, PullUp},
+    crate::gpio::{Input, Pin, PushPull},
     crate::pac::QDEC,
+    core::marker::PhantomData,
 };
 
 /// A safe wrapper around the `QDEC` peripheral with associated pins.
-pub struct Qdec {
+pub struct Qdec<I> {
     qdec: QDEC,
+    _i: PhantomData<I>,
 }
 
-impl Qdec {
+impl<I> Qdec<I> {
     /// Takes ownership of the `QDEC` peripheral and associated pins, returning a safe wrapper.
-    pub fn new(qdec: QDEC, pins: Pins, sample_period: SamplePeriod) -> Self {
+    pub fn new(qdec: QDEC, pins: Pins<I>, sample_period: SamplePeriod) -> Self {
         qdec.psel.a.write(|w| {
             unsafe { w.bits(pins.a.psel_bits()) };
             w.connect().connected()
@@ -46,7 +48,10 @@ impl Qdec {
             SamplePeriod::_131ms => qdec.sampleper.write(|w| w.sampleper()._131ms()),
         }
 
-        Self { qdec }
+        Self {
+            qdec,
+            _i: PhantomData,
+        }
     }
 
     /// Enables/disables input debounce filters.
@@ -133,7 +138,7 @@ impl Qdec {
 
     /// Consumes `self` and returns back the raw `QDEC` peripheral.
     #[inline]
-    pub fn free(self) -> (QDEC, Pins) {
+    pub fn free(self) -> (QDEC, Pins<I>) {
         let a = unsafe { Pin::from_psel_bits(self.qdec.psel.a.read().bits()) };
         let b = unsafe { Pin::from_psel_bits(self.qdec.psel.b.read().bits()) };
         let led = {
@@ -153,10 +158,10 @@ impl Qdec {
 }
 
 /// Pins for the QDEC
-pub struct Pins {
-    pub a: Pin<Input<PullUp>>,
-    pub b: Pin<Input<PullUp>>,
-    pub led: Option<Pin<Input<PullUp>>>,
+pub struct Pins<I> {
+    pub a: Pin<Input<I>>,
+    pub b: Pin<Input<I>>,
+    pub led: Option<Pin<Input<PushPull>>>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
