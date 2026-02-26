@@ -4,18 +4,25 @@
 //! It is suitable for mechanical and optical sensors.
 
 use {
-    crate::gpio::{Input, Pin, PullUp},
+    crate::gpio::{Input, Pin},
     crate::pac::QDEC,
+    core::marker::PhantomData,
 };
 
-/// A safe wrapper around the `QDEC` peripheral with associated pins.
-pub struct Qdec {
+/// A safe wrapper around the `QDEC` peripheral with
+/// associated pins.  The `MODE` here reflects the pin mode
+/// of all of the pins when *not* in use by the `QDEC`: that
+/// is, at `new()`-time and `free()`-time.
+pub struct Qdec<MODE> {
     qdec: QDEC,
+    _i: PhantomData<MODE>,
 }
 
-impl Qdec {
-    /// Takes ownership of the `QDEC` peripheral and associated pins, returning a safe wrapper.
-    pub fn new(qdec: QDEC, pins: Pins, sample_period: SamplePeriod) -> Self {
+impl<MODE> Qdec<MODE> {
+    /// Takes ownership of the `QDEC` peripheral and
+    /// associated pins, returning a safe wrapper.
+    /// All pins must be in the given input `MODE`.
+    pub fn new(qdec: QDEC, pins: Pins<MODE>, sample_period: SamplePeriod) -> Self {
         qdec.psel.a.write(|w| {
             unsafe { w.bits(pins.a.psel_bits()) };
             w.connect().connected()
@@ -46,7 +53,10 @@ impl Qdec {
             SamplePeriod::_131ms => qdec.sampleper.write(|w| w.sampleper()._131ms()),
         }
 
-        Self { qdec }
+        Self {
+            qdec,
+            _i: PhantomData,
+        }
     }
 
     /// Enables/disables input debounce filters.
@@ -131,9 +141,12 @@ impl Qdec {
         self.qdec.accread.read().bits() as i16
     }
 
-    /// Consumes `self` and returns back the raw `QDEC` peripheral.
+    /// Consumes `self` and returns back the raw `QDEC`
+    /// peripheral and its pins. The pins are returned in
+    /// the input `MODE` they were in at the time of
+    /// `QDec::new()`.
     #[inline]
-    pub fn free(self) -> (QDEC, Pins) {
+    pub fn free(self) -> (QDEC, Pins<MODE>) {
         let a = unsafe { Pin::from_psel_bits(self.qdec.psel.a.read().bits()) };
         let b = unsafe { Pin::from_psel_bits(self.qdec.psel.b.read().bits()) };
         let led = {
@@ -152,13 +165,29 @@ impl Qdec {
     }
 }
 
-/// Pins for the QDEC
-pub struct Pins {
-    pub a: Pin<Input<PullUp>>,
-    pub b: Pin<Input<PullUp>>,
-    pub led: Option<Pin<Input<PullUp>>>,
+/// Pins for the QDEC. The `led` pin must be given to the
+/// nRF configured as an input, but starting the QDEC will
+/// transform it into an output. The generic input `MODE`
+/// should be either `PullUp`, `PullDown` or `Floating`
+/// depending on circuit requirements.
+///
+/// **Note:** The requirement that all pins be in the same
+/// input `MODE` at startup is not strictly enforced by the
+/// hardware, which cares only whether these pins are
+/// inputs. It is instead a convenience to avoid carrying
+/// around three type parameters, two of which would almost
+/// certainly be redundant (A and B modes) and one of which
+/// is often unnecessary (LED mode).
+pub struct Pins<MODE> {
+    pub a: Pin<Input<MODE>>,
+    pub b: Pin<Input<MODE>>,
+    pub led: Option<Pin<Input<MODE>>>,
 }
 
+/// Period with which to sample the encoder. Note that
+/// periods named in "`ms`" are approximations to exact
+/// periods in µs. When debounce is enabled, the inputs will
+/// be ignored unless they stay stable for this period.
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum SamplePeriod {
     _128us,
@@ -174,6 +203,8 @@ pub enum SamplePeriod {
     _131ms,
 }
 
+/// Number of samples before a decoder interrupt is
+/// triggered.
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum NumSamples {
     _10smpl,
@@ -187,6 +218,7 @@ pub enum NumSamples {
     _1smpl,
 }
 
+/// Accomodation for high-side LED setups.
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum LedPolarity {
     ActiveHigh,
