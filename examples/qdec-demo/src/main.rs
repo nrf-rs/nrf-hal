@@ -6,7 +6,7 @@ use {core::panic::PanicInfo, nrf52840_hal as hal, rtt_target::rprintln};
 #[rtic::app(device = crate::hal::pac, peripherals = true)]
 mod app {
     use {
-        hal::qdec::*,
+        hal::{gpio::PullUp, qdec::*},
         nrf52840_hal as hal,
         rtt_target::{rprintln, rtt_init_print},
     };
@@ -16,7 +16,7 @@ mod app {
 
     #[local]
     struct Local {
-        qdec: Qdec,
+        qdec: Qdec<PullUp>,
         value: i16,
     }
 

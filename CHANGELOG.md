@@ -4,6 +4,12 @@
 
 (no changes)
 
+## [0.20.0]
+
+### Breaking changes
+
+- Made pin modes for `qdec` generic
+
 ## [0.19.0]
 
 ### Breaking changes
@@ -445,3 +451,4 @@ None
 [0.17.1]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.17.1
 [0.18.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.18.0
 [0.19.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.19.0
+[0.20.0]: https://github.com/nrf-rs/nrf-hal/releases/tag/v0.20.0
