@@ -119,6 +119,8 @@ pub mod uicr;
 #[cfg(feature = "nrf-usbd")]
 pub mod usbd;
 pub mod wdt;
+#[cfg(feature = "52840")]
+pub mod pdm;
 
 pub mod prelude {
     #[cfg(not(any(feature = "9160", feature = "5340-app", feature = "5340-net")))]
