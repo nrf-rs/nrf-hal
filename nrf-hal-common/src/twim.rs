@@ -3,6 +3,7 @@
 //! See product specification:
 //!
 //! - nRF52832: Section 33
+//! - nRF52833: Section 6.29
 //! - nRF52840: Section 6.31
 use core::ops::Deref;
 use core::sync::atomic::{compiler_fence, Ordering::SeqCst};
